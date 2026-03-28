@@ -398,7 +398,7 @@ async function seed() {
       },
       {
         blockType: 'photoStrip',
-        layout: 'masonry',
+        layout: 'horizontalScroll',
         images: [
           { image: img('carousel-3c68ddf1') },
           { image: img('carousel-c645786c') },
@@ -489,7 +489,7 @@ async function seed() {
       },
       {
         blockType: 'photoStrip',
-        layout: 'masonry',
+        layout: 'horizontalScroll',
         images: [
           { image: img('carousel-9a8d8943') },
           { image: img('carousel-0c59a44d') },
@@ -722,7 +722,7 @@ async function seed() {
       },
       {
         blockType: 'photoStrip',
-        layout: 'masonry',
+        layout: 'horizontalScroll',
         images: [
           { image: img('carousel-3c68ddf1') },
           { image: img('carousel-c645786c') },
@@ -878,7 +878,7 @@ async function seed() {
       },
       {
         blockType: 'photoStrip',
-        layout: 'masonry',
+        layout: 'horizontalScroll',
         images: [
           { image: img('carousel-79cef650') },
           { image: img('carousel-3c68ddf1') },
@@ -956,7 +956,7 @@ async function seed() {
       },
       {
         blockType: 'photoStrip',
-        layout: 'masonry',
+        layout: 'horizontalScroll',
         images: [
           { image: img('youthleaders-all') },
           { image: img('youthleaders-fun') },
@@ -1068,7 +1068,7 @@ async function seed() {
       },
       {
         blockType: 'photoStrip',
-        layout: 'masonry',
+        layout: 'horizontalScroll',
         images: [
           { image: img('carousel-3c68ddf1') },
           { image: img('carousel-89a3395d') },
@@ -1158,7 +1158,7 @@ async function seed() {
       },
       {
         blockType: 'photoStrip',
-        layout: 'masonry',
+        layout: 'horizontalScroll',
         images: [
           { image: img('carousel-c645786c') },
           { image: img('carousel-9a8d8943') },
@@ -1259,7 +1259,7 @@ async function seed() {
       },
       {
         blockType: 'photoStrip',
-        layout: 'masonry',
+        layout: 'horizontalScroll',
         images: [
           { image: img('carousel-3c68ddf1') },
           { image: img('carousel-9a8d8943') },
@@ -1380,7 +1380,7 @@ async function seed() {
       },
       {
         blockType: 'photoStrip',
-        layout: 'masonry',
+        layout: 'horizontalScroll',
         images: [
           { image: img('carousel-0c59a44d') },
           { image: img('carousel-5940ca71') },
@@ -1660,7 +1660,7 @@ async function seed() {
       },
       {
         blockType: 'photoStrip',
-        layout: 'masonry',
+        layout: 'horizontalScroll',
         images: [
           { image: img('gn-coffee') },
           { image: img('gn-care') },

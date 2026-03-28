@@ -115,23 +115,22 @@ export function PhotoStripBlockComponent({ layout: layoutProp, images }: PhotoSt
 
   // horizontalScroll layout — edge-to-edge, no max-w container
   return (
-    <section className="overflow-hidden bg-white py-16 lg:py-24">
-      <div className="-mx-2 flex items-start gap-4">
+    <section className="bg-white py-16 lg:py-24">
+      <div className="flex w-full gap-1.5">
         {images.map((img, i) => {
-          const heightClass = heightPatterns[i % heightPatterns.length]
-          const marginClass = marginPatterns[i % marginPatterns.length]
           const delay = delayPatterns[i % delayPatterns.length]
 
           return (
-            <ScrollReveal key={i} delay={delay}>
-              <Image
-                src={getUrl(img)}
-                alt={getAlt(img)}
-                width={600}
-                height={800}
-                sizes="300px"
-                className={`${heightClass} ${marginClass} w-auto shrink-0 rounded-lg object-cover transition-all duration-500 hover:scale-105 hover:-rotate-1 hover:shadow-xl hover:shadow-brand-black/10`}
-              />
+            <ScrollReveal key={i} delay={delay} className="relative min-w-0 flex-1">
+              <div className="relative aspect-[3/4] overflow-hidden sm:aspect-[4/5] lg:aspect-[3/4]">
+                <Image
+                  src={getUrl(img)}
+                  alt={getAlt(img)}
+                  fill
+                  sizes={`${Math.round(100 / images.length)}vw`}
+                  className="object-cover"
+                />
+              </div>
             </ScrollReveal>
           )
         })}
