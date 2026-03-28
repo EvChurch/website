@@ -74,6 +74,7 @@ interface CTABlock extends BaseBlock {
   colorPreset?: 'primary-red' | 'light' | 'dark' | null
   supportingText?: string | null
   accentColor?: string | null
+  backgroundImage?: Media | null
 }
 
 interface CardGridBlock extends BaseBlock {
@@ -305,6 +306,7 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
                 text={b.text}
                 buttons={b.buttons}
                 colorPreset={b.colorPreset}
+                backgroundImage={b.backgroundImage}
               />
             )
           }

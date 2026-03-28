@@ -99,6 +99,8 @@ const imageManifest: ImageEntry[] = [
   { key: 'gn-care', filePath: 'good-news/community-care.jpg', alt: 'Elderly woman in wheelchair talking with a carer' },
   { key: 'gn-ocean', filePath: 'good-news/ocean-reflection.jpg', alt: 'Group of women watching the moon over the ocean' },
   { key: 'gn-worship', filePath: 'good-news/worship-gathering.jpg', alt: 'People standing together during a church service' },
+  { key: 'gn-alone-rain', filePath: 'good-news/alone-rain.jpg', alt: 'Person with umbrella walking down a rain-lit alley at night' },
+  { key: 'gn-light-clouds', filePath: 'good-news/light-through-clouds.jpg', alt: 'Sunlight streaming through dark clouds over the ocean' },
 
   // Team photos
   { key: 'team-rowan', filePath: 'team/rowan-hilsden.jpg', alt: 'Rowan Hilsden, Senior Pastor at Ev Church Auckland' },
@@ -1656,6 +1658,7 @@ async function seed() {
         heading: 'Something is broken',
         text: 'But if we are honest, something is not right. We feel it in our relationships, in the world around us, and deep inside ourselves. We hurt people we love. We chase things that leave us empty. We know what is right but struggle to do it. The Bible calls this sin. It is not just bad behaviour. It is the deep fracture between us and the God who made us. Every one of us has turned away from God in our own way, choosing to live life on our own terms. And that separation has consequences we cannot fix on our own.',
         colorPreset: 'dark',
+        backgroundImage: img('gn-alone-rain'),
       },
       {
         blockType: 'photoStrip',
@@ -1691,6 +1694,7 @@ async function seed() {
         heading: 'Everything changed',
         text: 'Three days after Jesus died, something happened that changed the course of history. He rose from the dead. The resurrection is not a metaphor. It is the moment when death and brokenness lost their power. Because Jesus is alive, there is real hope. Not just hope that things might get a bit better, but hope that everything sad and broken will one day be made right. His resurrection is proof that God keeps His promises, and that the life He offers is real and lasting.',
         colorPreset: 'dark',
+        backgroundImage: img('gn-light-clouds'),
       },
       {
         blockType: 'content',

@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { Button } from '@/components/ui/Button'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 
@@ -10,6 +11,14 @@ interface CTAButton {
 
 type ColorPreset = 'primary-red' | 'light' | 'dark'
 
+interface MediaRef {
+  id: string
+  url: string
+  alt: string
+  width?: number
+  height?: number
+}
+
 interface CTABlockProps {
   heading: string
   text?: string | null
@@ -17,6 +26,7 @@ interface CTABlockProps {
   buttons?: CTAButton[] | null
   colorPreset?: ColorPreset | null
   accentColor?: string | null
+  backgroundImage?: MediaRef | string | null
 }
 
 const NOISE_TEXTURE =
@@ -29,21 +39,39 @@ export function CTABlockComponent({
   buttons,
   colorPreset = 'primary-red',
   accentColor,
+  backgroundImage,
 }: CTABlockProps) {
   const preset = colorPreset ?? 'primary-red'
+  const bgImageUrl = backgroundImage ? (typeof backgroundImage === 'string' ? backgroundImage : backgroundImage.url) : null
+  const bgImageAlt = backgroundImage ? (typeof backgroundImage === 'string' ? '' : backgroundImage.alt) : ''
+  const hasBgImage = !!bgImageUrl
 
   // Determine background color — accentColor overrides preset
   const bgColor = accentColor ?? (preset === 'primary-red' ? 'bg-rich-red' : preset === 'dark' ? 'bg-brand-black' : 'bg-warm-white')
   const useCustomBg = !!accentColor
-  const isColored = preset === 'primary-red' || preset === 'dark' || useCustomBg
+  const isColored = preset === 'primary-red' || preset === 'dark' || useCustomBg || hasBgImage
 
   return (
     <section
-      className={`relative overflow-hidden px-5 py-20 lg:px-8 lg:py-28 ${useCustomBg ? '' : bgColor}`}
-      style={useCustomBg ? { backgroundColor: accentColor } : undefined}
+      className={`relative overflow-hidden px-5 py-20 lg:px-8 lg:py-28 ${hasBgImage ? 'bg-brand-black' : useCustomBg ? '' : bgColor}`}
+      style={useCustomBg && !hasBgImage ? { backgroundColor: accentColor } : undefined}
     >
+      {/* Background image with dark overlay */}
+      {hasBgImage && (
+        <>
+          <Image
+            src={bgImageUrl}
+            alt={bgImageAlt}
+            fill
+            sizes="100vw"
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-brand-black/70" />
+        </>
+      )}
+
       {/* Subtle noise texture for colored backgrounds */}
-      {isColored && (
+      {isColored && !hasBgImage && (
         <div
           className="absolute inset-0 opacity-[0.04]"
           style={{ backgroundImage: NOISE_TEXTURE, backgroundRepeat: 'repeat' }}
@@ -51,7 +79,7 @@ export function CTABlockComponent({
       )}
 
       {/* Warm glow */}
-      {isColored && (
+      {isColored && !hasBgImage && (
         <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-white/5 blur-[80px]" />
       )}
 

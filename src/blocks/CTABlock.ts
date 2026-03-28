@@ -39,6 +39,12 @@ export const CTABlock: Block = {
       ],
     },
     {
+      name: 'backgroundImage',
+      type: 'upload',
+      relationTo: 'media',
+      admin: { description: 'Optional background image (darkened overlay applied automatically)' },
+    },
+    {
       name: 'colorPreset',
       type: 'select',
       defaultValue: 'primary-red',
