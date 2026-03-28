@@ -38,7 +38,7 @@ const sizeStyles: Record<Size, string> = {
 
 function buildClassName(variant: Variant, size: Size, extra?: string) {
   const base =
-    'inline-flex items-center justify-center gap-2 font-semibold rounded-md transition-all duration-200 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2'
+    'inline-flex items-center justify-center gap-2 cursor-pointer font-semibold rounded-md transition-all duration-200 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2'
   const parts = [base, variantStyles[variant]]
   if (variant !== 'text') parts.push(sizeStyles[size])
   if (extra) parts.push(extra)

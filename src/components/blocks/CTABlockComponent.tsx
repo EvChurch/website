@@ -103,7 +103,7 @@ export function CTABlockComponent({
                     <a
                       key={btn.id ?? btn.href}
                       href={btn.href}
-                      className={`inline-flex items-center justify-center rounded-md bg-white px-8 py-3.5 text-base font-semibold shadow-lg transition-all duration-200 hover:bg-warm-white hover:shadow-xl active:scale-[0.97] ${textColor ?? ''}`}
+                      className={`inline-flex items-center justify-center cursor-pointer rounded-md bg-white px-8 py-3.5 text-base font-semibold shadow-lg transition-all duration-200 hover:bg-warm-white hover:shadow-xl active:scale-[0.97] ${textColor ?? ''}`}
                       style={useCustomBg ? { color: accentColor } : undefined}
                     >
                       {btn.label}
