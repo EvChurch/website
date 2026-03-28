@@ -88,7 +88,7 @@ export function FeatureGridBlockComponent({
 
   if (style === 'iconLeft') {
     return (
-      <section className="bg-warm-white px-5 py-24 lg:px-8 lg:py-32">
+      <section className="bg-warm-white px-5 py-16 lg:px-8 lg:py-32">
         <div className="mx-auto max-w-[80rem]">
           <div className="grid gap-16 lg:grid-cols-[1fr_1.2fr] lg:items-start">
             {/* Left: heading section — sticky */}

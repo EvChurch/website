@@ -153,7 +153,7 @@ export function HeroBlockComponent({
 
           {subtitle && (
             <p
-              className="animate-fade-in-up mt-6 max-w-lg text-lg leading-body-lg text-warm-grey/80"
+              className="animate-fade-in-up mt-4 max-w-lg text-base leading-body-lg text-warm-grey/80 md:mt-6 md:text-lg"
               style={{ animationDelay: '350ms' }}
             >
               {subtitle}
@@ -182,7 +182,7 @@ export function HeroBlockComponent({
 
           {supportingText && (
             <p
-              className="animate-fade-in-up mt-8 max-w-lg text-sm leading-relaxed text-warm-grey/60"
+              className="animate-fade-in-up mt-8 hidden max-w-lg text-sm leading-relaxed text-warm-grey/60 md:block"
               style={{ animationDelay: '600ms' }}
             >
               {supportingText}

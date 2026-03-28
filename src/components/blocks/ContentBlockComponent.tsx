@@ -43,7 +43,7 @@ export function ContentBlockComponent({
   const isCenter = alignment === 'center'
 
   return (
-    <section className="bg-white px-5 py-24 lg:px-8 lg:py-32">
+    <section className="bg-white px-5 py-16 lg:px-8 lg:py-32">
       <div className="mx-auto max-w-[80rem]">
         <ScrollReveal>
           {isCenter || !hasImage ? (

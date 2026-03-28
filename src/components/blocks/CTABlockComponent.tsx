@@ -109,7 +109,7 @@ export function CTABlockComponent({
 
           {supportingText && (
             <p
-              className={`mt-3 text-sm ${
+              className={`mt-3 hidden text-sm md:block ${
                 isColored ? 'text-white/60' : 'text-mid-grey'
               }`}
             >

@@ -225,11 +225,9 @@ async function seed() {
       {
         blockType: 'content',
         heading: 'A Christian church across Auckland',
-        body: richText([
-          'Ev Church is a community of Christ-followers across Auckland, Tamaki Makaurau. Whether you are exploring faith for the first time, returning to church after time away, or looking for a new community to call home, you are welcome here.',
-          'We meet every Sunday at three campuses across the city: Ev North in Rosedale on the North Shore, Ev Central in Hillsborough, and Unichurch at the University of Auckland for students. Our services are relaxed, family-friendly, and filled with live worship, an engaging message, and genuine community.',
-          'Beyond Sundays, we have Connect Groups meeting throughout the week, programs for kids and youth, and courses like Explaining Christianity for anyone curious about faith. Come and discover what we believe and find your place at Ev Church.',
-        ]),
+        body: richText(
+          'We meet every Sunday at three campuses across the city. Our services are relaxed, family-friendly, and filled with live worship, an engaging message, and genuine community. Beyond Sundays, we have Connect Groups, programs for kids and youth, and courses for anyone curious about faith.',
+        ),
         alignment: 'center',
       },
       {
