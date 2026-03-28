@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
+import { BreadcrumbJsonLd, buildBreadcrumbs } from '@/components/seo/BreadcrumbJsonLd'
 
 export const metadata: Metadata = {
   title: {
@@ -129,8 +130,11 @@ function FaqJsonLd() {
 }
 
 export default function FaqPage() {
+  const breadcrumbs = buildBreadcrumbs('/faq', 'FAQ')
+
   return (
     <>
+      <BreadcrumbJsonLd items={breadcrumbs} />
       <FaqJsonLd />
 
       {/* Header */}

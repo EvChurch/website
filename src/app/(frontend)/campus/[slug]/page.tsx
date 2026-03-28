@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Button, ArrowRight } from '@/components/ui/Button'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
+import { CampusJsonLd } from '@/components/seo/CampusJsonLd'
+import { BreadcrumbJsonLd, buildBreadcrumbs } from '@/components/seo/BreadcrumbJsonLd'
 
 interface CampusData {
   name: string
@@ -12,6 +14,10 @@ interface CampusData {
   time: string
   location: string
   address: string
+  streetAddress: string
+  addressLocality: string
+  serviceOpens: string
+  serviceCloses: string
   description: string
   heroImage: string
   galleryImages: { src: string; alt: string }[]
@@ -27,6 +33,10 @@ const campusData: Record<string, CampusData> = {
     time: 'Sunday 10:15 am',
     location: 'Hillsborough, Auckland',
     address: '80 Olsen Avenue, Hillsborough, Auckland',
+    streetAddress: '80 Olsen Avenue',
+    addressLocality: 'Hillsborough',
+    serviceOpens: '10:15',
+    serviceCloses: '11:30',
     description:
       'Ev Central meets in Hillsborough, south-central Auckland. We are a diverse, vibrant community of people from all walks of life. Whether you live nearby or are visiting, you are welcome here. Our Sunday services feature live worship, an engaging message, and genuine community.',
     heroImage: '/images/campus-central/photo-3b4be562.jpg',
@@ -46,6 +56,10 @@ const campusData: Record<string, CampusData> = {
     time: 'Sunday 5:15 pm',
     location: 'University of Auckland',
     address: 'University of Auckland, 24 Princes Street, Auckland 1010',
+    streetAddress: '24 Princes Street',
+    addressLocality: 'Auckland CBD',
+    serviceOpens: '17:15',
+    serviceCloses: '18:30',
     description:
       'Unichurch is our campus expression specifically for university students. Meeting on Sunday evenings, it is the perfect way to end your weekend and start your week. If you are a student at the University of Auckland or any tertiary institution in the city, this is your community. Expect relaxed vibes, real conversations, and a space to explore faith.',
     heroImage: '/images/campus-unichurch/photo-3cb597b9.jpg',
@@ -65,6 +79,10 @@ const campusData: Record<string, CampusData> = {
     time: 'Sunday 10:15 am',
     location: 'Rosedale, Auckland',
     address: '9-11 Rothwell Avenue, Rosedale, Auckland',
+    streetAddress: '9-11 Rothwell Avenue',
+    addressLocality: 'Rosedale',
+    serviceOpens: '10:15',
+    serviceCloses: '11:30',
     description:
       'Ev North is located in Rosedale on the North Shore, serving families and individuals across the wider Shore community. We are a warm, welcoming church with a heart for people at every stage of life. Our services are relaxed and family-friendly, with excellent programs for kids of all ages.',
     heroImage: '/images/homepage/carousel-c645786c.jpg',
@@ -128,6 +146,18 @@ export default async function CampusPage({
 
   return (
     <>
+      <CampusJsonLd
+        name={campus.name}
+        brandName={campus.brandName}
+        slug={slug}
+        streetAddress={campus.streetAddress}
+        addressLocality={campus.addressLocality}
+        serviceDay="Sunday"
+        serviceOpens={campus.serviceOpens}
+        serviceCloses={campus.serviceCloses}
+      />
+      <BreadcrumbJsonLd items={buildBreadcrumbs(`/campus/${slug}`, `${campus.name} Campus`)} />
+
       {/* Hero */}
       <section className="relative flex min-h-[70vh] items-center overflow-hidden bg-brand-black">
         <div className="absolute inset-0">

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
+import { BreadcrumbJsonLd, buildBreadcrumbs } from '@/components/seo/BreadcrumbJsonLd'
 
 export const metadata: Metadata = {
   title: {
@@ -68,8 +69,12 @@ const beliefs = [
 ]
 
 export default function WhatWeBelievePage() {
+  const breadcrumbs = buildBreadcrumbs('/what-we-believe')
+
   return (
     <>
+      <BreadcrumbJsonLd items={breadcrumbs} />
+
       {/* Hero */}
       <section className="bg-warm-white px-5 pb-16 pt-24 lg:px-8 lg:pb-20 lg:pt-32">
         <div className="mx-auto max-w-[80rem]">

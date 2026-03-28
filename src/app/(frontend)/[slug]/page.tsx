@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getPayloadClient } from '@/lib/payload'
 import { RenderBlocks } from '@/components/blocks/RenderBlocks'
+import { BreadcrumbJsonLd, buildBreadcrumbs } from '@/components/seo/BreadcrumbJsonLd'
 
 export const dynamic = 'force-dynamic'
 
@@ -99,6 +100,12 @@ export default async function DynamicPage({
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const blocks = (page.layout ?? []) as any[]
+  const breadcrumbs = buildBreadcrumbs(`/${slug}`, page.title)
 
-  return <RenderBlocks blocks={blocks} />
+  return (
+    <>
+      <BreadcrumbJsonLd items={breadcrumbs} />
+      <RenderBlocks blocks={blocks} />
+    </>
+  )
 }
