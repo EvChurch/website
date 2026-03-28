@@ -1625,7 +1625,7 @@ async function seed() {
   /* ─────────────────────── GOOD NEWS PAGE — VARIANT A (Scroll Narrative) ─────────────────────── */
   await upsertPage('good-news-a', {
     title: 'The Good News',
-    _status: 'draft',
+    _status: 'published',
     layout: [
       {
         blockType: 'hero',
@@ -1718,7 +1718,7 @@ async function seed() {
   /* ─────────────────────── GOOD NEWS PAGE — VARIANT C (Magazine Editorial) ─────────────────────── */
   await upsertPage('good-news-c', {
     title: 'The Good News',
-    _status: 'draft',
+    _status: 'published',
     layout: [
       {
         blockType: 'pageHeader',
@@ -1799,17 +1799,17 @@ async function seed() {
         style: 'iconTop',
         items: [
           {
-            icon: '🏠',
+            icon: 'heart',
             title: 'Visit us this Sunday',
             description: 'Come along to one of our campuses across Auckland. You will be welcomed warmly, no matter where you are in life.',
           },
           {
-            icon: '💬',
+            icon: 'book',
             title: 'Explore Christianity',
             description: 'Join a relaxed, no-pressure course where you can ask any question about the Christian faith in a safe environment.',
           },
           {
-            icon: '🤝',
+            icon: 'chat',
             title: 'Talk to someone',
             description: 'Have questions or just want to chat? Our team would love to hear from you. Reach out at any time.',
           },
@@ -1835,7 +1835,7 @@ async function seed() {
   /* ─────────────────────── GOOD NEWS PAGE — VARIANT B (Step-by-Step Interactive) ─────────────────────── */
   await upsertPage('good-news-b', {
     title: 'The Good News',
-    _status: 'draft',
+    _status: 'published',
     layout: [
       {
         blockType: 'pageHeader',
