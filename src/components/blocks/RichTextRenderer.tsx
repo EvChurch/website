@@ -14,6 +14,7 @@ interface LexicalNode {
   newTab?: boolean
   version?: number
   direction?: string
+  fields?: { url?: string; linkType?: string; newTab?: boolean }
 }
 
 interface LexicalRoot {
@@ -70,11 +71,14 @@ function renderNode(node: LexicalNode, index: number): React.ReactNode {
 
   // Link
   if (node.type === 'link' || node.type === 'autolink') {
+    const href = node.url ?? node.fields?.url ?? '#'
+    const newTab = node.newTab ?? node.fields?.newTab
     return (
       <a
         key={index}
-        href={node.url ?? '#'}
-        {...(node.newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+        href={href}
+        className="font-semibold text-rich-red underline decoration-rich-red/30 underline-offset-2 transition-colors hover:text-deep-red hover:decoration-deep-red/50"
+        {...(newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
       >
         {children}
       </a>
