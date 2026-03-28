@@ -1,5 +1,5 @@
 [build]
-buildCommand = "npm run build"
+buildCommand = "npx payload generate:importmap && npm run build"
 
 [deploy]
 startCommand = "npm start"
