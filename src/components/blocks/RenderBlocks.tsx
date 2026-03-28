@@ -262,6 +262,7 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
     <>
       {blocks.map((block, index) => {
         const key = block.id ?? `block-${index}`
+        const aboveFold = index < 3
 
         switch (block.blockType) {
           case 'hero': {
@@ -425,6 +426,7 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
                 cardStyle={b.cardStyle}
                 columns={b.columns}
                 cards={b.cards}
+                priority={aboveFold}
               />
             )
           }

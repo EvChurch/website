@@ -34,6 +34,7 @@ interface ManualCardGridBlockProps {
   cardStyle?: 'info' | 'imageOverlay' | 'imageTop' | 'alternatingRows' | null
   columns?: string | number | null
   cards: ManualCard[]
+  priority?: boolean
 }
 
 function getImageUrl(image: CardImage | string | null | undefined): string {
@@ -117,7 +118,7 @@ function InfoCard({ card, index }: { card: ManualCard; index: number }) {
   )
 }
 
-function ImageOverlayCard({ card, index }: { card: ManualCard; index: number }) {
+function ImageOverlayCard({ card, index, priority }: { card: ManualCard; index: number; priority?: boolean }) {
   const url = getImageUrl(card.image)
   const alt = getImageAlt(card.image)
 
@@ -128,6 +129,7 @@ function ImageOverlayCard({ card, index }: { card: ManualCard; index: number }) 
           src={url}
           alt={alt}
           fill
+          priority={priority}
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
         />
@@ -166,7 +168,7 @@ function ImageOverlayCard({ card, index }: { card: ManualCard; index: number }) 
   )
 }
 
-function ImageTopCard({ card, index }: { card: ManualCard; index: number }) {
+function ImageTopCard({ card, index, priority }: { card: ManualCard; index: number; priority?: boolean }) {
   const url = getImageUrl(card.image)
   const alt = getImageAlt(card.image)
   const isTeamStyle = !card.description && !card.linkLabel
@@ -182,6 +184,7 @@ function ImageTopCard({ card, index }: { card: ManualCard; index: number }) {
               alt={alt}
               width={600}
               height={600}
+              priority={priority}
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
               className="w-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
@@ -200,6 +203,7 @@ function ImageTopCard({ card, index }: { card: ManualCard; index: number }) {
               src={url}
               alt={alt}
               fill
+              priority={priority}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               className="object-cover transition-transform duration-700 group-hover:scale-105"
             />
@@ -315,6 +319,7 @@ export function ManualCardGridBlockComponent({
   cardStyle: cardStyleProp,
   columns: columnsProp,
   cards,
+  priority,
 }: ManualCardGridBlockProps) {
   const cardStyle = cardStyleProp ?? 'info'
   const columns = Number(columnsProp) || 3
@@ -363,9 +368,9 @@ export function ManualCardGridBlockComponent({
                 case 'info':
                   return <InfoCard key={i} card={card} index={i} />
                 case 'imageOverlay':
-                  return <ImageOverlayCard key={i} card={card} index={i} />
+                  return <ImageOverlayCard key={i} card={card} index={i} priority={priority} />
                 case 'imageTop':
-                  return <ImageTopCard key={i} card={card} index={i} />
+                  return <ImageTopCard key={i} card={card} index={i} priority={priority} />
                 default:
                   return null
               }
