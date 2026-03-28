@@ -231,6 +231,20 @@ async function seed() {
         alignment: 'center',
       },
       {
+        blockType: 'photoStrip',
+        layout: 'horizontalScroll',
+        images: [
+          { image: img('carousel-3c68ddf1') },
+          { image: img('carousel-c645786c') },
+          { image: img('carousel-168f386e') },
+          { image: img('carousel-9a8d8943') },
+          { image: img('carousel-db9ac570') },
+          { image: img('carousel-79cef650') },
+          { image: img('carousel-89a3395d') },
+          { image: img('carousel-8aae1142') },
+        ],
+      },
+      {
         blockType: 'featureGrid',
         eyebrow: 'New here?',
         heading: 'What to expect on a Sunday',
