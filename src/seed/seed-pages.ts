@@ -195,8 +195,9 @@ async function seed() {
       {
         blockType: 'hero',
         image: img('carousel-0c59a44d'),
-        eyebrow: 'Auckland, New Zealand',
+        eyebrow: 'Christian Church in Auckland',
         heading: 'A place to belong',
+        semanticH1: true,
         highlightedText: 'belong',
         subtitle: 'Ev Church is a community of Christ-followers across Auckland. Whether you are exploring faith for the first time or have been part of a church for years, you are welcome here.',
         supportingText: 'Ev Church is a Christian church in Tāmaki Makaurau (Auckland), New Zealand. We meet across multiple campuses each Sunday, helping people follow Jesus, grow in faith, and become part of a welcoming community.',
@@ -417,19 +418,21 @@ async function seed() {
       {
         blockType: 'hero',
         image: img('carousel-70ac2785'),
-        eyebrow: 'About us',
+        eyebrow: 'Established in 2012',
         heading: 'Our story',
         highlightedText: 'story',
-        subtitle: 'Ev Church is a growing community of Christ-followers across Auckland, united by a shared love for Jesus, each other, and our city.',
+        subtitle: 'Captivated by Christ, grounded in the gospel, and growing in maturity and number.',
         overlayStyle: 'leftToRight',
         minHeight: '70vh',
       },
       {
         blockType: 'content',
-        heading: 'To see lives transformed by Jesus',
-        body: richText(
-          'Everything we do at Ev Church flows from this mission. We exist to create environments where people can encounter God, build authentic community, and discover their purpose. We are a church for the city, passionate about seeing Auckland and beyond reached with the good news of Jesus.',
-        ),
+        heading: 'Our *mission*',
+        body: richText([
+          'Our mission is to magnify God\'s glory, seen most clearly in Jesus. Everything we do flows from this Christ-centred purpose.',
+          'We exist to connect authentically with both the world and the church, share the good news of Jesus with the lost, mature in our love and knowledge of God, equip the next generation of gospel workers, and plant a network of grounded and growing churches throughout Auckland and New Zealand.',
+          'We anticipate that God\'s word will transform the hearts and minds of many Aucklanders, forming the basis of a growing church that equips and trains gospel workers, supports and plants more churches, all for the glory of God.',
+        ]),
         alignment: 'center',
       },
       {

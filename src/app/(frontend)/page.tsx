@@ -27,30 +27,41 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 
   const seo = page.seo as
-    | { metaTitle?: string | null; metaDescription?: string | null }
+    | {
+        metaTitle?: string | null
+        metaDescription?: string | null
+        ogImage?: { url: string; width?: number; height?: number; alt?: string } | null
+      }
     | undefined
 
-  const title =
-    seo?.metaTitle ??
-    'Church in Auckland | Ev Church NZ | Sunday Services & Community'
-  const description =
-    seo?.metaDescription ??
-    'Looking for a church in Auckland? Ev Church is a community of Christ-followers meeting across Tāmaki Makaurau. Join us this Sunday or explore faith with us.'
+  const defaultTitle = 'Church in Auckland | Ev Church NZ | Sunday Services & Community'
+  const defaultDescription =
+    'Looking for a church in Auckland? Ev Church is a community of Christ-followers meeting across Tamaki Makaurau. Join us this Sunday or explore faith with us.'
+
+  const title = seo?.metaTitle ? { absolute: seo.metaTitle } : defaultTitle
+  const displayTitle = seo?.metaTitle ?? defaultTitle
+  const description = seo?.metaDescription ?? defaultDescription
+
+  const ogImage = seo?.ogImage
+  const images = ogImage
+    ? [{ url: ogImage.url, width: ogImage.width, height: ogImage.height, alt: ogImage.alt ?? '' }]
+    : undefined
 
   return {
     title,
     description,
     openGraph: {
-      title,
+      title: displayTitle,
       description,
       url: 'https://ev.church',
       siteName: 'Ev Church',
       locale: 'en_NZ',
       type: 'website',
+      ...(images && { images }),
     },
     twitter: {
       card: 'summary_large_image',
-      title,
+      title: displayTitle,
       description,
     },
     alternates: {

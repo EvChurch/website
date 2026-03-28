@@ -49,6 +49,7 @@ interface HeroBlock extends BaseBlock {
   }> | null
   overlayStyle?: 'default' | 'cinematic' | 'leftToRight' | null
   minHeight?: '50vh' | '70vh' | '80vh' | '85vh' | null
+  semanticH1?: boolean | null
 }
 
 interface ContentBlock extends BaseBlock {
@@ -251,6 +252,7 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
                 buttons={b.buttons}
                 overlayStyle={b.overlayStyle}
                 minHeight={b.minHeight}
+                semanticH1={b.semanticH1}
               />
             )
           }

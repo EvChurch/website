@@ -29,6 +29,7 @@ interface HeroBlockProps {
   buttons?: HeroButton[] | null
   overlayStyle?: OverlayStyle | null
   minHeight?: MinHeight | null
+  semanticH1?: boolean | null
 }
 
 const heightClasses: Record<MinHeight, string> = {
@@ -91,6 +92,7 @@ export function HeroBlockComponent({
   buttons,
   overlayStyle,
   minHeight,
+  semanticH1,
 }: HeroBlockProps) {
   const imageUrl = typeof image === 'string' ? image : image?.url
   const imageAlt = typeof image === 'string' ? '' : image?.alt ?? ''
@@ -117,21 +119,37 @@ export function HeroBlockComponent({
       {/* Content */}
       <div className="relative mx-auto max-w-[80rem] px-5 py-32 lg:px-8 lg:py-40">
         <div className="max-w-2xl">
-          {eyebrow && (
+          {eyebrow && semanticH1 ? (
+            <h1
+              className="animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] text-light-red-2"
+              style={{ animationDelay: '100ms' }}
+            >
+              {eyebrow}
+            </h1>
+          ) : eyebrow ? (
             <p
               className="animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] text-light-red-2"
               style={{ animationDelay: '100ms' }}
             >
               {eyebrow}
             </p>
-          )}
+          ) : null}
 
-          <h1
-            className="animate-fade-in-up mt-6 font-serif text-display font-normal leading-display text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
-            style={{ animationDelay: '200ms' }}
-          >
-            {renderHeading(heading, highlightedText)}
-          </h1>
+          {semanticH1 ? (
+            <h2
+              className="animate-fade-in-up mt-6 font-serif text-display font-normal leading-display text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
+              style={{ animationDelay: '200ms' }}
+            >
+              {renderHeading(heading, highlightedText)}
+            </h2>
+          ) : (
+            <h1
+              className="animate-fade-in-up mt-6 font-serif text-display font-normal leading-display text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
+              style={{ animationDelay: '200ms' }}
+            >
+              {renderHeading(heading, highlightedText)}
+            </h1>
+          )}
 
           {subtitle && (
             <p

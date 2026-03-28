@@ -35,6 +35,15 @@ export const HeroBlock: Block = {
       admin: { description: 'Smaller muted text below subtitle (used for SEO)' },
     },
     {
+      name: 'semanticH1',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        description:
+          'When enabled, the eyebrow text becomes the semantic H1 (for SEO) and the main heading becomes H2. Use on pages where the eyebrow contains the primary keyword.',
+      },
+    },
+    {
       name: 'overlayStyle',
       type: 'select',
       defaultValue: 'default',

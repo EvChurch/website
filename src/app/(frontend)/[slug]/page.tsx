@@ -44,26 +44,41 @@ export async function generateMetadata({
   if (!page) return {}
 
   const seo = page.seo as
-    | { metaTitle?: string | null; metaDescription?: string | null }
+    | {
+        metaTitle?: string | null
+        metaDescription?: string | null
+        ogImage?: { url: string; width?: number; height?: number; alt?: string } | null
+      }
     | undefined
 
-  const title = seo?.metaTitle ?? `${page.title} | Ev Church`
-  const description = seo?.metaDescription ?? undefined
+  const title = seo?.metaTitle
+    ? { absolute: seo.metaTitle }
+    : `${page.title} | Ev Church`
+  const displayTitle = seo?.metaTitle ?? `${page.title} | Ev Church`
+  const description =
+    seo?.metaDescription ??
+    `Learn about ${page.title} at Ev Church, a Christian community across Auckland, Tamaki Makaurau.`
+
+  const ogImage = seo?.ogImage
+  const images = ogImage
+    ? [{ url: ogImage.url, width: ogImage.width, height: ogImage.height, alt: ogImage.alt ?? '' }]
+    : undefined
 
   return {
     title,
     description,
     openGraph: {
-      title,
+      title: displayTitle,
       description,
       url: `https://ev.church/${slug}`,
       siteName: 'Ev Church',
       locale: 'en_NZ',
       type: 'website',
+      ...(images && { images }),
     },
     twitter: {
       card: 'summary_large_image',
-      title,
+      title: displayTitle,
       description,
     },
     alternates: {
