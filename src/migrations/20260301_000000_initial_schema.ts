@@ -19,8 +19,10 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE TYPE "public"."enum_pages_blocks_form_embed_layout" AS ENUM('full', 'centered');
   CREATE TYPE "public"."enum_pages_blocks_manual_card_grid_card_style" AS ENUM('info', 'imageOverlay', 'imageTop', 'alternatingRows');
   CREATE TYPE "public"."enum_pages_blocks_manual_card_grid_columns" AS ENUM('2', '3', '4');
-  CREATE TYPE "public"."enum_pages_blocks_photo_strip_layout" AS ENUM('horizontalScroll', 'grid4', 'grid2');
+  CREATE TYPE "public"."enum_pages_blocks_photo_strip_layout" AS ENUM('horizontalScroll', 'grid4', 'grid2', 'masonry');
   CREATE TYPE "public"."enum_pages_blocks_page_header_theme" AS ENUM('dark', 'light');
+  CREATE TYPE "public"."enum_pages_blocks_gospel_stepper_steps_image_position" AS ENUM('left', 'right', 'background');
+  CREATE TYPE "public"."enum_pages_blocks_gospel_stepper_final_c_t_a_buttons_variant" AS ENUM('primary', 'secondary');
   CREATE TYPE "public"."enum_pages_template" AS ENUM('standard', 'ministry', 'seasonal-event', 'simple-content');
   CREATE TYPE "public"."enum_pages_status" AS ENUM('draft', 'published');
   CREATE TYPE "public"."enum__pages_v_blocks_hero_buttons_variant" AS ENUM('primary', 'secondary', 'text');
@@ -39,8 +41,10 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE TYPE "public"."enum__pages_v_blocks_form_embed_layout" AS ENUM('full', 'centered');
   CREATE TYPE "public"."enum__pages_v_blocks_manual_card_grid_card_style" AS ENUM('info', 'imageOverlay', 'imageTop', 'alternatingRows');
   CREATE TYPE "public"."enum__pages_v_blocks_manual_card_grid_columns" AS ENUM('2', '3', '4');
-  CREATE TYPE "public"."enum__pages_v_blocks_photo_strip_layout" AS ENUM('horizontalScroll', 'grid4', 'grid2');
+  CREATE TYPE "public"."enum__pages_v_blocks_photo_strip_layout" AS ENUM('horizontalScroll', 'grid4', 'grid2', 'masonry');
   CREATE TYPE "public"."enum__pages_v_blocks_page_header_theme" AS ENUM('dark', 'light');
+  CREATE TYPE "public"."enum__pages_v_blocks_gospel_stepper_steps_image_position" AS ENUM('left', 'right', 'background');
+  CREATE TYPE "public"."enum__pages_v_blocks_gospel_stepper_final_c_t_a_buttons_variant" AS ENUM('primary', 'secondary');
   CREATE TYPE "public"."enum__pages_v_version_template" AS ENUM('standard', 'ministry', 'seasonal-event', 'simple-content');
   CREATE TYPE "public"."enum__pages_v_version_status" AS ENUM('draft', 'published');
   CREATE TYPE "public"."enum_blog_posts_status" AS ENUM('draft', 'published');
@@ -161,6 +165,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"highlighted_text" varchar,
   	"subtitle" varchar,
   	"supporting_text" varchar,
+  	"semantic_h1" boolean DEFAULT false,
   	"overlay_style" "enum_pages_blocks_hero_overlay_style" DEFAULT 'default',
   	"min_height" "enum_pages_blocks_hero_min_height" DEFAULT '70vh',
   	"block_name" varchar
@@ -194,6 +199,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"id" varchar PRIMARY KEY NOT NULL,
   	"heading" varchar,
   	"text" varchar,
+  	"background_image_id" integer,
   	"color_preset" "enum_pages_blocks_cta_color_preset" DEFAULT 'primary-red',
   	"supporting_text" varchar,
   	"accent_color" varchar,
@@ -215,7 +221,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"_parent_id" varchar NOT NULL,
   	"id" varchar PRIMARY KEY NOT NULL,
   	"question" varchar,
-  	"answer" jsonb
+  	"answer" varchar
   );
   
   CREATE TABLE "pages_blocks_accordion" (
@@ -361,6 +367,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"title" varchar,
   	"subtitle" varchar,
   	"description" varchar,
+  	"eyebrow" varchar,
+  	"address" varchar,
   	"href" varchar,
   	"link_label" varchar
   );
@@ -406,6 +414,37 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"block_name" varchar
   );
   
+  CREATE TABLE "pages_blocks_gospel_stepper_steps" (
+  	"_order" integer NOT NULL,
+  	"_parent_id" varchar NOT NULL,
+  	"id" varchar PRIMARY KEY NOT NULL,
+  	"step_title" varchar,
+  	"heading" varchar,
+  	"body" jsonb,
+  	"image_id" integer,
+  	"image_position" "enum_pages_blocks_gospel_stepper_steps_image_position" DEFAULT 'right'
+  );
+  
+  CREATE TABLE "pages_blocks_gospel_stepper_final_c_t_a_buttons" (
+  	"_order" integer NOT NULL,
+  	"_parent_id" varchar NOT NULL,
+  	"id" varchar PRIMARY KEY NOT NULL,
+  	"label" varchar,
+  	"href" varchar,
+  	"variant" "enum_pages_blocks_gospel_stepper_final_c_t_a_buttons_variant"
+  );
+  
+  CREATE TABLE "pages_blocks_gospel_stepper" (
+  	"_order" integer NOT NULL,
+  	"_parent_id" integer NOT NULL,
+  	"_path" text NOT NULL,
+  	"id" varchar PRIMARY KEY NOT NULL,
+  	"heading" varchar,
+  	"final_c_t_a_heading" varchar,
+  	"final_c_t_a_text" varchar,
+  	"block_name" varchar
+  );
+  
   CREATE TABLE "pages" (
   	"id" serial PRIMARY KEY NOT NULL,
   	"title" varchar,
@@ -440,6 +479,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"highlighted_text" varchar,
   	"subtitle" varchar,
   	"supporting_text" varchar,
+  	"semantic_h1" boolean DEFAULT false,
   	"overlay_style" "enum__pages_v_blocks_hero_overlay_style" DEFAULT 'default',
   	"min_height" "enum__pages_v_blocks_hero_min_height" DEFAULT '70vh',
   	"_uuid" varchar,
@@ -476,6 +516,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"id" serial PRIMARY KEY NOT NULL,
   	"heading" varchar,
   	"text" varchar,
+  	"background_image_id" integer,
   	"color_preset" "enum__pages_v_blocks_cta_color_preset" DEFAULT 'primary-red',
   	"supporting_text" varchar,
   	"accent_color" varchar,
@@ -499,7 +540,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"_parent_id" integer NOT NULL,
   	"id" serial PRIMARY KEY NOT NULL,
   	"question" varchar,
-  	"answer" jsonb,
+  	"answer" varchar,
   	"_uuid" varchar
   );
   
@@ -659,6 +700,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"title" varchar,
   	"subtitle" varchar,
   	"description" varchar,
+  	"eyebrow" varchar,
+  	"address" varchar,
   	"href" varchar,
   	"link_label" varchar,
   	"_uuid" varchar
@@ -705,6 +748,40 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"heading" varchar,
   	"description" varchar,
   	"theme" "enum__pages_v_blocks_page_header_theme" DEFAULT 'dark',
+  	"_uuid" varchar,
+  	"block_name" varchar
+  );
+  
+  CREATE TABLE "_pages_v_blocks_gospel_stepper_steps" (
+  	"_order" integer NOT NULL,
+  	"_parent_id" integer NOT NULL,
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"step_title" varchar,
+  	"heading" varchar,
+  	"body" jsonb,
+  	"image_id" integer,
+  	"image_position" "enum__pages_v_blocks_gospel_stepper_steps_image_position" DEFAULT 'right',
+  	"_uuid" varchar
+  );
+  
+  CREATE TABLE "_pages_v_blocks_gospel_stepper_final_c_t_a_buttons" (
+  	"_order" integer NOT NULL,
+  	"_parent_id" integer NOT NULL,
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"label" varchar,
+  	"href" varchar,
+  	"variant" "enum__pages_v_blocks_gospel_stepper_final_c_t_a_buttons_variant",
+  	"_uuid" varchar
+  );
+  
+  CREATE TABLE "_pages_v_blocks_gospel_stepper" (
+  	"_order" integer NOT NULL,
+  	"_parent_id" integer NOT NULL,
+  	"_path" text NOT NULL,
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"heading" varchar,
+  	"final_c_t_a_heading" varchar,
+  	"final_c_t_a_text" varchar,
   	"_uuid" varchar,
   	"block_name" varchar
   );
@@ -1040,6 +1117,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "pages_blocks_content" ADD CONSTRAINT "pages_blocks_content_image_id_media_id_fk" FOREIGN KEY ("image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "pages_blocks_content" ADD CONSTRAINT "pages_blocks_content_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "pages_blocks_cta_buttons" ADD CONSTRAINT "pages_blocks_cta_buttons_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages_blocks_cta"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "pages_blocks_cta" ADD CONSTRAINT "pages_blocks_cta_background_image_id_media_id_fk" FOREIGN KEY ("background_image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "pages_blocks_cta" ADD CONSTRAINT "pages_blocks_cta_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "pages_blocks_card_grid" ADD CONSTRAINT "pages_blocks_card_grid_campus_filter_id_campuses_id_fk" FOREIGN KEY ("campus_filter_id") REFERENCES "public"."campuses"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "pages_blocks_card_grid" ADD CONSTRAINT "pages_blocks_card_grid_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages"("id") ON DELETE cascade ON UPDATE no action;
@@ -1065,6 +1143,10 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "pages_blocks_photo_strip_images" ADD CONSTRAINT "pages_blocks_photo_strip_images_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages_blocks_photo_strip"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "pages_blocks_photo_strip" ADD CONSTRAINT "pages_blocks_photo_strip_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "pages_blocks_page_header" ADD CONSTRAINT "pages_blocks_page_header_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "pages_blocks_gospel_stepper_steps" ADD CONSTRAINT "pages_blocks_gospel_stepper_steps_image_id_media_id_fk" FOREIGN KEY ("image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "pages_blocks_gospel_stepper_steps" ADD CONSTRAINT "pages_blocks_gospel_stepper_steps_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages_blocks_gospel_stepper"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "pages_blocks_gospel_stepper_final_c_t_a_buttons" ADD CONSTRAINT "pages_blocks_gospel_stepper_final_c_t_a_buttons_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages_blocks_gospel_stepper"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "pages_blocks_gospel_stepper" ADD CONSTRAINT "pages_blocks_gospel_stepper_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "pages" ADD CONSTRAINT "pages_seo_og_image_id_media_id_fk" FOREIGN KEY ("seo_og_image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_hero_buttons" ADD CONSTRAINT "_pages_v_blocks_hero_buttons_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v_blocks_hero"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_hero" ADD CONSTRAINT "_pages_v_blocks_hero_image_id_media_id_fk" FOREIGN KEY ("image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
@@ -1072,6 +1154,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "_pages_v_blocks_content" ADD CONSTRAINT "_pages_v_blocks_content_image_id_media_id_fk" FOREIGN KEY ("image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_content" ADD CONSTRAINT "_pages_v_blocks_content_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_cta_buttons" ADD CONSTRAINT "_pages_v_blocks_cta_buttons_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v_blocks_cta"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "_pages_v_blocks_cta" ADD CONSTRAINT "_pages_v_blocks_cta_background_image_id_media_id_fk" FOREIGN KEY ("background_image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_cta" ADD CONSTRAINT "_pages_v_blocks_cta_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_card_grid" ADD CONSTRAINT "_pages_v_blocks_card_grid_campus_filter_id_campuses_id_fk" FOREIGN KEY ("campus_filter_id") REFERENCES "public"."campuses"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_card_grid" ADD CONSTRAINT "_pages_v_blocks_card_grid_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v"("id") ON DELETE cascade ON UPDATE no action;
@@ -1097,6 +1180,10 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "_pages_v_blocks_photo_strip_images" ADD CONSTRAINT "_pages_v_blocks_photo_strip_images_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v_blocks_photo_strip"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_photo_strip" ADD CONSTRAINT "_pages_v_blocks_photo_strip_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_page_header" ADD CONSTRAINT "_pages_v_blocks_page_header_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "_pages_v_blocks_gospel_stepper_steps" ADD CONSTRAINT "_pages_v_blocks_gospel_stepper_steps_image_id_media_id_fk" FOREIGN KEY ("image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "_pages_v_blocks_gospel_stepper_steps" ADD CONSTRAINT "_pages_v_blocks_gospel_stepper_steps_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v_blocks_gospel_stepper"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "_pages_v_blocks_gospel_stepper_final_c_t_a_buttons" ADD CONSTRAINT "_pages_v_blocks_gospel_stepper_final_c_t_a_buttons_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v_blocks_gospel_stepper"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "_pages_v_blocks_gospel_stepper" ADD CONSTRAINT "_pages_v_blocks_gospel_stepper_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "_pages_v" ADD CONSTRAINT "_pages_v_parent_id_pages_id_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."pages"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "_pages_v" ADD CONSTRAINT "_pages_v_version_seo_og_image_id_media_id_fk" FOREIGN KEY ("version_seo_og_image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "blog_posts" ADD CONSTRAINT "blog_posts_featured_image_id_media_id_fk" FOREIGN KEY ("featured_image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
@@ -1170,6 +1257,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "pages_blocks_cta_order_idx" ON "pages_blocks_cta" USING btree ("_order");
   CREATE INDEX "pages_blocks_cta_parent_id_idx" ON "pages_blocks_cta" USING btree ("_parent_id");
   CREATE INDEX "pages_blocks_cta_path_idx" ON "pages_blocks_cta" USING btree ("_path");
+  CREATE INDEX "pages_blocks_cta_background_image_idx" ON "pages_blocks_cta" USING btree ("background_image_id");
   CREATE INDEX "pages_blocks_card_grid_order_idx" ON "pages_blocks_card_grid" USING btree ("_order");
   CREATE INDEX "pages_blocks_card_grid_parent_id_idx" ON "pages_blocks_card_grid" USING btree ("_parent_id");
   CREATE INDEX "pages_blocks_card_grid_path_idx" ON "pages_blocks_card_grid" USING btree ("_path");
@@ -1226,6 +1314,14 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "pages_blocks_page_header_order_idx" ON "pages_blocks_page_header" USING btree ("_order");
   CREATE INDEX "pages_blocks_page_header_parent_id_idx" ON "pages_blocks_page_header" USING btree ("_parent_id");
   CREATE INDEX "pages_blocks_page_header_path_idx" ON "pages_blocks_page_header" USING btree ("_path");
+  CREATE INDEX "pages_blocks_gospel_stepper_steps_order_idx" ON "pages_blocks_gospel_stepper_steps" USING btree ("_order");
+  CREATE INDEX "pages_blocks_gospel_stepper_steps_parent_id_idx" ON "pages_blocks_gospel_stepper_steps" USING btree ("_parent_id");
+  CREATE INDEX "pages_blocks_gospel_stepper_steps_image_idx" ON "pages_blocks_gospel_stepper_steps" USING btree ("image_id");
+  CREATE INDEX "pages_blocks_gospel_stepper_final_c_t_a_buttons_order_idx" ON "pages_blocks_gospel_stepper_final_c_t_a_buttons" USING btree ("_order");
+  CREATE INDEX "pages_blocks_gospel_stepper_final_c_t_a_buttons_parent_id_idx" ON "pages_blocks_gospel_stepper_final_c_t_a_buttons" USING btree ("_parent_id");
+  CREATE INDEX "pages_blocks_gospel_stepper_order_idx" ON "pages_blocks_gospel_stepper" USING btree ("_order");
+  CREATE INDEX "pages_blocks_gospel_stepper_parent_id_idx" ON "pages_blocks_gospel_stepper" USING btree ("_parent_id");
+  CREATE INDEX "pages_blocks_gospel_stepper_path_idx" ON "pages_blocks_gospel_stepper" USING btree ("_path");
   CREATE UNIQUE INDEX "pages_slug_idx" ON "pages" USING btree ("slug");
   CREATE INDEX "pages_seo_seo_og_image_idx" ON "pages" USING btree ("seo_og_image_id");
   CREATE INDEX "pages_updated_at_idx" ON "pages" USING btree ("updated_at");
@@ -1246,6 +1342,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "_pages_v_blocks_cta_order_idx" ON "_pages_v_blocks_cta" USING btree ("_order");
   CREATE INDEX "_pages_v_blocks_cta_parent_id_idx" ON "_pages_v_blocks_cta" USING btree ("_parent_id");
   CREATE INDEX "_pages_v_blocks_cta_path_idx" ON "_pages_v_blocks_cta" USING btree ("_path");
+  CREATE INDEX "_pages_v_blocks_cta_background_image_idx" ON "_pages_v_blocks_cta" USING btree ("background_image_id");
   CREATE INDEX "_pages_v_blocks_card_grid_order_idx" ON "_pages_v_blocks_card_grid" USING btree ("_order");
   CREATE INDEX "_pages_v_blocks_card_grid_parent_id_idx" ON "_pages_v_blocks_card_grid" USING btree ("_parent_id");
   CREATE INDEX "_pages_v_blocks_card_grid_path_idx" ON "_pages_v_blocks_card_grid" USING btree ("_path");
@@ -1302,6 +1399,14 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "_pages_v_blocks_page_header_order_idx" ON "_pages_v_blocks_page_header" USING btree ("_order");
   CREATE INDEX "_pages_v_blocks_page_header_parent_id_idx" ON "_pages_v_blocks_page_header" USING btree ("_parent_id");
   CREATE INDEX "_pages_v_blocks_page_header_path_idx" ON "_pages_v_blocks_page_header" USING btree ("_path");
+  CREATE INDEX "_pages_v_blocks_gospel_stepper_steps_order_idx" ON "_pages_v_blocks_gospel_stepper_steps" USING btree ("_order");
+  CREATE INDEX "_pages_v_blocks_gospel_stepper_steps_parent_id_idx" ON "_pages_v_blocks_gospel_stepper_steps" USING btree ("_parent_id");
+  CREATE INDEX "_pages_v_blocks_gospel_stepper_steps_image_idx" ON "_pages_v_blocks_gospel_stepper_steps" USING btree ("image_id");
+  CREATE INDEX "_pages_v_blocks_gospel_stepper_final_c_t_a_buttons_order_idx" ON "_pages_v_blocks_gospel_stepper_final_c_t_a_buttons" USING btree ("_order");
+  CREATE INDEX "_pages_v_blocks_gospel_stepper_final_c_t_a_buttons_parent_id_idx" ON "_pages_v_blocks_gospel_stepper_final_c_t_a_buttons" USING btree ("_parent_id");
+  CREATE INDEX "_pages_v_blocks_gospel_stepper_order_idx" ON "_pages_v_blocks_gospel_stepper" USING btree ("_order");
+  CREATE INDEX "_pages_v_blocks_gospel_stepper_parent_id_idx" ON "_pages_v_blocks_gospel_stepper" USING btree ("_parent_id");
+  CREATE INDEX "_pages_v_blocks_gospel_stepper_path_idx" ON "_pages_v_blocks_gospel_stepper" USING btree ("_path");
   CREATE INDEX "_pages_v_parent_idx" ON "_pages_v" USING btree ("parent_id");
   CREATE INDEX "_pages_v_version_version_slug_idx" ON "_pages_v" USING btree ("version_slug");
   CREATE INDEX "_pages_v_version_seo_version_seo_og_image_idx" ON "_pages_v" USING btree ("version_seo_og_image_id");
@@ -1447,6 +1552,9 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TABLE "pages_blocks_photo_strip_images" CASCADE;
   DROP TABLE "pages_blocks_photo_strip" CASCADE;
   DROP TABLE "pages_blocks_page_header" CASCADE;
+  DROP TABLE "pages_blocks_gospel_stepper_steps" CASCADE;
+  DROP TABLE "pages_blocks_gospel_stepper_final_c_t_a_buttons" CASCADE;
+  DROP TABLE "pages_blocks_gospel_stepper" CASCADE;
   DROP TABLE "pages" CASCADE;
   DROP TABLE "_pages_v_blocks_hero_buttons" CASCADE;
   DROP TABLE "_pages_v_blocks_hero" CASCADE;
@@ -1473,6 +1581,9 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TABLE "_pages_v_blocks_photo_strip_images" CASCADE;
   DROP TABLE "_pages_v_blocks_photo_strip" CASCADE;
   DROP TABLE "_pages_v_blocks_page_header" CASCADE;
+  DROP TABLE "_pages_v_blocks_gospel_stepper_steps" CASCADE;
+  DROP TABLE "_pages_v_blocks_gospel_stepper_final_c_t_a_buttons" CASCADE;
+  DROP TABLE "_pages_v_blocks_gospel_stepper" CASCADE;
   DROP TABLE "_pages_v" CASCADE;
   DROP TABLE "blog_posts" CASCADE;
   DROP TABLE "_blog_posts_v" CASCADE;
@@ -1518,6 +1629,8 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TYPE "public"."enum_pages_blocks_manual_card_grid_columns";
   DROP TYPE "public"."enum_pages_blocks_photo_strip_layout";
   DROP TYPE "public"."enum_pages_blocks_page_header_theme";
+  DROP TYPE "public"."enum_pages_blocks_gospel_stepper_steps_image_position";
+  DROP TYPE "public"."enum_pages_blocks_gospel_stepper_final_c_t_a_buttons_variant";
   DROP TYPE "public"."enum_pages_template";
   DROP TYPE "public"."enum_pages_status";
   DROP TYPE "public"."enum__pages_v_blocks_hero_buttons_variant";
@@ -1538,6 +1651,8 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TYPE "public"."enum__pages_v_blocks_manual_card_grid_columns";
   DROP TYPE "public"."enum__pages_v_blocks_photo_strip_layout";
   DROP TYPE "public"."enum__pages_v_blocks_page_header_theme";
+  DROP TYPE "public"."enum__pages_v_blocks_gospel_stepper_steps_image_position";
+  DROP TYPE "public"."enum__pages_v_blocks_gospel_stepper_final_c_t_a_buttons_variant";
   DROP TYPE "public"."enum__pages_v_version_template";
   DROP TYPE "public"."enum__pages_v_version_status";
   DROP TYPE "public"."enum_blog_posts_status";

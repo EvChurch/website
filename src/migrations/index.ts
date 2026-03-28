@@ -1,21 +1,9 @@
-import * as migration_20260323_210412_add_new_block_tables from './20260323_210412_add_new_block_tables';
-import * as migration_20260324_081309_add_card_eyebrow_address from './20260324_081309_add_card_eyebrow_address';
-import * as migration_20260324_090145_accordion_answer_to_textarea from './20260324_090145_accordion_answer_to_textarea';
+import * as migration_20260301_000000_initial_schema from './20260301_000000_initial_schema';
 
 export const migrations = [
   {
-    up: migration_20260323_210412_add_new_block_tables.up,
-    down: migration_20260323_210412_add_new_block_tables.down,
-    name: '20260323_210412_add_new_block_tables',
-  },
-  {
-    up: migration_20260324_081309_add_card_eyebrow_address.up,
-    down: migration_20260324_081309_add_card_eyebrow_address.down,
-    name: '20260324_081309_add_card_eyebrow_address',
-  },
-  {
-    up: migration_20260324_090145_accordion_answer_to_textarea.up,
-    down: migration_20260324_090145_accordion_answer_to_textarea.down,
-    name: '20260324_090145_accordion_answer_to_textarea'
+    up: migration_20260301_000000_initial_schema.up,
+    down: migration_20260301_000000_initial_schema.down,
+    name: '20260301_000000_initial_schema',
   },
 ];

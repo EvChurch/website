@@ -983,6 +983,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "semantic_h1": {
+          "name": "semantic_h1",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
         "overlay_style": {
           "name": "overlay_style",
           "type": "enum_pages_blocks_hero_overlay_style",
@@ -1394,6 +1401,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "background_image_id": {
+          "name": "background_image_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "color_preset": {
           "name": "color_preset",
           "type": "enum_pages_blocks_cta_color_preset",
@@ -1466,9 +1479,37 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "pages_blocks_cta_background_image_idx": {
+          "name": "pages_blocks_cta_background_image_idx",
+          "columns": [
+            {
+              "expression": "background_image_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
+        "pages_blocks_cta_background_image_id_media_id_fk": {
+          "name": "pages_blocks_cta_background_image_id_media_id_fk",
+          "tableFrom": "pages_blocks_cta",
+          "tableTo": "media",
+          "columnsFrom": [
+            "background_image_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "pages_blocks_cta_parent_id_fk": {
           "name": "pages_blocks_cta_parent_id_fk",
           "tableFrom": "pages_blocks_cta",
@@ -1663,7 +1704,7 @@
         },
         "answer": {
           "name": "answer",
-          "type": "jsonb",
+          "type": "varchar",
           "primaryKey": false,
           "notNull": false
         }
@@ -3258,6 +3299,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "eyebrow": {
+          "name": "eyebrow",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
         "href": {
           "name": "href",
           "type": "varchar",
@@ -3839,6 +3892,358 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.pages_blocks_gospel_stepper_steps": {
+      "name": "pages_blocks_gospel_stepper_steps",
+      "schema": "",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "step_title": {
+          "name": "step_title",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "heading": {
+          "name": "heading",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "body": {
+          "name": "body",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_id": {
+          "name": "image_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_position": {
+          "name": "image_position",
+          "type": "enum_pages_blocks_gospel_stepper_steps_image_position",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'right'"
+        }
+      },
+      "indexes": {
+        "pages_blocks_gospel_stepper_steps_order_idx": {
+          "name": "pages_blocks_gospel_stepper_steps_order_idx",
+          "columns": [
+            {
+              "expression": "_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pages_blocks_gospel_stepper_steps_parent_id_idx": {
+          "name": "pages_blocks_gospel_stepper_steps_parent_id_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pages_blocks_gospel_stepper_steps_image_idx": {
+          "name": "pages_blocks_gospel_stepper_steps_image_idx",
+          "columns": [
+            {
+              "expression": "image_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "pages_blocks_gospel_stepper_steps_image_id_media_id_fk": {
+          "name": "pages_blocks_gospel_stepper_steps_image_id_media_id_fk",
+          "tableFrom": "pages_blocks_gospel_stepper_steps",
+          "tableTo": "media",
+          "columnsFrom": [
+            "image_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "pages_blocks_gospel_stepper_steps_parent_id_fk": {
+          "name": "pages_blocks_gospel_stepper_steps_parent_id_fk",
+          "tableFrom": "pages_blocks_gospel_stepper_steps",
+          "tableTo": "pages_blocks_gospel_stepper",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pages_blocks_gospel_stepper_final_c_t_a_buttons": {
+      "name": "pages_blocks_gospel_stepper_final_c_t_a_buttons",
+      "schema": "",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "href": {
+          "name": "href",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "variant": {
+          "name": "variant",
+          "type": "enum_pages_blocks_gospel_stepper_final_c_t_a_buttons_variant",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "pages_blocks_gospel_stepper_final_c_t_a_buttons_order_idx": {
+          "name": "pages_blocks_gospel_stepper_final_c_t_a_buttons_order_idx",
+          "columns": [
+            {
+              "expression": "_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pages_blocks_gospel_stepper_final_c_t_a_buttons_parent_id_idx": {
+          "name": "pages_blocks_gospel_stepper_final_c_t_a_buttons_parent_id_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "pages_blocks_gospel_stepper_final_c_t_a_buttons_parent_id_fk": {
+          "name": "pages_blocks_gospel_stepper_final_c_t_a_buttons_parent_id_fk",
+          "tableFrom": "pages_blocks_gospel_stepper_final_c_t_a_buttons",
+          "tableTo": "pages_blocks_gospel_stepper",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pages_blocks_gospel_stepper": {
+      "name": "pages_blocks_gospel_stepper",
+      "schema": "",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_path": {
+          "name": "_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "heading": {
+          "name": "heading",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "final_c_t_a_heading": {
+          "name": "final_c_t_a_heading",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "final_c_t_a_text": {
+          "name": "final_c_t_a_text",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "block_name": {
+          "name": "block_name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "pages_blocks_gospel_stepper_order_idx": {
+          "name": "pages_blocks_gospel_stepper_order_idx",
+          "columns": [
+            {
+              "expression": "_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pages_blocks_gospel_stepper_parent_id_idx": {
+          "name": "pages_blocks_gospel_stepper_parent_id_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pages_blocks_gospel_stepper_path_idx": {
+          "name": "pages_blocks_gospel_stepper_path_idx",
+          "columns": [
+            {
+              "expression": "_path",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "pages_blocks_gospel_stepper_parent_id_fk": {
+          "name": "pages_blocks_gospel_stepper_parent_id_fk",
+          "tableFrom": "pages_blocks_gospel_stepper",
+          "tableTo": "pages",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.pages": {
       "name": "pages",
       "schema": "",
@@ -4172,6 +4577,13 @@
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
+        },
+        "semantic_h1": {
+          "name": "semantic_h1",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
         },
         "overlay_style": {
           "name": "overlay_style",
@@ -4602,6 +5014,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "background_image_id": {
+          "name": "background_image_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "color_preset": {
           "name": "color_preset",
           "type": "enum__pages_v_blocks_cta_color_preset",
@@ -4680,9 +5098,37 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "_pages_v_blocks_cta_background_image_idx": {
+          "name": "_pages_v_blocks_cta_background_image_idx",
+          "columns": [
+            {
+              "expression": "background_image_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
+        "_pages_v_blocks_cta_background_image_id_media_id_fk": {
+          "name": "_pages_v_blocks_cta_background_image_id_media_id_fk",
+          "tableFrom": "_pages_v_blocks_cta",
+          "tableTo": "media",
+          "columnsFrom": [
+            "background_image_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "_pages_v_blocks_cta_parent_id_fk": {
           "name": "_pages_v_blocks_cta_parent_id_fk",
           "tableFrom": "_pages_v_blocks_cta",
@@ -4883,7 +5329,7 @@
         },
         "answer": {
           "name": "answer",
-          "type": "jsonb",
+          "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },
@@ -6562,6 +7008,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "eyebrow": {
+          "name": "eyebrow",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
         "href": {
           "name": "href",
           "type": "varchar",
@@ -7156,6 +7614,376 @@
         "_pages_v_blocks_page_header_parent_id_fk": {
           "name": "_pages_v_blocks_page_header_parent_id_fk",
           "tableFrom": "_pages_v_blocks_page_header",
+          "tableTo": "_pages_v",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public._pages_v_blocks_gospel_stepper_steps": {
+      "name": "_pages_v_blocks_gospel_stepper_steps",
+      "schema": "",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "step_title": {
+          "name": "step_title",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "heading": {
+          "name": "heading",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "body": {
+          "name": "body",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_id": {
+          "name": "image_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_position": {
+          "name": "image_position",
+          "type": "enum__pages_v_blocks_gospel_stepper_steps_image_position",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'right'"
+        },
+        "_uuid": {
+          "name": "_uuid",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "_pages_v_blocks_gospel_stepper_steps_order_idx": {
+          "name": "_pages_v_blocks_gospel_stepper_steps_order_idx",
+          "columns": [
+            {
+              "expression": "_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_pages_v_blocks_gospel_stepper_steps_parent_id_idx": {
+          "name": "_pages_v_blocks_gospel_stepper_steps_parent_id_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_pages_v_blocks_gospel_stepper_steps_image_idx": {
+          "name": "_pages_v_blocks_gospel_stepper_steps_image_idx",
+          "columns": [
+            {
+              "expression": "image_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "_pages_v_blocks_gospel_stepper_steps_image_id_media_id_fk": {
+          "name": "_pages_v_blocks_gospel_stepper_steps_image_id_media_id_fk",
+          "tableFrom": "_pages_v_blocks_gospel_stepper_steps",
+          "tableTo": "media",
+          "columnsFrom": [
+            "image_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_pages_v_blocks_gospel_stepper_steps_parent_id_fk": {
+          "name": "_pages_v_blocks_gospel_stepper_steps_parent_id_fk",
+          "tableFrom": "_pages_v_blocks_gospel_stepper_steps",
+          "tableTo": "_pages_v_blocks_gospel_stepper",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public._pages_v_blocks_gospel_stepper_final_c_t_a_buttons": {
+      "name": "_pages_v_blocks_gospel_stepper_final_c_t_a_buttons",
+      "schema": "",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "href": {
+          "name": "href",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "variant": {
+          "name": "variant",
+          "type": "enum__pages_v_blocks_gospel_stepper_final_c_t_a_buttons_variant",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "_uuid": {
+          "name": "_uuid",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "_pages_v_blocks_gospel_stepper_final_c_t_a_buttons_order_idx": {
+          "name": "_pages_v_blocks_gospel_stepper_final_c_t_a_buttons_order_idx",
+          "columns": [
+            {
+              "expression": "_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_pages_v_blocks_gospel_stepper_final_c_t_a_buttons_parent_id_idx": {
+          "name": "_pages_v_blocks_gospel_stepper_final_c_t_a_buttons_parent_id_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "_pages_v_blocks_gospel_stepper_final_c_t_a_buttons_parent_id_fk": {
+          "name": "_pages_v_blocks_gospel_stepper_final_c_t_a_buttons_parent_id_fk",
+          "tableFrom": "_pages_v_blocks_gospel_stepper_final_c_t_a_buttons",
+          "tableTo": "_pages_v_blocks_gospel_stepper",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public._pages_v_blocks_gospel_stepper": {
+      "name": "_pages_v_blocks_gospel_stepper",
+      "schema": "",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_path": {
+          "name": "_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "heading": {
+          "name": "heading",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "final_c_t_a_heading": {
+          "name": "final_c_t_a_heading",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "final_c_t_a_text": {
+          "name": "final_c_t_a_text",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "_uuid": {
+          "name": "_uuid",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "block_name": {
+          "name": "block_name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "_pages_v_blocks_gospel_stepper_order_idx": {
+          "name": "_pages_v_blocks_gospel_stepper_order_idx",
+          "columns": [
+            {
+              "expression": "_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_pages_v_blocks_gospel_stepper_parent_id_idx": {
+          "name": "_pages_v_blocks_gospel_stepper_parent_id_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_pages_v_blocks_gospel_stepper_path_idx": {
+          "name": "_pages_v_blocks_gospel_stepper_path_idx",
+          "columns": [
+            {
+              "expression": "_path",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "_pages_v_blocks_gospel_stepper_parent_id_fk": {
+          "name": "_pages_v_blocks_gospel_stepper_parent_id_fk",
+          "tableFrom": "_pages_v_blocks_gospel_stepper",
           "tableTo": "_pages_v",
           "columnsFrom": [
             "_parent_id"
@@ -11445,7 +12273,8 @@
       "values": [
         "horizontalScroll",
         "grid4",
-        "grid2"
+        "grid2",
+        "masonry"
       ]
     },
     "public.enum_pages_blocks_page_header_theme": {
@@ -11454,6 +12283,23 @@
       "values": [
         "dark",
         "light"
+      ]
+    },
+    "public.enum_pages_blocks_gospel_stepper_steps_image_position": {
+      "name": "enum_pages_blocks_gospel_stepper_steps_image_position",
+      "schema": "public",
+      "values": [
+        "left",
+        "right",
+        "background"
+      ]
+    },
+    "public.enum_pages_blocks_gospel_stepper_final_c_t_a_buttons_variant": {
+      "name": "enum_pages_blocks_gospel_stepper_final_c_t_a_buttons_variant",
+      "schema": "public",
+      "values": [
+        "primary",
+        "secondary"
       ]
     },
     "public.enum_pages_template": {
@@ -11629,7 +12475,8 @@
       "values": [
         "horizontalScroll",
         "grid4",
-        "grid2"
+        "grid2",
+        "masonry"
       ]
     },
     "public.enum__pages_v_blocks_page_header_theme": {
@@ -11638,6 +12485,23 @@
       "values": [
         "dark",
         "light"
+      ]
+    },
+    "public.enum__pages_v_blocks_gospel_stepper_steps_image_position": {
+      "name": "enum__pages_v_blocks_gospel_stepper_steps_image_position",
+      "schema": "public",
+      "values": [
+        "left",
+        "right",
+        "background"
+      ]
+    },
+    "public.enum__pages_v_blocks_gospel_stepper_final_c_t_a_buttons_variant": {
+      "name": "enum__pages_v_blocks_gospel_stepper_final_c_t_a_buttons_variant",
+      "schema": "public",
+      "values": [
+        "primary",
+        "secondary"
       ]
     },
     "public.enum__pages_v_version_template": {
@@ -11749,6 +12613,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "7bbec89e-cbd6-4d9f-8f61-a1622e6860b6",
+  "id": "3d9bc051-95a3-4fa8-bc9c-d1b6eaabc72a",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }
