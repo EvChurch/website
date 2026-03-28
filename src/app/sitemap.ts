@@ -6,19 +6,29 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://ev.church'
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const payload = await getPayloadClient()
 
-  // Static routes
-  const staticRoutes: MetadataRoute.Sitemap = [
-    { url: SITE_URL, lastModified: new Date(), changeFrequency: 'weekly', priority: 1 },
-    { url: `${SITE_URL}/about`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
-    { url: `${SITE_URL}/visit`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
-    { url: `${SITE_URL}/vision`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${SITE_URL}/contact`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${SITE_URL}/next-steps`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${SITE_URL}/explaining-christianity`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
-    { url: `${SITE_URL}/newish`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
-    { url: `${SITE_URL}/connect-groups`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
-    { url: `${SITE_URL}/kids`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
-    { url: `${SITE_URL}/youth`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
+  // Dynamic CMS-managed pages
+  const pages = await payload.find({
+    collection: 'pages',
+    depth: 0,
+    select: { slug: true, updatedAt: true },
+    limit: 200,
+    where: { _status: { equals: 'published' } },
+  })
+
+  const pageRoutes: MetadataRoute.Sitemap = pages.docs.map((page) => ({
+    url: page.slug === 'home' ? SITE_URL : `${SITE_URL}/${page.slug}`,
+    lastModified: page.updatedAt ? new Date(page.updatedAt) : new Date(),
+    changeFrequency: 'monthly' as const,
+    priority: page.slug === 'home' ? 1 : 0.7,
+  }))
+
+  // Hardcoded pages (not in CMS)
+  const hardcodedRoutes: MetadataRoute.Sitemap = [
+    { url: `${SITE_URL}/what-we-believe`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${SITE_URL}/faq`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${SITE_URL}/blog`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.6 },
+    { url: `${SITE_URL}/privacy`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/hs`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
   ]
 
   // Dynamic campus routes
@@ -52,5 +62,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }))
 
-  return [...staticRoutes, ...campusRoutes, ...blogRoutes]
+  return [...pageRoutes, ...hardcodedRoutes, ...campusRoutes, ...blogRoutes]
 }

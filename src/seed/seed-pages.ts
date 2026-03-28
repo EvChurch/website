@@ -209,6 +209,45 @@ async function seed() {
         ],
       },
       {
+        blockType: 'content',
+        heading: 'A Christian church across Auckland',
+        body: richText([
+          'Ev Church is a community of Christ-followers across Auckland, Tamaki Makaurau. Whether you are exploring faith for the first time, returning to church after time away, or looking for a new community to call home, you are welcome here.',
+          'We meet every Sunday at three campuses across the city: Ev North in Rosedale on the North Shore, Ev Central in Hillsborough, and Unichurch at the University of Auckland for students. Our services are relaxed, family-friendly, and filled with live worship, an engaging message, and genuine community.',
+          'Beyond Sundays, we have Connect Groups meeting throughout the week, programs for kids and youth, and courses like Explaining Christianity for anyone curious about faith. Come and discover what we believe and find your place at Ev Church.',
+        ]),
+        alignment: 'center',
+      },
+      {
+        blockType: 'featureGrid',
+        eyebrow: 'New here?',
+        heading: 'What to expect on a Sunday',
+        layout: 'fourColumn',
+        style: 'iconTop',
+        items: [
+          {
+            icon: 'clock',
+            title: 'Sunday 10:15 am',
+            description: 'North and Central campuses meet at 10:15 am. Unichurch meets at 5:15 pm. Services run for about 75 minutes.',
+          },
+          {
+            icon: 'smile',
+            title: 'Come as you are',
+            description: 'No dress code, no pressure. Just a warm, welcoming community ready to meet you. Grab a coffee before the service.',
+          },
+          {
+            icon: 'heart',
+            title: 'Great for families',
+            description: 'Ev Kids runs every Sunday for ages 0-12 at North and Central. Safe, fun, and engaging programs for every age group.',
+          },
+          {
+            icon: 'users',
+            title: 'Find your people',
+            description: 'Connect Groups meet throughout the week across Auckland. Young adults, couples, women, men, and families.',
+          },
+        ],
+      },
+      {
         blockType: 'manualCardGrid',
         eyebrow: 'Three campuses',
         heading: 'Join us this Sunday',
