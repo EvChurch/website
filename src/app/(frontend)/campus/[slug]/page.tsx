@@ -97,8 +97,10 @@ const campusData: Record<string, CampusData> = {
   },
 }
 
+export const dynamic = 'force-dynamic'
+
 export async function generateStaticParams() {
-  return Object.keys(campusData).map((slug) => ({ slug }))
+  return []
 }
 
 export async function generateMetadata({
