@@ -9,10 +9,10 @@ const columns: FooterColumn[] = [
   {
     title: 'About',
     links: [
-      { label: 'About', href: '/about' },
+      { label: 'About Us', href: '/about' },
+      { label: 'What We Believe', href: '/what-we-believe' },
       { label: 'Our Vision', href: '/vision' },
-      { label: 'Our Team', href: '/about#our-team' },
-      { label: 'What We Believe', href: '/about#what-we-believe' },
+      { label: 'FAQ', href: '/faq' },
       { label: 'Health & Safety', href: '/hs' },
     ],
   },

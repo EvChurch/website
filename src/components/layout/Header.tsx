@@ -22,8 +22,15 @@ const navItems: NavItem[] = [
       { label: 'Unichurch', href: '/campus/unichurch' },
     ],
   },
-  { label: 'About', href: '/about' },
-  { label: 'Our Vision', href: '/vision' },
+  {
+    label: 'About',
+    href: '/about',
+    children: [
+      { label: 'About Us', href: '/about' },
+      { label: 'What We Believe', href: '/what-we-believe' },
+      { label: 'Our Vision', href: '/vision' },
+    ],
+  },
   {
     label: 'Next Steps',
     href: '/next-steps',

@@ -498,44 +498,14 @@ async function seed() {
       },
       {
         blockType: 'content',
-        heading: 'Our foundational beliefs',
-        body: richText(
-          "Ev Church is an evangelical church that is independent in governance but united with Christians around the world and throughout history in upholding the gospel of Jesus Christ. We hold the Bible to be the supreme authority in all matters of faith and conduct and weigh all our teaching against its standard. We believe the teachings outlined in the historic church creeds (known commonly as The Apostles' Creed, The Nicene Creed and The Athanasian Creed) are faithful expressions of the teaching of the Christian Scriptures. We hold to the Reformation teaching that God's rescue comes by grace alone, through faith alone, in the Person and work of Christ alone as revealed in the Scripture alone, to the glory of God alone.",
-        ),
-        alignment: 'center',
-      },
-      {
-        blockType: 'accordion',
         heading: 'What we believe',
-        items: [
-          {
-            question: 'About God',
-            answer: "There is one unique and eternal God, who exists in an everlasting loving relationship of Father, Son and Spirit \u2013 one God in three persons. God is sovereign in all things: including creation, revelation, redemption, judgement and the establishing of His kingdom. As sovereign loving creator and redeemer, He is worthy of all glory, honour and praise.",
-          },
-          {
-            question: 'About Humanity',
-            answer: "Men and women together are created in the image of God and, therefore, enjoy a unique dignity in creation and a unique relationship with God. Men and women together have dominion over the created order. Tragically, human nature is universally sinful since the Fall and all are guilty before God. This leaves us under the wrath and condemnation of God. We are unable, without the prior regenerative work of God's Spirit, to turn ourselves to God.",
-          },
-          {
-            question: 'About the Bible',
-            answer: "There is no other way to know God except that He reveals Himself to us. The Bible is God's revelation to us. The words of the Bible are divinely inspired and infallible, as originally given, and have supreme authority in all matters of faith, conduct and experience. The Bible is sufficient for knowing God. It is not only central to the well-being of the church but is able to thoroughly equip the Christian community for life and godliness.",
-          },
-          {
-            question: 'About Jesus Christ',
-            answer: "Jesus Christ was conceived by the Holy Spirit and born of the virgin Mary. He is both fully God and truly human. He entered fully into human experience. He endured temptation and He suffered and died. He was perfectly obedient to God His father. Jesus took on Himself the consequences of human sin. He died and was buried. On the third day He rose from the dead bodily and is now exalted as ruler over all. He will come again in glory to judge the living and the dead.",
-          },
-          {
-            question: 'About Salvation',
-            answer: "There is only one name under heaven by which we can be brought into relationship with God: the name \u2018Jesus Christ\u2019. It is only through the sacrificial death of Jesus Christ, as our representative and substitute, that the guilt, penalty and power of sin can be removed. In that death, God demonstrates His love to us most perfectly and establishes His victory over Satan and all His foes. The work of the Holy Spirit is necessary to make the death of Jesus effective in an individual's life. The Spirit enables the sinner to repent and put their faith in Jesus Christ, so that salvation is entirely of God's grace, through faith alone, and not of human merit or works.",
-          },
-          {
-            question: 'About the Holy Spirit',
-            answer: "The Holy Spirit is co-equal with the Father and the Son, and indwells all true believers. His role is to bring glory to Jesus Christ, thus making Jesus Christ central in all things. The Spirit works to illuminate believers' minds to grasp the truth of the Bible, producing in them His fruit, granting them His gifts and empowering them for service. He grants His gifts for the purpose of service, not self-indulgence.",
-          },
-          {
-            question: 'About the Church',
-            answer: "The visible church is the gathering of believers around Christ in His word. It is a community of people intended by God to bear witness to Him and actively seek the extension of His rule. Within its community, both men and women are to seek proper expression of their gifts as they work to build the church in love.",
-          },
+        body: richText([
+          'Ev Church is an evangelical church grounded in the gospel of Jesus Christ. We hold the Bible to be the supreme authority in all matters of faith and conduct, and we stand united with Christians around the world and throughout history.',
+          'Read more about our core beliefs, including what we believe about God, Jesus Christ, the Bible, salvation, the Holy Spirit, and the church.',
+        ]),
+        alignment: 'center',
+        buttons: [
+          { label: 'What we believe', href: '/what-we-believe', variant: 'primary' },
         ],
       },
       {
