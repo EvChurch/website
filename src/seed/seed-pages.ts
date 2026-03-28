@@ -195,7 +195,7 @@ async function seed() {
       {
         blockType: 'hero',
         image: img('carousel-0c59a44d'),
-        eyebrow: 'Christian Church in Auckland',
+        eyebrow: 'A Christian Evangelical Church in Auckland',
         heading: 'A place to belong',
         semanticH1: true,
         highlightedText: 'belong',
@@ -222,8 +222,9 @@ async function seed() {
         blockType: 'featureGrid',
         eyebrow: 'New here?',
         heading: 'What to expect on a Sunday',
-        layout: 'fourColumn',
-        style: 'iconTop',
+        description: 'Whether it is your first time at church or you have been going for years, you are welcome at Ev.',
+        layout: 'twoColumn',
+        style: 'iconLeft',
         items: [
           {
             icon: 'clock',
@@ -538,10 +539,48 @@ async function seed() {
       {
         blockType: 'content',
         heading: 'What we believe',
-        body: richText([
-          'Ev Church is an evangelical church grounded in the gospel of Jesus Christ. We hold the Bible to be the supreme authority in all matters of faith and conduct, and we stand united with Christians around the world and throughout history.',
-          'Read more about our core beliefs, including what we believe about God, Jesus Christ, the Bible, salvation, the Holy Spirit, and the church.',
-        ]),
+        body: {
+          root: {
+            type: 'root',
+            children: [
+              {
+                type: 'paragraph',
+                children: [{ type: 'text', text: 'Ev Church is an evangelical church grounded in the gospel of Jesus Christ. We hold the Bible to be the supreme authority in all matters of faith and conduct, and we stand united with Christians around the world and throughout history.', version: 1 }],
+                direction: 'ltr' as const,
+                format: '' as const,
+                indent: 0,
+                version: 1,
+              },
+              {
+                type: 'paragraph',
+                children: [
+                  {
+                    type: 'link',
+                    children: [{ type: 'text', text: 'Read more about our core beliefs', version: 1 }],
+                    direction: 'ltr' as const,
+                    format: '' as const,
+                    indent: 0,
+                    version: 3,
+                    fields: {
+                      linkType: 'custom',
+                      url: '/what-we-believe',
+                      newTab: false,
+                    },
+                  },
+                  { type: 'text', text: ', including what we believe about God, Jesus Christ, the Bible, salvation, the Holy Spirit, and the church.', version: 1 },
+                ],
+                direction: 'ltr' as const,
+                format: '' as const,
+                indent: 0,
+                version: 1,
+              },
+            ],
+            direction: 'ltr' as const,
+            format: '' as const,
+            indent: 0,
+            version: 1,
+          },
+        },
         alignment: 'center',
         buttons: [
           { label: 'What we believe', href: '/what-we-believe', variant: 'primary' },
@@ -1424,6 +1463,153 @@ async function seed() {
     seo: {
       metaTitle: 'Next Steps at Ev Church Auckland | Get Connected',
       metaDescription: 'Ready to take the next step? Explore courses, groups, and programs at Ev Church Auckland.',
+    },
+  })
+
+  /* ─────────────────────── WHAT WE BELIEVE PAGE ─────────────────────── */
+  await upsertPage('what-we-believe', {
+    title: 'What We Believe',
+    _status: 'published',
+    layout: [
+      {
+        blockType: 'pageHeader',
+        eyebrow: 'Our beliefs',
+        heading: 'What we believe',
+        description: 'Ev Church is an evangelical church that is independent in governance but united with Christians around the world and throughout history in upholding the gospel of Jesus Christ. We hold the Bible to be the supreme authority in all matters of faith and conduct and weigh all our teaching against its standard.',
+        theme: 'dark',
+      },
+      {
+        blockType: 'content',
+        heading: 'Our foundational convictions',
+        body: richText(
+          "We believe the teachings outlined in the historic church creeds (known commonly as The Apostles' Creed, The Nicene Creed and The Athanasian Creed) are faithful expressions of the teaching of the Christian Scriptures. We hold to the Reformation teaching that God's rescue comes by grace alone, through faith alone, in the Person and work of Christ alone as revealed in the Scripture alone, to the glory of God alone.",
+        ),
+        alignment: 'center',
+      },
+      {
+        blockType: 'accordion',
+        heading: 'What we believe',
+        items: [
+          {
+            question: 'About God',
+            answer: "There is one unique and eternal God, who exists in an everlasting loving relationship of Father, Son and Spirit \u2013 one God in three persons. God is sovereign in all things: including creation, revelation, redemption, judgement and the establishing of His kingdom. As sovereign loving creator and redeemer, He is worthy of all glory, honour and praise.",
+          },
+          {
+            question: 'About Humanity',
+            answer: "Men and women together are created in the image of God and, therefore, enjoy a unique dignity in creation and a unique relationship with God. Men and women together have dominion over the created order. Tragically, human nature is universally sinful since the Fall and all are guilty before God. This leaves us under the wrath and condemnation of God. We are unable, without the prior regenerative work of God's Spirit, to turn ourselves to God.",
+          },
+          {
+            question: 'About the Bible',
+            answer: "There is no other way to know God except that He reveals Himself to us. The Bible is God's revelation to us. The words of the Bible are divinely inspired and infallible, as originally given, and have supreme authority in all matters of faith, conduct and experience. The Bible is sufficient for knowing God. It is not only central to the well-being of the church but is able to thoroughly equip the Christian community for life and godliness.",
+          },
+          {
+            question: 'About Jesus Christ',
+            answer: "Jesus Christ was conceived by the Holy Spirit and born of the virgin Mary. He is both fully God and truly human. He entered fully into human experience. He endured temptation and He suffered and died. He was perfectly obedient to God His father. Jesus took on Himself the consequences of human sin. He died and was buried. On the third day He rose from the dead bodily and is now exalted as ruler over all. He will come again in glory to judge the living and the dead.",
+          },
+          {
+            question: 'About Salvation',
+            answer: "There is only one name under heaven by which we can be brought into relationship with God: the name \u2018Jesus Christ\u2019. It is only through the sacrificial death of Jesus Christ, as our representative and substitute, that the guilt, penalty and power of sin can be removed. In that death, God demonstrates His love to us most perfectly and establishes His victory over Satan and all His foes. The work of the Holy Spirit is necessary to make the death of Jesus effective in an individual's life. The Spirit enables the sinner to repent and put their faith in Jesus Christ, so that salvation is entirely of God's grace, through faith alone, and not of human merit or works.",
+          },
+          {
+            question: 'About the Holy Spirit',
+            answer: "The Holy Spirit is co-equal with the Father and the Son, and indwells all true believers. His role is to bring glory to Jesus Christ, thus making Jesus Christ central in all things. The Spirit works to illuminate believers' minds to grasp the truth of the Bible, producing in them His fruit, granting them His gifts and empowering them for service. He grants His gifts for the purpose of service, not self-indulgence.",
+          },
+          {
+            question: 'About the Church',
+            answer: "The visible church is the gathering of believers around Christ in His word. It is a community of people intended by God to bear witness to Him and actively seek the extension of His rule. Within its community, both men and women are to seek proper expression of their gifts as they work to build the church in love.",
+          },
+        ],
+      },
+      {
+        blockType: 'cta',
+        heading: 'Want to explore further?',
+        text: 'If you are curious about the Christian faith or have questions about what we believe, we would love to chat. Explaining Christianity is a relaxed course where you can ask anything in a no-pressure environment.',
+        colorPreset: 'primary-red',
+        buttons: [
+          { label: 'Explore Christianity', href: '/explaining-christianity', variant: 'primary' },
+          { label: 'Meet our team', href: '/about', variant: 'secondary' },
+        ],
+      },
+    ],
+    seo: {
+      metaTitle: 'What We Believe | Ev Church Auckland | Core Beliefs',
+      metaDescription: 'Explore the core beliefs of Ev Church Auckland. What we believe about God, Jesus, the Bible, salvation, and the church. An evangelical Christian community in Tamaki Makaurau.',
+    },
+  })
+
+  /* ─────────────────────── FAQ PAGE ─────────────────────── */
+  await upsertPage('faq', {
+    title: 'FAQ',
+    _status: 'published',
+    layout: [
+      {
+        blockType: 'pageHeader',
+        eyebrow: 'Common questions',
+        heading: 'Frequently asked questions',
+        description: 'Everything you need to know about visiting Ev Church in Auckland. Can not find what you are looking for? Get in touch.',
+        theme: 'dark',
+      },
+      {
+        blockType: 'accordion',
+        heading: 'About Ev Church',
+        allowMultiple: true,
+        items: [
+          {
+            question: 'What time are services at Ev Church?',
+            answer: 'We have Sunday services at three campuses across Auckland. Ev North (Rosedale) and Ev Central (Hillsborough) both meet at 10:15 am. Unichurch meets at 5:15 pm at the University of Auckland. Services run for approximately 75 minutes.',
+          },
+          {
+            question: 'Where is Ev Church located?',
+            answer: 'Ev Church has three campuses across Auckland, Tamaki Makaurau. Ev North is at 9-11 Rothwell Avenue, Rosedale. Ev Central is at 80 Olsen Avenue, Hillsborough. Unichurch meets at the University of Auckland, 24 Princes Street, Auckland CBD.',
+          },
+          {
+            question: 'Is Ev Church family-friendly? What about kids?',
+            answer: 'Absolutely. Ev Kids runs every Sunday during our North and Central services for children aged 0 to 12. We have three age groups: Creche (0-2 years), Explorers (3-5 years), and Adventurers (6-12 years). All our volunteers are police vetted and we maintain strict sign-in and sign-out procedures.',
+          },
+          {
+            question: 'What denomination is Ev Church?',
+            answer: 'Ev Church is an evangelical Christian church. We are independent in governance but united with Christians around the world in upholding the gospel of Jesus Christ. We hold the Bible to be the supreme authority in all matters of faith and conduct.',
+          },
+          {
+            question: 'What should I wear to church?',
+            answer: 'Come as you are. There is no dress code at Ev Church. You will see everything from jeans and t-shirts to smart casual. We want you to feel comfortable and welcome, whatever you wear.',
+          },
+          {
+            question: 'How can I get involved or volunteer?',
+            answer: 'There are many ways to get involved at Ev Church. You can join a Connect Group to build friendships and grow in faith, serve on a Sunday team (welcome, kids, music, tech), or get involved in outreach and community projects. The best first step is to come along to Newish Connect.',
+          },
+          {
+            question: 'Do you have youth programs?',
+            answer: 'Yes. Ev Youth runs on Friday nights for teenagers. We have Junior Youth and Senior Youth groups, both meeting on the North Shore. It is a place for teenagers to connect, grow, and find where they belong.',
+          },
+          {
+            question: 'What are Connect Groups?',
+            answer: 'Connect Groups are small groups of people who meet regularly throughout the week to share life, study the Bible, and support one another. We have groups for young adults, couples, women, men, and families across Auckland.',
+          },
+          {
+            question: 'Is there parking available?',
+            answer: 'Yes, parking is available on site at both our North (Rosedale) and Central (Hillsborough) campuses. Unichurch meets in central Auckland where street parking and nearby parking buildings are available.',
+          },
+          {
+            question: 'How do I find out more about the Christian faith?',
+            answer: 'We run a course called Explaining Christianity, which is a relaxed, no-pressure environment to ask questions and explore the basics of the Christian faith. It is open to anyone, whether you are curious, sceptical, or just want to learn. You can also come along to a Sunday service or chat with one of our pastors.',
+          },
+        ],
+      },
+      {
+        blockType: 'cta',
+        heading: 'Still have questions?',
+        text: 'We would love to hear from you. Reach out to our team and we will get back to you as soon as we can.',
+        colorPreset: 'primary-red',
+        buttons: [
+          { label: 'Contact us', href: '/contact', variant: 'primary' },
+          { label: 'Plan a visit', href: '/visit', variant: 'secondary' },
+        ],
+      },
+    ],
+    seo: {
+      metaTitle: 'FAQ | Ev Church Auckland | Frequently Asked Questions',
+      metaDescription: 'Answers to common questions about Ev Church Auckland. Service times, locations, kids programs, parking, and how to get involved.',
     },
   })
 

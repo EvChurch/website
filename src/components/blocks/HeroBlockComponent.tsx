@@ -121,7 +121,7 @@ export function HeroBlockComponent({
         <div className="max-w-2xl">
           {eyebrow && semanticH1 ? (
             <h1
-              className="animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] text-light-red-2"
+              className="animate-fade-in-up m-0 font-sans text-xs font-semibold uppercase tracking-[0.2em] text-light-red-2"
               style={{ animationDelay: '100ms' }}
             >
               {eyebrow}

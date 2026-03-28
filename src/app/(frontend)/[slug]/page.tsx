@@ -102,9 +102,45 @@ export default async function DynamicPage({
   const blocks = (page.layout ?? []) as any[]
   const breadcrumbs = buildBreadcrumbs(`/${slug}`, page.title)
 
+  // Generate FAQPage JSON-LD from accordion blocks on the FAQ page
+  let faqJsonLd: React.ReactNode = null
+  if (slug === 'faq') {
+    const faqItems: { question: string; answer: string }[] = []
+    for (const block of blocks) {
+      if (block.blockType === 'accordion' && Array.isArray(block.items)) {
+        for (const item of block.items) {
+          if (item.question && item.answer) {
+            faqItems.push({
+              question: item.question,
+              answer: typeof item.answer === 'string' ? item.answer : '',
+            })
+          }
+        }
+      }
+    }
+    if (faqItems.length > 0) {
+      const faqSchema = {
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: faqItems.map((faq) => ({
+          '@type': 'Question',
+          name: faq.question,
+          acceptedAnswer: { '@type': 'Answer', text: faq.answer },
+        })),
+      }
+      faqJsonLd = (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+        />
+      )
+    }
+  }
+
   return (
     <>
       <BreadcrumbJsonLd items={breadcrumbs} />
+      {faqJsonLd}
       <RenderBlocks blocks={blocks} />
     </>
   )
