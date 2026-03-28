@@ -20,18 +20,7 @@ async function getPageBySlug(slug: string) {
 }
 
 export async function generateStaticParams() {
-  const payload = await getPayloadClient()
-
-  const pages = await payload.find({
-    collection: 'pages',
-    depth: 0,
-    limit: 100,
-    select: { slug: true },
-  })
-
-  return pages.docs
-    .filter((page) => page.slug !== 'home')
-    .map((page) => ({ slug: page.slug }))
+  return []
 }
 
 export async function generateMetadata({
