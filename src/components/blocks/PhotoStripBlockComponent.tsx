@@ -122,19 +122,23 @@ export function PhotoStripBlockComponent({ layout: layoutProp, images }: PhotoSt
 
   return (
     <section className="overflow-hidden bg-white py-16 lg:py-24">
-      {/* Mobile: auto-scrolling marquee */}
-      <div className="flex gap-3 lg:hidden" style={{ width: 'max-content', animation: 'marquee 30s linear infinite' }}>
-        {marqueeImages.map((img, i) => (
-          <Image
-            key={i}
-            src={getUrl(img)}
-            alt={getAlt(img)}
-            width={300}
-            height={400}
-            sizes="70vw"
-            className="h-64 w-auto shrink-0 rounded-lg object-cover"
-          />
-        ))}
+      {/* Mobile: auto-scrolling marquee with staggered heights */}
+      <div className="flex items-start gap-3 lg:hidden" style={{ width: 'max-content', animation: 'marquee 50s linear infinite' }}>
+        {marqueeImages.map((img, i) => {
+          const heightClass = heightPatterns[i % heightPatterns.length]
+          const marginClass = marginPatterns[i % marginPatterns.length]
+          return (
+            <Image
+              key={i}
+              src={getUrl(img)}
+              alt={getAlt(img)}
+              width={300}
+              height={400}
+              sizes="70vw"
+              className={`${heightClass} ${marginClass} w-auto shrink-0 rounded-lg object-cover`}
+            />
+          )
+        })}
       </div>
       <style>{`@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
 
