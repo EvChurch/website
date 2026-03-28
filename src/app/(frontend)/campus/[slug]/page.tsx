@@ -41,10 +41,10 @@ const campusData: Record<string, CampusData> = {
       'Ev Central meets in Hillsborough, south-central Auckland. We are a diverse, vibrant community of people from all walks of life. Whether you live nearby or are visiting, you are welcome here. Our Sunday services feature live worship, an engaging message, and genuine community.',
     heroImage: '/images/campus-central/photo-3b4be562.jpg',
     galleryImages: [
-      { src: '/images/campus-central/photo-9018bc8d.jpg', alt: 'Worship at Ev Central' },
-      { src: '/images/campus-central/photo-c1a8d4f7.jpg', alt: 'Community at Ev Central' },
-      { src: '/images/campus-central/photo-e85b8b0f.jpg', alt: 'People connecting at Ev Central' },
-      { src: '/images/campus-central/photo-f38f53fe.jpg', alt: 'Ev Central gathering' },
+      { src: '/images/campus-central/photo-9018bc8d.jpg', alt: 'Live worship at Ev Church Central campus in Hillsborough Auckland' },
+      { src: '/images/campus-central/photo-c1a8d4f7.jpg', alt: 'Community gathering at Ev Church Central Auckland' },
+      { src: '/images/campus-central/photo-e85b8b0f.jpg', alt: 'People connecting at Ev Church Central Hillsborough' },
+      { src: '/images/campus-central/photo-f38f53fe.jpg', alt: 'Sunday service gathering at Ev Church Central Auckland' },
     ],
     mapPlaceholder: 'https://www.google.com/maps?q=80+Olsen+Avenue+Hillsborough+Auckland',
     kidsProgram: true,
@@ -64,10 +64,10 @@ const campusData: Record<string, CampusData> = {
       'Unichurch is our campus expression specifically for university students. Meeting on Sunday evenings, it is the perfect way to end your weekend and start your week. If you are a student at the University of Auckland or any tertiary institution in the city, this is your community. Expect relaxed vibes, real conversations, and a space to explore faith.',
     heroImage: '/images/campus-unichurch/photo-3cb597b9.jpg',
     galleryImages: [
-      { src: '/images/campus-unichurch/photo-4e451abd.jpg', alt: 'Students at Unichurch' },
-      { src: '/images/campus-unichurch/photo-af1c0355.jpg', alt: 'Unichurch worship' },
-      { src: '/images/campus-unichurch/photo-be476efc.jpg', alt: 'Community at Unichurch' },
-      { src: '/images/campus-unichurch/photo-d912efee.jpg', alt: 'Unichurch gathering' },
+      { src: '/images/campus-unichurch/photo-4e451abd.jpg', alt: 'University students at Unichurch Auckland' },
+      { src: '/images/campus-unichurch/photo-af1c0355.jpg', alt: 'Worship at Unichurch student church Auckland' },
+      { src: '/images/campus-unichurch/photo-be476efc.jpg', alt: 'Student community at Unichurch University of Auckland' },
+      { src: '/images/campus-unichurch/photo-d912efee.jpg', alt: 'Sunday evening gathering at Unichurch Auckland' },
     ],
     mapPlaceholder: 'https://www.google.com/maps?q=24+Princes+Street+Auckland',
     kidsProgram: false,
@@ -87,10 +87,10 @@ const campusData: Record<string, CampusData> = {
       'Ev North is located in Rosedale on the North Shore, serving families and individuals across the wider Shore community. We are a warm, welcoming church with a heart for people at every stage of life. Our services are relaxed and family-friendly, with excellent programs for kids of all ages.',
     heroImage: '/images/homepage/carousel-c645786c.jpg',
     galleryImages: [
-      { src: '/images/homepage/carousel-3c68ddf1.jpg', alt: 'People at Ev North' },
-      { src: '/images/homepage/carousel-168f386e.jpg', alt: 'Community at Ev North' },
-      { src: '/images/homepage/carousel-9a8d8943.jpg', alt: 'Worship at Ev North' },
-      { src: '/images/homepage/carousel-70ac2785.jpg', alt: 'Ev North gathering' },
+      { src: '/images/homepage/carousel-3c68ddf1.jpg', alt: 'Families at Ev Church North campus Rosedale Auckland' },
+      { src: '/images/homepage/carousel-168f386e.jpg', alt: 'Community at Ev Church North Shore Auckland' },
+      { src: '/images/homepage/carousel-9a8d8943.jpg', alt: 'Live worship at Ev Church North Rosedale Auckland' },
+      { src: '/images/homepage/carousel-70ac2785.jpg', alt: 'Sunday gathering at Ev Church North campus Auckland' },
     ],
     mapPlaceholder: 'https://www.google.com/maps?q=9-11+Rothwell+Avenue+Rosedale+Auckland',
     kidsProgram: true,
@@ -110,9 +110,17 @@ export async function generateMetadata({
   const campus = campusData[slug]
   if (!campus) return {}
 
+  const isUnichurch = slug === 'unichurch'
+  const title = isUnichurch
+    ? 'Unichurch | Student Church Auckland | University of Auckland'
+    : `${campus.name} Campus | Ev Church Auckland`
+  const description = isUnichurch
+    ? 'Join Unichurch at the University of Auckland. A student church for university and tertiary students in Auckland. Sunday 5:15 pm.'
+    : `Join ${campus.brandName} at ${campus.address}. Services every ${campus.time}. A welcoming community in ${campus.location}.`
+
   return {
-    title: `${campus.name} Campus | Ev Church Auckland`,
-    description: `Join ${campus.brandName} at ${campus.address}. Services every ${campus.time}. A welcoming community in ${campus.location}.`,
+    title: { absolute: title },
+    description,
     openGraph: {
       title: `${campus.name} Campus | Ev Church`,
       description: `Services every ${campus.time} at ${campus.location}. Everyone is welcome.`,

@@ -5,7 +5,7 @@ import { ScrollReveal } from '@/components/ui/ScrollReveal'
 export const metadata: Metadata = {
   title: 'Blog | Ev Church Auckland',
   description:
-    'Stories, reflections, and updates from Ev Church Auckland. Read about faith, community, and life at Ev.',
+    'Stories and reflections from Ev Church Auckland. Faith, community, and life in Tamaki Makaurau.',
   openGraph: {
     title: 'Blog | Ev Church Auckland',
     description: 'Stories, reflections, and updates from Ev Church Auckland.',

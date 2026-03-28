@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: `${title} | Ev Church Blog`,
-    description: `Read "${title}" on the Ev Church blog.`,
+    description: `Read "${title}" on the Ev Church Auckland blog. Stories of faith, community, and life in Tamaki Makaurau.`,
     openGraph: {
       title: `${title} | Ev Church Blog`,
       description: `Read "${title}" on the Ev Church blog.`,

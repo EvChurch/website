@@ -46,58 +46,58 @@ const IMAGES_ROOT = resolve(__dirname, '../../public/images')
 
 const imageManifest: ImageEntry[] = [
   // Homepage carousel images
-  { key: 'carousel-0c59a44d', filePath: 'homepage/carousel-0c59a44d.jpg', alt: 'Ev Church community gathering' },
-  { key: 'carousel-146c7f7e', filePath: 'homepage/carousel-146c7f7e.jpg', alt: 'Ev Church community celebration' },
-  { key: 'carousel-168f386e', filePath: 'homepage/carousel-168f386e.jpg', alt: 'Kids enjoying activities at Ev Church' },
-  { key: 'carousel-168f386e', filePath: 'homepage/carousel-168f386e.jpg', alt: 'Community life at Ev Church' },
-  { key: 'carousel-3c68ddf1', filePath: 'homepage/carousel-3c68ddf1.jpg', alt: 'Families at Ev Church' },
-  { key: 'carousel-3c68ddf1', filePath: 'homepage/carousel-3c68ddf1.jpg', alt: 'People connecting at Ev Church' },
-  { key: 'carousel-5940ca71', filePath: 'homepage/carousel-5940ca71.jpg', alt: 'Friends laughing in community' },
-  { key: 'carousel-c645786c', filePath: 'homepage/carousel-c645786c.jpg', alt: 'Worship at Ev Church' },
-  { key: 'carousel-70ac2785', filePath: 'homepage/carousel-70ac2785.jpg', alt: 'Ev Church North campus' },
-  { key: 'carousel-79cef650', filePath: 'homepage/carousel-79cef650.jpg', alt: 'Children at Ev Church' },
-  { key: 'carousel-89a3395d', filePath: 'homepage/carousel-89a3395d.jpg', alt: 'Community at Ev Church' },
-  { key: 'carousel-8aae1142', filePath: 'homepage/carousel-8aae1142.jpg', alt: 'People laughing together at Ev Church' },
-  { key: 'carousel-9a8d8943', filePath: 'homepage/carousel-9a8d8943.jpg', alt: 'Community gathering at Ev Church' },
-  { key: 'carousel-aea4638f', filePath: 'homepage/carousel-aea4638f.jpg', alt: 'Community gathering with children' },
-  { key: 'carousel-c645786c', filePath: 'homepage/carousel-c645786c.jpg', alt: 'People enjoying time together at Ev Church' },
-  { key: 'carousel-c842f7b4', filePath: 'homepage/carousel-c842f7b4.jpg', alt: 'Warm community gathering' },
-  { key: 'carousel-9a8d8943', filePath: 'homepage/carousel-9a8d8943.jpg', alt: 'People laughing together at Ev Church' },
-  { key: 'carousel-db9ac570', filePath: 'homepage/carousel-db9ac570.jpg', alt: 'Small group discussion at Ev Church' },
+  { key: 'carousel-0c59a44d', filePath: 'homepage/carousel-0c59a44d.jpg', alt: 'Sunday morning community gathering at Ev Church Auckland' },
+  { key: 'carousel-146c7f7e', filePath: 'homepage/carousel-146c7f7e.jpg', alt: 'Community celebration at Ev Church Auckland' },
+  { key: 'carousel-168f386e', filePath: 'homepage/carousel-168f386e.jpg', alt: 'Kids enjoying activities at Ev Church Auckland Sunday service' },
+  { key: 'carousel-168f386e', filePath: 'homepage/carousel-168f386e.jpg', alt: 'Community life at Ev Church Auckland' },
+  { key: 'carousel-3c68ddf1', filePath: 'homepage/carousel-3c68ddf1.jpg', alt: 'Families connecting at Ev Church Auckland' },
+  { key: 'carousel-3c68ddf1', filePath: 'homepage/carousel-3c68ddf1.jpg', alt: 'People connecting after Sunday service at Ev Church Auckland' },
+  { key: 'carousel-5940ca71', filePath: 'homepage/carousel-5940ca71.jpg', alt: 'Friends laughing together at Ev Church Auckland community' },
+  { key: 'carousel-c645786c', filePath: 'homepage/carousel-c645786c.jpg', alt: 'Live worship at Ev Church Auckland Sunday service' },
+  { key: 'carousel-70ac2785', filePath: 'homepage/carousel-70ac2785.jpg', alt: 'Ev Church North campus in Rosedale Auckland' },
+  { key: 'carousel-79cef650', filePath: 'homepage/carousel-79cef650.jpg', alt: 'Children at Ev Kids program Auckland' },
+  { key: 'carousel-89a3395d', filePath: 'homepage/carousel-89a3395d.jpg', alt: 'Warm community at Ev Church Auckland' },
+  { key: 'carousel-8aae1142', filePath: 'homepage/carousel-8aae1142.jpg', alt: 'People laughing together at Ev Church Auckland' },
+  { key: 'carousel-9a8d8943', filePath: 'homepage/carousel-9a8d8943.jpg', alt: 'Community gathering at Ev Church Auckland' },
+  { key: 'carousel-aea4638f', filePath: 'homepage/carousel-aea4638f.jpg', alt: 'Families and children at Ev Church Auckland' },
+  { key: 'carousel-c645786c', filePath: 'homepage/carousel-c645786c.jpg', alt: 'People enjoying fellowship at Ev Church Auckland' },
+  { key: 'carousel-c842f7b4', filePath: 'homepage/carousel-c842f7b4.jpg', alt: 'Warm community gathering at Ev Church Auckland' },
+  { key: 'carousel-9a8d8943', filePath: 'homepage/carousel-9a8d8943.jpg', alt: 'People laughing together at Ev Church Auckland Sunday service' },
+  { key: 'carousel-db9ac570', filePath: 'homepage/carousel-db9ac570.jpg', alt: 'Small group discussion at Ev Church Auckland' },
 
   // Campus images
-  { key: 'central-photo-1', filePath: 'campus-central/photo-3b4be562.jpg', alt: 'Ev Church Central campus' },
-  { key: 'unichurch-photo-1', filePath: 'campus-unichurch/photo-3cb597b9.jpg', alt: 'Ev Church Unichurch campus' },
+  { key: 'central-photo-1', filePath: 'campus-central/photo-3b4be562.jpg', alt: 'Ev Church Central campus in Hillsborough Auckland' },
+  { key: 'unichurch-photo-1', filePath: 'campus-unichurch/photo-3cb597b9.jpg', alt: 'Unichurch student campus at University of Auckland' },
 
   // Kids
-  { key: 'ev-kids-banner', filePath: 'kids/ev-kids-banner.png', alt: 'Children enjoying Ev Kids program' },
+  { key: 'ev-kids-banner', filePath: 'kids/ev-kids-banner.png', alt: 'Children enjoying Ev Kids Sunday program at Ev Church Auckland' },
 
   // Youth
-  { key: 'ev-youth-banner', filePath: 'youth/ev-youth-banner.png', alt: 'Ev Youth community of teenagers' },
-  { key: 'youthleaders-all', filePath: 'youth/youthleaders-all.jpg', alt: 'Ev Youth leaders team' },
-  { key: 'youthleaders-fun', filePath: 'youth/youthleaders-fun.jpg', alt: 'Youth leaders having fun together' },
-  { key: 'youthleaders-junior1', filePath: 'youth/youthleaders-junior1.jpg', alt: 'Junior Youth leaders' },
-  { key: 'youthleaders-senior', filePath: 'youth/youthleaders-senior.jpg', alt: 'Senior Youth leaders' },
+  { key: 'ev-youth-banner', filePath: 'youth/ev-youth-banner.png', alt: 'Ev Youth community of teenagers in Auckland' },
+  { key: 'youthleaders-all', filePath: 'youth/youthleaders-all.jpg', alt: 'Ev Youth leaders team at Ev Church Auckland' },
+  { key: 'youthleaders-fun', filePath: 'youth/youthleaders-fun.jpg', alt: 'Youth leaders having fun together at Ev Church Auckland' },
+  { key: 'youthleaders-junior1', filePath: 'youth/youthleaders-junior1.jpg', alt: 'Junior Youth leaders at Ev Church Auckland' },
+  { key: 'youthleaders-senior', filePath: 'youth/youthleaders-senior.jpg', alt: 'Senior Youth leaders at Ev Church Auckland' },
 
   // Newish
-  { key: 'newish-connect-banner', filePath: 'newish/newish-connect-banner.jpg', alt: 'People connecting at Newish Connect event' },
+  { key: 'newish-connect-banner', filePath: 'newish/newish-connect-banner.jpg', alt: 'People connecting at Newish Connect event at Ev Church Auckland' },
 
   // Explaining Christianity
-  { key: 'ec-banner', filePath: 'explaining-christianity/explaining-christianity-banner.jpg', alt: 'People gathered for Explaining Christianity course' },
+  { key: 'ec-banner', filePath: 'explaining-christianity/explaining-christianity-banner.jpg', alt: 'People gathered for Explaining Christianity course at Ev Church Auckland' },
 
   // Connect Groups
-  { key: 'connect-groups-banner', filePath: 'connect-groups/connect-groups-banner.jpg', alt: 'People gathered in a Connect Group' },
+  { key: 'connect-groups-banner', filePath: 'connect-groups/connect-groups-banner.jpg', alt: 'People gathered in a Connect Group at Ev Church Auckland' },
 
   // Team photos
-  { key: 'team-rowan', filePath: 'team/rowan-hilsden.jpg', alt: 'Rowan Hilsden, Senior Pastor' },
-  { key: 'team-andrew', filePath: 'team/andrew-coombridge.jpg', alt: 'Andrew Coombridge, Pastor' },
-  { key: 'team-ryan', filePath: 'team/ryan-green.jpg', alt: 'Ryan Green, Pastor' },
-  { key: 'team-austin', filePath: 'team/austin-ibarra.jpg', alt: 'Austin Ibarra, Pastor' },
-  { key: 'team-ming', filePath: 'team/ming-yong.jpg', alt: 'Ming Yong, Pastor & Kids Coordinator' },
-  { key: 'team-steve', filePath: 'team/steve-mullins.jpg', alt: 'Steve Mullins, Executive Manager' },
-  { key: 'team-jared', filePath: 'team/jared-stevenson.jpg', alt: 'Jared Stevenson, Captivate Music Director' },
-  { key: 'team-ioana', filePath: 'team/ioana-selea.jpg', alt: 'Ioana Selea, Design and Social' },
-  { key: 'team-tim', filePath: 'team/tim-thang.jpg', alt: 'Tim Thang, Executive Assistant' },
+  { key: 'team-rowan', filePath: 'team/rowan-hilsden.jpg', alt: 'Rowan Hilsden, Senior Pastor at Ev Church Auckland' },
+  { key: 'team-andrew', filePath: 'team/andrew-coombridge.jpg', alt: 'Andrew Coombridge, Pastor at Ev Church Auckland' },
+  { key: 'team-ryan', filePath: 'team/ryan-green.jpg', alt: 'Ryan Green, Pastor at Ev Church Auckland' },
+  { key: 'team-austin', filePath: 'team/austin-ibarra.jpg', alt: 'Austin Ibarra, Pastor at Ev Church Auckland' },
+  { key: 'team-ming', filePath: 'team/ming-yong.jpg', alt: 'Ming Yong, Pastor & Kids Coordinator at Ev Church Auckland' },
+  { key: 'team-steve', filePath: 'team/steve-mullins.jpg', alt: 'Steve Mullins, Executive Manager at Ev Church Auckland' },
+  { key: 'team-jared', filePath: 'team/jared-stevenson.jpg', alt: 'Jared Stevenson, Captivate Music Director at Ev Church Auckland' },
+  { key: 'team-ioana', filePath: 'team/ioana-selea.jpg', alt: 'Ioana Selea, Design and Social at Ev Church Auckland' },
+  { key: 'team-tim', filePath: 'team/tim-thang.jpg', alt: 'Tim Thang, Executive Assistant at Ev Church Auckland' },
   { key: 'team-liz', filePath: 'team/liz-halliday.jpg', alt: 'Liz Halliday, Apprentice' },
   { key: 'team-shaun', filePath: 'team/shaun-ee.jpg', alt: 'Shaun Ee, Apprentice' },
   { key: 'team-manlong', filePath: 'team/man-long-cheung.jpg', alt: 'Man Long Cheung, Apprentice' },
@@ -294,8 +294,8 @@ async function seed() {
       },
     ],
     seo: {
-      metaTitle: 'Church in Auckland | Ev Church NZ | Sunday Services & Community',
-      metaDescription: 'Looking for a church in Auckland? Ev Church is a community of Christ-followers meeting across Tāmaki Makaurau. Join us this Sunday or explore faith with us.',
+      metaTitle: 'Church in Auckland | Ev Church | Sunday Services & Community',
+      metaDescription: 'Looking for a church in Auckland? Ev Church is a community of Christ-followers meeting across Tamaki Makaurau. Join us this Sunday.',
     },
   })
 
@@ -405,8 +405,8 @@ async function seed() {
       },
     ],
     seo: {
-      metaTitle: 'Plan Your Visit | Ev Church Auckland | What to Expect on Sunday',
-      metaDescription: 'Planning to visit a church in Auckland? Ev Church meets across Tāmaki Makaurau each Sunday. Find a campus, see what to expect, and come as you are.',
+      metaTitle: 'Visit Ev Church Auckland | Plan Your First Sunday',
+      metaDescription: 'Planning your first visit to Ev Church? Find service times, locations, parking info, and what to expect at our Auckland campuses.',
     },
   })
 
@@ -520,8 +520,8 @@ async function seed() {
       },
     ],
     seo: {
-      metaTitle: 'About | Ev Church Auckland',
-      metaDescription: 'Ev Church is a community of Christ-followers across Auckland, New Zealand. Learn about our mission, team, and what we believe.',
+      metaTitle: 'About Ev Church | Christian Community in Auckland',
+      metaDescription: 'Meet the Ev Church team and learn about our story. A Christ-centred community across Auckland, Tamaki Makaurau since 2012.',
     },
   })
 
@@ -675,8 +675,8 @@ async function seed() {
       },
     ],
     seo: {
-      metaTitle: 'Our 2030 Vision | Ev Church Auckland',
-      metaDescription: 'We are asking God to do four big things by 2030: grow to 2030 people across 6 campuses, plant 8 new churches, train 30 gospel workers, and build a gospel training hub.',
+      metaTitle: 'Our Vision | Ev Church Auckland | 2030 Goals',
+      metaDescription: "Discover Ev Church's vision for 2030. Four big goals for our Christian community across Auckland, Tamaki Makaurau.",
     },
   })
 
@@ -732,8 +732,8 @@ async function seed() {
       },
     ],
     seo: {
-      metaTitle: 'Contact | Ev Church Auckland',
-      metaDescription: 'Get in touch with Ev Church. Find campus addresses, service times, and send us a message. We would love to hear from you.',
+      metaTitle: 'Contact Ev Church Auckland | Get in Touch',
+      metaDescription: 'Get in touch with Ev Church Auckland. Find our campus addresses, service times, and contact details.',
     },
   })
 
@@ -835,8 +835,8 @@ async function seed() {
       },
     ],
     seo: {
-      metaTitle: 'Ev Kids | Ev Church Auckland',
-      metaDescription: 'Ev Kids provides a safe, fun, and engaging environment for children aged 0 to 12 every Sunday across all Ev Church campuses.',
+      metaTitle: 'Kids Church Program Auckland | Ev Kids | Ages 0-12',
+      metaDescription: 'Ev Kids is a safe, fun program for children aged 0-12, running every Sunday at Ev Church Auckland. Creche, Explorers, and Adventurers.',
     },
   })
 
@@ -918,8 +918,8 @@ async function seed() {
       },
     ],
     seo: {
-      metaTitle: 'Ev Youth | Ev Church Auckland',
-      metaDescription: 'Ev Youth is a vibrant community for teenagers. Junior Youth (Years 7-9) and Senior Youth (Years 10-13) meet weekly across Auckland.',
+      metaTitle: 'Youth Group Auckland | Ev Youth | Friday Nights',
+      metaDescription: "Ev Youth is for teenagers on Auckland's North Shore. Friday nights filled with community, faith, and fun. Junior and Senior Youth.",
     },
   })
 
@@ -1007,8 +1007,8 @@ async function seed() {
       },
     ],
     seo: {
-      metaTitle: 'Newish Connect | Ev Church Auckland',
-      metaDescription: 'Newish Connect is a relaxed gathering for anyone new or newish to Ev Church. Meet the team, hear the vision, and find your place.',
+      metaTitle: 'New to Ev Church Auckland? | Newish Connect',
+      metaDescription: 'Just started coming to Ev Church? Newish Connect is the perfect way to meet people and find where you belong.',
     },
   })
 
@@ -1096,8 +1096,8 @@ async function seed() {
       },
     ],
     seo: {
-      metaTitle: 'Explaining Christianity | Ev Church Auckland',
-      metaDescription: 'A relaxed, no-pressure course exploring the basics of the Christian faith. Ask questions, hear stories, and discover what Christianity is really about.',
+      metaTitle: 'Christianity Course Auckland | Explore Faith at Ev Church',
+      metaDescription: 'Curious about the Christian faith? Join Explaining Christianity at Ev Church Auckland. Relaxed, no-pressure, all questions welcome.',
     },
   })
 
@@ -1215,8 +1215,8 @@ async function seed() {
       },
     ],
     seo: {
-      metaTitle: 'Easter at Ev Church | Ev Church Auckland',
-      metaDescription: 'Celebrate Easter at Ev Church. Special services across all three Auckland campuses with live music, an inspiring message, and activities for the whole family.',
+      metaTitle: 'Easter Services Auckland 2026 | Ev Church',
+      metaDescription: 'Join Ev Church for Easter 2026. Special services at North, Central, and Unichurch campuses across Auckland.',
     },
   })
 
@@ -1310,8 +1310,8 @@ async function seed() {
       },
     ],
     seo: {
-      metaTitle: 'Connect Groups | Ev Church Auckland',
-      metaDescription: 'Connect Groups are the heart of community at Ev Church. Small gatherings in homes across Auckland where real friendships are formed.',
+      metaTitle: 'Connect Groups Auckland | Small Groups at Ev Church',
+      metaDescription: 'Join a Connect Group at Ev Church Auckland. Young adults, couples, women, men, and families meeting weekly across the city.',
     },
   })
 
@@ -1383,8 +1383,8 @@ async function seed() {
       },
     ],
     seo: {
-      metaTitle: 'Next Steps | Ev Church Auckland',
-      metaDescription: 'Find your place at Ev Church. Explore courses, connect groups, and programs for every season of life. Your next step starts here.',
+      metaTitle: 'Next Steps at Ev Church Auckland | Get Connected',
+      metaDescription: 'Ready to take the next step? Explore courses, groups, and programs at Ev Church Auckland.',
     },
   })
 
