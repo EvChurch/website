@@ -92,25 +92,23 @@ export function PhotoStripBlockComponent({ layout: layoutProp, images }: PhotoSt
 
   if (layout === 'masonry') {
     return (
-      <section className="bg-white px-5 py-16 lg:px-8 lg:py-24">
-        <div className="mx-auto max-w-[80rem]">
-          <ScrollReveal>
-            <div className="columns-2 gap-3 md:columns-3 lg:columns-4">
-              {images.map((img, i) => (
-                <div key={i} className="mb-3 break-inside-avoid">
-                  <Image
-                    src={getUrl(img)}
-                    alt={getAlt(img)}
-                    width={600}
-                    height={i % 3 === 0 ? 800 : i % 3 === 1 ? 600 : 450}
-                    sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                    className="w-full rounded-lg object-cover"
-                  />
-                </div>
-              ))}
-            </div>
-          </ScrollReveal>
-        </div>
+      <section className="bg-white py-16 lg:py-24">
+        <ScrollReveal>
+          <div className="columns-2 gap-1.5 md:columns-3 lg:columns-4">
+            {images.map((img, i) => (
+              <div key={i} className="mb-1.5 break-inside-avoid">
+                <Image
+                  src={getUrl(img)}
+                  alt={getAlt(img)}
+                  width={600}
+                  height={i % 3 === 0 ? 800 : i % 3 === 1 ? 600 : 450}
+                  sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                  className="w-full object-cover"
+                />
+              </div>
+            ))}
+          </div>
+        </ScrollReveal>
       </section>
     )
   }
