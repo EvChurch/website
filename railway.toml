@@ -2,7 +2,7 @@
 buildCommand = "npx payload generate:importmap && npm run build"
 
 [deploy]
-startCommand = "npx payload migrate && npm start -- -H 0.0.0.0"
+startCommand = "npx payload migrate && npx tsx src/seed/seed-pages.ts && npm start -- -H 0.0.0.0"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
