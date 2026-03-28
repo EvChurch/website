@@ -88,14 +88,17 @@ const imageManifest: ImageEntry[] = [
   // Connect Groups
   { key: 'connect-groups-banner', filePath: 'connect-groups/connect-groups-banner.jpg', alt: 'People gathered in a Connect Group at Ev Church Auckland' },
 
-  // Good News page (reusing community photos with gospel-specific alt text)
-  { key: 'good-news-hero', filePath: 'homepage/carousel-0c59a44d.jpg', alt: 'People gathering together at Ev Church Auckland' },
-  { key: 'good-news-community-1', filePath: 'homepage/carousel-5940ca71.jpg', alt: 'Friends sharing life together at Ev Church Auckland' },
-  { key: 'good-news-community-2', filePath: 'homepage/carousel-89a3395d.jpg', alt: 'Community connection at Ev Church Auckland' },
-  { key: 'good-news-community-3', filePath: 'homepage/carousel-146c7f7e.jpg', alt: 'People celebrating together at Ev Church Auckland' },
-  { key: 'good-news-community-4', filePath: 'homepage/carousel-db9ac570.jpg', alt: 'Small group conversation at Ev Church Auckland' },
-  { key: 'good-news-community-5', filePath: 'homepage/carousel-c842f7b4.jpg', alt: 'Warm community at Ev Church Auckland' },
-  { key: 'good-news-community-6', filePath: 'homepage/carousel-8aae1142.jpg', alt: 'People laughing together at Ev Church Auckland' },
+  // Good News page (Unsplash images)
+  { key: 'good-news-hero', filePath: 'good-news/hero-congregation.jpg', alt: 'Congregation seated in a church during a service' },
+  { key: 'good-news-friends-selfie', filePath: 'good-news/friends-selfie.jpg', alt: 'Diverse group of friends taking a selfie outdoors' },
+  { key: 'good-news-diverse-friends', filePath: 'good-news/diverse-friends.jpg', alt: 'A diverse group of friends smiling together outdoors' },
+  { key: 'good-news-rooftop', filePath: 'good-news/rooftop-friends.jpg', alt: 'Friends enjoying time together on a rooftop' },
+  { key: 'good-news-hugging', filePath: 'good-news/friends-hugging.jpg', alt: 'Three friends laughing and hugging outdoors' },
+  { key: 'good-news-prayer', filePath: 'good-news/prayer-crowd.jpg', alt: 'A crowd of people bowing their heads in prayer' },
+  { key: 'good-news-sunrise', filePath: 'good-news/sunrise-hope.jpg', alt: 'Sunrise over a dark horizon with gradient sky' },
+  { key: 'good-news-smiling', filePath: 'good-news/smiling-woman.jpg', alt: 'A smiling woman holding a smartphone outdoors' },
+  { key: 'good-news-park-selfie', filePath: 'good-news/park-selfie.jpg', alt: 'Group of friends taking a selfie outdoors in a park' },
+  { key: 'good-news-embracing', filePath: 'good-news/friends-embracing.jpg', alt: 'Three friends embracing happily' },
 
   // Team photos
   { key: 'team-rowan', filePath: 'team/rowan-hilsden.jpg', alt: 'Rowan Hilsden, Senior Pastor at Ev Church Auckland' },
@@ -1645,7 +1648,7 @@ async function seed() {
           'The Bible says you are not an accident. You were created on purpose, by a God who knows you and loves you more than you can imagine. You were made to be in relationship with Him, to know Him and be known by Him. Every person carries an incredible dignity and value, not because of what they achieve, but simply because of who made them.',
           'This is where the story begins. Not with religion or rules, but with a God who made you because He wanted to.',
         ]),
-        image: img('good-news-community-1'),
+        image: img('good-news-friends-selfie'),
         alignment: 'left',
       },
       {
@@ -1656,12 +1659,14 @@ async function seed() {
       },
       {
         blockType: 'photoStrip',
-        layout: 'grid4',
+        layout: 'masonry',
         images: [
-          { image: img('good-news-community-2') },
-          { image: img('good-news-community-3') },
-          { image: img('good-news-community-4') },
-          { image: img('good-news-community-5') },
+          { image: img('good-news-diverse-friends') },
+          { image: img('good-news-hugging') },
+          { image: img('good-news-rooftop') },
+          { image: img('good-news-smiling') },
+          { image: img('good-news-park-selfie') },
+          { image: img('good-news-embracing') },
         ],
       },
       {
@@ -1672,7 +1677,7 @@ async function seed() {
           'Two thousand years ago, God entered our world as a real person. Jesus Christ, the Son of God, was born, lived among ordinary people, and showed us what God is truly like. He healed the sick, welcomed the outcast, and loved people that everyone else had given up on.',
           'But Jesus did not just come to teach or to set an example. He came to do something only He could do. He took the weight of everything that separates us from God, all our sin and brokenness, and carried it to the cross. He died in our place, paying a price we could never pay ourselves. It was the ultimate act of love.',
         ]),
-        image: img('good-news-community-6'),
+        image: img('good-news-prayer'),
         alignment: 'right',
       },
       {
@@ -1735,7 +1740,7 @@ async function seed() {
           'The Bible says you are not an accident. You were created on purpose, by a God who knows you and loves you more than you can imagine. You were made to be in relationship with Him, to know Him and be known by Him. Every person carries an incredible dignity and value, not because of what they achieve, but simply because of who made them.',
           'This is where the story begins. Not with religion or rules, but with a God who made you because He wanted to.',
         ]),
-        image: img('good-news-community-1'),
+        image: img('good-news-friends-selfie'),
         alignment: 'left',
       },
       {
@@ -1761,7 +1766,7 @@ async function seed() {
           'Two thousand years ago, God entered our world as a real person. Jesus Christ, the Son of God, was born, lived among ordinary people, and showed us what God is truly like. He healed the sick, welcomed the outcast, and loved people that everyone else had given up on.',
           'But Jesus did not just come to teach or to set an example. He came to do something only He could do. He took the weight of everything that separates us from God, all our sin and brokenness, and carried it to the cross. He died in our place, paying a price we could never pay ourselves. It was the ultimate act of love.',
         ]),
-        image: img('good-news-community-6'),
+        image: img('good-news-prayer'),
         alignment: 'right',
       },
       {
@@ -1777,7 +1782,7 @@ async function seed() {
           'Three days after Jesus died, something happened that changed the course of history. He rose from the dead.',
           'The resurrection is not a metaphor. It is the moment when death and brokenness lost their power. Because Jesus is alive, there is real hope. Not just hope that things might get a bit better, but hope that everything sad and broken will one day be made right. His resurrection is proof that God keeps His promises, and that the life He offers is real and lasting.',
         ]),
-        image: img('good-news-community-3'),
+        image: img('good-news-sunrise'),
         alignment: 'left',
       },
       {
@@ -1856,7 +1861,7 @@ async function seed() {
               'The Bible says you are not an accident. You were created on purpose, by a God who knows you and loves you more than you can imagine. You were made to be in relationship with Him, to know Him and be known by Him.',
               'Every person carries an incredible dignity and value, not because of what they achieve, but simply because of who made them. This is where the story begins. Not with religion or rules, but with a God who made you because He wanted to.',
             ]),
-            image: img('good-news-community-1'),
+            image: img('good-news-friends-selfie'),
             imagePosition: 'right',
           },
           {
@@ -1867,7 +1872,7 @@ async function seed() {
               'The Bible calls this sin. It is not just bad behaviour. It is the deep fracture between us and the God who made us. Every one of us has turned away from God in our own way, choosing to live life on our own terms.',
               'And that separation has consequences we cannot fix on our own.',
             ]),
-            image: img('good-news-community-4'),
+            image: img('good-news-diverse-friends'),
             imagePosition: 'left',
           },
           {
@@ -1878,7 +1883,7 @@ async function seed() {
               'Two thousand years ago, God entered our world as a real person. Jesus Christ, the Son of God, was born, lived among ordinary people, and showed us what God is truly like. He healed the sick, welcomed the outcast, and loved people that everyone else had given up on.',
               'But Jesus did not just come to teach or to set an example. He came to do something only He could do. He took the weight of everything that separates us from God and carried it to the cross. He died in our place, paying a price we could never pay ourselves.',
             ]),
-            image: img('good-news-community-6'),
+            image: img('good-news-prayer'),
             imagePosition: 'right',
           },
           {
@@ -1889,7 +1894,7 @@ async function seed() {
               'The resurrection is not a metaphor. It is the moment when death and brokenness lost their power. Because Jesus is alive, there is real hope. Not just hope that things might get a bit better, but hope that everything sad and broken will one day be made right.',
               'His resurrection is proof that God keeps His promises, and that the life He offers is real and lasting.',
             ]),
-            image: img('good-news-community-3'),
+            image: img('good-news-sunrise'),
             imagePosition: 'background',
           },
           {
@@ -1900,7 +1905,7 @@ async function seed() {
               'God is not asking you to clean yourself up first or to have all the answers. He is inviting you to come as you are and to receive what He has already done for you.',
               'The Bible says that anyone who turns to God and puts their trust in Jesus will be forgiven, welcomed, and given a completely new start. This is the good news. It is not something you have to earn. It is a gift. And it is for you, right now, wherever you are.',
             ]),
-            image: img('good-news-community-5'),
+            image: img('good-news-embracing'),
             imagePosition: 'right',
           },
         ],

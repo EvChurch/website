@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# MCP server config (contains API keys)
+.mcp.json
+
 # Next.js
 .next/
 out/

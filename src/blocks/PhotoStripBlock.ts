@@ -12,6 +12,7 @@ export const PhotoStripBlock: Block = {
         { label: 'Horizontal scroll', value: 'horizontalScroll' },
         { label: '4-column grid', value: 'grid4' },
         { label: '2-column staggered', value: 'grid2' },
+        { label: 'Masonry', value: 'masonry' },
       ],
     },
     {

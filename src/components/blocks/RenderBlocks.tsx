@@ -193,7 +193,7 @@ interface ManualCardGridBlock extends BaseBlock {
 
 interface PhotoStripBlock extends BaseBlock {
   blockType: 'photoStrip'
-  layout?: 'horizontalScroll' | 'grid4' | 'grid2' | null
+  layout?: 'horizontalScroll' | 'grid4' | 'grid2' | 'masonry' | null
   images: Array<{
     image: Media
     id?: string
