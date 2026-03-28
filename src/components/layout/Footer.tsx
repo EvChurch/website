@@ -11,6 +11,7 @@ const columns: FooterColumn[] = [
     links: [
       { label: 'About Us', href: '/about' },
       { label: 'What We Believe', href: '/what-we-believe' },
+      { label: 'The Good News', href: '/good-news' },
       { label: 'Our Vision', href: '/vision' },
       { label: 'FAQ', href: '/faq' },
       { label: 'Health & Safety', href: '/hs' },

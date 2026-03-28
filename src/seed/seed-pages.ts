@@ -88,6 +88,15 @@ const imageManifest: ImageEntry[] = [
   // Connect Groups
   { key: 'connect-groups-banner', filePath: 'connect-groups/connect-groups-banner.jpg', alt: 'People gathered in a Connect Group at Ev Church Auckland' },
 
+  // Good News page (reusing community photos with gospel-specific alt text)
+  { key: 'good-news-hero', filePath: 'homepage/carousel-0c59a44d.jpg', alt: 'People gathering together at Ev Church Auckland' },
+  { key: 'good-news-community-1', filePath: 'homepage/carousel-5940ca71.jpg', alt: 'Friends sharing life together at Ev Church Auckland' },
+  { key: 'good-news-community-2', filePath: 'homepage/carousel-89a3395d.jpg', alt: 'Community connection at Ev Church Auckland' },
+  { key: 'good-news-community-3', filePath: 'homepage/carousel-146c7f7e.jpg', alt: 'People celebrating together at Ev Church Auckland' },
+  { key: 'good-news-community-4', filePath: 'homepage/carousel-db9ac570.jpg', alt: 'Small group conversation at Ev Church Auckland' },
+  { key: 'good-news-community-5', filePath: 'homepage/carousel-c842f7b4.jpg', alt: 'Warm community at Ev Church Auckland' },
+  { key: 'good-news-community-6', filePath: 'homepage/carousel-8aae1142.jpg', alt: 'People laughing together at Ev Church Auckland' },
+
   // Team photos
   { key: 'team-rowan', filePath: 'team/rowan-hilsden.jpg', alt: 'Rowan Hilsden, Senior Pastor at Ev Church Auckland' },
   { key: 'team-andrew', filePath: 'team/andrew-coombridge.jpg', alt: 'Andrew Coombridge, Pastor at Ev Church Auckland' },
@@ -1526,8 +1535,8 @@ async function seed() {
         text: 'If you are curious about the Christian faith or have questions about what we believe, we would love to chat. Explaining Christianity is a relaxed course where you can ask anything in a no-pressure environment.',
         colorPreset: 'primary-red',
         buttons: [
-          { label: 'Explore Christianity', href: '/explaining-christianity', variant: 'primary' },
-          { label: 'Meet our team', href: '/about', variant: 'secondary' },
+          { label: 'The Good News', href: '/good-news', variant: 'primary' },
+          { label: 'Explore Christianity', href: '/explaining-christianity', variant: 'secondary' },
         ],
       },
     ],
@@ -1610,6 +1619,313 @@ async function seed() {
     seo: {
       metaTitle: 'FAQ | Ev Church Auckland | Frequently Asked Questions',
       metaDescription: 'Answers to common questions about Ev Church Auckland. Service times, locations, kids programs, parking, and how to get involved.',
+    },
+  })
+
+  /* ─────────────────────── GOOD NEWS PAGE — VARIANT A (Scroll Narrative) ─────────────────────── */
+  await upsertPage('good-news-a', {
+    title: 'The Good News',
+    _status: 'draft',
+    layout: [
+      {
+        blockType: 'hero',
+        image: img('good-news-hero'),
+        eyebrow: 'The heart of what we believe',
+        heading: 'The Good News',
+        highlightedText: 'Good News',
+        subtitle: 'There is a message at the centre of Christianity that has changed millions of lives. It is not a set of rules. It is not a list of things to believe. It is an invitation.',
+        overlayStyle: 'cinematic',
+        minHeight: '70vh',
+      },
+      {
+        blockType: 'content',
+        heading: 'You were made for more',
+        body: richText([
+          'Have you ever had the feeling that life should be more than what you see around you? That there is something deeper going on beneath the surface of everyday life?',
+          'The Bible says you are not an accident. You were created on purpose, by a God who knows you and loves you more than you can imagine. You were made to be in relationship with Him, to know Him and be known by Him. Every person carries an incredible dignity and value, not because of what they achieve, but simply because of who made them.',
+          'This is where the story begins. Not with religion or rules, but with a God who made you because He wanted to.',
+        ]),
+        image: img('good-news-community-1'),
+        alignment: 'left',
+      },
+      {
+        blockType: 'cta',
+        heading: 'Something is broken',
+        text: 'But if we are honest, something is not right. We feel it in our relationships, in the world around us, and deep inside ourselves. We hurt people we love. We chase things that leave us empty. We know what is right but struggle to do it. The Bible calls this sin. It is not just bad behaviour. It is the deep fracture between us and the God who made us. Every one of us has turned away from God in our own way, choosing to live life on our own terms. And that separation has consequences we cannot fix on our own.',
+        colorPreset: 'dark',
+      },
+      {
+        blockType: 'photoStrip',
+        layout: 'grid4',
+        images: [
+          { image: img('good-news-community-2') },
+          { image: img('good-news-community-3') },
+          { image: img('good-news-community-4') },
+          { image: img('good-news-community-5') },
+        ],
+      },
+      {
+        blockType: 'content',
+        heading: 'God did not give up on us',
+        body: richText([
+          'Here is the heart of the good news: God saw the mess we were in, and He did not walk away. Instead, He came to us.',
+          'Two thousand years ago, God entered our world as a real person. Jesus Christ, the Son of God, was born, lived among ordinary people, and showed us what God is truly like. He healed the sick, welcomed the outcast, and loved people that everyone else had given up on.',
+          'But Jesus did not just come to teach or to set an example. He came to do something only He could do. He took the weight of everything that separates us from God, all our sin and brokenness, and carried it to the cross. He died in our place, paying a price we could never pay ourselves. It was the ultimate act of love.',
+        ]),
+        image: img('good-news-community-6'),
+        alignment: 'right',
+      },
+      {
+        blockType: 'blockquote',
+        quote: 'God demonstrates his own love for us in this: while we were still sinners, Christ died for us.',
+        attribution: 'Romans 5:8',
+        style: 'centered',
+      },
+      {
+        blockType: 'cta',
+        heading: 'Everything changed',
+        text: 'Three days after Jesus died, something happened that changed the course of history. He rose from the dead. The resurrection is not a metaphor. It is the moment when death and brokenness lost their power. Because Jesus is alive, there is real hope. Not just hope that things might get a bit better, but hope that everything sad and broken will one day be made right. His resurrection is proof that God keeps His promises, and that the life He offers is real and lasting.',
+        colorPreset: 'dark',
+      },
+      {
+        blockType: 'content',
+        heading: 'An open invitation',
+        body: richText([
+          'So where does that leave you? Right here, with an invitation.',
+          'God is not asking you to clean yourself up first or to have all the answers. He is inviting you to come as you are and to receive what He has already done for you. The Bible says that anyone who turns to God and puts their trust in Jesus will be forgiven, welcomed, and given a completely new start.',
+          'This is the good news. It is not something you have to earn. It is a gift. And it is for you, right now, wherever you are.',
+        ]),
+        alignment: 'center',
+      },
+      {
+        blockType: 'cta',
+        heading: 'Take a next step',
+        text: 'Wherever you are on your journey, we would love to walk with you. There is no pressure, just an open door.',
+        colorPreset: 'primary-red',
+        buttons: [
+          { label: 'Visit us this Sunday', href: '/visit', variant: 'primary' },
+          { label: 'Explore Christianity', href: '/explaining-christianity', variant: 'secondary' },
+        ],
+        supportingText: 'Have questions? We would love to chat. Reach out to our team at any time.',
+      },
+    ],
+    seo: {
+      metaTitle: 'What is the Good News? | Ev Church Auckland',
+      metaDescription: 'Discover the message at the heart of Christianity. A simple, honest look at who God is, what went wrong, and the hope that changes everything.',
+    },
+  })
+
+  /* ─────────────────────── GOOD NEWS PAGE — VARIANT C (Magazine Editorial) ─────────────────────── */
+  await upsertPage('good-news-c', {
+    title: 'The Good News',
+    _status: 'draft',
+    layout: [
+      {
+        blockType: 'pageHeader',
+        eyebrow: 'The heart of what we believe',
+        heading: 'The Good News',
+        description: 'There is a message at the centre of Christianity that has changed millions of lives. It is not a set of rules or a list of things to believe. It is an invitation. Here is what it is all about.',
+        theme: 'dark',
+      },
+      {
+        blockType: 'content',
+        heading: 'You were made for more',
+        body: richText([
+          'Have you ever had the feeling that life should be more than what you see around you? That there is something deeper going on beneath the surface of everyday life?',
+          'The Bible says you are not an accident. You were created on purpose, by a God who knows you and loves you more than you can imagine. You were made to be in relationship with Him, to know Him and be known by Him. Every person carries an incredible dignity and value, not because of what they achieve, but simply because of who made them.',
+          'This is where the story begins. Not with religion or rules, but with a God who made you because He wanted to.',
+        ]),
+        image: img('good-news-community-1'),
+        alignment: 'left',
+      },
+      {
+        blockType: 'blockquote',
+        quote: 'You are fearfully and wonderfully made.',
+        attribution: 'Psalm 139:14',
+        style: 'leftBorder',
+      },
+      {
+        blockType: 'content',
+        heading: 'Something is broken',
+        body: richText([
+          'But if we are honest, something is not right. We feel it in our relationships, in the world around us, and deep inside ourselves. We hurt people we love. We chase things that leave us empty. We know what is right but struggle to do it.',
+          'The Bible calls this sin. It is not just bad behaviour. It is the deep fracture between us and the God who made us. Every one of us has turned away from God in our own way, choosing to live life on our own terms. And that separation has consequences we cannot fix on our own.',
+        ]),
+        alignment: 'center',
+      },
+      {
+        blockType: 'content',
+        heading: 'God did not give up on us',
+        body: richText([
+          'Here is the heart of the good news: God saw the mess we were in, and He did not walk away. Instead, He came to us.',
+          'Two thousand years ago, God entered our world as a real person. Jesus Christ, the Son of God, was born, lived among ordinary people, and showed us what God is truly like. He healed the sick, welcomed the outcast, and loved people that everyone else had given up on.',
+          'But Jesus did not just come to teach or to set an example. He came to do something only He could do. He took the weight of everything that separates us from God, all our sin and brokenness, and carried it to the cross. He died in our place, paying a price we could never pay ourselves. It was the ultimate act of love.',
+        ]),
+        image: img('good-news-community-6'),
+        alignment: 'right',
+      },
+      {
+        blockType: 'blockquote',
+        quote: 'God demonstrates his own love for us in this: while we were still sinners, Christ died for us.',
+        attribution: 'Romans 5:8',
+        style: 'centered',
+      },
+      {
+        blockType: 'content',
+        heading: 'Everything changed',
+        body: richText([
+          'Three days after Jesus died, something happened that changed the course of history. He rose from the dead.',
+          'The resurrection is not a metaphor. It is the moment when death and brokenness lost their power. Because Jesus is alive, there is real hope. Not just hope that things might get a bit better, but hope that everything sad and broken will one day be made right. His resurrection is proof that God keeps His promises, and that the life He offers is real and lasting.',
+        ]),
+        image: img('good-news-community-3'),
+        alignment: 'left',
+      },
+      {
+        blockType: 'content',
+        heading: 'An open invitation',
+        body: richText([
+          'So where does that leave you? Right here, with an invitation.',
+          'God is not asking you to clean yourself up first or to have all the answers. He is inviting you to come as you are and to receive what He has already done for you. The Bible says that anyone who turns to God and puts their trust in Jesus will be forgiven, welcomed, and given a completely new start.',
+          'This is the good news. It is not something you have to earn. It is a gift. And it is for you, right now, wherever you are.',
+        ]),
+        alignment: 'center',
+      },
+      {
+        blockType: 'featureGrid',
+        eyebrow: 'Next steps',
+        heading: 'Where to from here?',
+        description: 'Wherever you are on your journey, we would love to walk with you. There is no pressure, just an open door.',
+        layout: 'threeColumn',
+        style: 'iconTop',
+        items: [
+          {
+            icon: '🏠',
+            title: 'Visit us this Sunday',
+            description: 'Come along to one of our campuses across Auckland. You will be welcomed warmly, no matter where you are in life.',
+          },
+          {
+            icon: '💬',
+            title: 'Explore Christianity',
+            description: 'Join a relaxed, no-pressure course where you can ask any question about the Christian faith in a safe environment.',
+          },
+          {
+            icon: '🤝',
+            title: 'Talk to someone',
+            description: 'Have questions or just want to chat? Our team would love to hear from you. Reach out at any time.',
+          },
+        ],
+      },
+      {
+        blockType: 'cta',
+        heading: 'Take a next step',
+        text: 'Wherever you are on your journey, we are here for you.',
+        colorPreset: 'primary-red',
+        buttons: [
+          { label: 'Plan your visit', href: '/visit', variant: 'primary' },
+          { label: 'Explore Christianity', href: '/explaining-christianity', variant: 'secondary' },
+        ],
+      },
+    ],
+    seo: {
+      metaTitle: 'What is the Good News? | Ev Church Auckland',
+      metaDescription: 'Discover the message at the heart of Christianity. A simple, honest look at who God is, what went wrong, and the hope that changes everything.',
+    },
+  })
+
+  /* ─────────────────────── GOOD NEWS PAGE — VARIANT B (Step-by-Step Interactive) ─────────────────────── */
+  await upsertPage('good-news-b', {
+    title: 'The Good News',
+    _status: 'draft',
+    layout: [
+      {
+        blockType: 'pageHeader',
+        eyebrow: 'The heart of what we believe',
+        heading: 'The Good News',
+        description: 'There is a message at the centre of Christianity that has changed millions of lives. Walk through it step by step.',
+        theme: 'dark',
+      },
+      {
+        blockType: 'gospelStepper',
+        heading: null,
+        steps: [
+          {
+            stepTitle: 'Made for more',
+            heading: 'You were made for more',
+            body: richText([
+              'Have you ever had the feeling that life should be more than what you see around you? That there is something deeper going on beneath the surface of everyday life?',
+              'The Bible says you are not an accident. You were created on purpose, by a God who knows you and loves you more than you can imagine. You were made to be in relationship with Him, to know Him and be known by Him.',
+              'Every person carries an incredible dignity and value, not because of what they achieve, but simply because of who made them. This is where the story begins. Not with religion or rules, but with a God who made you because He wanted to.',
+            ]),
+            image: img('good-news-community-1'),
+            imagePosition: 'right',
+          },
+          {
+            stepTitle: 'Something broke',
+            heading: 'Something is broken',
+            body: richText([
+              'But if we are honest, something is not right. We feel it in our relationships, in the world around us, and deep inside ourselves. We hurt people we love. We chase things that leave us empty. We know what is right but struggle to do it.',
+              'The Bible calls this sin. It is not just bad behaviour. It is the deep fracture between us and the God who made us. Every one of us has turned away from God in our own way, choosing to live life on our own terms.',
+              'And that separation has consequences we cannot fix on our own.',
+            ]),
+            image: img('good-news-community-4'),
+            imagePosition: 'left',
+          },
+          {
+            stepTitle: 'God came',
+            heading: 'God did not give up on us',
+            body: richText([
+              'Here is the heart of the good news: God saw the mess we were in, and He did not walk away. Instead, He came to us.',
+              'Two thousand years ago, God entered our world as a real person. Jesus Christ, the Son of God, was born, lived among ordinary people, and showed us what God is truly like. He healed the sick, welcomed the outcast, and loved people that everyone else had given up on.',
+              'But Jesus did not just come to teach or to set an example. He came to do something only He could do. He took the weight of everything that separates us from God and carried it to the cross. He died in our place, paying a price we could never pay ourselves.',
+            ]),
+            image: img('good-news-community-6'),
+            imagePosition: 'right',
+          },
+          {
+            stepTitle: 'He rose',
+            heading: 'Everything changed',
+            body: richText([
+              'Three days after Jesus died, something happened that changed the course of history. He rose from the dead.',
+              'The resurrection is not a metaphor. It is the moment when death and brokenness lost their power. Because Jesus is alive, there is real hope. Not just hope that things might get a bit better, but hope that everything sad and broken will one day be made right.',
+              'His resurrection is proof that God keeps His promises, and that the life He offers is real and lasting.',
+            ]),
+            image: img('good-news-community-3'),
+            imagePosition: 'background',
+          },
+          {
+            stepTitle: 'Your invitation',
+            heading: 'An open invitation',
+            body: richText([
+              'So where does that leave you? Right here, with an invitation.',
+              'God is not asking you to clean yourself up first or to have all the answers. He is inviting you to come as you are and to receive what He has already done for you.',
+              'The Bible says that anyone who turns to God and puts their trust in Jesus will be forgiven, welcomed, and given a completely new start. This is the good news. It is not something you have to earn. It is a gift. And it is for you, right now, wherever you are.',
+            ]),
+            image: img('good-news-community-5'),
+            imagePosition: 'right',
+          },
+        ],
+        finalCTA: {
+          heading: 'Take a next step',
+          text: 'Wherever you are on your journey, we would love to walk with you. There is no pressure, just an open door.',
+          buttons: [
+            { label: 'Visit us this Sunday', href: '/visit', variant: 'primary' },
+            { label: 'Explore Christianity', href: '/explaining-christianity', variant: 'secondary' },
+          ],
+        },
+      },
+      {
+        blockType: 'cta',
+        heading: 'Have questions?',
+        text: 'We would love to hear from you. Reach out to our team and we will get back to you as soon as we can.',
+        colorPreset: 'primary-red',
+        buttons: [
+          { label: 'Contact us', href: '/contact', variant: 'primary' },
+        ],
+      },
+    ],
+    seo: {
+      metaTitle: 'What is the Good News? | Ev Church Auckland',
+      metaDescription: 'Discover the message at the heart of Christianity. A simple, honest look at who God is, what went wrong, and the hope that changes everything.',
     },
   })
 

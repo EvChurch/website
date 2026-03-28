@@ -13,6 +13,7 @@ import { FormEmbedBlockComponent } from './FormEmbedBlockComponent'
 import { ManualCardGridBlockComponent } from './ManualCardGridBlockComponent'
 import { PhotoStripBlockComponent } from './PhotoStripBlockComponent'
 import { PageHeaderBlockComponent } from './PageHeaderBlockComponent'
+import { GospelStepperBlockComponent } from './GospelStepperBlockComponent'
 
 /**
  * Union of all known block types.
@@ -207,6 +208,29 @@ interface PageHeaderBlock extends BaseBlock {
   theme?: 'dark' | 'light' | null
 }
 
+interface GospelStepperBlockType extends BaseBlock {
+  blockType: 'gospelStepper'
+  heading?: string | null
+  steps: Array<{
+    stepTitle: string
+    heading: string
+    body?: unknown
+    image?: Media | null
+    imagePosition?: 'left' | 'right' | 'background' | null
+    id?: string
+  }>
+  finalCTA?: {
+    heading?: string | null
+    text?: string | null
+    buttons?: Array<{
+      label: string
+      href: string
+      variant?: 'primary' | 'secondary'
+      id?: string
+    }> | null
+  } | null
+}
+
 type Block =
   | HeroBlock
   | ContentBlock
@@ -223,6 +247,7 @@ type Block =
   | ManualCardGridBlock
   | PhotoStripBlock
   | PageHeaderBlock
+  | GospelStepperBlockType
   | BaseBlock
 
 interface RenderBlocksProps {
@@ -422,6 +447,18 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
                 heading={b.heading}
                 description={b.description}
                 theme={b.theme}
+              />
+            )
+          }
+
+          case 'gospelStepper': {
+            const b = block as GospelStepperBlockType
+            return (
+              <GospelStepperBlockComponent
+                key={key}
+                heading={b.heading}
+                steps={b.steps}
+                finalCTA={b.finalCTA}
               />
             )
           }

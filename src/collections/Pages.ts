@@ -15,6 +15,7 @@ import { FormEmbedBlock } from '@/blocks/FormEmbedBlock'
 import { ManualCardGridBlock } from '@/blocks/ManualCardGridBlock'
 import { PhotoStripBlock } from '@/blocks/PhotoStripBlock'
 import { PageHeaderBlock } from '@/blocks/PageHeaderBlock'
+import { GospelStepperBlock } from '@/blocks/GospelStepperBlock'
 
 export const Pages: CollectionConfig = {
   slug: 'pages',
@@ -68,6 +69,7 @@ export const Pages: CollectionConfig = {
         ManualCardGridBlock,
         PhotoStripBlock,
         PageHeaderBlock,
+        GospelStepperBlock,
       ],
     },
     {

@@ -12,6 +12,11 @@ const navHierarchy: Record<string, BreadcrumbItem[]> = {
     { name: 'About', url: `${SITE_URL}/about` },
     { name: 'What We Believe', url: `${SITE_URL}/what-we-believe` },
   ],
+  '/good-news': [
+    { name: 'Home', url: SITE_URL },
+    { name: 'About', url: `${SITE_URL}/about` },
+    { name: 'The Good News', url: `${SITE_URL}/good-news` },
+  ],
   '/vision': [
     { name: 'Home', url: SITE_URL },
     { name: 'About', url: `${SITE_URL}/about` },
