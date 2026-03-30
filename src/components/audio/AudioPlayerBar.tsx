@@ -152,12 +152,12 @@ export function AudioPlayerBar() {
             {/* Skip back */}
             <button
               onClick={skipBack}
-              className="rounded-full p-1.5 text-warm-white/60 transition-colors hover:text-warm-white"
+              className="rounded-full p-2 text-warm-white/60 transition-colors hover:text-warm-white sm:p-1.5"
               aria-label="Skip back 15 seconds"
             >
-              <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="currentColor">
+              <svg className="h-6 w-6 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M11.99 5V1l-5 5 5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6h-2c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
-                <text x="10" y="16" fontSize="7" textAnchor="middle" fill="currentColor">
+                <text x="12" y="15.5" fontSize="7.5" textAnchor="middle" dominantBaseline="central" fill="currentColor">
                   15
                 </text>
               </svg>
@@ -166,24 +166,24 @@ export function AudioPlayerBar() {
             {/* Play/Pause */}
             <button
               onClick={isPlaying ? pause : resume}
-              className="relative flex h-9 w-9 items-center justify-center rounded-full bg-warm-white text-brand-black transition-transform hover:scale-105"
+              className="relative flex h-11 w-11 items-center justify-center rounded-full bg-warm-white text-brand-black transition-transform hover:scale-105 sm:h-9 sm:w-9"
               aria-label={isPlaying ? 'Pause' : 'Play'}
               disabled={isLoading}
             >
               {/* Loading ring */}
               {isLoading && (
-                <svg className="pointer-events-none absolute inset-0 animate-spin" width={36} height={36} viewBox="0 0 36 36">
-                  <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(226,42,48,0.2)" strokeWidth="3" />
-                  <circle cx="18" cy="18" r="16" fill="none" stroke="#E22A30" strokeWidth="3" strokeLinecap="round" strokeDasharray={100.5} strokeDashoffset={75.4} />
+                <svg className="pointer-events-none absolute inset-0 animate-spin" viewBox="0 0 44 44" width="100%" height="100%">
+                  <circle cx="22" cy="22" r="20" fill="none" stroke="rgba(226,42,48,0.2)" strokeWidth="3" />
+                  <circle cx="22" cy="22" r="20" fill="none" stroke="#E22A30" strokeWidth="3" strokeLinecap="round" strokeDasharray={125.7} strokeDashoffset={94.2} />
                 </svg>
               )}
               {isPlaying ? (
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="h-5 w-5 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="currentColor">
                   <rect x="6" y="4" width="4" height="16" />
                   <rect x="14" y="4" width="4" height="16" />
                 </svg>
               ) : (
-                <svg className="h-4 w-4 pl-0.5" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="h-5 w-5 pl-0.5 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="currentColor">
                   <polygon points="5,3 19,12 5,21" />
                 </svg>
               )}
@@ -192,12 +192,12 @@ export function AudioPlayerBar() {
             {/* Skip forward */}
             <button
               onClick={skipForward}
-              className="rounded-full p-1.5 text-warm-white/60 transition-colors hover:text-warm-white"
+              className="rounded-full p-2 text-warm-white/60 transition-colors hover:text-warm-white sm:p-1.5"
               aria-label="Skip forward 15 seconds"
             >
-              <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="currentColor">
+              <svg className="h-6 w-6 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12.01 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z" />
-                <text x="14" y="16" fontSize="7" textAnchor="middle" fill="currentColor">
+                <text x="12" y="15.5" fontSize="7.5" textAnchor="middle" dominantBaseline="central" fill="currentColor">
                   15
                 </text>
               </svg>
