@@ -90,19 +90,16 @@ export function AudioPlayerBar() {
       >
         {/* Progress bar - clickable, sits on top edge */}
         <div
-          className="group relative h-1 cursor-pointer overflow-hidden rounded-t-2xl transition-all hover:h-1.5"
+          className="group relative h-1 cursor-pointer rounded-t-2xl transition-all hover:h-1.5"
           onClick={handleProgressClick}
           role="progressbar"
           aria-valuenow={progress}
           aria-valuemin={0}
           aria-valuemax={duration}
-        >
-          <div className="absolute inset-0 bg-white/10" />
-          <div
-            className="absolute inset-y-0 left-0 rounded-full bg-rich-red after:absolute after:right-0 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:translate-x-1/2 after:scale-0 after:rounded-full after:bg-rich-red after:shadow-md after:transition-transform group-hover:after:scale-100"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
+          style={{
+            background: `linear-gradient(to right, #E22A30 ${progressPercent}%, rgba(255,255,255,0.1) ${progressPercent}%)`,
+          }}
+        />
 
         <div className="flex items-center gap-3 px-3 py-2.5 sm:px-4">
           {/* Banner image */}
