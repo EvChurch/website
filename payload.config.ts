@@ -102,6 +102,33 @@ export default buildConfig({
       : []),
   ],
 
+  jobs: {
+    tasks: [
+      {
+        slug: 'fullSermonSync',
+        retries: 2,
+        inputSchema: [],
+        outputSchema: [
+          { name: 'created', type: 'number' },
+          { name: 'updated', type: 'number' },
+          { name: 'errors', type: 'number' },
+        ],
+        handler: async ({ req }) => {
+          const { runSermonSync } = await import('@/sync/sermon-sync-runner')
+          const results = await runSermonSync()
+          const created = results.reduce((s, r) => s + r.created, 0)
+          const updated = results.reduce((s, r) => s + r.updated, 0)
+          const errors = results.reduce((s, r) => s + r.errors.length, 0)
+          req.payload.logger.info(`[SermonSync] created=${created} updated=${updated} errors=${errors}`)
+          return { output: { created, updated, errors } }
+        },
+      },
+    ],
+    autoRun: [
+      { cron: '*/15 * * * *', queue: 'default', limit: 10 },
+    ],
+  },
+
   typescript: {
     outputFile: path.resolve(dirname, 'src/payload-types.ts'),
   },
