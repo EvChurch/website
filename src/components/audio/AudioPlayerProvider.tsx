@@ -310,7 +310,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     const resumeTime = saved && !saved.completed && saved.progress > 10 ? saved.progress : 0
     setProgress(resumeTime)
 
-    audio.src = sermon.audioUrl
+    // Use streaming endpoint for direct S3 signed URL (supports range requests)
+    const filename = sermon.audioUrl.split('/').pop()
+    audio.src = filename
+      ? `/api/sermon-audio/stream?file=${encodeURIComponent(filename)}`
+      : sermon.audioUrl
     if (resumeTime > 0) {
       const onCanSeek = () => {
         audio.currentTime = resumeTime
