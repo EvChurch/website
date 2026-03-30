@@ -88,9 +88,9 @@ export function AudioPlayerBar() {
         ref={barRef}
         className={`w-full max-w-2xl rounded-2xl border border-white/10 bg-brand-black/80 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl transition-transform duration-300 ease-out ${show ? 'translate-y-0' : 'translate-y-[calc(100%+2rem)]'}`}
       >
-        {/* Progress bar - clickable, sits on top edge */}
+        {/* Progress bar - desktop only, sits on top edge */}
         <div
-          className="group relative h-1 cursor-pointer rounded-t-2xl transition-all hover:h-1.5"
+          className="group relative hidden h-1 cursor-pointer rounded-t-2xl transition-all hover:h-1.5 sm:block"
           onClick={handleProgressClick}
           role="progressbar"
           aria-valuenow={progress}
@@ -172,9 +172,26 @@ export function AudioPlayerBar() {
             >
               {/* Loading ring */}
               {isLoading && (
-                <svg className="pointer-events-none absolute inset-0 animate-spin" viewBox="0 0 44 44" width="100%" height="100%">
-                  <circle cx="22" cy="22" r="20" fill="none" stroke="rgba(226,42,48,0.2)" strokeWidth="3" />
-                  <circle cx="22" cy="22" r="20" fill="none" stroke="#E22A30" strokeWidth="3" strokeLinecap="round" strokeDasharray={125.7} strokeDashoffset={94.2} />
+                <svg className="pointer-events-none absolute -inset-0.5 animate-spin" viewBox="0 0 48 48">
+                  <circle cx="24" cy="24" r="22" fill="none" stroke="rgba(226,42,48,0.2)" strokeWidth="2.5" />
+                  <circle cx="24" cy="24" r="22" fill="none" stroke="#E22A30" strokeWidth="2.5" strokeLinecap="round" strokeDasharray={138.2} strokeDashoffset={103.7} />
+                </svg>
+              )}
+              {/* Mobile progress ring */}
+              {!isLoading && progressPercent > 0 && (
+                <svg className="pointer-events-none absolute -inset-0.5 sm:hidden" viewBox="0 0 48 48">
+                  <circle cx="24" cy="24" r="22" fill="none" stroke="rgba(226,42,48,0.2)" strokeWidth="2.5" />
+                  <circle
+                    cx="24" cy="24" r="22"
+                    fill="none"
+                    stroke="#E22A30"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeDasharray={138.2}
+                    strokeDashoffset={138.2 * (1 - progressPercent / 100)}
+                    transform="rotate(-90 24 24)"
+                    className="transition-[stroke-dashoffset] duration-300"
+                  />
                 </svg>
               )}
               {isPlaying ? (
