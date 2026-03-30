@@ -445,6 +445,15 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"block_name" varchar
   );
   
+  CREATE TABLE "pages_blocks_latest_sermon" (
+  	"_order" integer NOT NULL,
+  	"_parent_id" integer NOT NULL,
+  	"_path" text NOT NULL,
+  	"id" varchar PRIMARY KEY NOT NULL,
+  	"heading" varchar DEFAULT 'Latest Sermon',
+  	"block_name" varchar
+  );
+  
   CREATE TABLE "pages" (
   	"id" serial PRIMARY KEY NOT NULL,
   	"title" varchar,
@@ -786,6 +795,16 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"block_name" varchar
   );
   
+  CREATE TABLE "_pages_v_blocks_latest_sermon" (
+  	"_order" integer NOT NULL,
+  	"_parent_id" integer NOT NULL,
+  	"_path" text NOT NULL,
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"heading" varchar DEFAULT 'Latest Sermon',
+  	"_uuid" varchar,
+  	"block_name" varchar
+  );
+  
   CREATE TABLE "_pages_v" (
   	"id" serial PRIMARY KEY NOT NULL,
   	"parent_id" integer,
@@ -943,21 +962,6 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"created_at" timestamp(3) with time zone DEFAULT now() NOT NULL
   );
   
-  CREATE TABLE "sermon_series" (
-  	"id" serial PRIMARY KEY NOT NULL,
-  	"title" varchar NOT NULL,
-  	"slug" varchar NOT NULL,
-  	"rock_content_item_id" numeric NOT NULL,
-  	"content" jsonb,
-  	"series_image_id" integer,
-  	"start_date" timestamp(3) with time zone,
-  	"resource_url" varchar,
-  	"is_active" boolean DEFAULT true,
-  	"last_synced_at" timestamp(3) with time zone,
-  	"updated_at" timestamp(3) with time zone DEFAULT now() NOT NULL,
-  	"created_at" timestamp(3) with time zone DEFAULT now() NOT NULL
-  );
-  
   CREATE TABLE "connect_groups_leaders" (
   	"_order" integer NOT NULL,
   	"_parent_id" integer NOT NULL,
@@ -998,6 +1002,108 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"created_at" timestamp(3) with time zone DEFAULT now() NOT NULL
   );
   
+  CREATE TABLE "sermon_series" (
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"title" varchar NOT NULL,
+  	"slug" varchar NOT NULL,
+  	"resource_id" varchar NOT NULL,
+  	"background_image_id" integer,
+  	"banner_image_id" integer,
+  	"foreground_image_id" integer,
+  	"is_published" boolean DEFAULT true,
+  	"last_synced_at" timestamp(3) with time zone,
+  	"updated_at" timestamp(3) with time zone DEFAULT now() NOT NULL,
+  	"created_at" timestamp(3) with time zone DEFAULT now() NOT NULL
+  );
+  
+  CREATE TABLE "sermons" (
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"title" varchar NOT NULL,
+  	"slug" varchar NOT NULL,
+  	"resource_id" varchar NOT NULL,
+  	"audio_id" integer,
+  	"published_at" timestamp(3) with time zone,
+  	"duration" numeric,
+  	"passage_reference" varchar,
+  	"search_text" varchar,
+  	"is_published" boolean DEFAULT true,
+  	"transcript" varchar,
+  	"summary" varchar,
+  	"discussion_questions" jsonb,
+  	"enriched_scripture" jsonb,
+  	"last_synced_at" timestamp(3) with time zone,
+  	"updated_at" timestamp(3) with time zone DEFAULT now() NOT NULL,
+  	"created_at" timestamp(3) with time zone DEFAULT now() NOT NULL
+  );
+  
+  CREATE TABLE "sermons_rels" (
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"order" integer,
+  	"parent_id" integer NOT NULL,
+  	"path" varchar NOT NULL,
+  	"sermon_series_id" integer,
+  	"speakers_id" integer,
+  	"topics_id" integer,
+  	"scriptures_id" integer
+  );
+  
+  CREATE TABLE "speakers" (
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"name" varchar NOT NULL,
+  	"slug" varchar NOT NULL,
+  	"resource_id" varchar NOT NULL,
+  	"last_synced_at" timestamp(3) with time zone,
+  	"updated_at" timestamp(3) with time zone DEFAULT now() NOT NULL,
+  	"created_at" timestamp(3) with time zone DEFAULT now() NOT NULL
+  );
+  
+  CREATE TABLE "topics" (
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"name" varchar NOT NULL,
+  	"slug" varchar NOT NULL,
+  	"resource_id" varchar NOT NULL,
+  	"category_id" integer,
+  	"last_synced_at" timestamp(3) with time zone,
+  	"updated_at" timestamp(3) with time zone DEFAULT now() NOT NULL,
+  	"created_at" timestamp(3) with time zone DEFAULT now() NOT NULL
+  );
+  
+  CREATE TABLE "categories" (
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"name" varchar NOT NULL,
+  	"slug" varchar NOT NULL,
+  	"resource_id" varchar NOT NULL,
+  	"last_synced_at" timestamp(3) with time zone,
+  	"updated_at" timestamp(3) with time zone DEFAULT now() NOT NULL,
+  	"created_at" timestamp(3) with time zone DEFAULT now() NOT NULL
+  );
+  
+  CREATE TABLE "scriptures" (
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"name" varchar NOT NULL,
+  	"slug" varchar NOT NULL,
+  	"resource_id" varchar NOT NULL,
+  	"last_synced_at" timestamp(3) with time zone,
+  	"updated_at" timestamp(3) with time zone DEFAULT now() NOT NULL,
+  	"created_at" timestamp(3) with time zone DEFAULT now() NOT NULL
+  );
+  
+  CREATE TABLE "sermon_audio" (
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"duration" numeric,
+  	"updated_at" timestamp(3) with time zone DEFAULT now() NOT NULL,
+  	"created_at" timestamp(3) with time zone DEFAULT now() NOT NULL,
+  	"url" varchar,
+  	"thumbnail_u_r_l" varchar,
+  	"filename" varchar,
+  	"mime_type" varchar,
+  	"filesize" numeric,
+  	"width" numeric,
+  	"height" numeric,
+  	"focal_x" numeric,
+  	"focal_y" numeric
+  );
+  
   CREATE TABLE "payload_kv" (
   	"id" serial PRIMARY KEY NOT NULL,
   	"key" varchar NOT NULL,
@@ -1024,9 +1130,15 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"campuses_id" integer,
   	"team_members_id" integer,
   	"events_id" integer,
-  	"sermon_series_id" integer,
   	"connect_groups_id" integer,
-  	"registrations_id" integer
+  	"registrations_id" integer,
+  	"sermon_series_id" integer,
+  	"sermons_id" integer,
+  	"speakers_id" integer,
+  	"topics_id" integer,
+  	"categories_id" integer,
+  	"scriptures_id" integer,
+  	"sermon_audio_id" integer
   );
   
   CREATE TABLE "payload_preferences" (
@@ -1147,6 +1259,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "pages_blocks_gospel_stepper_steps" ADD CONSTRAINT "pages_blocks_gospel_stepper_steps_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages_blocks_gospel_stepper"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "pages_blocks_gospel_stepper_final_c_t_a_buttons" ADD CONSTRAINT "pages_blocks_gospel_stepper_final_c_t_a_buttons_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages_blocks_gospel_stepper"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "pages_blocks_gospel_stepper" ADD CONSTRAINT "pages_blocks_gospel_stepper_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "pages_blocks_latest_sermon" ADD CONSTRAINT "pages_blocks_latest_sermon_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "pages" ADD CONSTRAINT "pages_seo_og_image_id_media_id_fk" FOREIGN KEY ("seo_og_image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_hero_buttons" ADD CONSTRAINT "_pages_v_blocks_hero_buttons_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v_blocks_hero"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_hero" ADD CONSTRAINT "_pages_v_blocks_hero_image_id_media_id_fk" FOREIGN KEY ("image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
@@ -1184,6 +1297,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "_pages_v_blocks_gospel_stepper_steps" ADD CONSTRAINT "_pages_v_blocks_gospel_stepper_steps_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v_blocks_gospel_stepper"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_gospel_stepper_final_c_t_a_buttons" ADD CONSTRAINT "_pages_v_blocks_gospel_stepper_final_c_t_a_buttons_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v_blocks_gospel_stepper"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_gospel_stepper" ADD CONSTRAINT "_pages_v_blocks_gospel_stepper_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "_pages_v_blocks_latest_sermon" ADD CONSTRAINT "_pages_v_blocks_latest_sermon_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "_pages_v" ADD CONSTRAINT "_pages_v_parent_id_pages_id_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."pages"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "_pages_v" ADD CONSTRAINT "_pages_v_version_seo_og_image_id_media_id_fk" FOREIGN KEY ("version_seo_og_image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "blog_posts" ADD CONSTRAINT "blog_posts_featured_image_id_media_id_fk" FOREIGN KEY ("featured_image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
@@ -1199,11 +1313,20 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "events" ADD CONSTRAINT "events_image_id_media_id_fk" FOREIGN KEY ("image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "events" ADD CONSTRAINT "events_campus_id_campuses_id_fk" FOREIGN KEY ("campus_id") REFERENCES "public"."campuses"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "events" ADD CONSTRAINT "events_contact_person_photo_id_media_id_fk" FOREIGN KEY ("contact_person_photo_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
-  ALTER TABLE "sermon_series" ADD CONSTRAINT "sermon_series_series_image_id_media_id_fk" FOREIGN KEY ("series_image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "connect_groups_leaders" ADD CONSTRAINT "connect_groups_leaders_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."connect_groups"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "connect_groups" ADD CONSTRAINT "connect_groups_image_id_media_id_fk" FOREIGN KEY ("image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "connect_groups" ADD CONSTRAINT "connect_groups_campus_id_campuses_id_fk" FOREIGN KEY ("campus_id") REFERENCES "public"."campuses"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "registrations" ADD CONSTRAINT "registrations_event_id_events_id_fk" FOREIGN KEY ("event_id") REFERENCES "public"."events"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "sermon_series" ADD CONSTRAINT "sermon_series_background_image_id_media_id_fk" FOREIGN KEY ("background_image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "sermon_series" ADD CONSTRAINT "sermon_series_banner_image_id_media_id_fk" FOREIGN KEY ("banner_image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "sermon_series" ADD CONSTRAINT "sermon_series_foreground_image_id_media_id_fk" FOREIGN KEY ("foreground_image_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "sermons" ADD CONSTRAINT "sermons_audio_id_sermon_audio_id_fk" FOREIGN KEY ("audio_id") REFERENCES "public"."sermon_audio"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "sermons_rels" ADD CONSTRAINT "sermons_rels_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."sermons"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "sermons_rels" ADD CONSTRAINT "sermons_rels_sermon_series_fk" FOREIGN KEY ("sermon_series_id") REFERENCES "public"."sermon_series"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "sermons_rels" ADD CONSTRAINT "sermons_rels_speakers_fk" FOREIGN KEY ("speakers_id") REFERENCES "public"."speakers"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "sermons_rels" ADD CONSTRAINT "sermons_rels_topics_fk" FOREIGN KEY ("topics_id") REFERENCES "public"."topics"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "sermons_rels" ADD CONSTRAINT "sermons_rels_scriptures_fk" FOREIGN KEY ("scriptures_id") REFERENCES "public"."scriptures"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "topics" ADD CONSTRAINT "topics_category_id_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "public"."categories"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."payload_locked_documents"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_users_fk" FOREIGN KEY ("users_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_media_fk" FOREIGN KEY ("media_id") REFERENCES "public"."media"("id") ON DELETE cascade ON UPDATE no action;
@@ -1213,9 +1336,15 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_campuses_fk" FOREIGN KEY ("campuses_id") REFERENCES "public"."campuses"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_team_members_fk" FOREIGN KEY ("team_members_id") REFERENCES "public"."team_members"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_events_fk" FOREIGN KEY ("events_id") REFERENCES "public"."events"("id") ON DELETE cascade ON UPDATE no action;
-  ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_sermon_series_fk" FOREIGN KEY ("sermon_series_id") REFERENCES "public"."sermon_series"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_connect_groups_fk" FOREIGN KEY ("connect_groups_id") REFERENCES "public"."connect_groups"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_registrations_fk" FOREIGN KEY ("registrations_id") REFERENCES "public"."registrations"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_sermon_series_fk" FOREIGN KEY ("sermon_series_id") REFERENCES "public"."sermon_series"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_sermons_fk" FOREIGN KEY ("sermons_id") REFERENCES "public"."sermons"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_speakers_fk" FOREIGN KEY ("speakers_id") REFERENCES "public"."speakers"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_topics_fk" FOREIGN KEY ("topics_id") REFERENCES "public"."topics"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_categories_fk" FOREIGN KEY ("categories_id") REFERENCES "public"."categories"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_scriptures_fk" FOREIGN KEY ("scriptures_id") REFERENCES "public"."scriptures"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_sermon_audio_fk" FOREIGN KEY ("sermon_audio_id") REFERENCES "public"."sermon_audio"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "payload_preferences_rels" ADD CONSTRAINT "payload_preferences_rels_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."payload_preferences"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "payload_preferences_rels" ADD CONSTRAINT "payload_preferences_rels_users_fk" FOREIGN KEY ("users_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "navigation_main_nav_children" ADD CONSTRAINT "navigation_main_nav_children_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."navigation_main_nav"("id") ON DELETE cascade ON UPDATE no action;
@@ -1322,6 +1451,9 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "pages_blocks_gospel_stepper_order_idx" ON "pages_blocks_gospel_stepper" USING btree ("_order");
   CREATE INDEX "pages_blocks_gospel_stepper_parent_id_idx" ON "pages_blocks_gospel_stepper" USING btree ("_parent_id");
   CREATE INDEX "pages_blocks_gospel_stepper_path_idx" ON "pages_blocks_gospel_stepper" USING btree ("_path");
+  CREATE INDEX "pages_blocks_latest_sermon_order_idx" ON "pages_blocks_latest_sermon" USING btree ("_order");
+  CREATE INDEX "pages_blocks_latest_sermon_parent_id_idx" ON "pages_blocks_latest_sermon" USING btree ("_parent_id");
+  CREATE INDEX "pages_blocks_latest_sermon_path_idx" ON "pages_blocks_latest_sermon" USING btree ("_path");
   CREATE UNIQUE INDEX "pages_slug_idx" ON "pages" USING btree ("slug");
   CREATE INDEX "pages_seo_seo_og_image_idx" ON "pages" USING btree ("seo_og_image_id");
   CREATE INDEX "pages_updated_at_idx" ON "pages" USING btree ("updated_at");
@@ -1407,6 +1539,9 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "_pages_v_blocks_gospel_stepper_order_idx" ON "_pages_v_blocks_gospel_stepper" USING btree ("_order");
   CREATE INDEX "_pages_v_blocks_gospel_stepper_parent_id_idx" ON "_pages_v_blocks_gospel_stepper" USING btree ("_parent_id");
   CREATE INDEX "_pages_v_blocks_gospel_stepper_path_idx" ON "_pages_v_blocks_gospel_stepper" USING btree ("_path");
+  CREATE INDEX "_pages_v_blocks_latest_sermon_order_idx" ON "_pages_v_blocks_latest_sermon" USING btree ("_order");
+  CREATE INDEX "_pages_v_blocks_latest_sermon_parent_id_idx" ON "_pages_v_blocks_latest_sermon" USING btree ("_parent_id");
+  CREATE INDEX "_pages_v_blocks_latest_sermon_path_idx" ON "_pages_v_blocks_latest_sermon" USING btree ("_path");
   CREATE INDEX "_pages_v_parent_idx" ON "_pages_v" USING btree ("parent_id");
   CREATE INDEX "_pages_v_version_version_slug_idx" ON "_pages_v" USING btree ("version_slug");
   CREATE INDEX "_pages_v_version_seo_version_seo_og_image_idx" ON "_pages_v" USING btree ("version_seo_og_image_id");
@@ -1464,11 +1599,6 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "events_contact_person_contact_person_photo_idx" ON "events" USING btree ("contact_person_photo_id");
   CREATE INDEX "events_updated_at_idx" ON "events" USING btree ("updated_at");
   CREATE INDEX "events_created_at_idx" ON "events" USING btree ("created_at");
-  CREATE UNIQUE INDEX "sermon_series_slug_idx" ON "sermon_series" USING btree ("slug");
-  CREATE UNIQUE INDEX "sermon_series_rock_content_item_id_idx" ON "sermon_series" USING btree ("rock_content_item_id");
-  CREATE INDEX "sermon_series_series_image_idx" ON "sermon_series" USING btree ("series_image_id");
-  CREATE INDEX "sermon_series_updated_at_idx" ON "sermon_series" USING btree ("updated_at");
-  CREATE INDEX "sermon_series_created_at_idx" ON "sermon_series" USING btree ("created_at");
   CREATE INDEX "connect_groups_leaders_order_idx" ON "connect_groups_leaders" USING btree ("_order");
   CREATE INDEX "connect_groups_leaders_parent_id_idx" ON "connect_groups_leaders" USING btree ("_parent_id");
   CREATE UNIQUE INDEX "connect_groups_slug_idx" ON "connect_groups" USING btree ("slug");
@@ -1481,6 +1611,46 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "registrations_event_idx" ON "registrations" USING btree ("event_id");
   CREATE INDEX "registrations_updated_at_idx" ON "registrations" USING btree ("updated_at");
   CREATE INDEX "registrations_created_at_idx" ON "registrations" USING btree ("created_at");
+  CREATE UNIQUE INDEX "sermon_series_slug_idx" ON "sermon_series" USING btree ("slug");
+  CREATE UNIQUE INDEX "sermon_series_resource_id_idx" ON "sermon_series" USING btree ("resource_id");
+  CREATE INDEX "sermon_series_background_image_idx" ON "sermon_series" USING btree ("background_image_id");
+  CREATE INDEX "sermon_series_banner_image_idx" ON "sermon_series" USING btree ("banner_image_id");
+  CREATE INDEX "sermon_series_foreground_image_idx" ON "sermon_series" USING btree ("foreground_image_id");
+  CREATE INDEX "sermon_series_updated_at_idx" ON "sermon_series" USING btree ("updated_at");
+  CREATE INDEX "sermon_series_created_at_idx" ON "sermon_series" USING btree ("created_at");
+  CREATE UNIQUE INDEX "sermons_slug_idx" ON "sermons" USING btree ("slug");
+  CREATE UNIQUE INDEX "sermons_resource_id_idx" ON "sermons" USING btree ("resource_id");
+  CREATE INDEX "sermons_audio_idx" ON "sermons" USING btree ("audio_id");
+  CREATE INDEX "sermons_search_text_idx" ON "sermons" USING btree ("search_text");
+  CREATE INDEX "sermons_updated_at_idx" ON "sermons" USING btree ("updated_at");
+  CREATE INDEX "sermons_created_at_idx" ON "sermons" USING btree ("created_at");
+  CREATE INDEX "sermons_rels_order_idx" ON "sermons_rels" USING btree ("order");
+  CREATE INDEX "sermons_rels_parent_idx" ON "sermons_rels" USING btree ("parent_id");
+  CREATE INDEX "sermons_rels_path_idx" ON "sermons_rels" USING btree ("path");
+  CREATE INDEX "sermons_rels_sermon_series_id_idx" ON "sermons_rels" USING btree ("sermon_series_id");
+  CREATE INDEX "sermons_rels_speakers_id_idx" ON "sermons_rels" USING btree ("speakers_id");
+  CREATE INDEX "sermons_rels_topics_id_idx" ON "sermons_rels" USING btree ("topics_id");
+  CREATE INDEX "sermons_rels_scriptures_id_idx" ON "sermons_rels" USING btree ("scriptures_id");
+  CREATE UNIQUE INDEX "speakers_slug_idx" ON "speakers" USING btree ("slug");
+  CREATE UNIQUE INDEX "speakers_resource_id_idx" ON "speakers" USING btree ("resource_id");
+  CREATE INDEX "speakers_updated_at_idx" ON "speakers" USING btree ("updated_at");
+  CREATE INDEX "speakers_created_at_idx" ON "speakers" USING btree ("created_at");
+  CREATE UNIQUE INDEX "topics_slug_idx" ON "topics" USING btree ("slug");
+  CREATE UNIQUE INDEX "topics_resource_id_idx" ON "topics" USING btree ("resource_id");
+  CREATE INDEX "topics_category_idx" ON "topics" USING btree ("category_id");
+  CREATE INDEX "topics_updated_at_idx" ON "topics" USING btree ("updated_at");
+  CREATE INDEX "topics_created_at_idx" ON "topics" USING btree ("created_at");
+  CREATE UNIQUE INDEX "categories_slug_idx" ON "categories" USING btree ("slug");
+  CREATE UNIQUE INDEX "categories_resource_id_idx" ON "categories" USING btree ("resource_id");
+  CREATE INDEX "categories_updated_at_idx" ON "categories" USING btree ("updated_at");
+  CREATE INDEX "categories_created_at_idx" ON "categories" USING btree ("created_at");
+  CREATE UNIQUE INDEX "scriptures_slug_idx" ON "scriptures" USING btree ("slug");
+  CREATE UNIQUE INDEX "scriptures_resource_id_idx" ON "scriptures" USING btree ("resource_id");
+  CREATE INDEX "scriptures_updated_at_idx" ON "scriptures" USING btree ("updated_at");
+  CREATE INDEX "scriptures_created_at_idx" ON "scriptures" USING btree ("created_at");
+  CREATE INDEX "sermon_audio_updated_at_idx" ON "sermon_audio" USING btree ("updated_at");
+  CREATE INDEX "sermon_audio_created_at_idx" ON "sermon_audio" USING btree ("created_at");
+  CREATE UNIQUE INDEX "sermon_audio_filename_idx" ON "sermon_audio" USING btree ("filename");
   CREATE UNIQUE INDEX "payload_kv_key_idx" ON "payload_kv" USING btree ("key");
   CREATE INDEX "payload_locked_documents_global_slug_idx" ON "payload_locked_documents" USING btree ("global_slug");
   CREATE INDEX "payload_locked_documents_updated_at_idx" ON "payload_locked_documents" USING btree ("updated_at");
@@ -1496,9 +1666,15 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "payload_locked_documents_rels_campuses_id_idx" ON "payload_locked_documents_rels" USING btree ("campuses_id");
   CREATE INDEX "payload_locked_documents_rels_team_members_id_idx" ON "payload_locked_documents_rels" USING btree ("team_members_id");
   CREATE INDEX "payload_locked_documents_rels_events_id_idx" ON "payload_locked_documents_rels" USING btree ("events_id");
-  CREATE INDEX "payload_locked_documents_rels_sermon_series_id_idx" ON "payload_locked_documents_rels" USING btree ("sermon_series_id");
   CREATE INDEX "payload_locked_documents_rels_connect_groups_id_idx" ON "payload_locked_documents_rels" USING btree ("connect_groups_id");
   CREATE INDEX "payload_locked_documents_rels_registrations_id_idx" ON "payload_locked_documents_rels" USING btree ("registrations_id");
+  CREATE INDEX "payload_locked_documents_rels_sermon_series_id_idx" ON "payload_locked_documents_rels" USING btree ("sermon_series_id");
+  CREATE INDEX "payload_locked_documents_rels_sermons_id_idx" ON "payload_locked_documents_rels" USING btree ("sermons_id");
+  CREATE INDEX "payload_locked_documents_rels_speakers_id_idx" ON "payload_locked_documents_rels" USING btree ("speakers_id");
+  CREATE INDEX "payload_locked_documents_rels_topics_id_idx" ON "payload_locked_documents_rels" USING btree ("topics_id");
+  CREATE INDEX "payload_locked_documents_rels_categories_id_idx" ON "payload_locked_documents_rels" USING btree ("categories_id");
+  CREATE INDEX "payload_locked_documents_rels_scriptures_id_idx" ON "payload_locked_documents_rels" USING btree ("scriptures_id");
+  CREATE INDEX "payload_locked_documents_rels_sermon_audio_id_idx" ON "payload_locked_documents_rels" USING btree ("sermon_audio_id");
   CREATE INDEX "payload_preferences_key_idx" ON "payload_preferences" USING btree ("key");
   CREATE INDEX "payload_preferences_updated_at_idx" ON "payload_preferences" USING btree ("updated_at");
   CREATE INDEX "payload_preferences_created_at_idx" ON "payload_preferences" USING btree ("created_at");
@@ -1555,6 +1731,7 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TABLE "pages_blocks_gospel_stepper_steps" CASCADE;
   DROP TABLE "pages_blocks_gospel_stepper_final_c_t_a_buttons" CASCADE;
   DROP TABLE "pages_blocks_gospel_stepper" CASCADE;
+  DROP TABLE "pages_blocks_latest_sermon" CASCADE;
   DROP TABLE "pages" CASCADE;
   DROP TABLE "_pages_v_blocks_hero_buttons" CASCADE;
   DROP TABLE "_pages_v_blocks_hero" CASCADE;
@@ -1584,6 +1761,7 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TABLE "_pages_v_blocks_gospel_stepper_steps" CASCADE;
   DROP TABLE "_pages_v_blocks_gospel_stepper_final_c_t_a_buttons" CASCADE;
   DROP TABLE "_pages_v_blocks_gospel_stepper" CASCADE;
+  DROP TABLE "_pages_v_blocks_latest_sermon" CASCADE;
   DROP TABLE "_pages_v" CASCADE;
   DROP TABLE "blog_posts" CASCADE;
   DROP TABLE "_blog_posts_v" CASCADE;
@@ -1593,10 +1771,17 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TABLE "campuses" CASCADE;
   DROP TABLE "team_members" CASCADE;
   DROP TABLE "events" CASCADE;
-  DROP TABLE "sermon_series" CASCADE;
   DROP TABLE "connect_groups_leaders" CASCADE;
   DROP TABLE "connect_groups" CASCADE;
   DROP TABLE "registrations" CASCADE;
+  DROP TABLE "sermon_series" CASCADE;
+  DROP TABLE "sermons" CASCADE;
+  DROP TABLE "sermons_rels" CASCADE;
+  DROP TABLE "speakers" CASCADE;
+  DROP TABLE "topics" CASCADE;
+  DROP TABLE "categories" CASCADE;
+  DROP TABLE "scriptures" CASCADE;
+  DROP TABLE "sermon_audio" CASCADE;
   DROP TABLE "payload_kv" CASCADE;
   DROP TABLE "payload_locked_documents" CASCADE;
   DROP TABLE "payload_locked_documents_rels" CASCADE;
