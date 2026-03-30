@@ -1,5 +1,19 @@
 import type { CollectionAfterChangeHook } from 'payload'
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
 import sharp from 'sharp'
+
+function getS3Client() {
+  return new S3Client({
+    credentials: {
+      accessKeyId: process.env.S3_ACCESS_KEY_ID || '',
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || '',
+    },
+    region: process.env.S3_REGION || 'auto',
+    ...(process.env.S3_ENDPOINT
+      ? { endpoint: process.env.S3_ENDPOINT }
+      : {}),
+  })
+}
 
 export const generateBlurPlaceholder: CollectionAfterChangeHook = async ({
   doc,
@@ -14,14 +28,22 @@ export const generateBlurPlaceholder: CollectionAfterChangeHook = async ({
   if (doc.blurDataURL) return doc
 
   try {
-    // Build the full URL for the uploaded image
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-    const imageUrl = doc.url?.startsWith('http') ? doc.url : `${baseUrl}${doc.url}`
+    let buffer: Buffer
+    const bucket = process.env.S3_BUCKET
 
-    const response = await fetch(imageUrl)
-    if (!response.ok) return doc
-
-    const buffer = Buffer.from(await response.arrayBuffer())
+    if (bucket && doc.filename) {
+      const prefix = doc.prefix as string | undefined
+      const key = prefix ? `${prefix}/${doc.filename}` : doc.filename
+      const s3 = getS3Client()
+      const obj = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }))
+      buffer = Buffer.from(await obj.Body!.transformToByteArray())
+    } else {
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+      const imageUrl = doc.url?.startsWith('http') ? doc.url : `${baseUrl}${doc.url}`
+      const response = await fetch(imageUrl)
+      if (!response.ok) return doc
+      buffer = Buffer.from(await response.arrayBuffer())
+    }
 
     const blurBuffer = await sharp(buffer)
       .resize(10, 10, { fit: 'inside' })

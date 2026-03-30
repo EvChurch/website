@@ -1,7 +1,21 @@
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getPayloadClient } from '@/lib/payload'
 import sharp from 'sharp'
 
 export const maxDuration = 300 // 5 minutes
+
+function getS3Client() {
+  return new S3Client({
+    credentials: {
+      accessKeyId: process.env.S3_ACCESS_KEY_ID || '',
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || '',
+    },
+    region: process.env.S3_REGION || 'auto',
+    ...(process.env.S3_ENDPOINT
+      ? { endpoint: process.env.S3_ENDPOINT }
+      : {}),
+  })
+}
 
 export async function POST(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -13,7 +27,7 @@ export async function POST(request: Request) {
   }
 
   const payload = await getPayloadClient()
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  const bucket = process.env.S3_BUCKET
 
   // Find images without blurDataURL
   const result = await payload.find({
@@ -28,22 +42,37 @@ export async function POST(request: Request) {
 
   let processed = 0
   let skipped = 0
+  const errors: string[] = []
 
   for (const doc of result.docs) {
-    if (!doc.url || doc.mimeType === 'image/svg+xml') {
+    if (!doc.filename || doc.mimeType === 'image/svg+xml') {
       skipped++
       continue
     }
 
     try {
-      const imageUrl = doc.url.startsWith('http') ? doc.url : `${baseUrl}${doc.url}`
-      const response = await fetch(imageUrl)
-      if (!response.ok) {
-        skipped++
-        continue
+      let buffer: Buffer
+
+      if (bucket) {
+        // Fetch directly from S3
+        const prefix = (doc as typeof doc & { prefix?: string }).prefix
+        const key = prefix ? `${prefix}/${doc.filename}` : doc.filename
+        const s3 = getS3Client()
+        const obj = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }))
+        buffer = Buffer.from(await obj.Body!.transformToByteArray())
+      } else {
+        // Fallback: fetch via HTTP
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+        const imageUrl = doc.url?.startsWith('http') ? doc.url : `${baseUrl}${doc.url}`
+        const response = await fetch(imageUrl)
+        if (!response.ok) {
+          skipped++
+          errors.push(`${doc.filename}: HTTP ${response.status}`)
+          continue
+        }
+        buffer = Buffer.from(await response.arrayBuffer())
       }
 
-      const buffer = Buffer.from(await response.arrayBuffer())
       const blurBuffer = await sharp(buffer)
         .resize(10, 10, { fit: 'inside' })
         .blur(1)
@@ -60,8 +89,9 @@ export async function POST(request: Request) {
       })
 
       processed++
-    } catch {
+    } catch (err) {
       skipped++
+      errors.push(`${doc.filename}: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
 
@@ -69,5 +99,6 @@ export async function POST(request: Request) {
     processed,
     skipped,
     remaining: result.totalDocs - result.docs.length,
+    errors: errors.slice(0, 10),
   })
 }
