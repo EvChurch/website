@@ -594,8 +594,10 @@ async function syncSermons(limit?: number): Promise<SyncResult> {
     let sermons = await fetchAllPages<ResourceSermon>(sermonQuery, 'sermons', limit)
 
     const syncedIds = new Set<string>()
+    const usedSlugs = new Set<string>()
 
     for (const sermon of sermons) {
+      try {
       syncedIds.add(sermon.id)
 
       // Generate slug with series prefix for uniqueness
@@ -604,7 +606,13 @@ async function syncSermons(limit?: number): Promise<SyncResult> {
           ? seriesSlugMap.get(sermon.series[0].id)
           : null
       const titleSlug = slugify(sermon.name)
-      const slug = seriesSlug ? `${seriesSlug}-${titleSlug}` : titleSlug
+      let slug = seriesSlug ? `${seriesSlug}-${titleSlug}` : titleSlug
+
+      // Ensure slug uniqueness by appending resource ID suffix on collision
+      if (!slug || usedSlugs.has(slug)) {
+        slug = slug ? `${slug}-${sermon.id}` : `sermon-${sermon.id}`
+      }
+      usedSlugs.add(slug)
 
       // Resolve relationships
       const seriesIds = sermon.series
@@ -692,6 +700,9 @@ async function syncSermons(limit?: number): Promise<SyncResult> {
       } else {
         await payload.create({ collection: 'sermons', data: mapped })
         result.created++
+      }
+      } catch (error) {
+        result.errors.push(`Sermon "${sermon.name}" (${sermon.id}): ${String(error)}`)
       }
     }
 
