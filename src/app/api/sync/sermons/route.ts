@@ -17,7 +17,8 @@ export async function GET(request: NextRequest) {
   try {
     const payload = await getPayloadClient()
     await payload.jobs.queue({ task: 'fullSermonSync', input: {} })
-    await payload.jobs.run({ queue: 'default', limit: 1 })
+    // Don't await run - let autoRun pick it up, or fire-and-forget
+    void payload.jobs.run({ queue: 'default', limit: 1 })
 
     return NextResponse.json({ ok: true, message: 'Sermon sync job queued and started' })
   } catch (error) {
