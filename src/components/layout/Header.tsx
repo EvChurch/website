@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useRef, useState, useCallback } from 'react'
@@ -11,7 +12,6 @@ type NavItem = {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Home', href: '/' },
   {
     label: 'Visit',
     href: '/visit',
@@ -29,6 +29,7 @@ const navItems: NavItem[] = [
       { label: 'About Us', href: '/about' },
       { label: 'What We Believe', href: '/what-we-believe' },
       { label: 'Our Vision', href: '/vision' },
+      { label: 'Contact', href: '/contact' },
     ],
   },
   {
@@ -40,12 +41,10 @@ const navItems: NavItem[] = [
       { label: 'Connect Groups', href: '/connect-groups' },
       { label: 'Kids', href: '/kids' },
       { label: 'Youth', href: '/youth' },
+      { label: 'Good News', href: '/good-news' },
     ],
   },
   { label: 'Sermons', href: '/sermons' },
-  { label: 'Good News', href: '/good-news' },
-  { label: 'Contact', href: '/contact' },
-  { label: 'Give', href: 'https://give.ev.church' },
 ]
 
 /* ─────────────── Scroll Progress Bar ─────────────── */
@@ -292,8 +291,8 @@ function MobileMenu({
             </div>
           ))}
 
-          {/* Mobile CTA */}
-          <div className="mt-8">
+          {/* Mobile CTAs */}
+          <div className="mt-8 space-y-3">
             <Link
               href="/visit"
               className="block w-full rounded-md bg-rich-red py-3.5 text-center text-sm font-semibold text-white shadow-sm transition-colors hover:bg-deep-red"
@@ -301,6 +300,15 @@ function MobileMenu({
             >
               Plan Your Visit
             </Link>
+            <a
+              href="https://give.ev.church"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full rounded-md border border-rich-red py-3.5 text-center text-sm font-semibold text-rich-red transition-colors hover:bg-rich-red hover:text-white"
+              onClick={onClose}
+            >
+              Give
+            </a>
           </div>
         </nav>
       </div>
@@ -391,50 +399,66 @@ export function Header() {
           {/* Logo */}
           <Link
             href="/"
-            className="group flex items-center gap-2"
+            className="group flex items-center"
             aria-label="Ev Church, return to home"
           >
-            <span className={`text-xl font-black tracking-tight transition-colors lg:text-[1.375rem] ${
-              scrolled ? 'text-brand-black group-hover:text-rich-red' : 'text-white group-hover:text-white/80'
-            }`}>
-              ev.church
-            </span>
+            <Image
+              src="/images/global/ev-church-logo.png"
+              alt="Ev Church"
+              width={44}
+              height={44}
+              className={`transition-opacity group-hover:opacity-80 ${
+                scrolled ? '' : 'brightness-0 invert'
+              }`}
+              priority
+            />
           </Link>
 
           {/* Desktop Nav */}
-          <nav
-            className="hidden items-center gap-0.5 lg:flex"
-            aria-label="Main navigation"
-          >
-            {navItems.map((item) =>
-              item.children ? (
-                <DesktopDropdown key={item.label} item={item} scrolled={scrolled} pathname={pathname} />
-              ) : (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className={`group relative px-3 py-2 text-[0.8125rem] font-semibold uppercase tracking-wide transition-colors duration-200 ${
-                    isActive(pathname, item.href)
-                      ? scrolled ? 'text-rich-red' : 'text-white'
-                      : scrolled ? 'text-brand-black/80 hover:text-rich-red' : 'text-white/90 hover:text-white'
-                  }`}
-                  {...(item.href.startsWith('http')
-                    ? { target: '_blank', rel: 'noopener noreferrer' }
-                    : {})}
-                >
-                  {item.label}
-                  {/* Animated underline */}
-                  <span
-                    className={`absolute bottom-0 left-3 right-3 h-[2px] origin-left rounded-full transition-transform duration-300 ease-out ${
+          <div className="hidden items-center gap-1 lg:flex">
+            <nav
+              className="flex items-center gap-0.5"
+              aria-label="Main navigation"
+            >
+              {navItems.map((item) =>
+                item.children ? (
+                  <DesktopDropdown key={item.label} item={item} scrolled={scrolled} pathname={pathname} />
+                ) : (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className={`group relative px-3 py-2 text-[0.8125rem] font-semibold uppercase tracking-wide transition-colors duration-200 ${
                       isActive(pathname, item.href)
-                        ? 'scale-x-100'
-                        : 'scale-x-0 group-hover:scale-x-100'
-                    } ${scrolled ? 'bg-rich-red' : 'bg-white'}`}
-                  />
-                </Link>
-              ),
-            )}
-          </nav>
+                        ? scrolled ? 'text-rich-red' : 'text-white'
+                        : scrolled ? 'text-brand-black/80 hover:text-rich-red' : 'text-white/90 hover:text-white'
+                    }`}
+                  >
+                    {item.label}
+                    {/* Animated underline */}
+                    <span
+                      className={`absolute bottom-0 left-3 right-3 h-[2px] origin-left rounded-full transition-transform duration-300 ease-out ${
+                        isActive(pathname, item.href)
+                          ? 'scale-x-100'
+                          : 'scale-x-0 group-hover:scale-x-100'
+                      } ${scrolled ? 'bg-rich-red' : 'bg-white'}`}
+                    />
+                  </Link>
+                ),
+              )}
+            </nav>
+            <a
+              href="https://give.ev.church"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`ml-3 rounded-full px-5 py-2 text-[0.8125rem] font-semibold uppercase tracking-wide transition-colors duration-200 ${
+                scrolled
+                  ? 'bg-rich-red text-white hover:bg-deep-red'
+                  : 'bg-white text-brand-black hover:bg-white/90'
+              }`}
+            >
+              Give
+            </a>
+          </div>
 
           {/* Mobile Hamburger */}
           <button
