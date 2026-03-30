@@ -99,7 +99,7 @@ export function AudioPlayerBar() {
         >
           <div className="absolute inset-0 bg-white/10" />
           <div
-            className="absolute inset-y-0 left-0 bg-rich-red after:absolute after:right-0 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:translate-x-1/2 after:scale-0 after:rounded-full after:bg-rich-red after:shadow-md after:transition-transform group-hover:after:scale-100"
+            className="absolute inset-y-0 left-0 rounded-t-2xl bg-rich-red after:absolute after:right-0 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:translate-x-1/2 after:scale-0 after:rounded-full after:bg-rich-red after:shadow-md after:transition-transform group-hover:after:scale-100"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -169,28 +169,18 @@ export function AudioPlayerBar() {
             {/* Play/Pause */}
             <button
               onClick={isPlaying ? pause : resume}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-warm-white text-brand-black transition-transform hover:scale-105"
+              className="relative flex h-9 w-9 items-center justify-center rounded-full bg-warm-white text-brand-black transition-transform hover:scale-105"
               aria-label={isPlaying ? 'Pause' : 'Play'}
               disabled={isLoading}
             >
-              {isLoading ? (
-                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    fill="none"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
+              {/* Loading ring */}
+              {isLoading && (
+                <svg className="pointer-events-none absolute inset-0 animate-spin" width={36} height={36} viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(226,42,48,0.2)" strokeWidth="3" />
+                  <circle cx="18" cy="18" r="16" fill="none" stroke="#E22A30" strokeWidth="3" strokeLinecap="round" strokeDasharray={100.5} strokeDashoffset={75.4} />
                 </svg>
-              ) : isPlaying ? (
+              )}
+              {isPlaying ? (
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                   <rect x="6" y="4" width="4" height="16" />
                   <rect x="14" y="4" width="4" height="16" />
