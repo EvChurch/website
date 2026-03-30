@@ -99,7 +99,7 @@ export function AudioPlayerBar() {
         >
           <div className="absolute inset-0 bg-white/10" />
           <div
-            className="absolute inset-y-0 left-0 rounded-r-full bg-rich-red after:absolute after:right-0 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:translate-x-1/2 after:scale-0 after:rounded-full after:bg-rich-red after:shadow-md after:transition-transform group-hover:after:scale-100"
+            className="absolute inset-y-0 left-0 rounded-full bg-rich-red after:absolute after:right-0 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:translate-x-1/2 after:scale-0 after:rounded-full after:bg-rich-red after:shadow-md after:transition-transform group-hover:after:scale-100"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
