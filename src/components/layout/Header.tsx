@@ -407,9 +407,7 @@ export function Header() {
               alt="Ev Church"
               width={44}
               height={44}
-              className={`transition-opacity group-hover:opacity-80 ${
-                scrolled ? '' : 'brightness-0 invert'
-              }`}
+              className="transition-opacity group-hover:opacity-80"
               priority
             />
           </Link>
