@@ -5,7 +5,7 @@ import { isAdmin } from '@/access/roles'
 export const SermonAudio: CollectionConfig = {
   slug: 'sermon-audio',
   upload: {
-    mimeTypes: ['audio/x-m4a', 'audio/mp4', 'audio/mpeg', 'audio/aac'],
+    mimeTypes: ['audio/x-m4a', 'audio/mp4', 'audio/mpeg', 'audio/aac', 'video/mp4', 'text/plain'],
   },
   admin: {
     useAsTitle: 'filename',
