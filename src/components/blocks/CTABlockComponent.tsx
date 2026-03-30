@@ -1,4 +1,4 @@
-import Image from 'next/image'
+import { MediaImage } from '@/components/media/MediaImage'
 import { Button } from '@/components/ui/Button'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 
@@ -17,6 +17,7 @@ interface MediaRef {
   alt: string
   width?: number
   height?: number
+  blurDataURL?: string | null
 }
 
 interface CTABlockProps {
@@ -43,7 +44,6 @@ export function CTABlockComponent({
 }: CTABlockProps) {
   const preset = colorPreset ?? 'primary-red'
   const bgImageUrl = backgroundImage ? (typeof backgroundImage === 'string' ? backgroundImage : backgroundImage.url) : null
-  const bgImageAlt = backgroundImage ? (typeof backgroundImage === 'string' ? '' : backgroundImage.alt) : ''
   const hasBgImage = !!bgImageUrl
 
   // Determine background color — accentColor overrides preset
@@ -59,9 +59,8 @@ export function CTABlockComponent({
       {/* Background image with dark overlay */}
       {hasBgImage && (
         <>
-          <Image
-            src={bgImageUrl}
-            alt={bgImageAlt}
+          <MediaImage
+            media={typeof backgroundImage === 'string' ? backgroundImage : backgroundImage!}
             fill
             sizes="100vw"
             className="object-cover"

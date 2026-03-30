@@ -1,21 +1,13 @@
-import Image from 'next/image'
+import { MediaImage } from '@/components/media/MediaImage'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 
 interface PhotoImage {
-  image: { url: string; alt: string } | string
+  image: { url: string; alt: string; blurDataURL?: string | null } | string
 }
 
 interface PhotoStripBlockProps {
   layout?: 'horizontalScroll' | 'grid4' | 'grid2' | 'masonry' | null
   images: PhotoImage[]
-}
-
-function getUrl(img: PhotoImage): string {
-  return typeof img.image === 'string' ? img.image : img.image?.url ?? ''
-}
-
-function getAlt(img: PhotoImage): string {
-  return typeof img.image === 'string' ? '' : img.image?.alt ?? ''
 }
 
 /** Staggered height/margin pairs for horizontal scroll — matches original design */
@@ -50,9 +42,8 @@ export function PhotoStripBlockComponent({ layout: layoutProp, images }: PhotoSt
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               {images.map((img, i) => (
                 <div key={i} className="relative aspect-[4/3]">
-                  <Image
-                    src={getUrl(img)}
-                    alt={getAlt(img)}
+                  <MediaImage
+                    media={img.image}
                     fill
                     sizes="(max-width: 768px) 50vw, 25vw"
                     className="rounded-lg object-cover"
@@ -74,9 +65,8 @@ export function PhotoStripBlockComponent({ layout: layoutProp, images }: PhotoSt
             <div className="grid grid-cols-2 gap-3">
               {images.slice(0, 2).map((img, i) => (
                 <div key={i} className={`relative aspect-[3/4] ${i === 1 ? 'mt-8' : ''}`}>
-                  <Image
-                    src={getUrl(img)}
-                    alt={getAlt(img)}
+                  <MediaImage
+                    media={img.image}
                     fill
                     sizes="(max-width: 640px) 100vw, 50vw"
                     className="rounded-lg object-cover"
@@ -98,9 +88,8 @@ export function PhotoStripBlockComponent({ layout: layoutProp, images }: PhotoSt
             <div className="columns-2 gap-3 md:columns-3 lg:columns-4">
               {images.map((img, i) => (
                 <div key={i} className="mb-3 break-inside-avoid">
-                  <Image
-                    src={getUrl(img)}
-                    alt={getAlt(img)}
+                  <MediaImage
+                    media={img.image}
                     width={600}
                     height={i % 3 === 0 ? 800 : i % 3 === 1 ? 600 : 450}
                     sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
@@ -128,10 +117,9 @@ export function PhotoStripBlockComponent({ layout: layoutProp, images }: PhotoSt
           const heightClass = heightPatterns[i % heightPatterns.length]
           const marginClass = marginPatterns[i % marginPatterns.length]
           return (
-            <Image
+            <MediaImage
               key={i}
-              src={getUrl(img)}
-              alt={getAlt(img)}
+              media={img.image}
               width={300}
               height={400}
               sizes="70vw"
@@ -151,9 +139,8 @@ export function PhotoStripBlockComponent({ layout: layoutProp, images }: PhotoSt
 
           return (
             <ScrollReveal key={i} delay={delay}>
-              <Image
-                src={getUrl(img)}
-                alt={getAlt(img)}
+              <MediaImage
+                media={img.image}
                 width={600}
                 height={800}
                 sizes="300px"

@@ -1,10 +1,10 @@
-import Image from 'next/image'
+import { MediaImage } from '@/components/media/MediaImage'
 import Link from 'next/link'
 
 interface SeriesCardProps {
   title: string
   slug: string
-  bannerImage: { url: string } | null
+  bannerImage: { url: string; blurDataURL?: string | null } | null
   sermonCount: number
   earliestDate?: string
   latestDate?: string
@@ -34,8 +34,8 @@ export function SeriesCard({
       className="group relative block aspect-video overflow-hidden rounded-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/30"
     >
       {bannerImage?.url ? (
-        <Image
-          src={bannerImage.url}
+        <MediaImage
+          media={bannerImage}
           alt={title}
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"

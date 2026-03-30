@@ -1,4 +1,4 @@
-import Image from 'next/image'
+import { MediaImage } from '@/components/media/MediaImage'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 
 interface MediaUpload {
@@ -7,6 +7,7 @@ interface MediaUpload {
   alt: string
   width?: number
   height?: number
+  blurDataURL?: string | null
 }
 
 interface GalleryImage {
@@ -42,9 +43,8 @@ export function ImageGalleryBlockComponent({ images }: ImageGalleryBlockProps) {
           {resolvedImages.map((img, index) => (
             <ScrollReveal key={img.itemId ?? img.id ?? index} delay={index * 80}>
               <div className="group relative overflow-hidden rounded-lg">
-                <Image
-                  src={img.url}
-                  alt={img.alt}
+                <MediaImage
+                  media={img}
                   width={img.width ?? 800}
                   height={img.height ?? 600}
                   className="aspect-[4/3] w-full object-cover transition-transform duration-500 group-hover:scale-105"

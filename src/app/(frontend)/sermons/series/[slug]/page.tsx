@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import Image from 'next/image'
+import { MediaImage } from '@/components/media/MediaImage'
 import { getPayloadClient } from '@/lib/payload'
 import { getSermonAudioUrl, getSeriesBannerUrl } from '@/lib/sermon-utils'
 import { SermonCard } from '@/components/sermons/SermonCard'
@@ -80,22 +80,20 @@ export default async function SeriesPage({
     depth: 2,
   })
 
-  const backgroundUrl =
+  type MediaObj = { url: string; alt?: string; blurDataURL?: string | null }
+  const backgroundMedia =
     typeof series.backgroundImage === 'object' &&
     series.backgroundImage !== null &&
     'url' in series.backgroundImage
-      ? (series.backgroundImage.url as string)
+      ? (series.backgroundImage as MediaObj)
       : null
 
-  const bannerUrl =
+  const bannerMedia =
     typeof series.bannerImage === 'object' &&
     series.bannerImage !== null &&
     'url' in series.bannerImage
-      ? (series.bannerImage.url as string)
+      ? (series.bannerImage as MediaObj)
       : null
-
-  // Use background for the hero backdrop, fall back to banner
-  const heroImageUrl = backgroundUrl || bannerUrl
 
   const breadcrumbItems = [
     { name: 'Home', url: 'https://ev.church' },
@@ -110,10 +108,10 @@ export default async function SeriesPage({
       {/* Series header */}
       <section className="relative overflow-hidden">
         {/* Background image -- full bleed */}
-        {backgroundUrl && (
+        {backgroundMedia && (
           <>
-            <Image
-              src={backgroundUrl}
+            <MediaImage
+              media={backgroundMedia}
               alt=""
               fill
               sizes="100vw"
@@ -127,10 +125,10 @@ export default async function SeriesPage({
         <div className="relative mx-auto max-w-5xl px-6 pb-12 pt-20 md:pb-16 md:pt-28">
           <div className="flex flex-col gap-8 md:flex-row md:items-end">
             {/* Banner artwork */}
-            {bannerUrl && (
+            {bannerMedia && (
               <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-xl shadow-2xl md:w-72 lg:w-80">
-                <Image
-                  src={bannerUrl}
+                <MediaImage
+                  media={bannerMedia}
                   alt={series.title}
                   fill
                   sizes="(max-width: 768px) 100vw, 320px"

@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import { MediaImage } from '@/components/media/MediaImage'
 import Link from 'next/link'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 import { Button, ArrowRight } from '@/components/ui/Button'
@@ -8,6 +9,7 @@ interface CardImage {
   alt: string
   width?: number
   height?: number
+  blurDataURL?: string | null
 }
 
 interface DetailRow {
@@ -43,11 +45,6 @@ function getImageUrl(image: CardImage | string | null | undefined): string {
   return image.url
 }
 
-function getImageAlt(image: CardImage | string | null | undefined): string {
-  if (!image) return ''
-  if (typeof image === 'string') return ''
-  return image.alt
-}
 
 const columnClasses: Record<number, string> = {
   2: 'grid-cols-1 sm:grid-cols-2',
@@ -120,14 +117,12 @@ function InfoCard({ card, index }: { card: ManualCard; index: number }) {
 
 function ImageOverlayCard({ card, index, priority }: { card: ManualCard; index: number; priority?: boolean }) {
   const url = getImageUrl(card.image)
-  const alt = getImageAlt(card.image)
 
   const content = (
     <div className="group relative block aspect-[3/4] overflow-hidden rounded-xl sm:aspect-[4/5]">
-      {url && (
-        <Image
-          src={url}
-          alt={alt}
+      {url && card.image && (
+        <MediaImage
+          media={card.image}
           fill
           priority={priority}
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -170,7 +165,6 @@ function ImageOverlayCard({ card, index, priority }: { card: ManualCard; index: 
 
 function ImageTopCard({ card, index, priority }: { card: ManualCard; index: number; priority?: boolean }) {
   const url = getImageUrl(card.image)
-  const alt = getImageAlt(card.image)
   const isTeamStyle = !card.description && !card.linkLabel
 
   const content = (
@@ -178,10 +172,9 @@ function ImageTopCard({ card, index, priority }: { card: ManualCard; index: numb
       {/* Image */}
       {isTeamStyle ? (
         <div className="overflow-hidden">
-          {url ? (
-            <Image
-              src={url}
-              alt={alt}
+          {url && card.image ? (
+            <MediaImage
+              media={card.image}
               width={600}
               height={600}
               priority={priority}
@@ -198,10 +191,9 @@ function ImageTopCard({ card, index, priority }: { card: ManualCard; index: numb
         </div>
       ) : (
         <div className="relative aspect-[16/10] overflow-hidden">
-          {url ? (
-            <Image
-              src={url}
-              alt={alt}
+          {url && card.image ? (
+            <MediaImage
+              media={card.image}
               fill
               priority={priority}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -258,7 +250,6 @@ function ImageTopCard({ card, index, priority }: { card: ManualCard; index: numb
 
 function AlternatingRowCard({ card, index }: { card: ManualCard; index: number }) {
   const url = getImageUrl(card.image)
-  const alt = getImageAlt(card.image)
   const isEven = index % 2 === 1
 
   return (
@@ -271,10 +262,9 @@ function AlternatingRowCard({ card, index }: { card: ManualCard; index: number }
         {/* Image */}
         <div className="lg:[direction:ltr]">
           <div className="relative aspect-[4/3] overflow-hidden rounded-xl">
-            {url ? (
-              <Image
-                src={url}
-                alt={alt}
+            {url && card.image ? (
+              <MediaImage
+                media={card.image}
                 fill
                 sizes="(max-width: 640px) 100vw, 50vw"
                 className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"

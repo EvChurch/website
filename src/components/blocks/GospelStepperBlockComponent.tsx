@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import Image from 'next/image'
+import { MediaImage } from '@/components/media/MediaImage'
 import { Button } from '@/components/ui/Button'
 
 interface MediaRef {
@@ -10,6 +10,7 @@ interface MediaRef {
   alt: string
   width?: number
   height?: number
+  blurDataURL?: string | null
 }
 
 type Media = MediaRef | string
@@ -108,7 +109,6 @@ export function GospelStepperBlockComponent({
 
   const step = steps[currentStep]
   const imageUrl = step.image ? (typeof step.image === 'string' ? step.image : step.image.url) : null
-  const imageAlt = step.image ? (typeof step.image === 'string' ? '' : step.image.alt) : ''
   const imagePos = step.imagePosition ?? 'right'
 
   return (
@@ -169,9 +169,8 @@ export function GospelStepperBlockComponent({
               {imagePos === 'background' && imageUrl ? (
                 /* Background image layout */
                 <div className="relative flex min-h-[400px] items-center overflow-hidden rounded-2xl bg-brand-black lg:min-h-[500px]">
-                  <Image
-                    src={imageUrl}
-                    alt={imageAlt}
+                  <MediaImage
+                    media={step.image!}
                     fill
                     sizes="(max-width: 768px) 100vw, 80rem"
                     className="object-cover opacity-40"
@@ -199,11 +198,10 @@ export function GospelStepperBlockComponent({
                     </div>
                   </div>
 
-                  {imageUrl && (
+                  {imageUrl && step.image && (
                     <div className="relative aspect-[4/3] w-full flex-1 overflow-hidden rounded-2xl lg:aspect-square">
-                      <Image
-                        src={imageUrl}
-                        alt={imageAlt}
+                      <MediaImage
+                        media={step.image}
                         fill
                         sizes="(max-width: 768px) 100vw, 50vw"
                         className="object-cover"

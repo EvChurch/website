@@ -1,4 +1,4 @@
-import Image from 'next/image'
+import { MediaImage } from '@/components/media/MediaImage'
 import Link from 'next/link'
 import { getPayloadClient } from '@/lib/payload'
 import { getSermonAudioUrl } from '@/lib/sermon-utils'
@@ -44,15 +44,19 @@ export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockP
     ? await payload.findByID({ collection: 'sermon-series', id: series.id, depth: 1 })
     : null
 
-  const bannerUrl =
+  type MediaObj = { url: string; alt?: string; blurDataURL?: string | null }
+
+  const bannerMedia =
     seriesDoc?.bannerImage && typeof seriesDoc.bannerImage === 'object' && 'url' in seriesDoc.bannerImage
-      ? (seriesDoc.bannerImage as { url: string }).url
+      ? (seriesDoc.bannerImage as MediaObj)
       : null
 
-  const backgroundUrl =
+  const backgroundMedia =
     (seriesDoc?.backgroundImage && typeof seriesDoc.backgroundImage === 'object' && 'url' in seriesDoc.backgroundImage
-      ? (seriesDoc.backgroundImage as { url: string }).url
-      : null) || bannerUrl
+      ? (seriesDoc.backgroundImage as MediaObj)
+      : null) || bannerMedia
+
+  const bannerUrl = bannerMedia?.url ?? null
 
   const audioUrl = getSermonAudioUrl(sermon.audio)
 
@@ -68,10 +72,10 @@ export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockP
   return (
     <section className="relative overflow-hidden bg-brand-black">
       {/* Background image */}
-      {backgroundUrl && (
+      {backgroundMedia && (
         <>
-          <Image
-            src={backgroundUrl}
+          <MediaImage
+            media={backgroundMedia}
             alt=""
             fill
             sizes="100vw"
@@ -84,13 +88,13 @@ export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockP
       <div className="relative mx-auto max-w-5xl px-6 py-16 md:py-20">
         <div className="flex flex-col gap-8 md:flex-row md:items-end">
           {/* Banner card */}
-          {bannerUrl && (
+          {bannerMedia && (
             <Link
               href={`/sermons/${sermon.slug}`}
               className="relative aspect-video w-full shrink-0 overflow-hidden rounded-xl shadow-2xl md:w-64 lg:w-72"
             >
-              <Image
-                src={bannerUrl}
+              <MediaImage
+                media={bannerMedia}
                 alt={sermon.title}
                 fill
                 sizes="(max-width: 768px) 100vw, 288px"

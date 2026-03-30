@@ -1,4 +1,4 @@
-import Image from 'next/image'
+import { MediaImage } from '@/components/media/MediaImage'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 import RichText from '@/components/blocks/RichTextRenderer'
 
@@ -23,6 +23,7 @@ interface MediaUpload {
   alt: string
   width?: number
   height?: number
+  blurDataURL?: string | null
 }
 
 interface ContentBlockProps {
@@ -58,9 +59,8 @@ export function ContentBlockComponent({
               </div>
               {isCenter && imageData && (
                 <div className="relative mt-12">
-                  <Image
-                    src={imageData.url}
-                    alt={imageData.alt}
+                  <MediaImage
+                    media={imageData}
                     width={imageData.width ?? 1200}
                     height={imageData.height ?? 800}
                     sizes="(max-width: 640px) 100vw, 50vw"
@@ -86,9 +86,8 @@ export function ContentBlockComponent({
                 </div>
               </div>
               <div className="relative lg:[direction:ltr]">
-                <Image
-                  src={imageData.url}
-                  alt={imageData.alt}
+                <MediaImage
+                  media={imageData}
                   width={imageData.width ?? 1200}
                   height={imageData.height ?? 800}
                   sizes="(max-width: 640px) 100vw, 50vw"

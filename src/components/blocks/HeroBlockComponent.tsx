@@ -1,4 +1,4 @@
-import Image from 'next/image'
+import { MediaImage } from '@/components/media/MediaImage'
 import { Button, ArrowRight } from '@/components/ui/Button'
 
 interface MediaUpload {
@@ -7,6 +7,7 @@ interface MediaUpload {
   alt: string
   width?: number
   height?: number
+  blurDataURL?: string | null
 }
 
 interface HeroButton {
@@ -95,7 +96,6 @@ export function HeroBlockComponent({
   semanticH1,
 }: HeroBlockProps) {
   const imageUrl = typeof image === 'string' ? image : image?.url
-  const imageAlt = typeof image === 'string' ? '' : image?.alt ?? ''
   const height = minHeight ?? '70vh'
   const overlay = overlayStyle ?? 'default'
 
@@ -104,9 +104,8 @@ export function HeroBlockComponent({
       {/* Background image */}
       {imageUrl && (
         <div className="absolute inset-0">
-          <Image
-            src={imageUrl}
-            alt={imageAlt}
+          <MediaImage
+            media={typeof image === 'string' ? image : image}
             fill
             priority
             sizes="100vw"

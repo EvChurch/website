@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import type { Where } from 'payload'
-import Image from 'next/image'
+import { MediaImage } from '@/components/media/MediaImage'
 import { getPayloadClient } from '@/lib/payload'
 import { getSermonAudioUrl, getSeriesBannerUrl } from '@/lib/sermon-utils'
 import { SermonCard } from '@/components/sermons/SermonCard'
@@ -287,14 +287,15 @@ export default async function SermonsPage({
   const heroSeriesDoc = heroSeriesId
     ? await payload.findByID({ collection: 'sermon-series', id: heroSeriesId, depth: 1 })
     : null
-  const heroBackgroundUrl =
+  type MediaObj = { url: string; alt?: string; blurDataURL?: string | null }
+  const heroBackgroundMedia =
     (heroSeriesDoc?.backgroundImage && typeof heroSeriesDoc.backgroundImage === 'object' && 'url' in heroSeriesDoc.backgroundImage
-      ? (heroSeriesDoc.backgroundImage as { url: string }).url : null)
+      ? (heroSeriesDoc.backgroundImage as MediaObj) : null)
     || (heroSeriesDoc?.bannerImage && typeof heroSeriesDoc.bannerImage === 'object' && 'url' in heroSeriesDoc.bannerImage
-      ? (heroSeriesDoc.bannerImage as { url: string }).url : null)
-  const heroBannerUrl =
+      ? (heroSeriesDoc.bannerImage as MediaObj) : null)
+  const heroBannerMedia =
     heroSeriesDoc?.bannerImage && typeof heroSeriesDoc.bannerImage === 'object' && 'url' in heroSeriesDoc.bannerImage
-      ? (heroSeriesDoc.bannerImage as { url: string }).url : null
+      ? (heroSeriesDoc.bannerImage as MediaObj) : null
   const heroSpeakerObj = latestSermon && Array.isArray(latestSermon.speakers) && latestSermon.speakers[0]
     && typeof latestSermon.speakers[0] === 'object' && 'slug' in latestSermon.speakers[0]
     ? latestSermon.speakers[0] as { slug: string }
@@ -322,10 +323,10 @@ export default async function SermonsPage({
       {latestSermon && (
         <section className="relative overflow-hidden">
           {/* Full-bleed background image */}
-          {heroBackgroundUrl && (
+          {heroBackgroundMedia && (
             <>
-              <Image
-                src={heroBackgroundUrl}
+              <MediaImage
+                media={heroBackgroundMedia}
                 alt=""
                 fill
                 priority
@@ -339,10 +340,10 @@ export default async function SermonsPage({
           <div className="relative mx-auto max-w-5xl px-6 pb-12 pt-20 md:pb-16 md:pt-28">
             <div className="flex flex-col gap-8 md:flex-row md:items-end">
               {/* Banner artwork card */}
-              {heroBannerUrl && (
+              {heroBannerMedia && (
                 <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-xl shadow-2xl md:w-72 lg:w-80">
-                  <Image
-                    src={heroBannerUrl}
+                  <MediaImage
+                    media={heroBannerMedia}
                     alt={latestSermon.title}
                     fill
                     sizes="(max-width: 768px) 100vw, 320px"
@@ -391,7 +392,7 @@ export default async function SermonsPage({
                     speakerSlug={heroSpeakerSlug}
                     seriesTitle={heroSeriesTitle}
                     seriesSlug={heroSeriesSlug}
-                    artworkUrl={heroBannerUrl ?? undefined}
+                    artworkUrl={heroBannerMedia?.url ?? undefined}
                     duration={latestSermon.duration ?? undefined}
                   />
                 </div>
@@ -504,7 +505,7 @@ export default async function SermonsPage({
                       typeof s.bannerImage === 'object' &&
                       s.bannerImage !== null &&
                       'url' in s.bannerImage
-                        ? { url: s.bannerImage.url as string }
+                        ? { url: s.bannerImage.url as string, blurDataURL: (s.bannerImage as { blurDataURL?: string | null }).blurDataURL }
                         : null
                     }
                     sermonCount={s.sermonCount}

@@ -1,5 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
+import { generateBlurPlaceholder } from '@/hooks/generateBlurPlaceholder'
+
 export const Media: CollectionConfig = {
   slug: 'media',
   upload: {
@@ -31,6 +33,9 @@ export const Media: CollectionConfig = {
     adminThumbnail: 'thumbnail',
     focalPoint: true,
   },
+  hooks: {
+    afterChange: [generateBlurPlaceholder],
+  },
   access: {
     read: () => true,
   },
@@ -43,6 +48,15 @@ export const Media: CollectionConfig = {
     {
       name: 'caption',
       type: 'text',
+    },
+    {
+      name: 'blurDataURL',
+      type: 'text',
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        description: 'Auto-generated blur placeholder for progressive image loading',
+      },
     },
     {
       name: 'rockImageGuid',

@@ -64,7 +64,7 @@ export function AudioPlayerBar() {
     }
   }, [close])
 
-  if (!render) return null
+  if (!render || !currentSermon) return null
 
   const progressPercent = duration > 0 ? (progress / duration) * 100 : 0
 

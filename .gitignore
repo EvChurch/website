@@ -11,7 +11,7 @@ out/
 # Payload
 src/payload-types.ts
 src/app/(payload)/admin/importMap.js
-media/
+/media/
 
 # Environment
 .env
@@ -44,4 +44,3 @@ next-env.d.ts
 
 # Uploaded media (synced from external APIs)
 /sermon-audio/
-/media/
