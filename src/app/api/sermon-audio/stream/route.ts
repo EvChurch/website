@@ -44,7 +44,8 @@ export async function GET(request: Request) {
   }
 
   const doc = result.docs[0] as SermonAudio
-  const key = `sermon-audio/${doc.filename}`
+  const prefix = (doc as SermonAudio & { prefix?: string }).prefix
+  const key = prefix ? `${prefix}/${doc.filename!}` : doc.filename!
 
   const command = new GetObjectCommand({
     Bucket: process.env.S3_BUCKET,
