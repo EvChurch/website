@@ -223,6 +223,10 @@ async function seed() {
         ],
       },
       {
+        blockType: 'latestSermon',
+        heading: 'Latest Sermon',
+      },
+      {
         blockType: 'content',
         heading: 'A Christian church across Auckland',
         body: richText(

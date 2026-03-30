@@ -42,6 +42,7 @@ const navItems: NavItem[] = [
       { label: 'Youth', href: '/youth' },
     ],
   },
+  { label: 'Sermons', href: '/sermons' },
   { label: 'Good News', href: '/good-news' },
   { label: 'Contact', href: '/contact' },
   { label: 'Give', href: 'https://give.ev.church' },

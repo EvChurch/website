@@ -16,10 +16,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // Optional limit for dev: ?limit=50 syncs only the latest 50 sermons
+  const limitParam = request.nextUrl.searchParams.get('limit')
+  const sermonLimit = limitParam ? parseInt(limitParam, 10) : undefined
+
   const startTime = Date.now()
 
   try {
-    const results = await runFullSync()
+    const results = await runFullSync({ sermonLimit })
     const duration = Date.now() - startTime
 
     const summary = results.map((r) => ({

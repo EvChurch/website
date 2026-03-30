@@ -4,14 +4,13 @@ import type {
   RockCampus,
   RockGroupMember,
   RockEventItemOccurrence,
-  RockContentChannelItem,
   RockGroup,
 } from '@/lib/rock-api'
 import { mapRockCampus } from './mappers/campus'
 import { mapRockTeamMember, TEAM_GROUP_IDS } from './mappers/team-member'
 import { mapRockEvent } from './mappers/event'
-import { mapRockSermonSeries } from './mappers/sermon-series'
 import { mapRockConnectGroup } from './mappers/connect-group'
+import { runSermonSync } from './sermon-sync-runner'
 import { revalidateTag } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 
@@ -27,14 +26,17 @@ type SyncResult = {
  * Full reconciliation sync for all Rock RMS entity types.
  * Designed to run on a 15-minute cron schedule.
  */
-export async function runFullSync(): Promise<SyncResult[]> {
+export async function runFullSync(options?: { sermonLimit?: number }): Promise<SyncResult[]> {
   const results: SyncResult[] = []
 
   results.push(await syncCampuses())
   results.push(await syncTeamMembers())
   results.push(await syncEvents())
-  results.push(await syncSermonSeries())
   results.push(await syncConnectGroups())
+
+  // Sermon data from resources.ev.church GraphQL API
+  const sermonResults = await runSermonSync(options?.sermonLimit)
+  results.push(...sermonResults)
 
   return results
 }
@@ -175,52 +177,6 @@ async function syncEvents(): Promise<SyncResult> {
     }
 
     revalidateTag(CACHE_TAGS.events, 'default')
-  } catch (error) {
-    result.errors.push(String(error))
-  }
-
-  return result
-}
-
-async function syncSermonSeries(): Promise<SyncResult> {
-  const result: SyncResult = { entity: 'sermon-series', created: 0, updated: 0, deleted: 0, errors: [] }
-
-  try {
-    const payload = await getPayloadClient()
-    const items = await rockFetch<RockContentChannelItem[]>({
-      endpoint: 'ContentChannelItems',
-      params: {
-        $filter: 'ContentChannelId eq 4 and Status eq 2',
-        $orderby: 'StartDateTime desc',
-      },
-    })
-
-    for (const item of items) {
-      const mapped = mapRockSermonSeries(item)
-      const existing = await payload.find({
-        collection: 'sermon-series',
-        where: { rockContentItemId: { equals: mapped.rockContentItemId } },
-        depth: 0,
-        limit: 1,
-      })
-
-      if (existing.docs.length > 0) {
-        await payload.update({
-          collection: 'sermon-series',
-          id: existing.docs[0].id,
-          data: mapped,
-        })
-        result.updated++
-      } else {
-        await payload.create({
-          collection: 'sermon-series',
-          data: mapped,
-        })
-        result.created++
-      }
-    }
-
-    revalidateTag(CACHE_TAGS.sermonSeries, 'default')
   } catch (error) {
     result.errors.push(String(error))
   }

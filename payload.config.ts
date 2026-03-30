@@ -16,6 +16,12 @@ import { Campuses } from '@/collections/Campuses'
 import { TeamMembers } from '@/collections/TeamMembers'
 import { Events } from '@/collections/Events'
 import { SermonSeries } from '@/collections/SermonSeries'
+import { Sermons } from '@/collections/Sermons'
+import { Speakers } from '@/collections/Speakers'
+import { Topics } from '@/collections/Topics'
+import { Categories } from '@/collections/Categories'
+import { Scriptures } from '@/collections/Scriptures'
+import { SermonAudio } from '@/collections/SermonAudio'
 import { ConnectGroups } from '@/collections/ConnectGroups'
 import { Registrations } from '@/collections/Registrations'
 
@@ -58,9 +64,16 @@ export default buildConfig({
     Campuses,
     TeamMembers,
     Events,
-    SermonSeries,
     ConnectGroups,
     Registrations,
+    // Synced from resources.ev.church GraphQL API
+    SermonSeries,
+    Sermons,
+    Speakers,
+    Topics,
+    Categories,
+    Scriptures,
+    SermonAudio,
   ],
 
   globals: [Navigation, SiteSettings],
@@ -71,6 +84,7 @@ export default buildConfig({
           s3Storage({
             collections: {
               media: true,
+              'sermon-audio': true,
             },
             bucket: process.env.S3_BUCKET,
             config: {

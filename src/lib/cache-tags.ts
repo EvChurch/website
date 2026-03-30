@@ -1,7 +1,7 @@
 /**
  * Cache tag constants for ISR revalidation.
  * Use with `revalidateTag()` to bust specific caches
- * when Rock RMS data changes.
+ * when synced data changes.
  */
 
 export const CACHE_TAGS = {
@@ -9,6 +9,11 @@ export const CACHE_TAGS = {
   events: 'events',
   teamMembers: 'team-members',
   sermonSeries: 'sermon-series',
+  sermons: 'sermons',
+  speakers: 'speakers',
+  topics: 'topics',
+  categories: 'categories',
+  scriptures: 'scriptures',
   connectGroups: 'connect-groups',
   registrations: 'registrations',
   pages: 'pages',

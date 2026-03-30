@@ -1,0 +1,161 @@
+import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
+import { getPayloadClient } from '@/lib/payload'
+import { getSermonAudioUrl, getSeriesBannerUrl } from '@/lib/sermon-utils'
+import { SermonCard } from '@/components/sermons/SermonCard'
+import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
+
+export const dynamic = 'force-dynamic'
+
+export async function generateStaticParams() {
+  return []
+}
+
+async function getSpeakerBySlug(slug: string) {
+  const payload = await getPayloadClient()
+  const result = await payload.find({
+    collection: 'speakers',
+    where: { slug: { equals: slug } },
+    depth: 0,
+    limit: 1,
+  })
+  return result.docs[0] ?? null
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}): Promise<Metadata> {
+  const { slug } = await params
+  const speaker = await getSpeakerBySlug(slug)
+
+  if (!speaker) return {}
+
+  return {
+    title: `Sermons by ${speaker.name} | Ev Church`,
+    description: `Listen to sermons by ${speaker.name} from Ev Church Auckland.`,
+    openGraph: {
+      title: `Sermons by ${speaker.name} | Ev Church`,
+      description: `Listen to sermons by ${speaker.name} from Ev Church Auckland.`,
+      url: `https://ev.church/sermons/speakers/${speaker.slug}`,
+      siteName: 'Ev Church',
+      locale: 'en_NZ',
+      type: 'website',
+    },
+    alternates: {
+      canonical: `https://ev.church/sermons/speakers/${speaker.slug}`,
+    },
+  }
+}
+
+export default async function SpeakerPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  const payload = await getPayloadClient()
+  const speaker = await getSpeakerBySlug(slug)
+
+  if (!speaker) notFound()
+
+  // Fetch sermons by this speaker
+  const sermonsResult = await payload.find({
+    collection: 'sermons',
+    where: {
+      and: [
+        { isPublished: { equals: true } },
+        { speakers: { contains: speaker.id } },
+      ],
+    },
+    sort: '-publishedAt',
+    limit: 200,
+    depth: 2,
+  })
+
+  const breadcrumbItems = [
+    { name: 'Home', url: 'https://ev.church' },
+    { name: 'Sermons', url: 'https://ev.church/sermons' },
+    { name: speaker.name, url: `https://ev.church/sermons/speakers/${speaker.slug}` },
+  ]
+
+  return (
+    <main className="bg-brand-black min-h-screen">
+      <BreadcrumbJsonLd items={breadcrumbItems} />
+
+      {/* Speaker header */}
+      <section className="pb-8 pt-24 md:pb-12 md:pt-32">
+        <div className="mx-auto max-w-5xl px-6">
+          <h1 className="font-sans text-3xl font-bold text-warm-white md:text-4xl">
+            {speaker.name}
+          </h1>
+          <p className="mt-2 text-warm-white/60">
+            {sermonsResult.totalDocs}{' '}
+            {sermonsResult.totalDocs === 1 ? 'sermon' : 'sermons'}
+          </p>
+        </div>
+      </section>
+
+      {/* Sermon list */}
+      <section className="pb-12">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="space-y-3">
+            {sermonsResult.docs.map((sermon) => (
+              <SermonCard
+                key={sermon.id}
+                id={Number(sermon.id)}
+                title={sermon.title}
+                slug={sermon.slug}
+                speakers={
+                  Array.isArray(sermon.speakers)
+                    ? sermon.speakers
+                        .map((s) =>
+                          typeof s === 'object' && s !== null && 'name' in s
+                            ? { name: s.name as string, slug: (s as { slug?: string }).slug ?? '' }
+                            : null,
+                        )
+                        .filter((s): s is { name: string; slug: string } => s !== null)
+                    : []
+                }
+                publishedAt={sermon.publishedAt ?? ''}
+                series={
+                  Array.isArray(sermon.series)
+                    ? sermon.series
+                        .map((s) =>
+                          typeof s === 'object' && s !== null && 'title' in s
+                            ? { title: s.title as string, slug: (s as { slug?: string }).slug ?? '' }
+                            : null,
+                        )
+                        .filter((s): s is { title: string; slug: string } => s !== null)
+                    : []
+                }
+                scriptures={
+                  Array.isArray(sermon.scriptures)
+                    ? sermon.scriptures
+                        .map((s) =>
+                          typeof s === 'object' && s !== null && 'name' in s
+                            ? { name: s.name as string, slug: (s as { slug?: string }).slug ?? '' }
+                            : null,
+                        )
+                        .filter((s): s is { name: string; slug: string } => s !== null)
+                    : []
+                }
+                passageReference={sermon.passageReference}
+                duration={sermon.duration ?? 0}
+                audioUrl={getSermonAudioUrl(sermon.audio)}
+                seriesBannerUrl={getSeriesBannerUrl(sermon)}
+              />
+            ))}
+          </div>
+
+          {sermonsResult.totalDocs === 0 && (
+            <p className="py-12 text-center text-warm-white/60">
+              No sermons found for this speaker.
+            </p>
+          )}
+        </div>
+      </section>
+    </main>
+  )
+}

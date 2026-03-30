@@ -62,5 +62,91 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }))
 
-  return [...pageRoutes, ...hardcodedRoutes, ...campusRoutes, ...blogRoutes]
+  // Sermon routes
+  const sermons = await payload.find({
+    collection: 'sermons',
+    depth: 0,
+    select: { slug: true, updatedAt: true },
+    limit: 1000,
+    where: { isPublished: { equals: true } },
+  })
+
+  const sermonRoutes: MetadataRoute.Sitemap = [
+    { url: `${SITE_URL}/sermons`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.9 },
+    ...sermons.docs.map((sermon) => ({
+      url: `${SITE_URL}/sermons/${sermon.slug}`,
+      lastModified: sermon.updatedAt ? new Date(sermon.updatedAt) : new Date(),
+      changeFrequency: 'weekly' as const,
+      priority: 0.7,
+    })),
+  ]
+
+  const sermonSeries = await payload.find({
+    collection: 'sermon-series',
+    depth: 0,
+    select: { slug: true, updatedAt: true },
+    limit: 200,
+    where: { isPublished: { equals: true } },
+  })
+
+  const seriesRoutes: MetadataRoute.Sitemap = sermonSeries.docs.map((s) => ({
+    url: `${SITE_URL}/sermons/series/${s.slug}`,
+    lastModified: s.updatedAt ? new Date(s.updatedAt) : new Date(),
+    changeFrequency: 'monthly' as const,
+    priority: 0.7,
+  }))
+
+  const speakers = await payload.find({
+    collection: 'speakers',
+    depth: 0,
+    select: { slug: true },
+    limit: 200,
+  })
+
+  const speakerRoutes: MetadataRoute.Sitemap = speakers.docs.map((sp) => ({
+    url: `${SITE_URL}/sermons/speakers/${sp.slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'monthly' as const,
+    priority: 0.5,
+  }))
+
+  const topics = await payload.find({
+    collection: 'topics',
+    depth: 0,
+    select: { slug: true },
+    limit: 200,
+  })
+
+  const topicRoutes: MetadataRoute.Sitemap = topics.docs.map((t) => ({
+    url: `${SITE_URL}/sermons/topics/${t.slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'monthly' as const,
+    priority: 0.5,
+  }))
+
+  const scriptures = await payload.find({
+    collection: 'scriptures',
+    depth: 0,
+    select: { slug: true },
+    limit: 200,
+  })
+
+  const scriptureRoutes: MetadataRoute.Sitemap = scriptures.docs.map((sc) => ({
+    url: `${SITE_URL}/sermons/scriptures/${sc.slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'monthly' as const,
+    priority: 0.5,
+  }))
+
+  return [
+    ...pageRoutes,
+    ...hardcodedRoutes,
+    ...campusRoutes,
+    ...blogRoutes,
+    ...sermonRoutes,
+    ...seriesRoutes,
+    ...speakerRoutes,
+    ...topicRoutes,
+    ...scriptureRoutes,
+  ]
 }

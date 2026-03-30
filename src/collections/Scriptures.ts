@@ -2,11 +2,11 @@ import type { CollectionConfig } from 'payload'
 
 import { isAdmin } from '@/access/roles'
 
-export const SermonSeries: CollectionConfig = {
-  slug: 'sermon-series',
+export const Scriptures: CollectionConfig = {
+  slug: 'scriptures',
   admin: {
-    useAsTitle: 'title',
-    defaultColumns: ['title', 'isPublished'],
+    useAsTitle: 'name',
+    defaultColumns: ['name', 'slug'],
   },
   access: {
     read: () => true,
@@ -16,7 +16,7 @@ export const SermonSeries: CollectionConfig = {
   },
   fields: [
     {
-      name: 'title',
+      name: 'name',
       type: 'text',
       required: true,
     },
@@ -37,26 +37,6 @@ export const SermonSeries: CollectionConfig = {
         position: 'sidebar',
         readOnly: true,
       },
-    },
-    {
-      name: 'backgroundImage',
-      type: 'upload',
-      relationTo: 'media',
-    },
-    {
-      name: 'bannerImage',
-      type: 'upload',
-      relationTo: 'media',
-    },
-    {
-      name: 'foregroundImage',
-      type: 'upload',
-      relationTo: 'media',
-    },
-    {
-      name: 'isPublished',
-      type: 'checkbox',
-      defaultValue: true,
     },
     {
       name: 'lastSyncedAt',

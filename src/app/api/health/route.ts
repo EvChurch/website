@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server'
+import { getPayloadClient } from '@/lib/payload'
 
-export function GET() {
+export async function GET() {
+  try {
+    const payload = await getPayloadClient()
+    await payload.find({ collection: 'pages', limit: 1, depth: 0, select: { slug: true } })
+  } catch {
+    return NextResponse.json({ status: 'error', reason: 'database' }, { status: 503 })
+  }
+
   const mem = process.memoryUsage()
   return NextResponse.json({
     status: 'ok',

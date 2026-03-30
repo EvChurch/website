@@ -1,0 +1,163 @@
+import Image from 'next/image'
+import Link from 'next/link'
+import { getPayloadClient } from '@/lib/payload'
+import { getSermonAudioUrl } from '@/lib/sermon-utils'
+import { LatestSermonPlayButton } from './LatestSermonPlayButton'
+import { ListenedBadge } from '@/components/sermons/ListenedBadge'
+
+interface LatestSermonBlockProps {
+  heading?: string | null
+}
+
+export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockProps) {
+  const payload = await getPayloadClient()
+
+  const result = await payload.find({
+    collection: 'sermons',
+    where: { isPublished: { equals: true } },
+    sort: '-publishedAt',
+    limit: 1,
+    depth: 1,
+  })
+
+  const sermon = result.docs[0]
+  if (!sermon) return null
+
+  // Extract speaker info
+  const speakers = Array.isArray(sermon.speakers)
+    ? sermon.speakers
+        .map((s) =>
+          typeof s === 'object' && s !== null && 'name' in s
+            ? { name: s.name as string, slug: (s as { slug?: string }).slug ?? '' }
+            : null,
+        )
+        .filter((s): s is { name: string; slug: string } => s !== null)
+    : []
+
+  // Extract series info
+  const series = Array.isArray(sermon.series) && sermon.series[0] && typeof sermon.series[0] === 'object'
+    ? sermon.series[0] as { id: number; title: string; slug: string }
+    : null
+
+  // Fetch series with populated images
+  const seriesDoc = series
+    ? await payload.findByID({ collection: 'sermon-series', id: series.id, depth: 1 })
+    : null
+
+  const bannerUrl =
+    seriesDoc?.bannerImage && typeof seriesDoc.bannerImage === 'object' && 'url' in seriesDoc.bannerImage
+      ? (seriesDoc.bannerImage as { url: string }).url
+      : null
+
+  const backgroundUrl =
+    (seriesDoc?.backgroundImage && typeof seriesDoc.backgroundImage === 'object' && 'url' in seriesDoc.backgroundImage
+      ? (seriesDoc.backgroundImage as { url: string }).url
+      : null) || bannerUrl
+
+  const audioUrl = getSermonAudioUrl(sermon.audio)
+
+  const date = sermon.publishedAt
+    ? new Date(sermon.publishedAt).toLocaleDateString('en-NZ', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'Pacific/Auckland',
+      })
+    : null
+
+  return (
+    <section className="relative overflow-hidden bg-brand-black">
+      {/* Background image */}
+      {backgroundUrl && (
+        <>
+          <Image
+            src={backgroundUrl}
+            alt=""
+            fill
+            sizes="100vw"
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" />
+        </>
+      )}
+
+      <div className="relative mx-auto max-w-5xl px-6 py-16 md:py-20">
+        <div className="flex flex-col gap-8 md:flex-row md:items-end">
+          {/* Banner card */}
+          {bannerUrl && (
+            <Link
+              href={`/sermons/${sermon.slug}`}
+              className="relative aspect-video w-full shrink-0 overflow-hidden rounded-xl shadow-2xl md:w-64 lg:w-72"
+            >
+              <Image
+                src={bannerUrl}
+                alt={sermon.title}
+                fill
+                sizes="(max-width: 768px) 100vw, 288px"
+                className="object-cover"
+              />
+            </Link>
+          )}
+
+          {/* Text */}
+          <div className="flex-1">
+            {heading && (
+              <p className="text-xs font-semibold uppercase tracking-widest text-rich-red">
+                {heading}
+              </p>
+            )}
+
+            <h2 className="mt-2 font-sans text-2xl font-bold text-warm-white sm:text-3xl lg:text-4xl">
+              <Link
+                href={`/sermons/${sermon.slug}`}
+                className="hover:underline decoration-rich-red underline-offset-4"
+              >
+                {sermon.title}
+              </Link>
+            </h2>
+
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-warm-white/60">
+              {speakers.length > 0 && (
+                <span className="text-warm-white/80">
+                  {speakers.map((s, i) => (
+                    <span key={s.slug}>
+                      {i > 0 && ', '}
+                      <Link
+                        href={`/sermons/speakers/${s.slug}`}
+                        className="hover:text-warm-white transition-colors"
+                      >
+                        {s.name}
+                      </Link>
+                    </span>
+                  ))}
+                </span>
+              )}
+              {speakers.length > 0 && date && (
+                <span className="text-warm-white/30" aria-hidden="true">&middot;</span>
+              )}
+              {date && <span>{date}</span>}
+              <ListenedBadge slug={sermon.slug} />
+            </div>
+
+            {audioUrl && (
+              <div className="mt-6">
+                <LatestSermonPlayButton
+                  sermonId={sermon.id}
+                  title={sermon.title}
+                  slug={sermon.slug}
+                  audioUrl={audioUrl}
+                  speaker={speakers.map((s) => s.name).join(', ') || undefined}
+                  speakerSlug={speakers[0]?.slug}
+                  seriesTitle={series?.title}
+                  seriesSlug={series?.slug}
+                  artworkUrl={bannerUrl ?? undefined}
+                  duration={sermon.duration ?? undefined}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}

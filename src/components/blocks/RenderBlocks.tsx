@@ -14,6 +14,7 @@ import { ManualCardGridBlockComponent } from './ManualCardGridBlockComponent'
 import { PhotoStripBlockComponent } from './PhotoStripBlockComponent'
 import { PageHeaderBlockComponent } from './PageHeaderBlockComponent'
 import { GospelStepperBlockComponent } from './GospelStepperBlockComponent'
+import { LatestSermonBlockComponent } from './LatestSermonBlockComponent'
 
 /**
  * Union of all known block types.
@@ -232,6 +233,11 @@ interface GospelStepperBlockType extends BaseBlock {
   } | null
 }
 
+interface LatestSermonBlockType extends BaseBlock {
+  blockType: 'latestSermon'
+  heading?: string | null
+}
+
 type Block =
   | HeroBlock
   | ContentBlock
@@ -249,6 +255,7 @@ type Block =
   | PhotoStripBlock
   | PageHeaderBlock
   | GospelStepperBlockType
+  | LatestSermonBlockType
   | BaseBlock
 
 interface RenderBlocksProps {
@@ -465,6 +472,11 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
                 finalCTA={b.finalCTA}
               />
             )
+          }
+
+          case 'latestSermon': {
+            const b = block as LatestSermonBlockType
+            return <LatestSermonBlockComponent key={key} heading={b.heading} />
           }
 
           default:

@@ -5,6 +5,9 @@ import { Footer } from '@/components/layout/Footer'
 import { AnnouncementBanner } from '@/components/layout/AnnouncementBanner'
 import { OrganizationJsonLd } from '@/components/seo/OrganizationJsonLd'
 import { GoogleAnalytics } from '@/components/seo/GoogleAnalytics'
+import { AudioPlayerProvider } from '@/components/audio/AudioPlayerProvider'
+import { AudioPlayerBar } from '@/components/audio/AudioPlayerBar'
+import { AudioPlayerSpacer } from '@/components/audio/AudioPlayerSpacer'
 import '@/styles/globals.css'
 
 export const metadata: Metadata = {
@@ -72,11 +75,15 @@ export default function FrontendLayout({ children }: { children: ReactNode }) {
         <OrganizationJsonLd />
       </head>
       <body className="bg-brand-black font-sans text-brand-black antialiased">
-        <GoogleAnalytics />
-        <AnnouncementBanner />
-        <Header />
-        <main>{children}</main>
-        <Footer />
+        <AudioPlayerProvider>
+          <GoogleAnalytics />
+          <AnnouncementBanner />
+          <Header />
+          <main>{children}</main>
+          <Footer />
+          <AudioPlayerSpacer />
+          <AudioPlayerBar />
+        </AudioPlayerProvider>
       </body>
     </html>
   )

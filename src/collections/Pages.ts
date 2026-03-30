@@ -16,6 +16,7 @@ import { ManualCardGridBlock } from '@/blocks/ManualCardGridBlock'
 import { PhotoStripBlock } from '@/blocks/PhotoStripBlock'
 import { PageHeaderBlock } from '@/blocks/PageHeaderBlock'
 import { GospelStepperBlock } from '@/blocks/GospelStepperBlock'
+import { LatestSermonBlock } from '@/blocks/LatestSermonBlock'
 
 export const Pages: CollectionConfig = {
   slug: 'pages',
@@ -70,6 +71,7 @@ export const Pages: CollectionConfig = {
         PhotoStripBlock,
         PageHeaderBlock,
         GospelStepperBlock,
+        LatestSermonBlock,
       ],
     },
     {
