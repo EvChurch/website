@@ -7,7 +7,8 @@ export async function POST(request: Request) {
   const { searchParams } = new URL(request.url)
   const secret = searchParams.get('secret')
 
-  if (secret !== process.env.CRON_SECRET) {
+  const cronSecret = process.env.CRON_SECRET || ''
+  if (cronSecret && secret !== cronSecret) {
     return new Response('Unauthorized', { status: 401 })
   }
 
