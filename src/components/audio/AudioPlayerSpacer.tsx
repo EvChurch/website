@@ -4,7 +4,11 @@ import { useAudioPlayer } from './AudioPlayerProvider'
 
 export function AudioPlayerSpacer() {
   const { currentSermon } = useAudioPlayer()
-  if (!currentSermon) return null
-  // Match the height of the AudioPlayerBar (progress bar + controls)
-  return <div className="h-[72px]" aria-hidden />
+  return (
+    <div
+      className="bg-warm-white transition-[height] duration-300 ease-out"
+      style={{ height: currentSermon ? 80 : 0 }}
+      aria-hidden
+    />
+  )
 }
