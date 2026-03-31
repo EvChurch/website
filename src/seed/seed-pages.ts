@@ -1723,6 +1723,10 @@ async function seed() {
         alignment: 'center',
       },
       {
+        blockType: 'video',
+        url: 'https://vimeo.com/133616240',
+      },
+      {
         blockType: 'cta',
         heading: 'Take a next step',
         text: 'Wherever you are on your journey, we would love to walk with you. There is no pressure, just an open door.',
