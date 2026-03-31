@@ -69,8 +69,9 @@ export function AudioPlayerBar() {
   const progressPercent = duration > 0 ? (progress / duration) * 100 : 0
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (duration <= 0) return
     const rect = e.currentTarget.getBoundingClientRect()
-    const percent = (e.clientX - rect.left) / rect.width
+    const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
     seek(percent * duration)
   }
 
@@ -139,19 +140,21 @@ export function AudioPlayerBar() {
                 {formatTime(progress)}
               </span>
               <div
-                className="group relative h-1 flex-1 cursor-pointer rounded-full bg-white/10"
+                className="group relative flex h-4 flex-1 cursor-pointer items-center"
                 onClick={handleProgressClick}
                 role="progressbar"
                 aria-valuenow={progress}
                 aria-valuemin={0}
                 aria-valuemax={duration}
               >
+                <div className="relative h-1 w-full rounded-full bg-white/10">
+                  <div
+                    className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-warm-white transition-[width] duration-150"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
                 <div
-                  className="absolute inset-y-0 left-0 rounded-full bg-brand-red transition-[width] duration-150"
-                  style={{ width: `${progressPercent}%` }}
-                />
-                <div
-                  className="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-warm-white opacity-0 shadow transition-opacity group-hover:opacity-100"
+                  className="pointer-events-none absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-warm-white opacity-0 shadow transition-opacity group-hover:opacity-100"
                   style={{ left: `${progressPercent}%`, marginLeft: '-6px' }}
                 />
               </div>
