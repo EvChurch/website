@@ -594,23 +594,40 @@ async function syncSermons(limit?: number): Promise<SyncResult> {
     let sermons = await fetchAllPages<ResourceSermon>(sermonQuery, 'sermons', limit)
 
     const syncedIds = new Set<string>()
-    const usedSlugs = new Set<string>()
+
+    // Pre-populate usedSlugs with existing DB slugs to avoid unique constraint violations
+    const existingSermons = await payload.find({
+      collection: 'sermons',
+      limit: 10000,
+      depth: 0,
+      select: { slug: true, resourceId: true },
+    })
+    const usedSlugs = new Set<string>(
+      existingSermons.docs.map((doc) => doc.slug).filter(Boolean),
+    )
+    const existingSlugMap = new Map<string, string>()
+    for (const doc of existingSermons.docs) {
+      if (doc.resourceId && doc.slug) existingSlugMap.set(doc.resourceId, doc.slug)
+    }
 
     for (const sermon of sermons) {
       try {
       syncedIds.add(sermon.id)
 
-      // Generate slug with series prefix for uniqueness
-      const seriesSlug =
-        sermon.series.length > 0
-          ? seriesSlugMap.get(sermon.series[0].id)
-          : null
-      const titleSlug = slugify(sermon.name)
-      let slug = seriesSlug ? `${seriesSlug}-${titleSlug}` : titleSlug
+      // Reuse existing slug for known sermons, generate for new ones
+      let slug = existingSlugMap.get(sermon.id)
+      if (!slug) {
+        const seriesSlug =
+          sermon.series.length > 0
+            ? seriesSlugMap.get(sermon.series[0].id)
+            : null
+        const titleSlug = slugify(sermon.name)
+        slug = seriesSlug ? `${seriesSlug}-${titleSlug}` : titleSlug
 
-      // Ensure slug uniqueness by appending resource ID suffix on collision
-      if (!slug || usedSlugs.has(slug)) {
-        slug = slug ? `${slug}-${sermon.id}` : `sermon-${sermon.id}`
+        // Ensure slug uniqueness by appending resource ID suffix on collision
+        if (!slug || usedSlugs.has(slug)) {
+          slug = slug ? `${slug}-${sermon.id}` : `sermon-${sermon.id}`
+        }
       }
       usedSlugs.add(slug)
 
