@@ -56,6 +56,7 @@ export const HeroBlock: Block = {
         { label: 'Default (bottom gradient)', value: 'default' },
         { label: 'Cinematic (layered)', value: 'cinematic' },
         { label: 'Left to right', value: 'leftToRight' },
+        { label: 'Banner (solid background)', value: 'banner' },
       ],
     },
     {

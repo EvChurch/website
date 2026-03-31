@@ -2,7 +2,22 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import { resolve, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import sharp from 'sharp'
+
+async function generateBlur(filePath: string): Promise<string | null> {
+  try {
+    const buffer = readFileSync(filePath)
+    const blurBuffer = await sharp(buffer)
+      .resize(10, 10, { fit: 'inside' })
+      .blur(1)
+      .png({ compressionLevel: 9 })
+      .toBuffer()
+    return `data:image/png;base64,${blurBuffer.toString('base64')}`
+  } catch {
+    return null
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
@@ -145,16 +160,34 @@ async function seed() {
     })
 
     if (existing.docs.length > 0) {
-      mediaMap.set(entry.key, existing.docs[0].id as number)
-      console.log(`  Exists: ${entry.key} (id: ${existing.docs[0].id})`)
+      const existingDoc = existing.docs[0]
+      mediaMap.set(entry.key, existingDoc.id as number)
+
+      // Backfill blurDataURL if missing
+      if (!existingDoc.blurDataURL) {
+        const blurDataURL = await generateBlur(fullPath)
+        if (blurDataURL) {
+          await payload.update({
+            collection: 'media',
+            id: existingDoc.id,
+            data: { blurDataURL },
+            context: { skipBlurGeneration: true },
+          })
+          console.log(`  Blur backfill: ${entry.key} (id: ${existingDoc.id})`)
+        }
+      } else {
+        console.log(`  Exists: ${entry.key} (id: ${existingDoc.id})`)
+      }
       continue
     }
 
     try {
+      const blurDataURL = await generateBlur(fullPath)
       const doc = await payload.create({
         collection: 'media',
-        data: { alt: entry.alt },
+        data: { alt: entry.alt, ...(blurDataURL ? { blurDataURL } : {}) },
         filePath: fullPath,
+        context: { skipBlurGeneration: true },
       })
       mediaMap.set(entry.key, doc.id as number)
       console.log(`  Uploaded: ${entry.key} (id: ${doc.id})`)
@@ -859,8 +892,7 @@ async function seed() {
         highlightedText: 'Kids',
         subtitle: 'A safe, fun, and engaging place where your children can learn, play, and grow. Ev Kids runs every Sunday during all services.',
         keyColor: '#0096C3',
-        overlayStyle: 'cinematic',
-        minHeight: '70vh',
+        overlayStyle: 'banner',
       },
       {
         blockType: 'content',
@@ -963,8 +995,7 @@ async function seed() {
         highlightedText: 'Youth',
         subtitle: 'A place for teenagers to connect, grow, and find where they belong. Real community. Real faith. Real fun.',
         keyColor: '#870394',
-        overlayStyle: 'cinematic',
-        minHeight: '70vh',
+        overlayStyle: 'banner',
       },
       {
         blockType: 'content',
@@ -1046,8 +1077,7 @@ async function seed() {
         highlightedText: 'Connect',
         subtitle: 'Whether you have been coming for a few weeks or a few months, Newish Connect is the perfect way to get to know Ev Church and find where you belong.',
         keyColor: '#2D6A4F',
-        overlayStyle: 'cinematic',
-        minHeight: '70vh',
+        overlayStyle: 'banner',
       },
       {
         blockType: 'content',
@@ -1136,8 +1166,7 @@ async function seed() {
         highlightedText: 'Christianity',
         subtitle: 'A relaxed, no-pressure course for anyone curious about the Christian faith. Ask your questions. Hear real stories. Decide for yourself.',
         keyColor: '#2E7EB5',
-        overlayStyle: 'cinematic',
-        minHeight: '70vh',
+        overlayStyle: 'banner',
       },
       {
         blockType: 'content',
@@ -1345,8 +1374,7 @@ async function seed() {
         highlightedText: 'Groups',
         subtitle: 'Church is more than a Sunday service. Connect Groups are where real friendships form, faith deepens, and life is shared.',
         keyColor: '#8C7B6B',
-        overlayStyle: 'cinematic',
-        minHeight: '70vh',
+        overlayStyle: 'banner',
       },
       {
         blockType: 'content',

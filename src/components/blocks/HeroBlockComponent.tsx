@@ -17,7 +17,7 @@ interface HeroButton {
   id?: string
 }
 
-type OverlayStyle = 'default' | 'cinematic' | 'leftToRight'
+type OverlayStyle = 'default' | 'cinematic' | 'leftToRight' | 'banner'
 type MinHeight = '50vh' | '70vh' | '80vh' | '85vh'
 
 interface HeroBlockProps {
@@ -95,6 +95,97 @@ function Overlays({ style, keyColor }: { style: OverlayStyle; keyColor?: string 
   }
 }
 
+function HeroContent({
+  eyebrow,
+  heading,
+  highlightedText,
+  subtitle,
+  supportingText,
+  buttons,
+  keyColor,
+  semanticH1,
+}: Pick<
+  HeroBlockProps,
+  'eyebrow' | 'heading' | 'highlightedText' | 'subtitle' | 'supportingText' | 'buttons' | 'keyColor' | 'semanticH1'
+>) {
+  const eyebrowColorClass = keyColor ? '' : 'text-light-red-2'
+  const eyebrowColorStyle = keyColor ? { color: keyColor } : undefined
+
+  return (
+    <>
+      {eyebrow && semanticH1 ? (
+        <h1
+          className={`animate-fade-in-up m-0 font-sans text-xs font-semibold uppercase tracking-[0.2em] ${eyebrowColorClass}`}
+          style={{ animationDelay: '100ms', ...eyebrowColorStyle }}
+        >
+          {eyebrow}
+        </h1>
+      ) : eyebrow ? (
+        <p
+          className={`animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] ${eyebrowColorClass}`}
+          style={{ animationDelay: '100ms', ...eyebrowColorStyle }}
+        >
+          {eyebrow}
+        </p>
+      ) : null}
+
+      {semanticH1 ? (
+        <h2
+          className="animate-fade-in-up mt-6 font-serif text-display font-normal leading-display text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
+          style={{ animationDelay: '200ms' }}
+        >
+          {renderHeading(heading, highlightedText, keyColor)}
+        </h2>
+      ) : (
+        <h1
+          className="animate-fade-in-up mt-6 font-serif text-display font-normal leading-display text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
+          style={{ animationDelay: '200ms' }}
+        >
+          {renderHeading(heading, highlightedText, keyColor)}
+        </h1>
+      )}
+
+      {subtitle && (
+        <p
+          className="animate-fade-in-up mt-4 max-w-lg text-base leading-body-lg text-warm-grey/80 md:mt-6 md:text-lg"
+          style={{ animationDelay: '350ms' }}
+        >
+          {subtitle}
+        </p>
+      )}
+
+      {buttons && buttons.length > 0 && (
+        <div
+          className="animate-fade-in-up mt-10 flex flex-wrap items-center gap-4"
+          style={{ animationDelay: '500ms' }}
+        >
+          {buttons.map((btn) => (
+            <Button
+              key={btn.id ?? btn.href}
+              href={btn.href}
+              variant={btn.variant ?? 'primary'}
+              size="large"
+              {...(btn.variant === 'text' ? { className: 'text-warm-white/90 hover:text-white' } : {})}
+            >
+              {btn.label}
+              {btn.variant === 'text' && <ArrowRight />}
+            </Button>
+          ))}
+        </div>
+      )}
+
+      {supportingText && (
+        <p
+          className="animate-fade-in-up mt-8 hidden max-w-lg text-sm leading-relaxed text-warm-grey/60 md:block"
+          style={{ animationDelay: '600ms' }}
+        >
+          {supportingText}
+        </p>
+      )}
+    </>
+  )
+}
+
 export function HeroBlockComponent({
   image,
   eyebrow,
@@ -111,8 +202,55 @@ export function HeroBlockComponent({
   const imageUrl = typeof image === 'string' ? image : image?.url
   const height = minHeight ?? '70vh'
   const overlay = overlayStyle ?? 'default'
-  const eyebrowColorClass = keyColor ? '' : 'text-light-red-2'
-  const eyebrowColorStyle = keyColor ? { color: keyColor } : undefined
+
+  // Banner variant: contained image on blurred background, solid color content area
+  if (overlay === 'banner') {
+    const blurBg =
+      typeof image !== 'string' && image.blurDataURL
+        ? { backgroundImage: `url(${image.blurDataURL})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+        : undefined
+
+    return (
+      <section className="overflow-hidden bg-brand-black">
+        {/* Blurhash background with contained banner */}
+        {imageUrl && (
+          <div style={blurBg}>
+            <div className="mx-auto max-w-[80rem]">
+              <MediaImage
+                media={typeof image === 'string' ? image : image}
+                width={typeof image !== 'string' ? (image.width ?? 1920) : 1920}
+                height={typeof image !== 'string' ? (image.height ?? 640) : 640}
+                priority
+                sizes="(max-width: 1280px) 100vw, 1280px"
+                className="animate-fade-in-up h-auto w-full"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Content on solid background */}
+        <div
+          className="px-5 pb-12 pt-10 lg:px-8 lg:pb-16 lg:pt-14"
+          style={keyColor ? { backgroundColor: keyColor } : undefined}
+        >
+          <div className="mx-auto max-w-[80rem]">
+            <div className="max-w-2xl">
+              <HeroContent
+                eyebrow={eyebrow}
+                heading={heading}
+                highlightedText={highlightedText}
+                subtitle={subtitle}
+                supportingText={supportingText}
+                buttons={buttons}
+                keyColor={keyColor ? '#FEFAF4' : undefined}
+                semanticH1={semanticH1}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section className={`relative flex items-center overflow-hidden bg-brand-black ${heightClasses[height]}`}>
@@ -133,75 +271,16 @@ export function HeroBlockComponent({
       {/* Content */}
       <div className="relative mx-auto max-w-[80rem] px-5 py-32 lg:px-8 lg:py-40">
         <div className="max-w-2xl">
-          {eyebrow && semanticH1 ? (
-            <h1
-              className={`animate-fade-in-up m-0 font-sans text-xs font-semibold uppercase tracking-[0.2em] ${eyebrowColorClass}`}
-              style={{ animationDelay: '100ms', ...eyebrowColorStyle }}
-            >
-              {eyebrow}
-            </h1>
-          ) : eyebrow ? (
-            <p
-              className={`animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] ${eyebrowColorClass}`}
-              style={{ animationDelay: '100ms', ...eyebrowColorStyle }}
-            >
-              {eyebrow}
-            </p>
-          ) : null}
-
-          {semanticH1 ? (
-            <h2
-              className="animate-fade-in-up mt-6 font-serif text-display font-normal leading-display text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
-              style={{ animationDelay: '200ms' }}
-            >
-              {renderHeading(heading, highlightedText, keyColor)}
-            </h2>
-          ) : (
-            <h1
-              className="animate-fade-in-up mt-6 font-serif text-display font-normal leading-display text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
-              style={{ animationDelay: '200ms' }}
-            >
-              {renderHeading(heading, highlightedText, keyColor)}
-            </h1>
-          )}
-
-          {subtitle && (
-            <p
-              className="animate-fade-in-up mt-4 max-w-lg text-base leading-body-lg text-warm-grey/80 md:mt-6 md:text-lg"
-              style={{ animationDelay: '350ms' }}
-            >
-              {subtitle}
-            </p>
-          )}
-
-          {buttons && buttons.length > 0 && (
-            <div
-              className="animate-fade-in-up mt-10 flex flex-wrap items-center gap-4"
-              style={{ animationDelay: '500ms' }}
-            >
-              {buttons.map((btn) => (
-                <Button
-                  key={btn.id ?? btn.href}
-                  href={btn.href}
-                  variant={btn.variant ?? 'primary'}
-                  size="large"
-                  {...(btn.variant === 'text' ? { className: 'text-warm-white/90 hover:text-white' } : {})}
-                >
-                  {btn.label}
-                  {btn.variant === 'text' && <ArrowRight />}
-                </Button>
-              ))}
-            </div>
-          )}
-
-          {supportingText && (
-            <p
-              className="animate-fade-in-up mt-8 hidden max-w-lg text-sm leading-relaxed text-warm-grey/60 md:block"
-              style={{ animationDelay: '600ms' }}
-            >
-              {supportingText}
-            </p>
-          )}
+          <HeroContent
+            eyebrow={eyebrow}
+            heading={heading}
+            highlightedText={highlightedText}
+            subtitle={subtitle}
+            supportingText={supportingText}
+            buttons={buttons}
+            keyColor={keyColor}
+            semanticH1={semanticH1}
+          />
         </div>
       </div>
     </section>
