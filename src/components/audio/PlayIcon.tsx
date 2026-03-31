@@ -1,7 +1,8 @@
 'use client'
 
 import { useAudioPlayer } from './AudioPlayerProvider'
-import { useEffect, useState } from 'react'
+import { useListeningStore } from '@/lib/listening-store'
+import { useEffect, useRef, useState } from 'react'
 
 interface PlayIconProps {
   slug: string
@@ -16,12 +17,12 @@ interface PlayIconProps {
  * Designed to be embedded inside text buttons.
  */
 export function PlayIcon({ slug, isPlaying, isLoading, size = 20 }: PlayIconProps) {
-  const { currentSermon, progress, duration, getProgress } = useAudioPlayer()
+  const { currentSermon, progress, duration } = useAudioPlayer()
   const [hydrated, setHydrated] = useState(false)
   useEffect(() => setHydrated(true), [])
 
   const isCurrentSermon = currentSermon?.slug === slug
-  const saved = hydrated ? getProgress(slug) : null
+  const saved = useListeningStore((s) => hydrated ? s.history[slug] ?? null : null)
 
   let percent = 0
   if (isCurrentSermon && duration > 0) {
@@ -31,6 +32,18 @@ export function PlayIcon({ slug, isPlaying, isLoading, size = 20 }: PlayIconProp
   } else if (saved?.completed) {
     percent = 1
   }
+
+  const wasCompleted = useRef(saved?.completed ?? false)
+  const [animatingComplete, setAnimatingComplete] = useState(false)
+  useEffect(() => {
+    if (percent >= 1 && !wasCompleted.current) {
+      setAnimatingComplete(true)
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setAnimatingComplete(false))
+      })
+    }
+    wasCompleted.current = percent >= 1
+  }, [percent])
 
   const stroke = 2
   const radius = (size - stroke) / 2
@@ -53,9 +66,9 @@ export function PlayIcon({ slug, isPlaying, isLoading, size = 20 }: PlayIconProp
             strokeWidth={stroke}
             strokeLinecap="round"
             strokeDasharray={circumference}
-            strokeDashoffset={isLoading ? circumference * 0.75 : dashOffset}
+            strokeDashoffset={isLoading ? circumference * 0.75 : animatingComplete ? circumference : dashOffset}
             transform={`rotate(-90 ${center} ${center})`}
-            className={isLoading ? '' : 'transition-[stroke-dashoffset] duration-300'}
+            className={isLoading ? '' : `transition-[stroke-dashoffset,stroke] ${animatingComplete ? 'duration-0' : 'duration-700'}`}
           />
         </svg>
       )}

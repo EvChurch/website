@@ -1,7 +1,8 @@
 'use client'
 
 import { useAudioPlayer, type SermonAudio } from './AudioPlayerProvider'
-import { useEffect, useState } from 'react'
+import { useListeningStore } from '@/lib/listening-store'
+import { useEffect, useRef, useState } from 'react'
 
 interface PlayButtonProps {
   sermon: SermonAudio
@@ -16,7 +17,7 @@ const dimensions = {
 } as const
 
 export function PlayButton({ sermon, size = 'md', className = '' }: PlayButtonProps) {
-  const { currentSermon, isPlaying, isLoading, progress, duration, play, pause, resume, getProgress } =
+  const { currentSermon, isPlaying, isLoading, progress, duration, play, pause, resume } =
     useAudioPlayer()
 
   const [hydrated, setHydrated] = useState(false)
@@ -27,7 +28,7 @@ export function PlayButton({ sermon, size = 'md', className = '' }: PlayButtonPr
   const isCurrentlyLoading = isCurrentSermon && isLoading
 
   // Use live progress if this sermon is active, otherwise use saved history
-  const saved = hydrated ? getProgress(sermon.slug) : null
+  const saved = useListeningStore((s) => hydrated ? s.history[sermon.slug] ?? null : null)
   let percent = 0
   if (isCurrentSermon && duration > 0) {
     percent = progress / duration
@@ -36,6 +37,20 @@ export function PlayButton({ sermon, size = 'md', className = '' }: PlayButtonPr
   } else if (saved?.completed) {
     percent = 1
   }
+
+  // Animate ring fill when transitioning to completed
+  const wasCompleted = useRef(saved?.completed ?? false)
+  const [animatingComplete, setAnimatingComplete] = useState(false)
+  useEffect(() => {
+    if (percent >= 1 && !wasCompleted.current) {
+      setAnimatingComplete(true)
+      // Start from 0 offset, then animate to full on next frame
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setAnimatingComplete(false))
+      })
+    }
+    wasCompleted.current = percent >= 1
+  }, [percent])
 
   const handleClick = () => {
     if (isCurrentSermon) {
@@ -96,9 +111,9 @@ export function PlayButton({ sermon, size = 'md', className = '' }: PlayButtonPr
             strokeWidth={stroke}
             strokeLinecap="round"
             strokeDasharray={circumference}
-            strokeDashoffset={isCurrentlyLoading ? circumference * 0.75 : dashOffset}
+            strokeDashoffset={isCurrentlyLoading ? circumference * 0.75 : animatingComplete ? circumference : dashOffset}
             transform={`rotate(-90 ${center} ${center})`}
-            className={isCurrentlyLoading ? '' : 'transition-[stroke-dashoffset] duration-300'}
+            className={isCurrentlyLoading ? '' : `transition-[stroke-dashoffset,stroke] ${animatingComplete ? 'duration-0' : 'duration-700'}`}
           />
         </svg>
       )}

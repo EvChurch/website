@@ -393,6 +393,7 @@ export default async function SermonsPage({
                     seriesTitle={heroSeriesTitle}
                     seriesSlug={heroSeriesSlug}
                     artworkUrl={heroBannerMedia?.url ?? undefined}
+                    artworkBlurDataURL={heroBannerMedia?.blurDataURL ?? undefined}
                     duration={latestSermon.duration ?? undefined}
                   />
                 </div>

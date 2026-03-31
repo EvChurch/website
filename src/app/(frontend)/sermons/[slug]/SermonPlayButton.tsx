@@ -11,6 +11,7 @@ interface SermonPlayButtonProps {
   speaker?: string
   seriesTitle?: string
   artworkUrl?: string
+  artworkBlurDataURL?: string
   duration?: number
 }
 
@@ -22,6 +23,7 @@ export function SermonPlayButton({
   speaker,
   seriesTitle,
   artworkUrl,
+  artworkBlurDataURL,
   duration,
 }: SermonPlayButtonProps) {
   const { currentSermon, isPlaying, isLoading, play, pause, resume } = useAudioPlayer()
@@ -36,7 +38,7 @@ export function SermonPlayButton({
       if (isPlaying) pause()
       else resume()
     } else {
-      const sermon: SermonAudio = { id, title, slug, audioUrl, speaker, series: seriesTitle, artworkUrl, duration }
+      const sermon: SermonAudio = { id, title, slug, audioUrl, speaker, series: seriesTitle, artworkUrl, artworkBlurDataURL, duration }
       play(sermon)
     }
   }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useAudioPlayer, type ListeningRecord } from '@/components/audio/AudioPlayerProvider'
+import { useListeningStore, type ListeningRecord } from '@/lib/listening-store'
 import { PlayButton } from '@/components/audio/PlayButton'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
@@ -12,19 +12,22 @@ function formatTimeLeft(progress: number, duration: number): string {
 }
 
 export function ContinueListening() {
-  const { getListeningHistory, markAsListened } = useAudioPlayer()
-  const [records, setRecords] = useState<ListeningRecord[]>([])
+  const history = useListeningStore((s) => s.history)
+  const markAsListened = useListeningStore((s) => s.markAsListened)
+  const [hydrated, setHydrated] = useState(false)
+  useEffect(() => setHydrated(true), [])
 
-  useEffect(() => {
-    const history = getListeningHistory()
-    setRecords(history.filter((r) => !r.completed && r.progress > 10).slice(0, 3))
-  }, [getListeningHistory])
+  if (!hydrated) return null
+
+  const records: ListeningRecord[] = Object.values(history)
+    .filter((r) => !r.completed && r.progress > 10)
+    .sort((a, b) => b.lastPlayedAt - a.lastPlayedAt)
+    .slice(0, 3)
 
   if (records.length === 0) return null
 
   const handleMarkListened = (slug: string) => {
     markAsListened(slug)
-    setRecords((prev) => prev.filter((r) => r.slug !== slug))
   }
 
   return (
@@ -44,6 +47,7 @@ export function ContinueListening() {
                     speaker: r.speaker,
                     series: r.series,
                     artworkUrl: r.artworkUrl,
+                    artworkBlurDataURL: r.artworkBlurDataURL,
                   }}
                   size="md"
                 />

@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { useListeningStore } from '@/lib/listening-store'
 
 export interface SermonAudio {
   id: number | string
@@ -20,21 +21,12 @@ export interface SermonAudio {
   series?: string
   seriesSlug?: string
   artworkUrl?: string
+  artworkBlurDataURL?: string
   duration?: number
 }
 
-export interface ListeningRecord {
-  slug: string
-  title: string
-  speaker?: string
-  series?: string
-  artworkUrl?: string
-  audioUrl: string
-  progress: number
-  duration: number
-  completed: boolean
-  lastPlayedAt: number
-}
+// Re-export for consumers that still import from here
+export type { ListeningRecord } from '@/lib/listening-store'
 
 interface AudioPlayerState {
   currentSermon: SermonAudio | null
@@ -51,9 +43,7 @@ interface AudioPlayerState {
   skipForward: () => void
   skipBack: () => void
   close: () => void
-  getListeningHistory: () => ListeningRecord[]
-  getProgress: (slug: string) => ListeningRecord | null
-  markAsListened: (slug: string) => void
+  onEndedRef: React.MutableRefObject<(() => void) | null>
 }
 
 const AudioPlayerContext = createContext<AudioPlayerState | null>(null)
@@ -66,42 +56,7 @@ export function useAudioPlayer(): AudioPlayerState {
   return context
 }
 
-const SPEED_OPTIONS = [1, 1.25, 1.5, 2] as const
 const SKIP_SECONDS = 15
-const STORAGE_KEY = 'ev-sermon-playback-speed'
-const HISTORY_KEY = 'ev-sermon-history'
-const COMPLETED_THRESHOLD = 0.95
-const COMPLETED_REMAINING_SECS = 300 // 5 minutes
-
-function getStoredHistory(): Record<string, ListeningRecord> {
-  if (typeof window === 'undefined') return {}
-  try {
-    const stored = localStorage.getItem(HISTORY_KEY)
-    return stored ? JSON.parse(stored) : {}
-  } catch {
-    return {}
-  }
-}
-
-function saveHistory(history: Record<string, ListeningRecord>) {
-  try {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history))
-  } catch {
-    // localStorage full or unavailable
-  }
-}
-
-function getStoredSpeed(): number {
-  if (typeof window === 'undefined') return 1
-  const stored = localStorage.getItem(STORAGE_KEY)
-  if (stored) {
-    const parsed = parseFloat(stored)
-    if (SPEED_OPTIONS.includes(parsed as (typeof SPEED_OPTIONS)[number])) {
-      return parsed
-    }
-  }
-  return 1
-}
 
 export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -110,7 +65,15 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
-  const [playbackSpeed, setPlaybackSpeed] = useState(1)
+
+  const { playbackSpeed, setPlaybackSpeed, saveProgress, markCompleted } =
+    useListeningStore()
+
+  const currentSlugRef = useRef<string | null>(null)
+  const saveProgressRef = useRef<(() => void) | null>(null)
+  const markCompletedRef = useRef<(() => void) | null>(null)
+  const closeRef = useRef<(() => void) | null>(null)
+  const onEndedRef = useRef<(() => void) | null>(null)
 
   // Initialize audio element once
   useEffect(() => {
@@ -119,13 +82,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     audioRef.current = audio
 
     // Restore playback speed
-    const storedSpeed = getStoredSpeed()
-    audio.playbackRate = storedSpeed
-    setPlaybackSpeed(storedSpeed)
+    const speed = useListeningStore.getState().playbackSpeed
+    audio.playbackRate = speed
 
     const onTimeUpdate = () => {
       setProgress(audio.currentTime)
-      // Save progress every 5 seconds
       if (Math.floor(audio.currentTime) % 5 === 0 && audio.currentTime > 0) {
         saveProgressRef.current?.()
       }
@@ -143,9 +104,12 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     const onCanPlay = () => setIsLoading(false)
     const onError = () => setIsLoading(false)
     const onEnded = () => {
-      setIsPlaying(false)
-      setProgress(0)
       markCompletedRef.current?.()
+      if (onEndedRef.current) {
+        onEndedRef.current()
+      } else {
+        closeRef.current?.()
+      }
     }
 
     audio.addEventListener('timeupdate', onTimeUpdate)
@@ -223,70 +187,30 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     })
   }, [progress, duration, playbackSpeed])
 
-  const currentSlugRef = useRef<string | null>(null)
-  const historyRef = useRef<Record<string, ListeningRecord>>(getStoredHistory())
-  const saveProgressRef = useRef<(() => void) | null>(null)
-  const markCompletedRef = useRef<(() => void) | null>(null)
-
   // Keep refs up to date for use in audio event handlers
   saveProgressRef.current = () => {
     if (!currentSermon || !audioRef.current) return
     const audio = audioRef.current
-    const record: ListeningRecord = {
-      slug: currentSermon.slug,
-      title: currentSermon.title,
-      speaker: currentSermon.speaker,
-      series: currentSermon.series,
-      artworkUrl: currentSermon.artworkUrl,
-      audioUrl: currentSermon.audioUrl,
-      progress: audio.currentTime,
-      duration: audio.duration || currentSermon.duration || 0,
-      completed: audio.duration > 0 && (
-        audio.currentTime / audio.duration >= COMPLETED_THRESHOLD ||
-        audio.duration - audio.currentTime <= COMPLETED_REMAINING_SECS
-      ),
-      lastPlayedAt: Date.now(),
-    }
-    historyRef.current[currentSermon.slug] = record
-    saveHistory(historyRef.current)
+    saveProgress(
+      {
+        slug: currentSermon.slug,
+        title: currentSermon.title,
+        speaker: currentSermon.speaker,
+        series: currentSermon.series,
+        artworkUrl: currentSermon.artworkUrl,
+        artworkBlurDataURL: currentSermon.artworkBlurDataURL,
+        audioUrl: currentSermon.audioUrl,
+      },
+      audio.currentTime,
+      audio.duration,
+      currentSermon.duration,
+    )
   }
 
   markCompletedRef.current = () => {
     if (!currentSermon) return
-    const existing = historyRef.current[currentSermon.slug]
-    if (existing) {
-      existing.completed = true
-      existing.lastPlayedAt = Date.now()
-      saveHistory(historyRef.current)
-    }
+    markCompleted(currentSermon.slug)
   }
-
-  const getListeningHistory = useCallback((): ListeningRecord[] => {
-    return Object.values(historyRef.current).sort((a, b) => b.lastPlayedAt - a.lastPlayedAt)
-  }, [])
-
-  const getProgress = useCallback((slug: string): ListeningRecord | null => {
-    return historyRef.current[slug] ?? null
-  }, [])
-
-  const markAsListened = useCallback((slug: string) => {
-    const record = historyRef.current[slug]
-    if (record) {
-      record.completed = true
-      record.lastPlayedAt = Date.now()
-    } else {
-      historyRef.current[slug] = {
-        slug,
-        title: '',
-        audioUrl: '',
-        progress: 0,
-        duration: 0,
-        completed: true,
-        lastPlayedAt: Date.now(),
-      }
-    }
-    saveHistory(historyRef.current)
-  }, [])
 
   const play = useCallback((sermon: SermonAudio) => {
     const audio = audioRef.current
@@ -306,7 +230,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setIsLoading(true)
 
     // Resume from saved position if available
-    const saved = historyRef.current[sermon.slug]
+    const saved = useListeningStore.getState().history[sermon.slug]
     const resumeTime = saved && !saved.completed && saved.progress > 10 ? saved.progress : 0
     setProgress(resumeTime)
 
@@ -352,8 +276,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       audioRef.current.playbackRate = speed
     }
     setPlaybackSpeed(speed)
-    localStorage.setItem(STORAGE_KEY, String(speed))
-  }, [])
+  }, [setPlaybackSpeed])
 
   const skipForward = useCallback(() => {
     if (audioRef.current) {
@@ -387,6 +310,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setDuration(0)
   }, [])
 
+  closeRef.current = close
+
   return (
     <AudioPlayerContext.Provider
       value={{
@@ -404,9 +329,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         skipForward,
         skipBack,
         close,
-        getListeningHistory,
-        getProgress,
-        markAsListened,
+        onEndedRef,
       }}
     >
       {children}

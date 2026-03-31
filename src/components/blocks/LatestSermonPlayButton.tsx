@@ -13,6 +13,7 @@ interface Props {
   seriesTitle?: string
   seriesSlug?: string
   artworkUrl?: string
+  artworkBlurDataURL?: string
   duration?: number
 }
 
@@ -26,6 +27,7 @@ export function LatestSermonPlayButton({
   seriesTitle,
   seriesSlug,
   artworkUrl,
+  artworkBlurDataURL,
   duration,
 }: Props) {
   const { currentSermon, isPlaying, isLoading, play, pause, resume } = useAudioPlayer()
@@ -49,6 +51,7 @@ export function LatestSermonPlayButton({
         series: seriesTitle,
         seriesSlug,
         artworkUrl,
+        artworkBlurDataURL,
         duration,
       }
       play(sermon)

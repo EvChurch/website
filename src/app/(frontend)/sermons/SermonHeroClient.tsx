@@ -13,6 +13,7 @@ interface SermonHeroClientProps {
   seriesTitle?: string
   seriesSlug?: string
   artworkUrl?: string
+  artworkBlurDataURL?: string
   duration?: number
 }
 
@@ -26,6 +27,7 @@ export function SermonHeroClient({
   seriesTitle,
   seriesSlug,
   artworkUrl,
+  artworkBlurDataURL,
   duration,
 }: SermonHeroClientProps) {
   const { currentSermon, isPlaying, isLoading, play, pause, resume } =
@@ -51,6 +53,7 @@ export function SermonHeroClient({
         series: seriesTitle,
         seriesSlug,
         artworkUrl,
+        artworkBlurDataURL,
         duration,
       }
       play(sermon)

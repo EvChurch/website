@@ -406,6 +406,7 @@ export default async function SermonPage({
                     speaker={speakers.map((s) => s.name).join(', ') || undefined}
                     seriesTitle={seriesList[0]?.title}
                     artworkUrl={heroBannerMedia?.url ?? undefined}
+                    artworkBlurDataURL={heroBannerMedia?.blurDataURL ?? undefined}
                     duration={sermon.duration ?? undefined}
                   />
                 </div>
