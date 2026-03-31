@@ -37,6 +37,10 @@
   --color-ev-orange: #F25101;
   --color-ev-purple: #870394;
   --color-ev-gold: #EEB753;
+  --color-ec-blue: #2E7EB5;
+  --color-newish-green: #2D6A4F;
+  --color-connect-brown: #8C7B6B;
+  --color-gn-gold: #D4940A;
 
   /* Font Families */
   --font-sans: 'proxima-nova', system-ui, -apple-system, sans-serif;

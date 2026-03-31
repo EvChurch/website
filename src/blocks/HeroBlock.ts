@@ -44,6 +44,11 @@ export const HeroBlock: Block = {
       },
     },
     {
+      name: 'keyColor',
+      type: 'text',
+      admin: { description: 'Hex colour override for eyebrow, italic accent, and overlay fade (e.g. #0096C3)' },
+    },
+    {
       name: 'overlayStyle',
       type: 'select',
       defaultValue: 'default',

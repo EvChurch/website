@@ -18,6 +18,11 @@ export const PageHeaderBlock: Block = {
       type: 'textarea',
     },
     {
+      name: 'keyColor',
+      type: 'text',
+      admin: { description: 'Hex colour override for eyebrow accent (e.g. #0096C3)' },
+    },
+    {
       name: 'theme',
       type: 'select',
       defaultValue: 'dark',

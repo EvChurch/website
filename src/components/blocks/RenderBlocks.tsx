@@ -49,6 +49,7 @@ interface HeroBlock extends BaseBlock {
     variant?: 'primary' | 'secondary' | 'text'
     id?: string
   }> | null
+  keyColor?: string | null
   overlayStyle?: 'default' | 'cinematic' | 'leftToRight' | null
   minHeight?: '50vh' | '70vh' | '80vh' | '85vh' | null
   semanticH1?: boolean | null
@@ -207,6 +208,7 @@ interface PageHeaderBlock extends BaseBlock {
   eyebrow?: string | null
   heading: string
   description?: string | null
+  keyColor?: string | null
   theme?: 'dark' | 'light' | null
 }
 
@@ -284,6 +286,7 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
                 subtitle={b.subtitle}
                 supportingText={b.supportingText}
                 buttons={b.buttons}
+                keyColor={b.keyColor}
                 overlayStyle={b.overlayStyle}
                 minHeight={b.minHeight}
                 semanticH1={b.semanticH1}
@@ -457,6 +460,7 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
                 eyebrow={b.eyebrow}
                 heading={b.heading}
                 description={b.description}
+                keyColor={b.keyColor}
                 theme={b.theme}
               />
             )

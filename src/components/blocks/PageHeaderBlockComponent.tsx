@@ -4,6 +4,7 @@ interface PageHeaderBlockProps {
   eyebrow?: string | null
   heading: string
   description?: string | null
+  keyColor?: string | null
   theme?: 'dark' | 'light' | null
 }
 
@@ -11,9 +12,12 @@ export function PageHeaderBlockComponent({
   eyebrow,
   heading,
   description,
+  keyColor,
   theme = 'light',
 }: PageHeaderBlockProps) {
   const isDark = theme === 'dark'
+  const eyebrowColorClass = keyColor ? '' : isDark ? 'text-light-red-2' : 'text-rich-red'
+  const eyebrowColorStyle = keyColor ? { color: keyColor } : undefined
 
   return (
     <section
@@ -25,9 +29,8 @@ export function PageHeaderBlockComponent({
         <ScrollReveal>
           {eyebrow && (
             <p
-              className={`text-xs font-semibold uppercase tracking-[0.2em] ${
-                isDark ? 'text-light-red-2' : 'text-rich-red'
-              }`}
+              className={`text-xs font-semibold uppercase tracking-[0.2em] ${eyebrowColorClass}`}
+              style={eyebrowColorStyle}
             >
               {eyebrow}
             </p>

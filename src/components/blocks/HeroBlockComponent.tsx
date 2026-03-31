@@ -28,6 +28,7 @@ interface HeroBlockProps {
   subtitle?: string | null
   supportingText?: string | null
   buttons?: HeroButton[] | null
+  keyColor?: string | null
   overlayStyle?: OverlayStyle | null
   minHeight?: MinHeight | null
   semanticH1?: boolean | null
@@ -40,7 +41,7 @@ const heightClasses: Record<MinHeight, string> = {
   '85vh': 'min-h-[85vh]',
 }
 
-function renderHeading(heading: string, highlightedText?: string | null) {
+function renderHeading(heading: string, highlightedText?: string | null, keyColor?: string | null) {
   if (!highlightedText) return heading
 
   const parts = heading.split(highlightedText)
@@ -49,19 +50,30 @@ function renderHeading(heading: string, highlightedText?: string | null) {
   return (
     <>
       {parts[0]}
-      <span className="italic text-light-red-3">{highlightedText}</span>
+      <span
+        className={`italic ${keyColor ? '' : 'text-light-red-3'}`}
+        style={keyColor ? { color: keyColor } : undefined}
+      >
+        {highlightedText}
+      </span>
       {parts[1]}
     </>
   )
 }
 
-function Overlays({ style }: { style: OverlayStyle }) {
+function Overlays({ style, keyColor }: { style: OverlayStyle; keyColor?: string | null }) {
+  // Color fade overlay — uses keyColor at 20% opacity, or defaults to rich-red
+  const colorOverlayClass = keyColor ? '' : 'bg-gradient-to-tr from-rich-red/20 via-transparent to-transparent'
+  const colorOverlayStyle = keyColor
+    ? { background: `linear-gradient(to top right, ${keyColor}33, transparent, transparent)` }
+    : undefined
+
   switch (style) {
     case 'cinematic':
       return (
         <>
           <div className="absolute inset-0 bg-gradient-to-t from-brand-black via-brand-black/60 via-40% to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-rich-red/20 via-transparent to-transparent" />
+          <div className={`absolute inset-0 ${colorOverlayClass}`} style={colorOverlayStyle} />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(15,0,4,0.5)_100%)]" />
         </>
       )
@@ -76,7 +88,7 @@ function Overlays({ style }: { style: OverlayStyle }) {
       return (
         <>
           <div className="absolute inset-0 bg-gradient-to-t from-brand-black via-brand-black/60 via-40% to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-rich-red/20 via-transparent to-transparent" />
+          <div className={`absolute inset-0 ${colorOverlayClass}`} style={colorOverlayStyle} />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(15,0,4,0.5)_100%)]" />
         </>
       )
@@ -91,6 +103,7 @@ export function HeroBlockComponent({
   subtitle,
   supportingText,
   buttons,
+  keyColor,
   overlayStyle,
   minHeight,
   semanticH1,
@@ -98,6 +111,8 @@ export function HeroBlockComponent({
   const imageUrl = typeof image === 'string' ? image : image?.url
   const height = minHeight ?? '70vh'
   const overlay = overlayStyle ?? 'default'
+  const eyebrowColorClass = keyColor ? '' : 'text-light-red-2'
+  const eyebrowColorStyle = keyColor ? { color: keyColor } : undefined
 
   return (
     <section className={`relative flex items-center overflow-hidden bg-brand-black ${heightClasses[height]}`}>
@@ -111,7 +126,7 @@ export function HeroBlockComponent({
             sizes="100vw"
             className="h-full w-full object-cover"
           />
-          <Overlays style={overlay} />
+          <Overlays style={overlay} keyColor={keyColor} />
         </div>
       )}
 
@@ -120,15 +135,15 @@ export function HeroBlockComponent({
         <div className="max-w-2xl">
           {eyebrow && semanticH1 ? (
             <h1
-              className="animate-fade-in-up m-0 font-sans text-xs font-semibold uppercase tracking-[0.2em] text-light-red-2"
-              style={{ animationDelay: '100ms' }}
+              className={`animate-fade-in-up m-0 font-sans text-xs font-semibold uppercase tracking-[0.2em] ${eyebrowColorClass}`}
+              style={{ animationDelay: '100ms', ...eyebrowColorStyle }}
             >
               {eyebrow}
             </h1>
           ) : eyebrow ? (
             <p
-              className="animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] text-light-red-2"
-              style={{ animationDelay: '100ms' }}
+              className={`animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] ${eyebrowColorClass}`}
+              style={{ animationDelay: '100ms', ...eyebrowColorStyle }}
             >
               {eyebrow}
             </p>
@@ -139,14 +154,14 @@ export function HeroBlockComponent({
               className="animate-fade-in-up mt-6 font-serif text-display font-normal leading-display text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
               style={{ animationDelay: '200ms' }}
             >
-              {renderHeading(heading, highlightedText)}
+              {renderHeading(heading, highlightedText, keyColor)}
             </h2>
           ) : (
             <h1
               className="animate-fade-in-up mt-6 font-serif text-display font-normal leading-display text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
               style={{ animationDelay: '200ms' }}
             >
-              {renderHeading(heading, highlightedText)}
+              {renderHeading(heading, highlightedText, keyColor)}
             </h1>
           )}
 
