@@ -10,6 +10,8 @@ import { SermonFilters } from '@/components/sermons/SermonFilters'
 import { SermonHeroClient } from './SermonHeroClient'
 import { ContinueListening } from '@/components/sermons/ContinueListening'
 import { ListenedBadge } from '@/components/sermons/ListenedBadge'
+import { SiApplepodcasts, SiSpotify } from 'react-icons/si'
+import { HiRss } from 'react-icons/hi2'
 
 export const dynamic = 'force-dynamic'
 
@@ -530,38 +532,29 @@ export default async function SermonsPage({
               Subscribe to the Ev Church podcast and never miss a message. New sermons every week, straight to your favourite app.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-              {/* Apple Podcasts */}
               <a
                 href="https://geo.itunes.apple.com/us/podcast/auckland-ev-church-sermons/id944102025?mt=2&app=itunes"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2.5 rounded-xl bg-warm-white/10 px-5 py-3 text-sm font-medium text-warm-white transition-all hover:-translate-y-0.5 hover:bg-warm-white/15 hover:shadow-lg hover:shadow-black/20"
               >
-                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M5.34 0A5.328 5.328 0 000 5.34v13.32A5.328 5.328 0 005.34 24h13.32A5.328 5.328 0 0024 18.66V5.34A5.328 5.328 0 0018.66 0H5.34zm6.525 2.568c4.988 0 7.455 3.582 7.455 6.774 0 1.86-.945 4.17-1.665 5.186-.72 1.014-2.199 1.92-3.42 1.92-.63 0-1.17-.27-1.53-.63.18-.96.27-1.95.27-2.97 0-.18 0-.36-.015-.54.69-.135 1.215-.765 1.215-1.515 0-.855-.69-1.545-1.545-1.545a1.545 1.545 0 00-1.545 1.545c0 .75.525 1.38 1.215 1.515-.015.18-.015.36-.015.54 0 1.02.09 2.01.27 2.97-.36.36-.9.63-1.53.63-1.221 0-2.7-.906-3.42-1.92-.72-1.016-1.665-3.326-1.665-5.186 0-3.192 2.467-6.774 7.455-6.774zm-.135 3.39c-1.17 0-2.115.945-2.115 2.115 0 1.17.945 2.115 2.115 2.115 1.17 0 2.115-.945 2.115-2.115 0-1.17-.945-2.115-2.115-2.115zm0 7.02c-.63 0-1.14.51-1.14 1.14v3.39c0 1.37.51 2.49 1.14 2.49.63 0 1.14-1.12 1.14-2.49v-3.39c0-.63-.51-1.14-1.14-1.14z" />
-                </svg>
+                <SiApplepodcasts className="h-6 w-6" />
                 Apple Podcasts
               </a>
-              {/* Spotify */}
               <a
                 href="https://open.spotify.com/show/7zhspYmybJOa54afNYEg8H?si=6hqr18IXRaKTdz_Jsnu--A"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2.5 rounded-xl bg-warm-white/10 px-5 py-3 text-sm font-medium text-warm-white transition-all hover:-translate-y-0.5 hover:bg-warm-white/15 hover:shadow-lg hover:shadow-black/20"
               >
-                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
-                </svg>
+                <SiSpotify className="h-6 w-6" />
                 Spotify
               </a>
-              {/* RSS */}
               <a
                 href="/sermons/feed.xml"
                 className="flex items-center gap-2.5 rounded-xl bg-warm-white/10 px-5 py-3 text-sm font-medium text-warm-white transition-all hover:-translate-y-0.5 hover:bg-warm-white/15 hover:shadow-lg hover:shadow-black/20"
               >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M6.503 20.752c0 1.794-1.456 3.248-3.251 3.248-1.796 0-3.252-1.454-3.252-3.248 0-1.794 1.456-3.248 3.252-3.248 1.795 0 3.251 1.454 3.251 3.248zm-6.503-12.572v4.811c6.05.062 10.96 4.966 11.022 11.009h4.817c-.062-8.71-7.118-15.758-15.839-15.82zm0-8.18v4.819c12.951.115 23.357 10.71 23.497 23.625h4.503c-.115-15.637-12.86-28.331-28-28.444z" />
-                </svg>
+                <HiRss className="h-5 w-5" />
                 RSS Feed
               </a>
             </div>
