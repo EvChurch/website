@@ -88,20 +88,7 @@ export function AudioPlayerBar() {
         ref={barRef}
         className={`w-full max-w-2xl rounded-2xl border border-white/10 bg-brand-black/80 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl transition-transform duration-300 ease-out ${show ? 'translate-y-0' : 'translate-y-[calc(100%+2rem)]'}`}
       >
-        {/* Progress bar - desktop only, sits on top edge */}
-        <div
-          className="group relative hidden h-1 cursor-pointer rounded-t-2xl transition-all hover:h-1.5 sm:block"
-          onClick={handleProgressClick}
-          role="progressbar"
-          aria-valuenow={progress}
-          aria-valuemin={0}
-          aria-valuemax={duration}
-          style={{
-            background: `linear-gradient(to right, #E22A30 ${progressPercent}%, rgba(255,255,255,0.1) ${progressPercent}%)`,
-          }}
-        />
-
-        <div className="flex items-center gap-3 px-3 py-2.5 sm:px-4">
+        <div className="flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
           {/* Banner image */}
           {currentSermon.artworkUrl && (
             <Link href={`/sermons/${currentSermon.slug}`} className="relative hidden shrink-0 overflow-hidden rounded-lg sm:block">
@@ -116,7 +103,7 @@ export function AudioPlayerBar() {
             </Link>
           )}
 
-          {/* Sermon info */}
+          {/* Sermon info + desktop progress */}
           <div className="min-w-0 flex-1">
             <Link
               href={`/sermons/${currentSermon.slug}`}
@@ -145,6 +132,33 @@ export function AudioPlayerBar() {
                 </>
               )}
             </p>
+
+            {/* Desktop seek bar + timestamps */}
+            <div className="mt-2 hidden items-center gap-2 sm:flex">
+              <span className="w-9 text-right text-[11px] tabular-nums text-warm-white/40">
+                {formatTime(progress)}
+              </span>
+              <div
+                className="group relative h-1 flex-1 cursor-pointer rounded-full bg-white/10"
+                onClick={handleProgressClick}
+                role="progressbar"
+                aria-valuenow={progress}
+                aria-valuemin={0}
+                aria-valuemax={duration}
+              >
+                <div
+                  className="absolute inset-y-0 left-0 rounded-full bg-brand-red transition-[width] duration-150"
+                  style={{ width: `${progressPercent}%` }}
+                />
+                <div
+                  className="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-warm-white opacity-0 shadow transition-opacity group-hover:opacity-100"
+                  style={{ left: `${progressPercent}%`, marginLeft: '-6px' }}
+                />
+              </div>
+              <span className="w-9 text-[11px] tabular-nums text-warm-white/40">
+                {formatTime(duration)}
+              </span>
+            </div>
           </div>
 
           {/* Controls */}
@@ -152,15 +166,13 @@ export function AudioPlayerBar() {
             {/* Skip back */}
             <button
               onClick={skipBack}
-              className="rounded-full p-2 text-warm-white/60 transition-colors hover:text-warm-white sm:p-1.5"
+              className="relative rounded-full p-2.5 text-warm-white/60 transition-colors hover:text-warm-white sm:p-1.5"
               aria-label="Skip back 15 seconds"
             >
-              <svg className="h-6 w-6 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="currentColor">
+              <svg className="h-8 w-8 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M11.99 5V1l-5 5 5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6h-2c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
-                <text x="12" y="15.5" fontSize="7.5" textAnchor="middle" dominantBaseline="central" fill="currentColor">
-                  15
-                </text>
               </svg>
+              <span className="absolute inset-0 flex items-center justify-center pt-2 text-[10px] font-bold leading-none sm:pt-[5px] sm:text-[8px]">15</span>
             </button>
 
             {/* Play/Pause */}
@@ -172,14 +184,14 @@ export function AudioPlayerBar() {
             >
               {/* Loading ring */}
               {isLoading && (
-                <svg className="pointer-events-none absolute -inset-0.5 animate-spin" viewBox="0 0 48 48">
+                <svg className="pointer-events-none absolute h-[calc(100%+4px)] w-[calc(100%+4px)] animate-spin" viewBox="0 0 48 48">
                   <circle cx="24" cy="24" r="22" fill="none" stroke="rgba(226,42,48,0.2)" strokeWidth="2.5" />
                   <circle cx="24" cy="24" r="22" fill="none" stroke="#E22A30" strokeWidth="2.5" strokeLinecap="round" strokeDasharray={138.2} strokeDashoffset={103.7} />
                 </svg>
               )}
               {/* Mobile progress ring */}
               {!isLoading && progressPercent > 0 && (
-                <svg className="pointer-events-none absolute -inset-0.5 sm:hidden" viewBox="0 0 48 48">
+                <svg className="pointer-events-none absolute h-[calc(100%+4px)] w-[calc(100%+4px)] sm:hidden" viewBox="0 0 48 48">
                   <circle cx="24" cy="24" r="22" fill="none" stroke="rgba(226,42,48,0.2)" strokeWidth="2.5" />
                   <circle
                     cx="24" cy="24" r="22"
@@ -209,30 +221,23 @@ export function AudioPlayerBar() {
             {/* Skip forward */}
             <button
               onClick={skipForward}
-              className="rounded-full p-2 text-warm-white/60 transition-colors hover:text-warm-white sm:p-1.5"
+              className="relative rounded-full p-2.5 text-warm-white/60 transition-colors hover:text-warm-white sm:p-1.5"
               aria-label="Skip forward 15 seconds"
             >
-              <svg className="h-6 w-6 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="currentColor">
+              <svg className="h-8 w-8 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12.01 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z" />
-                <text x="12" y="15.5" fontSize="7.5" textAnchor="middle" dominantBaseline="central" fill="currentColor">
-                  15
-                </text>
               </svg>
+              <span className="absolute inset-0 flex items-center justify-center pt-2 text-[10px] font-bold leading-none sm:pt-[5px] sm:text-[8px]">15</span>
             </button>
 
             {/* Speed */}
             <button
               onClick={cycleSpeed}
-              className="hidden rounded-md px-1.5 py-0.5 text-xs font-medium text-warm-white/50 transition-colors hover:text-warm-white sm:block"
+              className="rounded-md px-1.5 py-0.5 text-xs font-medium text-warm-white/50 transition-colors hover:text-warm-white"
               aria-label={`Playback speed ${playbackSpeed}x`}
             >
               {playbackSpeed}x
             </button>
-
-            {/* Time */}
-            <span className="hidden min-w-[70px] text-right text-[11px] tabular-nums text-warm-white/40 sm:block">
-              {formatTime(progress)} / {formatTime(duration)}
-            </span>
 
             {/* Close */}
             <button
