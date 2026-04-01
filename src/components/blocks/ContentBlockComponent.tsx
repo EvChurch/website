@@ -50,7 +50,7 @@ export function ContentBlockComponent({
           {isCenter || !hasImage ? (
             <div className={isCenter ? 'mx-auto max-w-3xl text-center' : ''}>
               {heading && (
-                <h2 className="mt-3 text-h2 font-normal leading-heading text-brand-black">
+                <h2 className="mt-3 text-h2 leading-heading text-brand-black">
                   {renderHighlightedHeading(heading)}
                 </h2>
               )}
@@ -77,7 +77,7 @@ export function ContentBlockComponent({
             >
               <div className="lg:[direction:ltr]">
                 {heading && (
-                  <h2 className="font-serif text-h2 font-normal leading-heading text-brand-black">
+                  <h2 className="text-h2 leading-heading text-brand-black">
                     {heading}
                   </h2>
                 )}

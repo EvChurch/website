@@ -85,7 +85,7 @@ export function CTABlockComponent({
       <div className="relative mx-auto max-w-2xl text-center">
         <ScrollReveal>
           <h2
-            className={`font-serif text-h1 font-normal leading-display ${
+            className={`text-h1 leading-display ${
               isColored ? 'text-white' : 'text-brand-black'
             }`}
           >

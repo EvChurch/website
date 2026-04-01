@@ -37,7 +37,7 @@ export function PageHeaderBlockComponent({
           )}
 
           <h1
-            className={`mt-3 font-serif text-display font-normal leading-display ${
+            className={`mt-3 text-display leading-display ${
               isDark ? 'text-white' : 'text-brand-black'
             }`}
           >

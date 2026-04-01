@@ -24,7 +24,7 @@ export default function PrivacyPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rich-red">
           Legal
         </p>
-        <h1 className="mt-3 font-serif text-display font-normal leading-display text-brand-black">
+        <h1 className="mt-3 text-display leading-display text-brand-black">
           Privacy Policy
         </h1>
         <p className="mt-4 text-sm text-mid-grey">
@@ -33,7 +33,7 @@ export default function PrivacyPage() {
 
         <div className="mt-12 space-y-10 text-[0.9375rem] leading-relaxed text-dark-grey">
           <div>
-            <h2 className="font-serif text-h3 font-normal text-brand-black">
+            <h2 className="text-h3 text-brand-black">
               1. Introduction
             </h2>
             <p className="mt-4">
@@ -45,7 +45,7 @@ export default function PrivacyPage() {
           </div>
 
           <div>
-            <h2 className="font-serif text-h3 font-normal text-brand-black">
+            <h2 className="text-h3 text-brand-black">
               2. Information We Collect
             </h2>
             <p className="mt-4">
@@ -63,7 +63,7 @@ export default function PrivacyPage() {
           </div>
 
           <div>
-            <h2 className="font-serif text-h3 font-normal text-brand-black">
+            <h2 className="text-h3 text-brand-black">
               3. How We Use Your Information
             </h2>
             <p className="mt-4">
@@ -80,7 +80,7 @@ export default function PrivacyPage() {
           </div>
 
           <div>
-            <h2 className="font-serif text-h3 font-normal text-brand-black">
+            <h2 className="text-h3 text-brand-black">
               4. Information Sharing
             </h2>
             <p className="mt-4">
@@ -92,7 +92,7 @@ export default function PrivacyPage() {
           </div>
 
           <div>
-            <h2 className="font-serif text-h3 font-normal text-brand-black">
+            <h2 className="text-h3 text-brand-black">
               5. Data Security
             </h2>
             <p className="mt-4">
@@ -104,7 +104,7 @@ export default function PrivacyPage() {
           </div>
 
           <div>
-            <h2 className="font-serif text-h3 font-normal text-brand-black">
+            <h2 className="text-h3 text-brand-black">
               6. Your Rights
             </h2>
             <p className="mt-4">
@@ -119,7 +119,7 @@ export default function PrivacyPage() {
           </div>
 
           <div>
-            <h2 className="font-serif text-h3 font-normal text-brand-black">
+            <h2 className="text-h3 text-brand-black">
               7. Cookies
             </h2>
             <p className="mt-4">
@@ -130,7 +130,7 @@ export default function PrivacyPage() {
           </div>
 
           <div>
-            <h2 className="font-serif text-h3 font-normal text-brand-black">
+            <h2 className="text-h3 text-brand-black">
               8. Changes to This Policy
             </h2>
             <p className="mt-4">
@@ -140,7 +140,7 @@ export default function PrivacyPage() {
           </div>
 
           <div>
-            <h2 className="font-serif text-h3 font-normal text-brand-black">
+            <h2 className="text-h3 text-brand-black">
               9. Contact Us
             </h2>
             <p className="mt-4">

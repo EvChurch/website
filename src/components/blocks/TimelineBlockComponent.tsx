@@ -43,7 +43,7 @@ export function TimelineBlockComponent({
               )}
               {heading && (
                 <h2
-                  className={`mt-4 font-serif text-h2 font-normal leading-heading ${
+                  className={`mt-4 text-h2 leading-heading ${
                     isDark ? 'text-white' : 'text-brand-black'
                   }`}
                 >

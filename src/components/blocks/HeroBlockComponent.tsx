@@ -131,14 +131,14 @@ function HeroContent({
 
       {semanticH1 ? (
         <h2
-          className="animate-fade-in-up mt-6 font-serif text-display font-normal leading-display text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
+          className="animate-fade-in-up mt-6 text-display leading-display text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
           style={{ animationDelay: '200ms' }}
         >
           {renderHeading(heading, highlightedText, keyColor)}
         </h2>
       ) : (
         <h1
-          className="animate-fade-in-up mt-6 font-serif text-display font-normal leading-display text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
+          className="animate-fade-in-up mt-6 text-display leading-display text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
           style={{ animationDelay: '200ms' }}
         >
           {renderHeading(heading, highlightedText, keyColor)}

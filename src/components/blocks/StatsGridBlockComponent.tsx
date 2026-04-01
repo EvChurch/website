@@ -35,7 +35,7 @@ export function StatsGridBlockComponent({
                 </p>
               )}
               {heading && (
-                <h2 className="mt-4 font-serif text-h2 font-normal leading-heading text-brand-black">
+                <h2 className="mt-4 text-h2 leading-heading text-brand-black">
                   {heading}
                 </h2>
               )}

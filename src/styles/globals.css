@@ -148,9 +148,10 @@
     appearance: none;
   }
 
-  /* Heading defaults — Utopia serif for display, Proxima for smaller */
+  /* Heading defaults — Proxima Nova Bold for all headings */
   h1, h2 {
-    font-family: var(--font-serif);
+    font-family: var(--font-sans);
+    font-weight: 700;
     letter-spacing: -0.02em;
   }
 

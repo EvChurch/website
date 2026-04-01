@@ -189,7 +189,7 @@ export default async function CampusPage({
               {campus.location}
             </p>
             <h1
-              className="animate-fade-in-up mt-6 font-serif text-display font-normal leading-display text-white"
+              className="animate-fade-in-up mt-6 text-display leading-display text-white"
               style={{ animationDelay: '200ms' }}
             >
               Ev{' '}
@@ -224,7 +224,7 @@ export default async function CampusPage({
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rich-red">
                   About this campus
                 </p>
-                <h2 className="mt-3 font-serif text-h2 font-normal leading-heading text-brand-black">
+                <h2 className="mt-3 text-h2 leading-heading text-brand-black">
                   Welcome to {campus.brandName}
                 </h2>
                 <p className="mt-6 text-lg leading-body-lg text-dark-grey">
@@ -276,7 +276,7 @@ export default async function CampusPage({
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rich-red">
               Life at {campus.brandName}
             </p>
-            <h2 className="mt-3 font-serif text-h2 font-normal leading-heading text-brand-black">
+            <h2 className="mt-3 text-h2 leading-heading text-brand-black">
               See what we are about
             </h2>
           </ScrollReveal>
@@ -322,7 +322,7 @@ export default async function CampusPage({
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rich-red">
                 Find us
               </p>
-              <h2 className="mt-3 font-serif text-h2 font-normal leading-heading text-brand-black">
+              <h2 className="mt-3 text-h2 leading-heading text-brand-black">
                 Getting here
               </h2>
               <p className="mt-6 text-lg leading-body-lg text-dark-grey">
@@ -357,7 +357,7 @@ export default async function CampusPage({
 
         <div className="relative mx-auto max-w-2xl text-center">
           <ScrollReveal>
-            <h2 className="font-serif text-h1 font-normal leading-display text-white">
+            <h2 className="text-h1 leading-display text-white">
               See you this Sunday
             </h2>
             <p className="mt-5 text-lg leading-body-lg text-light-red-3">

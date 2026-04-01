@@ -102,7 +102,7 @@ export function CardGridBlockComponent({ dataSource, campusFilter }: CardGridBlo
     <section className="bg-warm-white py-20 lg:py-28">
       <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
         <ScrollReveal>
-          <h2 className="text-center font-serif text-[length:var(--text-h2)] leading-[var(--leading-heading)] text-brand-black">
+          <h2 className="text-center text-[length:var(--text-h2)] leading-[var(--leading-heading)] text-brand-black">
             {dataSourceLabels[dataSource]}
           </h2>
         </ScrollReveal>

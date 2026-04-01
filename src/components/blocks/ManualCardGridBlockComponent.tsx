@@ -139,7 +139,7 @@ function ImageOverlayCard({ card, index, priority }: { card: ManualCard; index: 
             {card.eyebrow}
           </p>
         )}
-        <h3 className="mt-2 font-serif text-h2 font-normal leading-tight text-white">{card.title}</h3>
+        <h3 className="mt-2 text-h2 leading-tight text-white">{card.title}</h3>
         {card.subtitle && (
           <p className="mt-2 text-sm font-medium text-warm-white/70">{card.subtitle}</p>
         )}
@@ -226,7 +226,7 @@ function ImageTopCard({ card, index, priority }: { card: ManualCard; index: numb
         </div>
       ) : (
         <div className="bg-brand-black p-7">
-          <h3 className="font-serif text-h4 font-normal text-white">{card.title}</h3>
+          <h3 className="text-h4 text-white">{card.title}</h3>
           {card.description && (
             <p className="mt-2 text-sm leading-relaxed text-warm-grey/60">{card.description}</p>
           )}
@@ -282,7 +282,7 @@ function AlternatingRowCard({ card, index }: { card: ManualCard; index: number }
               {card.eyebrow}
             </p>
           )}
-          <h2 className="mt-3 font-serif text-h3 font-normal leading-heading text-brand-black">
+          <h2 className="mt-3 text-h3 leading-heading text-brand-black">
             {card.title}
           </h2>
           {card.description && (
@@ -328,12 +328,12 @@ export function ManualCardGridBlockComponent({
               </p>
             )}
             {heading && (
-              <h2 className="mt-3 text-h2 font-normal leading-heading text-brand-black">
+              <h2 className="mt-3 text-h2 leading-heading text-brand-black">
                 {heading}
               </h2>
             )}
             {description && isTeamStyle ? (
-              <h3 className="mt-8 text-center font-serif text-h3 font-normal text-brand-black">
+              <h3 className="mt-8 text-center text-h3 text-brand-black">
                 {description}
               </h3>
             ) : description ? (

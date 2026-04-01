@@ -108,7 +108,7 @@ export default function HealthSafetyPage() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rich-red">
                 Your safety matters
               </p>
-              <h1 className="mt-3 font-serif text-display font-normal leading-display text-brand-black">
+              <h1 className="mt-3 text-display leading-display text-brand-black">
                 Health &amp; Safety
               </h1>
               <p className="mt-6 text-lg leading-body-lg text-dark-grey">
@@ -129,7 +129,7 @@ export default function HealthSafetyPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rich-red">
               Our commitment
             </p>
-            <h2 className="mt-3 font-serif text-h2 font-normal leading-heading text-brand-black">
+            <h2 className="mt-3 text-h2 leading-heading text-brand-black">
               Policies and resources
             </h2>
           </ScrollReveal>
@@ -158,7 +158,7 @@ export default function HealthSafetyPage() {
       <section className="bg-warm-white px-5 py-24 lg:px-8 lg:py-32">
         <div className="mx-auto max-w-2xl text-center">
           <ScrollReveal>
-            <h2 className="font-serif text-h2 font-normal leading-heading text-brand-black">
+            <h2 className="text-h2 leading-heading text-brand-black">
               Have a concern?
             </h2>
             <p className="mt-5 text-lg leading-body-lg text-dark-grey">
