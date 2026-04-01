@@ -135,7 +135,7 @@ function ImageOverlayCard({ card, index, priority }: { card: ManualCard; index: 
       {/* Content anchored to bottom */}
       <div className="relative flex h-full flex-col justify-end p-7">
         {card.eyebrow && (
-          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-light-red-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-warm-white/70">
             {card.eyebrow}
           </p>
         )}
@@ -147,7 +147,7 @@ function ImageOverlayCard({ card, index, priority }: { card: ManualCard; index: 
           <p className="mt-1 text-xs text-warm-white/50">{card.address}</p>
         )}
         {card.linkLabel && (
-          <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-white transition-colors group-hover:text-light-red-2">
+          <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-white transition-colors group-hover:text-warm-white">
             {card.linkLabel}
             <ArrowSvg />
           </span>
@@ -231,7 +231,7 @@ function ImageTopCard({ card, index, priority }: { card: ManualCard; index: numb
             <p className="mt-2 text-sm leading-relaxed text-warm-grey/60">{card.description}</p>
           )}
           {card.linkLabel && (
-            <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-light-red-2 transition-colors group-hover:text-white">
+            <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-warm-white/80 transition-colors group-hover:text-white">
               {card.linkLabel}
               <ArrowSvg />
             </span>

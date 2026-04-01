@@ -35,7 +35,7 @@ export function TimelineBlockComponent({
               {eyebrow && (
                 <p
                   className={`text-xs font-semibold uppercase tracking-[0.2em] ${
-                    isDark ? 'text-light-red-2' : 'text-rich-red'
+                    isDark ? 'text-warm-white/70' : 'text-rich-red'
                   }`}
                 >
                   {eyebrow}

@@ -16,7 +16,7 @@ export function PageHeaderBlockComponent({
   theme = 'light',
 }: PageHeaderBlockProps) {
   const isDark = theme === 'dark'
-  const eyebrowColorClass = keyColor ? '' : isDark ? 'text-light-red-2' : 'text-rich-red'
+  const eyebrowColorClass = keyColor ? '' : isDark ? 'text-warm-white/70' : 'text-rich-red'
   const eyebrowColorStyle = keyColor ? { color: keyColor } : undefined
 
   return (

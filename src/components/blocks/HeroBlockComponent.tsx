@@ -51,7 +51,7 @@ function renderHeading(heading: string, highlightedText?: string | null, keyColo
     <>
       {parts[0]}
       <span
-        className={`italic ${keyColor ? '' : 'text-light-red-3'}`}
+        className={`italic ${keyColor ? '' : 'text-warm-white'}`}
         style={keyColor ? { color: keyColor } : undefined}
       >
         {highlightedText}
@@ -108,7 +108,7 @@ function HeroContent({
   HeroBlockProps,
   'eyebrow' | 'heading' | 'highlightedText' | 'subtitle' | 'supportingText' | 'buttons' | 'keyColor' | 'semanticH1'
 >) {
-  const eyebrowColorClass = keyColor ? '' : 'text-light-red-2'
+  const eyebrowColorClass = keyColor ? '' : 'text-warm-white/80'
   const eyebrowColorStyle = keyColor ? { color: keyColor } : undefined
 
   return (
