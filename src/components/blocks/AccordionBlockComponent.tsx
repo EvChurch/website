@@ -88,7 +88,7 @@ export function AccordionBlockComponent({
     <section className="bg-white px-5 py-24 lg:px-8 lg:py-32">
       <div className="mx-auto max-w-3xl">
         {heading && (
-          <h2 className="mb-10 text-center font-serif text-h2 font-normal leading-heading text-brand-black">
+          <h2 className="mb-10 text-center text-h2 leading-heading text-brand-black">
             {heading}
           </h2>
         )}

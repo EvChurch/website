@@ -86,7 +86,7 @@ export default function BlogPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rich-red">
               Stories and reflections
             </p>
-            <h1 className="mt-3 font-serif text-display font-normal leading-display text-brand-black">
+            <h1 className="mt-3 text-display leading-display text-brand-black">
               Blog
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-body-lg text-dark-grey">
@@ -117,7 +117,7 @@ export default function BlogPage() {
                     <span className="text-xs font-semibold uppercase tracking-[0.15em] text-rich-red">
                       {post.category}
                     </span>
-                    <h2 className="mt-2 font-serif text-h4 font-normal leading-snug text-brand-black transition-colors group-hover:text-rich-red">
+                    <h2 className="mt-2 text-h4 leading-snug text-brand-black transition-colors group-hover:text-rich-red">
                       {post.title}
                     </h2>
                     <p className="mt-3 text-sm leading-relaxed text-mid-grey">

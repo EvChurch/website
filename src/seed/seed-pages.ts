@@ -1466,7 +1466,7 @@ async function seed() {
         eyebrow: 'Next steps',
         heading: 'Find your place',
         description: 'Whether you are exploring faith, looking to connect with others, or want to get involved, there is a next step for you. Discover courses, groups, and programs designed to help you grow.',
-        theme: 'dark',
+        theme: 'light',
       },
       {
         blockType: 'manualCardGrid',

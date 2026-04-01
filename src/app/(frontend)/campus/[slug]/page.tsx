@@ -183,17 +183,17 @@ export default async function CampusPage({
         <div className="relative mx-auto max-w-[80rem] px-5 py-32 lg:px-8 lg:py-40">
           <div className="max-w-2xl">
             <p
-              className="animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] text-light-red-2"
+              className="animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] text-warm-white/70"
               style={{ animationDelay: '100ms' }}
             >
               {campus.location}
             </p>
             <h1
-              className="animate-fade-in-up mt-6 font-serif text-display font-normal leading-display text-white"
+              className="animate-fade-in-up mt-6 text-display leading-display text-white"
               style={{ animationDelay: '200ms' }}
             >
               Ev{' '}
-              <span className="italic text-light-red-3">{campus.name}</span>
+              <span className="italic text-warm-white">{campus.name}</span>
             </h1>
             <p
               className="animate-fade-in-up mt-4 text-xl text-warm-grey/70"
@@ -205,7 +205,7 @@ export default async function CampusPage({
               className="animate-fade-in-up mt-8 inline-flex items-center gap-3 rounded-lg bg-white/10 px-5 py-3 backdrop-blur-sm"
               style={{ animationDelay: '400ms' }}
             >
-              <svg className="h-5 w-5 text-light-red-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
+              <svg className="h-5 w-5 text-warm-white/80" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <span className="text-sm font-semibold text-white">{campus.time}</span>
@@ -224,7 +224,7 @@ export default async function CampusPage({
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rich-red">
                   About this campus
                 </p>
-                <h2 className="mt-3 font-serif text-h2 font-normal leading-heading text-brand-black">
+                <h2 className="mt-3 text-h2 leading-heading text-brand-black">
                   Welcome to {campus.brandName}
                 </h2>
                 <p className="mt-6 text-lg leading-body-lg text-dark-grey">
@@ -276,7 +276,7 @@ export default async function CampusPage({
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rich-red">
               Life at {campus.brandName}
             </p>
-            <h2 className="mt-3 font-serif text-h2 font-normal leading-heading text-brand-black">
+            <h2 className="mt-3 text-h2 leading-heading text-brand-black">
               See what we are about
             </h2>
           </ScrollReveal>
@@ -322,7 +322,7 @@ export default async function CampusPage({
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rich-red">
                 Find us
               </p>
-              <h2 className="mt-3 font-serif text-h2 font-normal leading-heading text-brand-black">
+              <h2 className="mt-3 text-h2 leading-heading text-brand-black">
                 Getting here
               </h2>
               <p className="mt-6 text-lg leading-body-lg text-dark-grey">
@@ -357,10 +357,10 @@ export default async function CampusPage({
 
         <div className="relative mx-auto max-w-2xl text-center">
           <ScrollReveal>
-            <h2 className="font-serif text-h1 font-normal leading-display text-white">
+            <h2 className="text-h1 leading-display text-white">
               See you this Sunday
             </h2>
-            <p className="mt-5 text-lg leading-body-lg text-light-red-3">
+            <p className="mt-5 text-lg leading-body-lg text-warm-white/90">
               We would love to welcome you to {campus.brandName}.
               Come as you are. Everyone has a place here.
             </p>

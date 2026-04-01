@@ -103,7 +103,7 @@ export function FeatureGridBlockComponent({
                   </p>
                 )}
                 {heading && (
-                  <h2 className="mt-3 font-serif text-h2 font-normal leading-heading text-brand-black">
+                  <h2 className="mt-3 text-h2 leading-heading text-brand-black">
                     {heading}
                   </h2>
                 )}
@@ -128,7 +128,7 @@ export function FeatureGridBlockComponent({
                       />
                     )}
                     <div>
-                      <h3 className="font-serif text-h3 font-normal text-brand-black">
+                      <h3 className="text-h3 text-brand-black">
                         {item.title}
                       </h3>
                       {item.description && (
@@ -163,7 +163,7 @@ export function FeatureGridBlockComponent({
                 </p>
               )}
               {heading && (
-                <h2 className="mx-auto mt-3 max-w-2xl font-serif text-h2 font-normal leading-heading text-brand-black">
+                <h2 className="mx-auto mt-3 max-w-2xl text-h2 leading-heading text-brand-black">
                   {heading}
                 </h2>
               )}

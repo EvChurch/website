@@ -59,13 +59,13 @@ export default async function BlogPostPage({ params }: Props) {
         <div className="relative mx-auto w-full max-w-[80rem] px-5 pb-16 pt-40 lg:px-8 lg:pb-20">
           <div className="mx-auto max-w-3xl">
             <p
-              className="animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] text-light-red-2"
+              className="animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] text-warm-white/70"
               style={{ animationDelay: '100ms' }}
             >
               Blog
             </p>
             <h1
-              className="animate-fade-in-up mt-4 font-serif text-h1 font-normal leading-display text-white lg:text-display"
+              className="animate-fade-in-up mt-4 text-h1 leading-display text-white lg:text-display"
               style={{ animationDelay: '200ms' }}
             >
               {title}
@@ -101,7 +101,7 @@ export default async function BlogPostPage({ params }: Props) {
                 nisi ut aliquip ex ea commodo consequat.
               </p>
 
-              <h2 className="font-serif text-h3 font-normal text-brand-black pt-4">
+              <h2 className="text-h3 text-brand-black pt-4">
                 A section heading
               </h2>
 
@@ -124,7 +124,7 @@ export default async function BlogPostPage({ params }: Props) {
                 dicta sunt explicabo.
               </p>
 
-              <h2 className="font-serif text-h3 font-normal text-brand-black pt-4">
+              <h2 className="text-h3 text-brand-black pt-4">
                 Another section
               </h2>
 

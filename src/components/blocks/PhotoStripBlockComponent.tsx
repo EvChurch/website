@@ -105,14 +105,44 @@ export function PhotoStripBlockComponent({ layout: layoutProp, images }: PhotoSt
   }
 
   // horizontalScroll layout
-  // Mobile: auto-scrolling marquee loop
-  // Desktop: staggered height flex row
-  const marqueeImages = [...images, ...images]
+  // Auto-scrolling marquee on both mobile and desktop
+  // Falls back to static staggered grid when fewer than 5 images
+  const useMarquee = images.length >= 5
+  const marqueeImages = useMarquee ? [...images, ...images] : images
+
+  if (!useMarquee) {
+    // Static fallback for few images
+    return (
+      <section className="overflow-hidden bg-white px-5 py-16 lg:px-8 lg:py-24">
+        <div className="mx-auto max-w-[80rem]">
+          <div className="flex items-start justify-center gap-4">
+            {images.map((img, i) => {
+              const heightClass = heightPatterns[i % heightPatterns.length]
+              const marginClass = marginPatterns[i % marginPatterns.length]
+              return (
+                <ScrollReveal key={i} delay={delayPatterns[i % delayPatterns.length]}>
+                  <MediaImage
+                    media={img.image}
+                    width={600}
+                    height={800}
+                    sizes="(max-width: 640px) 70vw, 300px"
+                    className={`${heightClass} ${marginClass} w-auto shrink-0 rounded-lg object-cover`}
+                  />
+                </ScrollReveal>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section className="overflow-hidden bg-white py-16 lg:py-24">
-      {/* Mobile: auto-scrolling marquee with staggered heights */}
-      <div className="flex items-start gap-3 lg:hidden" style={{ width: 'max-content', animation: 'marquee 50s linear infinite' }}>
+      <div
+        className="marquee-strip flex items-start gap-3 lg:gap-4"
+        style={{ width: 'max-content' }}
+      >
         {marqueeImages.map((img, i) => {
           const heightClass = heightPatterns[i % heightPatterns.length]
           const marginClass = marginPatterns[i % marginPatterns.length]
@@ -120,36 +150,32 @@ export function PhotoStripBlockComponent({ layout: layoutProp, images }: PhotoSt
             <MediaImage
               key={i}
               media={img.image}
-              width={300}
-              height={400}
-              sizes="70vw"
+              width={600}
+              height={800}
+              sizes="(max-width: 1024px) 70vw, 300px"
               className={`${heightClass} ${marginClass} w-auto shrink-0 rounded-lg object-cover`}
             />
           )
         })}
       </div>
-      <style>{`@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
-
-      {/* Desktop: staggered height row */}
-      <div className="-mx-2 hidden items-start gap-4 lg:flex">
-        {images.map((img, i) => {
-          const heightClass = heightPatterns[i % heightPatterns.length]
-          const marginClass = marginPatterns[i % marginPatterns.length]
-          const delay = delayPatterns[i % delayPatterns.length]
-
-          return (
-            <ScrollReveal key={i} delay={delay}>
-              <MediaImage
-                media={img.image}
-                width={600}
-                height={800}
-                sizes="300px"
-                className={`${heightClass} ${marginClass} w-auto shrink-0 rounded-lg object-cover transition-all duration-500 hover:scale-105 hover:-rotate-1 hover:shadow-xl hover:shadow-brand-black/10`}
-              />
-            </ScrollReveal>
-          )
-        })}
-      </div>
+      <style>{`
+        .marquee-strip {
+          animation: marquee 50s linear infinite;
+        }
+        @media (min-width: 1024px) {
+          .marquee-strip { animation-duration: 70s; }
+        }
+        .marquee-strip:hover {
+          animation-play-state: paused;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .marquee-strip { animation: none; }
+        }
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+      `}</style>
     </section>
   )
 }

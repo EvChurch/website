@@ -16,7 +16,7 @@ export function PageHeaderBlockComponent({
   theme = 'light',
 }: PageHeaderBlockProps) {
   const isDark = theme === 'dark'
-  const eyebrowColorClass = keyColor ? '' : isDark ? 'text-light-red-2' : 'text-rich-red'
+  const eyebrowColorClass = keyColor ? '' : isDark ? 'text-warm-white/70' : 'text-rich-red'
   const eyebrowColorStyle = keyColor ? { color: keyColor } : undefined
 
   return (
@@ -37,7 +37,7 @@ export function PageHeaderBlockComponent({
           )}
 
           <h1
-            className={`mt-3 font-serif text-display font-normal leading-display ${
+            className={`mt-3 text-display leading-display ${
               isDark ? 'text-white' : 'text-brand-black'
             }`}
           >

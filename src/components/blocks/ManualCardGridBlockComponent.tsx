@@ -135,11 +135,11 @@ function ImageOverlayCard({ card, index, priority }: { card: ManualCard; index: 
       {/* Content anchored to bottom */}
       <div className="relative flex h-full flex-col justify-end p-7">
         {card.eyebrow && (
-          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-light-red-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-warm-white/70">
             {card.eyebrow}
           </p>
         )}
-        <h3 className="mt-2 font-serif text-h2 font-normal leading-tight text-white">{card.title}</h3>
+        <h3 className="mt-2 text-h2 leading-tight text-white">{card.title}</h3>
         {card.subtitle && (
           <p className="mt-2 text-sm font-medium text-warm-white/70">{card.subtitle}</p>
         )}
@@ -147,7 +147,7 @@ function ImageOverlayCard({ card, index, priority }: { card: ManualCard; index: 
           <p className="mt-1 text-xs text-warm-white/50">{card.address}</p>
         )}
         {card.linkLabel && (
-          <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-white transition-colors group-hover:text-light-red-2">
+          <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-white transition-colors group-hover:text-warm-white">
             {card.linkLabel}
             <ArrowSvg />
           </span>
@@ -226,12 +226,12 @@ function ImageTopCard({ card, index, priority }: { card: ManualCard; index: numb
         </div>
       ) : (
         <div className="bg-brand-black p-7">
-          <h3 className="font-serif text-h4 font-normal text-white">{card.title}</h3>
+          <h3 className="text-h4 text-white">{card.title}</h3>
           {card.description && (
             <p className="mt-2 text-sm leading-relaxed text-warm-grey/60">{card.description}</p>
           )}
           {card.linkLabel && (
-            <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-light-red-2 transition-colors group-hover:text-white">
+            <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-warm-white/80 transition-colors group-hover:text-white">
               {card.linkLabel}
               <ArrowSvg />
             </span>
@@ -282,7 +282,7 @@ function AlternatingRowCard({ card, index }: { card: ManualCard; index: number }
               {card.eyebrow}
             </p>
           )}
-          <h2 className="mt-3 font-serif text-h3 font-normal leading-heading text-brand-black">
+          <h2 className="mt-3 text-h3 leading-heading text-brand-black">
             {card.title}
           </h2>
           {card.description && (
@@ -315,9 +315,10 @@ export function ManualCardGridBlockComponent({
   const columns = Number(columnsProp) || 3
   const isAlternating = cardStyle === 'alternatingRows'
   const isTeamStyle = cardStyle === 'imageTop' && cards.every(c => !c.description && !c.linkLabel)
+  const isContinuation = !!description && !heading && !eyebrow
 
   return (
-    <section className="bg-warm-white px-5 py-24 lg:px-8 lg:py-32">
+    <section className={`bg-warm-white px-5 py-24 lg:px-8 lg:py-32 ${isContinuation ? 'border-t border-warm-grey/60' : ''}`}>
       <div className="mx-auto max-w-[80rem]">
         {/* Section header — left aligned */}
         {(eyebrow || heading || description) && (
@@ -328,12 +329,12 @@ export function ManualCardGridBlockComponent({
               </p>
             )}
             {heading && (
-              <h2 className="mt-3 text-h2 font-normal leading-heading text-brand-black">
+              <h2 className="mt-3 text-h2 leading-heading text-brand-black">
                 {heading}
               </h2>
             )}
             {description && isTeamStyle ? (
-              <h3 className="mt-8 text-center font-serif text-h3 font-normal text-brand-black">
+              <h3 className="mt-8 text-center text-h3 text-brand-black">
                 {description}
               </h3>
             ) : description ? (

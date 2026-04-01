@@ -35,7 +35,7 @@ export function TimelineBlockComponent({
               {eyebrow && (
                 <p
                   className={`text-xs font-semibold uppercase tracking-[0.2em] ${
-                    isDark ? 'text-light-red-2' : 'text-rich-red'
+                    isDark ? 'text-warm-white/70' : 'text-rich-red'
                   }`}
                 >
                   {eyebrow}
@@ -43,7 +43,7 @@ export function TimelineBlockComponent({
               )}
               {heading && (
                 <h2
-                  className={`mt-4 font-serif text-h2 font-normal leading-heading ${
+                  className={`mt-4 text-h2 leading-heading ${
                     isDark ? 'text-white' : 'text-brand-black'
                   }`}
                 >

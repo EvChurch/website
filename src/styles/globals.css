@@ -20,9 +20,9 @@
   --color-rich-red: #E22A30;
   --color-deep-red: #911223;
   --color-dark-brown: #381611;
-  --color-light-red-1: #F3716C;
-  --color-light-red-2: #FDA091;
-  --color-light-red-3: #FFD0C7;
+  --color-light-red-1: #C44850;
+  --color-light-red-2: #B33A42;
+  --color-light-red-3: #911223;
 
   /* Neutrals */
   --color-brand-black: #0F0004;
@@ -133,8 +133,8 @@
   }
 
   ::selection {
-    background-color: #FFD0C7;
-    color: #0F0004;
+    background-color: var(--color-light-red-1);
+    color: #FEFAF4;
   }
 
   button, [role="button"], [type="button"], [type="submit"], [type="reset"] {
@@ -148,9 +148,10 @@
     appearance: none;
   }
 
-  /* Heading defaults — Utopia serif for display, Proxima for smaller */
+  /* Heading defaults — Proxima Nova Bold for all headings */
   h1, h2 {
-    font-family: var(--font-serif);
+    font-family: var(--font-sans);
+    font-weight: 700;
     letter-spacing: -0.02em;
   }
 
