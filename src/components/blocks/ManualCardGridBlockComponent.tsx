@@ -318,7 +318,7 @@ export function ManualCardGridBlockComponent({
   const isContinuation = !!description && !heading && !eyebrow
 
   return (
-    <section className={`bg-warm-white px-5 py-24 lg:px-8 lg:py-32 ${isContinuation ? 'border-t border-warm-grey/60' : ''}`}>
+    <section className={`bg-warm-white px-5 py-24 lg:px-8 lg:py-32 ${isContinuation ? 'border-t-2 border-warm-grey' : ''}`}>
       <div className="mx-auto max-w-[80rem]">
         {/* Section header — left aligned */}
         {(eyebrow || heading || description) && (
