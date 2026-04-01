@@ -315,9 +315,10 @@ export function ManualCardGridBlockComponent({
   const columns = Number(columnsProp) || 3
   const isAlternating = cardStyle === 'alternatingRows'
   const isTeamStyle = cardStyle === 'imageTop' && cards.every(c => !c.description && !c.linkLabel)
+  const isContinuation = !!description && !heading && !eyebrow
 
   return (
-    <section className="bg-warm-white px-5 py-24 lg:px-8 lg:py-32">
+    <section className={`bg-warm-white px-5 py-24 lg:px-8 lg:py-32 ${isContinuation ? 'border-t border-warm-grey/60' : ''}`}>
       <div className="mx-auto max-w-[80rem]">
         {/* Section header — left aligned */}
         {(eyebrow || heading || description) && (
