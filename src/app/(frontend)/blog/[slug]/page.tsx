@@ -59,7 +59,7 @@ export default async function BlogPostPage({ params }: Props) {
         <div className="relative mx-auto w-full max-w-[80rem] px-5 pb-16 pt-40 lg:px-8 lg:pb-20">
           <div className="mx-auto max-w-3xl">
             <p
-              className="animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] text-warm-white/70"
+              className="animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] text-light-red-2"
               style={{ animationDelay: '100ms' }}
             >
               Blog

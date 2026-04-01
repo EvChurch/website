@@ -183,7 +183,7 @@ export default async function CampusPage({
         <div className="relative mx-auto max-w-[80rem] px-5 py-32 lg:px-8 lg:py-40">
           <div className="max-w-2xl">
             <p
-              className="animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] text-warm-white/70"
+              className="animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] text-light-red-2"
               style={{ animationDelay: '100ms' }}
             >
               {campus.location}
@@ -193,7 +193,7 @@ export default async function CampusPage({
               style={{ animationDelay: '200ms' }}
             >
               Ev{' '}
-              <span className="italic text-warm-white">{campus.name}</span>
+              <span className="italic text-light-red-3">{campus.name}</span>
             </h1>
             <p
               className="animate-fade-in-up mt-4 text-xl text-warm-grey/70"
@@ -205,7 +205,7 @@ export default async function CampusPage({
               className="animate-fade-in-up mt-8 inline-flex items-center gap-3 rounded-lg bg-white/10 px-5 py-3 backdrop-blur-sm"
               style={{ animationDelay: '400ms' }}
             >
-              <svg className="h-5 w-5 text-warm-white/80" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
+              <svg className="h-5 w-5 text-light-red-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <span className="text-sm font-semibold text-white">{campus.time}</span>
@@ -360,7 +360,7 @@ export default async function CampusPage({
             <h2 className="text-h1 leading-display text-white">
               See you this Sunday
             </h2>
-            <p className="mt-5 text-lg leading-body-lg text-warm-white/90">
+            <p className="mt-5 text-lg leading-body-lg text-light-red-3">
               We would love to welcome you to {campus.brandName}.
               Come as you are. Everyone has a place here.
             </p>

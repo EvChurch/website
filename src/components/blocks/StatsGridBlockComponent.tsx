@@ -56,7 +56,7 @@ export function StatsGridBlockComponent({
                 <div className="grid h-full grid-cols-1 lg:min-h-[280px] lg:grid-cols-[280px_1fr]">
                   {/* Dark stat panel — stretches to full card height via grid */}
                   <div className="flex flex-col items-center justify-center bg-brand-black px-8 py-10 text-center lg:py-12">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-warm-white/70">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-light-red-2">
                       {item.label}
                     </p>
                     <p className="mt-3 font-serif text-[3.5rem] leading-none text-white">
