@@ -95,9 +95,7 @@ export function CTABlockComponent({
           {text && (
             <p
               className={`mt-5 text-lg leading-body-lg ${
-                preset === 'primary-red' && !useCustomBg
-                  ? 'text-light-red-3'
-                  : isColored
+                isColored
                     ? 'text-white/80'
                     : 'text-dark-grey'
               }`}
