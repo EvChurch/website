@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const payload = await getPayloadClient()
-    await payload.jobs.queue({ task: 'transcriptSync', input: {} })
+    await payload.jobs.queue({ task: 'transcriptSync', input: {}, queue: 'pipeline' })
     await payload.jobs.run({ queue: 'pipeline', limit: 1 })
 
     revalidateTag(CACHE_TAGS.sermons, 'default')
