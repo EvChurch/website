@@ -191,8 +191,8 @@ export default async function SermonPage({
           return {
             campusName,
             youtubeVideoId,
-            startSeconds: (vid.startSeconds as number) ?? sermon.sermonStartSeconds ?? undefined,
-            endSeconds: (vid.endSeconds as number) ?? sermon.sermonEndSeconds ?? undefined,
+            startSeconds: (vid.sermonStartSeconds as number) ?? undefined,
+            endSeconds: (vid.sermonEndSeconds as number) ?? undefined,
           }
         })
         .filter((v): v is NonNullable<typeof v> => v !== null)

@@ -129,22 +129,28 @@ export const Sermons: CollectionConfig = {
           name: 'thumbnailUrl',
           type: 'text',
         },
+        {
+          name: 'sermonStartSeconds',
+          type: 'number',
+          admin: {
+            description: 'Sermon start time in seconds from video start',
+          },
+        },
+        {
+          name: 'sermonEndSeconds',
+          type: 'number',
+          admin: {
+            description: 'Sermon end time in seconds from video start',
+          },
+        },
+        {
+          name: 'transcript',
+          type: 'textarea',
+          admin: {
+            description: 'Transcript from YouTube auto-generated captions',
+          },
+        },
       ],
-    },
-    // Sermon segment timestamps (seconds from video start)
-    {
-      name: 'sermonStartSeconds',
-      type: 'number',
-      admin: {
-        description: 'Sermon start time in seconds from video start',
-      },
-    },
-    {
-      name: 'sermonEndSeconds',
-      type: 'number',
-      admin: {
-        description: 'Sermon end time in seconds from video start',
-      },
     },
     {
       name: 'boundariesAutoDetected',
@@ -227,13 +233,6 @@ export const Sermons: CollectionConfig = {
       },
     },
     // AI-generated content fields
-    {
-      name: 'transcript',
-      type: 'textarea',
-      admin: {
-        description: 'Transcript from YouTube auto-generated captions',
-      },
-    },
     {
       name: 'summary',
       type: 'textarea',
