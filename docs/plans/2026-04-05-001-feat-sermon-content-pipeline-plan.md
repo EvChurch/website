@@ -21,7 +21,7 @@ ev.church live-streams services on YouTube across two campus channels (Central a
 Three phases, each delivering standalone value:
 
 1. **YouTube Video Ingestion** -- Pull videos from two campus channels, match to existing sermon records, add video choice to sermon pages
-2. **Transcription & Smart Player** -- Scrape Sunflower AI transcripts, detect sermon boundaries, build a segment-only player
+2. **Transcription & Smart Player** -- Fetch YouTube auto-generated captions, detect sermon boundaries, build a segment-only player
 3. **AI Content Generation** -- Generate structured blog posts from transcripts, cross-link with sermon pages for SEO
 
 Key architectural decisions from the brainstorm (see origin):
@@ -105,7 +105,7 @@ New fields to add:
 { name: 'blogPost', type: 'relationship', relationTo: 'blog-posts' }
 ```
 
-The existing placeholder fields (`transcript`, `summary`, `discussionQuestions`, `enrichedScripture`) will be populated by the pipeline. The `transcript` field stores the raw Sunflower AI transcript for Phase 3 input. The `summary`, `discussionQuestions`, and `enrichedScripture` fields will be populated as a byproduct of blog generation and displayed on the sermon detail page.
+The existing placeholder fields (`transcript`, `summary`, `discussionQuestions`, `enrichedScripture`) will be populated by the pipeline. The `transcript` field stores the YouTube auto-generated captions for Phase 3 input. The `summary`, `discussionQuestions`, and `enrichedScripture` fields will be populated as a byproduct of blog generation and displayed on the sermon detail page.
 
 #### BlogPosts Collection (`src/collections/BlogPosts.ts`)
 
@@ -231,30 +231,26 @@ Add a video section above the existing audio player:
 
 **R6, R7, R8, R9, R10** (see origin)
 
-##### 2.1 Sunflower AI Scraper
+##### 2.1 YouTube Transcript Fetcher
 
-**New file:** `src/pipeline/sunflower-scraper.ts`
+**New file:** `src/pipeline/youtube-transcript.ts`
 
-**New dependency:** `playwright` (use Chromium only, headless)
+**New dependency:** `youtube-transcript` (lightweight, no auth needed)
+
+**Pivot note:** Originally planned to scrape Sunflower AI transcripts via Playwright, but Sunflower AI transcripts proved unreliable to access programmatically. YouTube auto-generated captions provide equivalent timestamped transcript data without the scraping complexity or 400MB Chromium dependency.
 
 Approach:
-1. Launch headless Chromium with Railway-compatible flags (`--disable-dev-shm-usage`, `--no-sandbox`)
-2. Load saved auth state from previous session if available
-3. If no saved state or expired, log in with credentials (`SUNFLOWER_EMAIL`, `SUNFLOWER_PASSWORD`)
-4. Navigate to session history page
-5. For each recent session, download the text transcript
-6. Parse the transcript format (campus identification per row, timestamped content)
-7. Save auth state for next run
+1. For each video-matched sermon, take the first YouTube video ID
+2. Fetch auto-generated English captions via the `youtube-transcript` package
+3. Format transcript with timestamp markers every ~30 seconds for boundary detection
+4. Store formatted transcript in Sermons `transcript` textarea field
 
 **Resilience strategy:**
-- Retry up to 3 times across cron cycles for transient failures
-- Distinguish "transcript not yet available" (retry later) from "scraper broken" (alert admin)
-- If login fails (credentials changed, MFA added), mark as `failed` with descriptive error
-- Store raw transcript in Sermons `transcript` textarea field
+- If captions are disabled or unavailable, mark sermon as `failed` with descriptive error
+- Retry up to 1 time via Payload job retry mechanism
+- Process up to 10 sermons per run to avoid rate limiting
 
-**Railway deployment consideration:** Playwright + Chromium adds ~400MB to the container image. Consider running the scraper as a separate Railway service or cron job if this bloats the main app unacceptably. Alternatively, use a lighter approach if Sunflower AI later provides an API or export endpoint.
-
-**Environment variables:** `SUNFLOWER_EMAIL`, `SUNFLOWER_PASSWORD`, `SUNFLOWER_BASE_URL`
+**Orchestrator:** `src/pipeline/transcript-sync-runner.ts` handles the full flow: fetch transcript, run boundary detection, update sermon record
 
 ##### 2.2 Sermon Boundary Detection
 
@@ -322,15 +318,15 @@ This replaces the simpler `SermonVideoPlayer.tsx` from Phase 1, or extends it.
 
 ##### Phase 2 Deliverables
 
-- [ ] `src/pipeline/sunflower-scraper.ts` -- Playwright scraper
-- [ ] `src/pipeline/boundary-detector.ts` -- AI-assisted boundary detection
-- [ ] `src/pipeline/transcript-scrape-runner.ts` -- orchestrator
+- [x] `src/pipeline/youtube-transcript.ts` -- YouTube caption fetcher
+- [x] `src/pipeline/boundary-detector.ts` -- AI-assisted boundary detection
+- [x] `src/pipeline/transcript-sync-runner.ts` -- orchestrator
+- [x] `src/app/api/pipeline/transcript-sync/route.ts` -- API endpoint
+- [x] New Payload task `transcriptSync`
 - [ ] `src/components/media/SermonSegmentPlayer.tsx` -- custom segment player
 - [ ] Updated sermon detail page with segment player
-- [ ] New Payload task `transcriptScrape`
-- [ ] Environment variables: Sunflower credentials
-- [ ] `playwright` dependency added
 - [ ] `@anthropic-ai/sdk` dependency added (shared with Phase 3)
+- [x] `youtube-transcript` dependency added
 
 ---
 
@@ -559,7 +555,7 @@ Following the existing pattern in `src/app/api/sync/sermons/route.ts`.
 ### Error Propagation
 
 - YouTube API errors: Retried 2x by Payload job queue, then marked `failed` with error message. Does not block other sermons.
-- Sunflower scraper errors: Retried 3x across cron cycles. Login failures vs transcript-not-ready are distinguished. Login failures stop all scraping; transcript-not-ready is per-sermon.
+- YouTube transcript errors: Retried 1x by Payload job queue. Captions disabled/unavailable is per-sermon failure. Does not block other sermons.
 - Anthropic API errors: Retried 2x. Rate limit errors use exponential backoff. Refusal responses (unlikely but possible) marked as `failed`.
 - CSB lookup failures: Graceful degradation -- show reference without full text. Does not block blog publishing.
 - Lexical JSON assembly errors: Catch and save as draft with error message.
@@ -568,7 +564,7 @@ Following the existing pattern in `src/app/api/sync/sermons/route.ts`.
 
 - **Partial pipeline failure**: Each phase advances `pipelineStatus` independently. A sermon can have video but no transcript, or transcript but no blog post. This is by design (phased delivery).
 - **Orphaned blog posts**: Handled by `afterChange` hook on Sermons. When `isPublished` flips to false, linked blog post is also unpublished.
-- **Stale transcripts**: If a transcript is re-scraped (e.g., Sunflower AI corrects it), the blog post would need regeneration. The admin "re-trigger" button handles this.
+- **Stale transcripts**: If YouTube updates auto-generated captions (e.g., improved speech recognition), the blog post would need regeneration. The admin "re-trigger" button handles this.
 - **Concurrent job execution**: Payload job queue processes jobs sequentially within a queue. No race conditions between pipeline steps for the same sermon.
 
 ### API Surface Parity
@@ -590,7 +586,7 @@ Following the existing pattern in `src/app/api/sync/sermons/route.ts`.
 - [ ] Unmatched videos are logged but don't cause errors
 
 #### Phase 2
-- [ ] Sunflower AI transcripts are scraped and stored on sermon records
+- [ ] YouTube auto-generated captions are fetched and stored on sermon records
 - [ ] Sermon boundaries (start/end seconds) are auto-detected from transcripts
 - [ ] Team members can manually adjust timestamps in Payload admin
 - [ ] Video player shows only the sermon segment with accurate progress bar
@@ -617,7 +613,7 @@ Following the existing pattern in `src/app/api/sync/sermons/route.ts`.
 - [ ] Pipeline runs on cron without manual intervention
 - [ ] YouTube API usage stays well under 10,000 daily quota
 - [ ] Anthropic API cost per sermon < $0.10
-- [ ] Sunflower scraper handles login state persistence across runs
+- [ ] YouTube transcript fetcher handles captions-disabled gracefully
 - [ ] Database migrations created for all schema changes
 - [ ] No `any` types in new code
 - [ ] Cache invalidation fires correctly after all data updates
@@ -633,10 +629,8 @@ Following the existing pattern in `src/app/api/sync/sermons/route.ts`.
 ## Dependencies & Prerequisites
 
 - **YouTube Data API key** (Google Cloud Console)
-- **Sunflower AI credentials** (email/password for dashboard access)
 - **Anthropic API key** with sufficient token budget (~$0.50/month at weekly sermons)
 - **API.Bible API key** for CSB text (or alternative CSB dataset source)
-- **Railway environment** can support Playwright/Chromium (~400MB additional container size)
 - **Campuses collection** already exists with Central and North campus records
 - **Blog detail page** must be implemented before Phase 3 ships
 
@@ -644,8 +638,7 @@ Following the existing pattern in `src/app/api/sync/sermons/route.ts`.
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| Sunflower AI changes their UI | Medium | High | Auth state persistence, resilient selectors, alert on failure, manual transcript upload fallback |
-| Sunflower AI adds MFA | Low | High | Manual transcript upload fallback in admin |
+| YouTube disables auto-captions on livestreams | Very Low | High | Manual transcript upload fallback in admin |
 | YouTube API quota exceeded | Very Low | Medium | Using efficient endpoints (2-3 units/sync vs 100 for search) |
 | AI generates unfaithful content | Low | High | Grounded system prompt, quality gates, auto-publish saves as draft on failure |
 | CSB dataset unavailable | Low | Medium | Fallback to reference-only (no full text), investigate API.Bible |
@@ -657,7 +650,7 @@ Following the existing pattern in `src/app/api/sync/sermons/route.ts`.
 
 - **Sermon search powered by transcript content** (deferred per origin): Once transcripts are stored, full-text search across sermons becomes feasible
 - **Automated social media snippets**: Generate social-friendly excerpts from the blog content
-- **Multi-language support**: If Sunflower AI provides multi-language transcripts, blog posts could be generated in multiple languages
+- **Multi-language support**: If YouTube provides multi-language auto-captions, blog posts could be generated in multiple languages
 - **Sermon chapters/timestamps**: Display key moments within the sermon as clickable chapters
 - **Listener analytics**: Track which sermons/blog posts get the most engagement
 
@@ -665,7 +658,7 @@ Following the existing pattern in `src/app/api/sync/sermons/route.ts`.
 
 - Add pipeline environment variables to project README/setup docs
 - Document the pipeline admin workflow for the content team
-- Document the Sunflower AI scraper selectors for maintenance
+- Document the YouTube transcript fetcher for maintenance
 
 ## Sources & References
 

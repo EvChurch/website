@@ -138,6 +138,29 @@ export default buildConfig({
           return { output: { matched: result.matched, unmatched: result.unmatched, errors: result.errors } }
         },
       },
+      {
+        slug: 'transcriptSync',
+        retries: 1,
+        inputSchema: [],
+        outputSchema: [
+          { name: 'processed', type: 'number' },
+          { name: 'transcribed', type: 'number' },
+          { name: 'boundariesSet', type: 'number' },
+          { name: 'errors', type: 'number' },
+        ],
+        handler: async ({ req }) => {
+          const { runTranscriptSync } = await import('@/pipeline/transcript-sync-runner')
+          const result = await runTranscriptSync(req.payload)
+          return {
+            output: {
+              processed: result.processed,
+              transcribed: result.transcribed,
+              boundariesSet: result.boundariesSet,
+              errors: result.errors,
+            },
+          }
+        },
+      },
     ],
     autoRun: [
       { cron: '*/15 * * * *', queue: 'default', limit: 10 },

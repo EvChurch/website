@@ -222,7 +222,7 @@ export const Sermons: CollectionConfig = {
       name: 'transcript',
       type: 'textarea',
       admin: {
-        description: 'Transcript from Sunflower AI',
+        description: 'Transcript from YouTube auto-generated captions',
       },
     },
     {
