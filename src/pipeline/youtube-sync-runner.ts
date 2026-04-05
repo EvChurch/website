@@ -7,10 +7,8 @@
  */
 
 import type { Payload } from 'payload'
-import { revalidateTag } from 'next/cache'
 import { fetchAllCampusVideos } from '@/lib/youtube-api'
 import { matchVideosToSermons } from '@/pipeline/youtube-matcher'
-import { CACHE_TAGS } from '@/lib/cache-tags'
 
 export interface YouTubeSyncResult {
   matched: number
@@ -98,12 +96,6 @@ export async function runYouTubeSync(
     payload.logger.warn(
       `[YouTubeSync] Unmatched video: "${video.title}" (${video.publishedAt})`,
     )
-  }
-
-  // Step 4: Revalidate cache if any updates were made
-  if (matched.length > 0) {
-    revalidateTag(CACHE_TAGS.sermons, 'default')
-    revalidateTag(CACHE_TAGS.sermonPipeline, 'default')
   }
 
   const result: YouTubeSyncResult = {

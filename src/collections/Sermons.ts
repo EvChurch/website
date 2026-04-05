@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { isAdmin } from '@/access/roles'
+import { isAdmin, adminOnlyField } from '@/access/roles'
 
 export const Sermons: CollectionConfig = {
   slug: 'sermons',
@@ -184,6 +184,9 @@ export const Sermons: CollectionConfig = {
     {
       name: 'pipelineError',
       type: 'textarea',
+      access: {
+        read: adminOnlyField,
+      },
       admin: {
         position: 'sidebar',
         readOnly: true,
@@ -202,6 +205,9 @@ export const Sermons: CollectionConfig = {
     {
       name: 'aiInputTokens',
       type: 'number',
+      access: {
+        read: adminOnlyField,
+      },
       admin: {
         position: 'sidebar',
         readOnly: true,
@@ -211,6 +217,9 @@ export const Sermons: CollectionConfig = {
     {
       name: 'aiOutputTokens',
       type: 'number',
+      access: {
+        read: adminOnlyField,
+      },
       admin: {
         position: 'sidebar',
         readOnly: true,
