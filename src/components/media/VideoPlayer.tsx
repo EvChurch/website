@@ -132,12 +132,18 @@ export function VideoPlayer({ videos }: VideoPlayerProps) {
 
     setIsLoading(true)
 
-    // Dynamically import video.js and the YouTube plugin
-    const [{ default: videojs }] = await Promise.all([
-      import('video.js'),
-      import('videojs-youtube'),
-      import('video.js/dist/video-js.css'),
-    ])
+    // Dynamically import video.js, then the YouTube plugin (must load sequentially)
+    const { default: videojs } = await import('video.js')
+    await import('videojs-youtube')
+
+    // Inject CSS if not already present
+    if (!document.querySelector('link[data-videojs-css]')) {
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = 'https://vjs.zencdn.net/8.23.7/video-js.css'
+      link.dataset.videojsCss = ''
+      document.head.appendChild(link)
+    }
 
     const videoEl = document.createElement('video')
     videoEl.className = 'video-js'
