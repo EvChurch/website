@@ -136,17 +136,7 @@ export function VideoPlayer({ videos }: VideoPlayerProps) {
     const { default: videojs } = await import('video.js')
     await import('videojs-youtube')
 
-    // Inject CSS if not already present
-    if (!document.querySelector('link[data-videojs-css]')) {
-      const link = document.createElement('link')
-      link.rel = 'stylesheet'
-      link.href = 'https://vjs.zencdn.net/8.23.7/video-js.css'
-      link.dataset.videojsCss = ''
-      document.head.appendChild(link)
-    }
-
     const videoEl = document.createElement('video')
-    videoEl.className = 'video-js'
     videoRef.current.innerHTML = ''
     videoRef.current.appendChild(videoEl)
 
