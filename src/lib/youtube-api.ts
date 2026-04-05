@@ -229,7 +229,7 @@ export async function fetchRecentUploads(
  * Returns videos grouped by campus key.
  */
 export async function fetchAllCampusVideos(
-  maxResults = 10,
+  maxResults = 50,
 ): Promise<Record<CampusKey, YouTubeVideo[]>> {
   const results: Record<CampusKey, YouTubeVideo[]> = {
     central: [],

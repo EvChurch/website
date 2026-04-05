@@ -95,14 +95,14 @@ export async function matchVideosToSermons(
     if (name.includes('north')) campusIdMap.north = campus.id
   }
 
-  // Fetch recent sermons (last 30 days) for matching
-  const thirtyDaysAgo = new Date()
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  // Fetch recent sermons (last 90 days) for matching
+  const cutoffDate = new Date()
+  cutoffDate.setDate(cutoffDate.getDate() - 90)
 
   const sermons = await payload.find({
     collection: 'sermons',
     where: {
-      publishedAt: { greater_than: thirtyDaysAgo.toISOString() },
+      publishedAt: { greater_than: cutoffDate.toISOString() },
       isPublished: { equals: true },
     },
     limit: 100,
