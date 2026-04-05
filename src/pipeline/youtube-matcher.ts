@@ -18,9 +18,9 @@ import { type YouTubeVideo, type CampusKey, parseDuration } from '@/lib/youtube-
 const MIN_DURATION_SECONDS = 30 * 60 // 30 minutes
 
 export interface MatchResult {
-  sermonId: string
+  sermonId: number
   campus: CampusKey
-  campusPayloadId: string
+  campusPayloadId: number
   video: YouTubeVideo
 }
 
@@ -88,11 +88,11 @@ export async function matchVideosToSermons(
     select: { name: true },
   })
 
-  const campusIdMap: Record<string, string> = {}
+  const campusIdMap: Record<string, number> = {}
   for (const campus of campusRecords.docs) {
     const name = (campus.name as string).toLowerCase()
-    if (name.includes('central')) campusIdMap.central = String(campus.id)
-    if (name.includes('north')) campusIdMap.north = String(campus.id)
+    if (name.includes('central')) campusIdMap.central = campus.id
+    if (name.includes('north')) campusIdMap.north = campus.id
   }
 
   // Fetch recent sermons (last 30 days) for matching
@@ -170,7 +170,7 @@ export async function matchVideosToSermons(
       if (alreadyMatched) continue
 
       matched.push({
-        sermonId: String(bestSermon.id),
+        sermonId: bestSermon.id,
         campus,
         campusPayloadId,
         video,
