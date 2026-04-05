@@ -9,10 +9,8 @@
  */
 
 import type { Payload } from 'payload'
-import { revalidateTag } from 'next/cache'
 import { fetchYouTubeTranscript } from '@/pipeline/youtube-transcript'
 import { detectBoundaries } from '@/pipeline/boundary-detector'
-import { CACHE_TAGS } from '@/lib/cache-tags'
 
 export interface TranscriptSyncResult {
   processed: number
@@ -104,7 +102,7 @@ export async function runTranscriptSync(
       result.transcribed++
 
       payload.logger.info(
-        `[TranscriptSync] Got transcript for "${sermon.title}" (${transcript.segments.length} segments)`,
+        `[TranscriptSync] Got transcript for "${sermon.title}" (${transcript.segmentCount} segments)`,
       )
 
       // Step 2: Run boundary detection
@@ -164,12 +162,6 @@ export async function runTranscriptSync(
         `[TranscriptSync] Failed to process sermon ${sermon.id}: ${error instanceof Error ? error.message : String(error)}`,
       )
     }
-  }
-
-  // Revalidate cache if any updates were made
-  if (result.transcribed > 0 || result.boundariesSet > 0) {
-    revalidateTag(CACHE_TAGS.sermons, 'default')
-    revalidateTag(CACHE_TAGS.sermonPipeline, 'default')
   }
 
   payload.logger.info(

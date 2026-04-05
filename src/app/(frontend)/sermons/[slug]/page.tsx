@@ -9,7 +9,7 @@ import { SermonCard } from '@/components/sermons/SermonCard'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
 import { SermonPlayButton } from './SermonPlayButton'
 import { ListenedBadge } from '@/components/sermons/ListenedBadge'
-import { SermonVideoPlayer } from '@/components/media/SermonVideoPlayer'
+import { VideoPlayer } from '@/components/media/VideoPlayer'
 
 export const dynamic = 'force-dynamic'
 
@@ -248,63 +248,54 @@ export default async function SermonPage({
     }
   }
 
-  // Fetch "More from this speaker"
-  let moreBySpeaker: typeof sermon[] = []
-  if (speakers.length > 0) {
-    const speakerDoc = Array.isArray(sermon.speakers)
-      ? sermon.speakers[0]
+  // Fetch "More from this speaker" and "More from this scripture" in parallel
+  const speakerDoc = Array.isArray(sermon.speakers) ? sermon.speakers[0] : null
+  const speakerId =
+    typeof speakerDoc === 'object' && speakerDoc !== null && 'id' in speakerDoc
+      ? (speakerDoc as { id: number }).id
       : null
-    const speakerId =
-      typeof speakerDoc === 'object' && speakerDoc !== null && 'id' in speakerDoc
-        ? (speakerDoc as { id: number }).id
-        : null
 
-    if (speakerId) {
-      const moreResult = await payload.find({
-        collection: 'sermons',
-        where: {
-          and: [
-            { isPublished: { equals: true } },
-            { speakers: { contains: speakerId } },
-            { id: { not_equals: sermon.id } },
-          ],
-        },
-        sort: '-publishedAt',
-        limit: 3,
-        depth: 2,
-      })
-      moreBySpeaker = moreResult.docs
-    }
-  }
+  const scriptureDoc = Array.isArray(sermon.scriptures) ? sermon.scriptures[0] : null
+  const scriptureId =
+    typeof scriptureDoc === 'object' && scriptureDoc !== null && 'id' in scriptureDoc
+      ? (scriptureDoc as { id: number }).id
+      : null
+  const scriptureLabel = scriptureId ? scripturesList[0]?.name ?? '' : ''
 
-  // Fetch "More from this scripture" (sermons sharing the same scripture book)
-  let moreByScripture: typeof sermon[] = []
-  let scriptureLabel = ''
-  if (scripturesList.length > 0) {
-    const scriptureDoc = Array.isArray(sermon.scriptures) ? sermon.scriptures[0] : null
-    const scriptureId =
-      typeof scriptureDoc === 'object' && scriptureDoc !== null && 'id' in scriptureDoc
-        ? (scriptureDoc as { id: number }).id
-        : null
-
-    if (scriptureId) {
-      scriptureLabel = scripturesList[0].name
-      const moreResult = await payload.find({
-        collection: 'sermons',
-        where: {
-          and: [
-            { isPublished: { equals: true } },
-            { scriptures: { contains: scriptureId } },
-            { id: { not_equals: sermon.id } },
-          ],
-        },
-        sort: '-publishedAt',
-        limit: 3,
-        depth: 2,
-      })
-      moreByScripture = moreResult.docs
-    }
-  }
+  const [moreBySpeakerResult, moreByScriptureResult] = await Promise.all([
+    speakerId
+      ? payload.find({
+          collection: 'sermons',
+          where: {
+            and: [
+              { isPublished: { equals: true } },
+              { speakers: { contains: speakerId } },
+              { id: { not_equals: sermon.id } },
+            ],
+          },
+          sort: '-publishedAt',
+          limit: 3,
+          depth: 1,
+        })
+      : Promise.resolve({ docs: [] as typeof sermon[] }),
+    scriptureId
+      ? payload.find({
+          collection: 'sermons',
+          where: {
+            and: [
+              { isPublished: { equals: true } },
+              { scriptures: { contains: scriptureId } },
+              { id: { not_equals: sermon.id } },
+            ],
+          },
+          sort: '-publishedAt',
+          limit: 3,
+          depth: 1,
+        })
+      : Promise.resolve({ docs: [] as typeof sermon[] }),
+  ])
+  const moreBySpeaker = moreBySpeakerResult.docs
+  const moreByScripture = moreByScriptureResult.docs
 
   // Structured data
   const breadcrumbItems = [
@@ -485,7 +476,7 @@ export default async function SermonPage({
                 <span className="text-sm text-warm-white/50">or listen to the audio above</span>
               )}
             </div>
-            <SermonVideoPlayer videos={videoSources} />
+            <VideoPlayer videos={videoSources} />
           </div>
         </section>
       )}

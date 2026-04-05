@@ -323,9 +323,9 @@ This replaces the simpler `SermonVideoPlayer.tsx` from Phase 1, or extends it.
 - [x] `src/pipeline/transcript-sync-runner.ts` -- orchestrator
 - [x] `src/app/api/pipeline/transcript-sync/route.ts` -- API endpoint
 - [x] New Payload task `transcriptSync`
-- [ ] `src/components/media/SermonSegmentPlayer.tsx` -- custom segment player
-- [ ] Updated sermon detail page with segment player
-- [ ] `@anthropic-ai/sdk` dependency added (shared with Phase 3)
+- [x] `src/components/media/SermonSegmentPlayer.tsx` -- VideoJS 8 + videojs-youtube with custom progress bar
+- [x] Sermon detail page uses segment player when boundaries are set, falls back to simple player
+- [x] `@anthropic-ai/sdk` dependency added (shared with Phase 3)
 - [x] `youtube-transcript` dependency added
 
 ---

@@ -8,8 +8,6 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || ''
-
 export interface BoundaryResult {
   sermonStartSeconds: number
   sermonEndSeconds: number
@@ -79,7 +77,8 @@ function parseTimestamp(timestamp: string): number | null {
 export async function detectBoundaries(
   transcript: string,
 ): Promise<BoundaryDetectionOutput> {
-  if (!ANTHROPIC_API_KEY) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) {
     return {
       boundaries: null,
       inputTokens: 0,
@@ -88,7 +87,7 @@ export async function detectBoundaries(
     }
   }
 
-  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY })
+  const client = new Anthropic({ apiKey })
 
   try {
     const response = await client.messages.create({
@@ -128,7 +127,11 @@ export async function detectBoundaries(
     // Convert HH:MM:SS timestamps to seconds
     const startSeconds = parseTimestamp(String(parsed.sermonStartTimestamp ?? ''))
     const endSeconds = parseTimestamp(String(parsed.sermonEndTimestamp ?? ''))
-    const confidence = parsed.confidence as string
+    const confidenceRaw = String(parsed.confidence ?? '')
+    const confidence =
+      confidenceRaw === 'high' || confidenceRaw === 'medium' || confidenceRaw === 'low'
+        ? confidenceRaw
+        : null
 
     if (
       startSeconds === null ||
@@ -144,12 +147,12 @@ export async function detectBoundaries(
       }
     }
 
-    if (!['high', 'medium', 'low'].includes(confidence)) {
+    if (!confidence) {
       return {
         boundaries: null,
         inputTokens,
         outputTokens,
-        error: `Invalid confidence value: ${confidence}`,
+        error: `Invalid confidence value: ${parsed.confidence}`,
       }
     }
 
@@ -157,8 +160,8 @@ export async function detectBoundaries(
       boundaries: {
         sermonStartSeconds: startSeconds,
         sermonEndSeconds: endSeconds,
-        confidence: confidence as 'high' | 'medium' | 'low',
-        reasoning: String(parsed.reasoning || ''),
+        confidence,
+        reasoning: String(parsed.reasoning ?? ''),
       },
       inputTokens,
       outputTokens,

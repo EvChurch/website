@@ -11,15 +11,9 @@ import {
   YoutubeTranscriptNotAvailableError,
 } from 'youtube-transcript'
 
-export interface TranscriptSegment {
-  text: string
-  offsetSeconds: number
-  durationSeconds: number
-}
-
 export interface TranscriptResult {
-  segments: TranscriptSegment[]
   fullText: string
+  segmentCount: number
   error: string | null
 }
 
@@ -36,9 +30,8 @@ function formatTimestamp(seconds: number): string {
 /**
  * Fetch the transcript for a YouTube video.
  *
- * Returns timestamped segments and a formatted full text suitable
- * for the boundary detector. The full text includes timestamps
- * every ~30 seconds to give the LLM temporal anchors.
+ * Returns a formatted full text with timestamp markers every ~30 seconds
+ * suitable for the boundary detector.
  */
 export async function fetchYouTubeTranscript(
   videoId: string,
@@ -48,15 +41,8 @@ export async function fetchYouTubeTranscript(
     const raw = await YoutubeTranscript.fetchTranscript(videoId, { lang })
 
     if (!raw || raw.length === 0) {
-      return { segments: [], fullText: '', error: 'No transcript segments returned' }
+      return { fullText: '', segmentCount: 0, error: 'No transcript segments returned' }
     }
-
-    // Convert from millisecond offsets to seconds
-    const segments: TranscriptSegment[] = raw.map((item) => ({
-      text: item.text,
-      offsetSeconds: item.offset / 1000,
-      durationSeconds: item.duration / 1000,
-    }))
 
     // Build formatted transcript with periodic timestamps.
     // Include a timestamp marker roughly every 30 seconds so the
@@ -64,17 +50,18 @@ export async function fetchYouTubeTranscript(
     const lines: string[] = []
     let lastTimestamp = -30
 
-    for (const seg of segments) {
-      if (seg.offsetSeconds - lastTimestamp >= 30) {
-        lines.push(`\n[${formatTimestamp(seg.offsetSeconds)}]`)
-        lastTimestamp = seg.offsetSeconds
+    for (const item of raw) {
+      const offsetSeconds = item.offset / 1000
+      if (offsetSeconds - lastTimestamp >= 30) {
+        lines.push(`\n[${formatTimestamp(offsetSeconds)}]`)
+        lastTimestamp = offsetSeconds
       }
-      lines.push(seg.text)
+      lines.push(item.text)
     }
 
     return {
-      segments,
       fullText: lines.join(' ').trim(),
+      segmentCount: raw.length,
       error: null,
     }
   } catch (error) {
@@ -83,15 +70,15 @@ export async function fetchYouTubeTranscript(
       error instanceof YoutubeTranscriptNotAvailableError
     ) {
       return {
-        segments: [],
         fullText: '',
+        segmentCount: 0,
         error: `Transcript not available for video ${videoId}: ${error.message}`,
       }
     }
 
     return {
-      segments: [],
       fullText: '',
+      segmentCount: 0,
       error: `Failed to fetch transcript for ${videoId}: ${error instanceof Error ? error.message : String(error)}`,
     }
   }
