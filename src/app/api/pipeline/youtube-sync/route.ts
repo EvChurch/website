@@ -18,9 +18,10 @@ export async function GET(request: NextRequest) {
   try {
     const payload = await getPayloadClient()
     await payload.jobs.queue({ task: 'youtubeSync', input: {} })
-    void payload.jobs.run({ queue: 'pipeline', limit: 1 })
+    // Run synchronously so we can report the result
+    await payload.jobs.run({ queue: 'default', limit: 1 })
 
-    return NextResponse.json({ ok: true, message: 'YouTube sync job queued and started' })
+    return NextResponse.json({ ok: true, message: 'YouTube sync job queued and executed' })
   } catch (error) {
     console.error('[Pipeline] Failed to queue YouTube sync job:', error)
     return NextResponse.json(
