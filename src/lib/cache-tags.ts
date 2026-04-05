@@ -21,6 +21,7 @@ export const CACHE_TAGS = {
   announcements: 'announcements',
   navigation: 'navigation',
   siteSettings: 'site-settings',
+  sermonPipeline: 'sermon-pipeline',
 } as const
 
 export type CacheTag = (typeof CACHE_TAGS)[keyof typeof CACHE_TAGS]

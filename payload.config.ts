@@ -123,9 +123,25 @@ export default buildConfig({
           return { output: { created, updated, errors } }
         },
       },
+      {
+        slug: 'youtubeSync',
+        retries: 2,
+        inputSchema: [],
+        outputSchema: [
+          { name: 'matched', type: 'number' },
+          { name: 'unmatched', type: 'number' },
+          { name: 'errors', type: 'number' },
+        ],
+        handler: async ({ req }) => {
+          const { runYouTubeSync } = await import('@/pipeline/youtube-sync-runner')
+          const result = await runYouTubeSync(req.payload)
+          return { output: { matched: result.matched, unmatched: result.unmatched, errors: result.errors } }
+        },
+      },
     ],
     autoRun: [
       { cron: '*/15 * * * *', queue: 'default', limit: 10 },
+      { cron: '0 6 * * 1', queue: 'pipeline', limit: 5 },
     ],
   },
 

@@ -9,6 +9,7 @@ import { SermonCard } from '@/components/sermons/SermonCard'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
 import { SermonPlayButton } from './SermonPlayButton'
 import { ListenedBadge } from '@/components/sermons/ListenedBadge'
+import { SermonVideoPlayer } from '@/components/media/SermonVideoPlayer'
 
 export const dynamic = 'force-dynamic'
 
@@ -173,6 +174,35 @@ export default async function SermonPage({
         )
         .filter((t): t is { name: string; slug: string } => t !== null)
     : []
+
+  // Extract video references for the video player
+  const videoSources = Array.isArray(sermon.videos)
+    ? sermon.videos
+        .map((v) => {
+          if (typeof v !== 'object' || v === null) return null
+          const vid = v as Record<string, unknown>
+          const campus = vid.campus
+          const campusName =
+            typeof campus === 'object' && campus !== null && 'name' in campus
+              ? (campus as { name: string }).name
+              : 'Watch'
+          const youtubeVideoId = vid.youtubeVideoId as string | undefined
+          if (!youtubeVideoId) return null
+          return {
+            campusName,
+            youtubeVideoId,
+            startSeconds: (vid.startSeconds as number) ?? sermon.sermonStartSeconds ?? undefined,
+            endSeconds: (vid.endSeconds as number) ?? sermon.sermonEndSeconds ?? undefined,
+          }
+        })
+        .filter((v): v is NonNullable<typeof v> => v !== null)
+    : []
+
+  // Extract blog post cross-link
+  const blogPostLink =
+    sermon.blogPost && typeof sermon.blogPost === 'object' && 'slug' in sermon.blogPost
+      ? (sermon.blogPost as { slug: string }).slug
+      : null
 
   // Fetch next/prev sermon in same series
   let prevSermon: { title: string; slug: string } | null = null
@@ -444,6 +474,40 @@ export default async function SermonPage({
           </div>
         </div>
       </section>
+
+      {/* Video player section */}
+      {videoSources.length > 0 && (
+        <section className="border-t border-warm-white/10 py-8">
+          <div className="mx-auto max-w-5xl px-6">
+            <div className="mb-4 flex items-center gap-3">
+              <h2 className="font-sans text-lg font-bold text-warm-white">Watch</h2>
+              {getSermonAudioUrl(sermon.audio) && (
+                <span className="text-sm text-warm-white/50">or listen to the audio above</span>
+              )}
+            </div>
+            <SermonVideoPlayer videos={videoSources} />
+          </div>
+        </section>
+      )}
+
+      {/* Blog post cross-link */}
+      {blogPostLink && (
+        <section className="border-t border-warm-white/10 py-6">
+          <div className="mx-auto max-w-5xl px-6">
+            <Link
+              href={`/blog/${blogPostLink}`}
+              className="group flex items-center gap-3 rounded-lg border border-warm-white/10 px-5 py-4 transition-all hover:border-warm-white/20 hover:bg-warm-white/5"
+            >
+              <svg className="h-5 w-5 shrink-0 text-warm-white/40 group-hover:text-warm-white/70" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.5 2A1.5 1.5 0 003 3.5v13A1.5 1.5 0 004.5 18h11a1.5 1.5 0 001.5-1.5V7.621a1.5 1.5 0 00-.44-1.06l-4.12-4.122A1.5 1.5 0 0011.378 2H4.5zm2.25 8.5a.75.75 0 000 1.5h6.5a.75.75 0 000-1.5h-6.5zm0 3a.75.75 0 000 1.5h6.5a.75.75 0 000-1.5h-6.5z" clipRule="evenodd" />
+              </svg>
+              <span className="text-sm font-medium text-warm-white/80 group-hover:text-warm-white">
+                Read the blog post for this sermon
+              </span>
+            </Link>
+          </div>
+        </section>
+      )}
 
       {/* Series navigation (prev/next) */}
       {(prevSermon || nextSermon) && (
