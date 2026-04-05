@@ -1,14 +1,16 @@
 /* THIS FILE WAS GENERATED AUTOMATICALLY BY PAYLOAD. */
 /* DO NOT MODIFY IT BECAUSE IT COULD BE REWRITTEN AT ANY TIME. */
-import type { ServerFunctionClient } from 'payload'
-
 import config from '@payload-config'
+import '@payloadcms/next/css'
+import type { ServerFunctionClient } from 'payload'
 import { handleServerFunctions, RootLayout } from '@payloadcms/next/layouts'
+import React from 'react'
+
 import { importMap } from './admin/importMap'
-import type { ReactNode } from 'react'
+import './custom.scss'
 
 type Args = {
-  children: ReactNode
+  children: React.ReactNode
 }
 
 const serverFunction: ServerFunctionClient = async function (args) {
@@ -20,7 +22,10 @@ const serverFunction: ServerFunctionClient = async function (args) {
   })
 }
 
-const Layout = ({ children }: Args) =>
-  RootLayout({ children, config, importMap, serverFunction })
+const Layout = ({ children }: Args) => (
+  <RootLayout config={config} importMap={importMap} serverFunction={serverFunction}>
+    {children}
+  </RootLayout>
+)
 
 export default Layout
