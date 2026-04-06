@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
 import { useMediaPlayer } from './MediaPlayerProvider'
 
@@ -25,15 +25,35 @@ export function VideoContainer() {
     isVideoVisible,
     isVideoExpanded,
     playbackSpeed,
+    expandVideo,
     minimizeVideo,
     registerVideoPlayer,
     videoContainerRef,
+    videoThumbnailRef,
   } = useMediaPlayer()
 
   const videoElRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<VjsPlayer | null>(null)
   const prevVideoIdRef = useRef<string | null>(null)
   const pathname = usePathname()
+
+  // Track the thumbnail element's position for the minimized state
+  const [thumbRect, setThumbRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null)
+
+  const updateThumbRect = useCallback(() => {
+    const el = videoThumbnailRef?.current
+    if (el) {
+      const rect = el.getBoundingClientRect()
+      setThumbRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height })
+    }
+  }, [videoThumbnailRef])
+
+  // Update thumbnail position on expand/minimize and resize
+  useEffect(() => {
+    updateThumbRect()
+    window.addEventListener('resize', updateThumbRect)
+    return () => window.removeEventListener('resize', updateThumbRect)
+  }, [updateThumbRect, isVideoExpanded, isVideoVisible])
 
   // Auto-minimize on route change
   useEffect(() => {
@@ -53,7 +73,6 @@ export function VideoContainer() {
       const vjs = await getVideojs()
       const videojs = vjs.default
 
-      // Dispose previous player
       if (playerRef.current && !playerRef.current.isDisposed()) {
         playerRef.current.dispose()
         playerRef.current = null
@@ -115,7 +134,6 @@ export function VideoContainer() {
         }
       })
 
-      // Segment enforcement
       if (hasSegment) {
         const enforceInterval = setInterval(() => {
           if (player.isDisposed()) {
@@ -151,58 +169,59 @@ export function VideoContainer() {
     }
   }, [isVideoVisible])
 
-  // Don't render anything if no video is active
   if (!isVideoVisible) return null
+
+  // Minimized style: position exactly over the bar's thumbnail placeholder
+  const minimizedStyle: React.CSSProperties = thumbRect
+    ? { top: thumbRect.top, left: thumbRect.left, width: thumbRect.width, height: thumbRect.height }
+    : { bottom: 22, right: 16, width: 85, height: 48 } // fallback
 
   return (
     <>
-      {/* Dark backdrop - only when expanded, above header */}
-      {isVideoExpanded && (
-        <div
-          className="fixed inset-0 z-[60] bg-black/70"
-          onClick={minimizeVideo}
-        />
-      )}
+      {/* Dark backdrop - only when expanded */}
+      <div
+        className={`fixed inset-0 z-[60] bg-black/70 transition-opacity duration-300 ${
+          isVideoExpanded ? 'opacity-100' : 'pointer-events-none opacity-0'
+        }`}
+        onClick={minimizeVideo}
+      />
 
       {/*
-        Video iframe container.
-        - Expanded: centered overlay with the video visible.
-        - Minimized: hidden off-screen but still in DOM so the iframe stays alive.
-          The bar shows a static thumbnail; this element just keeps the player running.
+        Video iframe - CSS transitions between:
+        - Expanded: centered overlay
+        - Minimized: snapped to the bar's thumbnail slot
       */}
       <div
         ref={(el) => {
           if (videoContainerRef) (videoContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
         }}
-        className={
+        className={`fixed z-[61] overflow-hidden bg-black transition-all duration-300 ease-out ${
           isVideoExpanded
-            ? 'fixed inset-0 z-[61] flex items-center justify-center p-4 sm:p-8'
-            : 'fixed -left-[9999px] top-0 h-1 w-1 overflow-hidden'
-        }
-        onClick={isVideoExpanded ? minimizeVideo : undefined}
+            ? 'inset-4 rounded-xl shadow-2xl sm:inset-8 md:inset-x-[10vw] md:inset-y-12'
+            : 'cursor-pointer rounded-lg'
+        }`}
+        style={isVideoExpanded ? undefined : minimizedStyle}
+        onClick={isVideoExpanded ? minimizeVideo : expandVideo}
       >
         <div
-          className={
-            isVideoExpanded
-              ? 'relative aspect-video w-full max-w-5xl overflow-hidden rounded-xl bg-black shadow-2xl'
-              : 'h-1 w-1'
-          }
-          onClick={isVideoExpanded ? (e) => e.stopPropagation() : undefined}
+          className="relative h-full w-full"
+          onClick={(e) => { if (isVideoExpanded) e.stopPropagation() }}
         >
-          {/* video.js mount point - always in DOM when video is visible */}
+          {/* video.js mount point */}
           <div
             ref={videoElRef}
-            className={
-              isVideoExpanded
-                ? 'absolute inset-0 [&_.video-js]:!block [&_.video-js]:!h-full [&_.video-js]:!w-full [&_iframe]:!h-full [&_iframe]:!w-full [&_.vjs-loading-spinner]:!hidden [&_.vjs-big-play-button]:!hidden'
-                : 'h-1 w-1 overflow-hidden'
-            }
+            className="h-full w-full [&_.video-js]:!block [&_.video-js]:!h-full [&_.video-js]:!w-full [&_iframe]:!h-full [&_iframe]:!w-full [&_.vjs-loading-spinner]:!hidden [&_.vjs-big-play-button]:!hidden"
           />
 
-          {/* Click overlay to block YouTube iframe hover - expanded only */}
-          {isVideoExpanded && (
-            <div className="absolute inset-0 z-[5]" />
-          )}
+          {/* Click overlay to block YouTube iframe interaction */}
+          <div
+            className="absolute inset-0 z-[5]"
+            onClick={(e) => {
+              e.stopPropagation()
+              if (isVideoExpanded) minimizeVideo()
+              else expandVideo()
+            }}
+          />
         </div>
       </div>
     </>

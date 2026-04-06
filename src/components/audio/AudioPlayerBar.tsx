@@ -34,6 +34,7 @@ export function AudioPlayerBar() {
     expandVideo,
     isVideoVisible,
     activeVideo,
+    videoThumbnailRef,
     onEndedRef,
   } = useAudioPlayer()
 
@@ -144,24 +145,10 @@ export function AudioPlayerBar() {
         style={swipeX !== 0 ? { transform: `translateX(${swipeX}px)`, opacity: Math.max(0, 1 - Math.abs(swipeX) / (SWIPE_THRESHOLD * 2)), transition: 'opacity 0.15s' } : undefined}
       >
         <div className="flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
-          {/* Artwork / Video thumbnail */}
-          {isVideoMode && activeVideo ? (
-            <button
-              onClick={expandVideo}
-              className="group relative hidden h-12 w-[85px] shrink-0 overflow-hidden rounded-lg bg-black sm:block"
-              aria-label="Expand video"
-            >
-              <img
-                src={`https://img.youtube.com/vi/${activeVideo.youtubeVideoId}/mqdefault.jpg`}
-                alt=""
-                className="h-full w-full object-cover"
-              />
-              <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity group-hover:opacity-100">
-                <svg className="h-5 w-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
-                </svg>
-              </div>
-            </button>
+          {/* Artwork / Video thumbnail placeholder */}
+          {isVideoMode ? (
+            /* Reserve space for the video iframe that overlaps this spot */
+            <div ref={videoThumbnailRef} className="hidden h-12 w-[85px] shrink-0 rounded-lg sm:block" />
           ) : currentSermon.artworkUrl ? (
             <Link href={`/sermons/${currentSermon.slug}`} className="relative hidden shrink-0 overflow-hidden rounded-lg sm:block">
               <Image
