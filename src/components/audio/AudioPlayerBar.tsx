@@ -148,18 +148,18 @@ export function AudioPlayerBar() {
         className={`pointer-events-auto w-full max-w-2xl rounded-2xl border border-white/10 bg-brand-black/80 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl transition-transform duration-300 ease-out ${show ? 'translate-y-0' : 'translate-y-[calc(100%+2rem)]'}`}
         style={swipeX !== 0 ? { transform: `translateX(${swipeX}px)`, opacity: Math.max(0, 1 - Math.abs(swipeX) / (SWIPE_THRESHOLD * 2)), transition: 'opacity 0.15s' } : undefined}
       >
-        {/* Mobile title strip */}
-        <div className="flex items-center gap-2 truncate px-3 pt-2.5 sm:hidden">
+        {/* Mobile title strip — centered with separator line */}
+        <div className="border-b border-warm-white/10 px-3 pb-2 pt-2.5 text-center sm:hidden">
           <Link
             href={`/sermons/${currentSermon.slug}`}
-            className="truncate text-xs font-medium text-warm-white hover:underline"
+            className="text-xs font-medium text-warm-white hover:underline"
           >
             {currentSermon.title}
           </Link>
           {currentSermon.speaker && (
-            <span className="shrink-0 text-xs text-warm-white/40">
+            <p className="mt-0.5 text-[10px] text-warm-white/40">
               {currentSermon.speaker}
-            </span>
+            </p>
           )}
         </div>
 
@@ -196,63 +196,65 @@ export function AudioPlayerBar() {
             {/* Layer 3: chevron rendered as fixed element from VideoContainer */}
           </div>
 
-          {/* Sermon info + desktop progress (hidden on mobile, shown in strip above) */}
-          <div className="hidden min-w-0 flex-1 sm:block">
-            <Link
-              href={`/sermons/${currentSermon.slug}`}
-              className="block truncate text-sm font-medium leading-tight text-warm-white hover:underline"
-            >
-              {currentSermon.title}
-            </Link>
-            <p className="truncate text-xs text-warm-white/50">
-              {currentSermon.speaker && currentSermon.speakerSlug ? (
-                <Link href={`/sermons/speakers/${currentSermon.speakerSlug}`} className="transition-colors hover:text-warm-white">
-                  {currentSermon.speaker}
-                </Link>
-              ) : currentSermon.speaker ? (
-                <span>{currentSermon.speaker}</span>
-              ) : null}
-              {currentSermon.series && (
-                <>
-                  {currentSermon.speaker && <span> &middot; </span>}
-                  {currentSermon.seriesSlug ? (
-                    <Link href={`/sermons/series/${currentSermon.seriesSlug}`} className="transition-colors hover:text-warm-white">
-                      {currentSermon.series}
-                    </Link>
-                  ) : (
-                    <span>{currentSermon.series}</span>
-                  )}
-                </>
-              )}
-            </p>
-
-            {/* Desktop seek bar + timestamps */}
-            <div className="mt-2 hidden items-center gap-2 sm:flex">
-              <span className="w-9 text-right text-[11px] tabular-nums text-warm-white/40">
-                {formatTime(progress)}
-              </span>
-              <div
-                className="group relative flex h-4 flex-1 cursor-pointer items-center"
-                onClick={handleProgressClick}
-                role="progressbar"
-                aria-valuenow={progress}
-                aria-valuemin={0}
-                aria-valuemax={duration}
+          {/* Sermon info (desktop only) / spacer (mobile) */}
+          <div className="min-w-0 flex-1">
+            <div className="hidden sm:block">
+              <Link
+                href={`/sermons/${currentSermon.slug}`}
+                className="block truncate text-sm font-medium leading-tight text-warm-white hover:underline"
               >
-                <div className="relative h-1 w-full rounded-full bg-white/10">
+                {currentSermon.title}
+              </Link>
+              <p className="truncate text-xs text-warm-white/50">
+                {currentSermon.speaker && currentSermon.speakerSlug ? (
+                  <Link href={`/sermons/speakers/${currentSermon.speakerSlug}`} className="transition-colors hover:text-warm-white">
+                    {currentSermon.speaker}
+                  </Link>
+                ) : currentSermon.speaker ? (
+                  <span>{currentSermon.speaker}</span>
+                ) : null}
+                {currentSermon.series && (
+                  <>
+                    {currentSermon.speaker && <span> &middot; </span>}
+                    {currentSermon.seriesSlug ? (
+                      <Link href={`/sermons/series/${currentSermon.seriesSlug}`} className="transition-colors hover:text-warm-white">
+                        {currentSermon.series}
+                      </Link>
+                    ) : (
+                      <span>{currentSermon.series}</span>
+                    )}
+                  </>
+                )}
+              </p>
+
+              {/* Desktop seek bar + timestamps */}
+              <div className="mt-2 flex items-center gap-2">
+                <span className="w-9 text-right text-[11px] tabular-nums text-warm-white/40">
+                  {formatTime(progress)}
+                </span>
+                <div
+                  className="group relative flex h-4 flex-1 cursor-pointer items-center"
+                  onClick={handleProgressClick}
+                  role="progressbar"
+                  aria-valuenow={progress}
+                  aria-valuemin={0}
+                  aria-valuemax={duration}
+                >
+                  <div className="relative h-1 w-full rounded-full bg-white/10">
+                    <div
+                      className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-warm-white transition-[width] duration-150"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
                   <div
-                    className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-warm-white transition-[width] duration-150"
-                    style={{ width: `${progressPercent}%` }}
+                    className="pointer-events-none absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-warm-white opacity-0 shadow transition-opacity group-hover:opacity-100"
+                    style={{ left: `${progressPercent}%`, marginLeft: '-6px' }}
                   />
                 </div>
-                <div
-                  className="pointer-events-none absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-warm-white opacity-0 shadow transition-opacity group-hover:opacity-100"
-                  style={{ left: `${progressPercent}%`, marginLeft: '-6px' }}
-                />
+                <span className="w-9 text-[11px] tabular-nums text-warm-white/40">
+                  {formatTime(duration)}
+                </span>
               </div>
-              <span className="w-9 text-[11px] tabular-nums text-warm-white/40">
-                {formatTime(duration)}
-              </span>
             </div>
           </div>
 
