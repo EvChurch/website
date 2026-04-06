@@ -255,7 +255,7 @@ export function VideoContainer() {
   const mobileMinW = vpW / 2
   const mobileMinH = mobileMinW * 9 / 16
   const minimizedStyle: React.CSSProperties = isMobileView
-    ? { bottom: barHeight, right: 16, width: mobileMinW, height: mobileMinH }
+    ? { bottom: barHeight + 8, right: 16, width: mobileMinW, height: mobileMinH }
     : thumbRect
       ? { top: thumbRect.top, left: thumbRect.left, width: thumbRect.width, height: thumbRect.height }
       : { top: vpH - 70, right: 16, width: 85, height: 48 }
