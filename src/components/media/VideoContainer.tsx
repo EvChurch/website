@@ -189,7 +189,11 @@ export function VideoContainer() {
         player.on('dispose', () => clearInterval(enforceInterval))
       }
 
-      registerVideoPlayer(player)
+      player.ready(() => {
+        if (!player.isDisposed()) {
+          registerVideoPlayer(player)
+        }
+      })
     }
 
     initPlayer()
