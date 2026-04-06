@@ -145,22 +145,21 @@ export function AudioPlayerBar() {
         style={swipeX !== 0 ? { transform: `translateX(${swipeX}px)`, opacity: Math.max(0, 1 - Math.abs(swipeX) / (SWIPE_THRESHOLD * 2)), transition: 'opacity 0.15s' } : undefined}
       >
         <div className="flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
-          {/* Artwork / Video thumbnail placeholder */}
-          {isVideoMode ? (
-            /* Reserve space for the video iframe that overlaps this spot */
-            <div ref={videoThumbnailRef} className="hidden h-12 w-[85px] shrink-0 rounded-lg sm:block" />
-          ) : currentSermon.artworkUrl ? (
-            <Link href={`/sermons/${currentSermon.slug}`} className="relative hidden shrink-0 overflow-hidden rounded-lg sm:block">
-              <Image
-                src={currentSermon.artworkUrl}
-                alt=""
-                width={48}
-                height={48}
-                sizes="48px"
-                className="h-12 w-12 object-cover"
-                {...(currentSermon.artworkBlurDataURL ? { placeholder: 'blur' as const, blurDataURL: currentSermon.artworkBlurDataURL } : {})}
-              />
-            </Link>
+          {/* Artwork — video iframe overlays this when in video mode */}
+          {currentSermon.artworkUrl ? (
+            <div ref={isVideoMode ? videoThumbnailRef : undefined} className="relative hidden shrink-0 overflow-hidden rounded-lg sm:block">
+              <Link href={`/sermons/${currentSermon.slug}`}>
+                <Image
+                  src={currentSermon.artworkUrl}
+                  alt=""
+                  width={48}
+                  height={48}
+                  sizes="48px"
+                  className="h-12 w-12 object-cover"
+                  {...(currentSermon.artworkBlurDataURL ? { placeholder: 'blur' as const, blurDataURL: currentSermon.artworkBlurDataURL } : {})}
+                />
+              </Link>
+            </div>
           ) : null}
 
           {/* Sermon info + desktop progress */}

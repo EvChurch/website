@@ -37,23 +37,25 @@ export function VideoContainer() {
   const prevVideoIdRef = useRef<string | null>(null)
   const pathname = usePathname()
 
-  // Track the thumbnail element's position for the minimized state
+  // Track positions for both states
   const [thumbRect, setThumbRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null)
+  const [, setResizeTick] = useState(0)
 
-  const updateThumbRect = useCallback(() => {
+  const updatePositions = useCallback(() => {
     const el = videoThumbnailRef?.current
     if (el) {
       const rect = el.getBoundingClientRect()
       setThumbRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height })
     }
+    setResizeTick((t) => t + 1)
   }, [videoThumbnailRef])
 
   // Update thumbnail position on expand/minimize and resize
   useEffect(() => {
-    updateThumbRect()
-    window.addEventListener('resize', updateThumbRect)
-    return () => window.removeEventListener('resize', updateThumbRect)
-  }, [updateThumbRect, isVideoExpanded, isVideoVisible])
+    updatePositions()
+    window.addEventListener('resize', updatePositions)
+    return () => window.removeEventListener('resize', updatePositions)
+  }, [updatePositions, isVideoExpanded, isVideoVisible])
 
   // Auto-minimize on route change
   useEffect(() => {
@@ -171,10 +173,34 @@ export function VideoContainer() {
 
   if (!isVideoVisible) return null
 
-  // Minimized style: position exactly over the bar's thumbnail placeholder
+  // Compute both positions as inline styles so CSS transitions work
+  const padding = typeof window !== 'undefined' && window.innerWidth >= 768 ? 48 : 16
+  const vpW = typeof window !== 'undefined' ? window.innerWidth : 1024
+  const vpH = typeof window !== 'undefined' ? window.innerHeight : 768
+  const availW = vpW - padding * 2
+  const availH = vpH - padding * 2
+  // 16:9 constrained to available space
+  let expW = availW
+  let expH = expW * 9 / 16
+  if (expH > availH) {
+    expH = availH
+    expW = expH * 16 / 9
+  }
+  const expTop = (vpH - expH) / 2
+  const expLeft = (vpW - expW) / 2
+
+  const expandedStyle: React.CSSProperties = {
+    top: expTop,
+    left: expLeft,
+    width: expW,
+    height: expH,
+  }
+
   const minimizedStyle: React.CSSProperties = thumbRect
     ? { top: thumbRect.top, left: thumbRect.left, width: thumbRect.width, height: thumbRect.height }
-    : { bottom: 22, right: 16, width: 85, height: 48 } // fallback
+    : { top: vpH - 70, right: 16, width: 85, height: 48 }
+
+  const currentStyle = isVideoExpanded ? expandedStyle : minimizedStyle
 
   return (
     <>
@@ -187,28 +213,21 @@ export function VideoContainer() {
       />
 
       {/*
-        Video iframe - CSS transitions between:
-        - Expanded: centered overlay
-        - Minimized: snapped to the bar's thumbnail slot
+        Video iframe - transitions between expanded (centered 16:9)
+        and minimized (bar thumbnail slot) using inline top/left/width/height.
       */}
       <div
         ref={(el) => {
           if (videoContainerRef) (videoContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
         }}
-        className={`fixed z-[63] pointer-events-none transition-all duration-300 ease-out ${
-          isVideoExpanded
-            ? 'inset-0 flex items-center justify-center p-4 sm:p-8 md:px-[10vw] md:py-12'
-            : ''
+        className={`fixed z-[63] overflow-hidden bg-black transition-all duration-300 ease-out ${
+          isVideoExpanded ? 'rounded-xl shadow-2xl' : 'cursor-pointer rounded-lg'
         }`}
-        style={isVideoExpanded ? undefined : minimizedStyle}
+        style={currentStyle}
+        onClick={isVideoExpanded ? undefined : expandVideo}
       >
         <div
-          className={`pointer-events-auto relative overflow-hidden bg-black ${
-            isVideoExpanded
-              ? 'w-full max-w-[calc((100vh-6rem)*16/9)] rounded-xl shadow-2xl'
-              : 'h-full w-full cursor-pointer rounded-lg'
-          }`}
-          style={isVideoExpanded ? { aspectRatio: '16/9' } : undefined}
+          className="relative h-full w-full"
           onClick={isVideoExpanded ? undefined : expandVideo}
         >
           {/* video.js mount point */}
