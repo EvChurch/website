@@ -195,7 +195,7 @@ export function VideoContainer() {
         ref={(el) => {
           if (videoContainerRef) (videoContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
         }}
-        className={`fixed z-[61] overflow-hidden bg-black transition-all duration-300 ease-out ${
+        className={`fixed z-[63] overflow-hidden bg-black transition-all duration-300 ease-out ${
           isVideoExpanded
             ? 'inset-4 rounded-xl shadow-2xl sm:inset-8 md:inset-x-[10vw] md:inset-y-12'
             : 'cursor-pointer rounded-lg'
