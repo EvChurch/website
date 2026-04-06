@@ -96,13 +96,12 @@ export function MediaPlayButton({ sermon, size = 'md', className = '' }: MediaPl
   const toggleDropdown = () => {
     if (!dropdownOpen && chevronRef.current) {
       const rect = chevronRef.current.getBoundingClientRect()
-      // Position above the button, clamped to viewport edges
+      // Position below the button, clamped to viewport edges
       const vpW = window.innerWidth
       let left = rect.left + rect.width / 2
-      // Clamp so dropdown doesn't go off-screen (assume ~160px wide dropdown)
       left = Math.max(90, Math.min(left, vpW - 90))
       setDropdownPos({
-        top: rect.top,
+        top: rect.bottom,
         left,
       })
     }
@@ -195,7 +194,7 @@ export function MediaPlayButton({ sermon, size = 'md', className = '' }: MediaPl
         <button
           ref={chevronRef}
           onClick={toggleDropdown}
-          className={`flex items-center justify-center rounded-r-full border-l border-white/20 bg-brand-red text-warm-white/80 hover:text-white ${chevronSizes[size]}`}
+          className={`flex items-center justify-center rounded-r-full bg-brand-red text-warm-white/80 hover:text-white ${chevronSizes[size]}`}
           aria-label="Media options"
           aria-expanded={dropdownOpen}
         >
@@ -209,8 +208,8 @@ export function MediaPlayButton({ sermon, size = 'md', className = '' }: MediaPl
       {dropdownOpen && dropdownPos && typeof document !== 'undefined' && createPortal(
         <div
           ref={dropdownRef}
-          className="fixed z-[60] -translate-x-1/2 -translate-y-full animate-[dropdownIn_0.15s_ease-out] rounded-lg border border-white/10 bg-brand-black/95 py-1 shadow-xl backdrop-blur-xl"
-          style={{ top: dropdownPos.top - 8, left: dropdownPos.left }}
+          className="fixed z-[60] -translate-x-1/2 animate-[dropdownIn_0.15s_ease-out] rounded-lg border border-white/10 bg-brand-black/95 py-1 shadow-xl backdrop-blur-xl"
+          style={{ top: dropdownPos.top + 8, left: dropdownPos.left }}
         >
           {/* Audio option */}
           <button
