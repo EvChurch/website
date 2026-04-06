@@ -32,6 +32,8 @@ export function AudioPlayerBar() {
     skipBack,
     close,
     expandVideo,
+    minimizeVideo,
+    isVideoExpanded,
     isVideoVisible,
     activeVideo,
     videoThumbnailRef,
@@ -145,10 +147,15 @@ export function AudioPlayerBar() {
         style={swipeX !== 0 ? { transform: `translateX(${swipeX}px)`, opacity: Math.max(0, 1 - Math.abs(swipeX) / (SWIPE_THRESHOLD * 2)), transition: 'opacity 0.15s' } : undefined}
       >
         <div className="flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
-          {/* Artwork — always visible; video iframe overlays this spot when minimized */}
-          <div ref={videoThumbnailRef} className="relative hidden shrink-0 overflow-hidden rounded-lg sm:block">
-            {currentSermon.artworkUrl ? (
-              <Link href={`/sermons/${currentSermon.slug}`}>
+          {/* Artwork — video iframe overlays this spot when minimized */}
+          {isVideoMode ? (
+            <button
+              ref={videoThumbnailRef as React.RefObject<HTMLButtonElement | null>}
+              onClick={isVideoExpanded ? minimizeVideo : expandVideo}
+              className="group/art relative hidden h-12 w-12 shrink-0 overflow-hidden rounded-lg sm:block"
+              aria-label={isVideoExpanded ? 'Minimize video' : 'Expand video'}
+            >
+              {currentSermon.artworkUrl ? (
                 <Image
                   src={currentSermon.artworkUrl}
                   alt=""
@@ -158,11 +165,38 @@ export function AudioPlayerBar() {
                   className="h-12 w-12 object-cover"
                   {...(currentSermon.artworkBlurDataURL ? { placeholder: 'blur' as const, blurDataURL: currentSermon.artworkBlurDataURL } : {})}
                 />
-              </Link>
-            ) : (
-              <div className="h-12 w-12 bg-warm-white/10" />
-            )}
-          </div>
+              ) : (
+                <div className="h-12 w-12 bg-warm-white/10" />
+              )}
+              <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover/art:bg-black/40">
+                {isVideoExpanded ? (
+                  <svg className="h-5 w-5 text-white opacity-0 drop-shadow transition-opacity group-hover/art:opacity-100" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5 text-white opacity-0 drop-shadow transition-opacity group-hover/art:opacity-100" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6 1.41 1.41z" />
+                  </svg>
+                )}
+              </div>
+            </button>
+          ) : (
+            <div ref={videoThumbnailRef as React.RefObject<HTMLDivElement | null>} className="relative hidden shrink-0 overflow-hidden rounded-lg sm:block">
+              {currentSermon.artworkUrl ? (
+                <Link href={`/sermons/${currentSermon.slug}`}>
+                  <Image
+                    src={currentSermon.artworkUrl}
+                    alt=""
+                    width={48}
+                    height={48}
+                    sizes="48px"
+                    className="h-12 w-12 object-cover"
+                    {...(currentSermon.artworkBlurDataURL ? { placeholder: 'blur' as const, blurDataURL: currentSermon.artworkBlurDataURL } : {})}
+                  />
+                </Link>
+              ) : null}
+            </div>
+          )}
 
           {/* Sermon info + desktop progress */}
           <div className="min-w-0 flex-1">

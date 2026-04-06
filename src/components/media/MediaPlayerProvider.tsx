@@ -61,7 +61,7 @@ interface MediaPlayerState {
   minimizeVideo: () => void
   registerVideoPlayer: (player: Player) => void
   videoContainerRef: React.RefObject<HTMLDivElement | null>
-  videoThumbnailRef: React.RefObject<HTMLDivElement | null>
+  videoThumbnailRef: React.RefObject<HTMLElement | null>
   onEndedRef: React.MutableRefObject<(() => void) | null>
 }
 
@@ -84,7 +84,7 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const videoPlayerRef = useRef<Player | null>(null)
   const videoContainerRef = useRef<HTMLDivElement | null>(null)
-  const videoThumbnailRef = useRef<HTMLDivElement | null>(null)
+  const videoThumbnailRef = useRef<HTMLElement | null>(null)
   const [currentSermon, setCurrentSermon] = useState<SermonMedia | null>(null)
   const [mediaType, setMediaType] = useState<'audio' | 'video'>('audio')
   const [activeVideo, setActiveVideo] = useState<VideoOption | null>(null)
