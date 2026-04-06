@@ -98,6 +98,7 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
 
   const currentSlugRef = useRef<string | null>(null)
   const currentMediaTypeRef = useRef<'audio' | 'video'>('audio')
+  const activeVideoRef = useRef<VideoOption | null>(null)
   const saveProgressRef = useRef<(() => void) | null>(null)
   const markCompletedRef = useRef<(() => void) | null>(null)
   const closeRef = useRef<(() => void) | null>(null)
@@ -279,10 +280,22 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
       if (currentMediaTypeRef.current !== 'video') return
 
       const time = player.currentTime() ?? 0
-      const dur = player.duration() ?? 0
-      if (dur > 0) {
-        setProgress(time)
-        setDuration(dur)
+      const vid = activeVideoRef.current
+      const startSec = vid?.startSeconds ?? 0
+      const endSec = vid?.endSeconds ?? 0
+      const hasSegment = startSec > 0 && endSec > startSec
+
+      if (hasSegment) {
+        const segDur = endSec - startSec
+        const elapsed = Math.max(0, Math.min(time - startSec, segDur))
+        setProgress(elapsed)
+        setDuration(segDur)
+      } else {
+        const dur = player.duration() ?? 0
+        if (dur > 0) {
+          setProgress(time)
+          setDuration(dur)
+        }
       }
     }, 250)
   }, [stopVideoPolling])
@@ -369,6 +382,7 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
     currentSlugRef.current = sermon.slug
     setCurrentSermon(sermon)
     setActiveVideo(video)
+    activeVideoRef.current = video
     setIsLoading(true)
     setIsVideoVisible(true)
     setIsVideoExpanded(true) // R6: video starts expanded
@@ -441,7 +455,13 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
       if (audioRef.current) audioRef.current.currentTime = time
     } else {
       const vp = videoPlayerRef.current
-      if (vp && !vp.isDisposed()) vp.currentTime(time)
+      if (vp && !vp.isDisposed()) {
+        // time is segment-relative; offset by startSeconds for the actual YouTube position
+        const startSec = activeVideoRef.current?.startSeconds ?? 0
+        const endSec = activeVideoRef.current?.endSeconds ?? 0
+        const hasSegment = startSec > 0 && endSec > startSec
+        vp.currentTime(hasSegment ? startSec + time : time)
+      }
     }
   }, [])
 
@@ -461,7 +481,9 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
     } else {
       const vp = videoPlayerRef.current
       if (vp && !vp.isDisposed()) {
-        vp.currentTime(Math.min(vp.duration() ?? 0, (vp.currentTime() ?? 0) + SKIP_SECONDS))
+        const endSec = activeVideoRef.current?.endSeconds ?? 0
+        const maxTime = endSec > 0 ? endSec : (vp.duration() ?? 0)
+        vp.currentTime(Math.min(maxTime, (vp.currentTime() ?? 0) + SKIP_SECONDS))
       }
     }
   }, [])
@@ -475,7 +497,8 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
     } else {
       const vp = videoPlayerRef.current
       if (vp && !vp.isDisposed()) {
-        vp.currentTime(Math.max(0, (vp.currentTime() ?? 0) - SKIP_SECONDS))
+        const startSec = activeVideoRef.current?.startSeconds ?? 0
+        vp.currentTime(Math.max(startSec, (vp.currentTime() ?? 0) - SKIP_SECONDS))
       }
     }
   }, [])
@@ -489,6 +512,7 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
     currentMediaTypeRef.current = 'audio'
     setCurrentSermon(null)
     setActiveVideo(null)
+    activeVideoRef.current = null
     setMediaType('audio')
     setIsPlaying(false)
     setProgress(0)
