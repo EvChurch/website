@@ -23,7 +23,7 @@ export async function runYouTubeSync(
   payload.logger.info('[YouTubeSync] Starting YouTube video sync')
 
   // Step 1: Fetch recent videos from all campus channels
-  const videosByCampus = await fetchAllCampusVideos(10)
+  const videosByCampus = await fetchAllCampusVideos(50)
 
   const totalVideos = Object.values(videosByCampus).reduce(
     (sum, videos) => sum + videos.length,

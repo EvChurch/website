@@ -146,6 +146,7 @@ export const Sermons: CollectionConfig = {
         {
           name: 'transcript',
           type: 'textarea',
+          maxLength: 500000,
           admin: {
             description: 'Transcript from YouTube auto-generated captions',
           },

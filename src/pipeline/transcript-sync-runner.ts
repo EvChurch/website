@@ -121,7 +121,6 @@ export async function runTranscriptSync(
           payload.logger.warn(
             `[TranscriptSync] Boundary detection failed for video ${videoId}: ${boundaries.error}`,
           )
-          // Still save the transcript on the video
           updatedVideos[i] = {
             ...video,
             transcript: transcript.fullText,
