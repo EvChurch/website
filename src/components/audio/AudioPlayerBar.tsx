@@ -17,6 +17,7 @@ const SPEED_OPTIONS = [1, 1.25, 1.5, 2] as const
 export function AudioPlayerBar() {
   const {
     currentSermon,
+    mediaType,
     isPlaying,
     isLoading,
     progress,
@@ -31,6 +32,10 @@ export function AudioPlayerBar() {
     close,
     onEndedRef,
   } = useAudioPlayer()
+
+  // When video is playing, the VideoContainer handles its own UI.
+  // The bar only renders for audio playback.
+  const isVideoMode = mediaType === 'video'
 
   const [show, setShow] = useState(false)
   const [render, setRender] = useState(false)
@@ -107,7 +112,7 @@ export function AudioPlayerBar() {
     setSwipeX(0)
   }, [handleClose])
 
-  if (!render || !currentSermon) return null
+  if (!render || !currentSermon || isVideoMode) return null
 
   const progressPercent = duration > 0 ? (progress / duration) * 100 : 0
 
