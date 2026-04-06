@@ -24,7 +24,10 @@ export function VideoContainer() {
     activeVideo,
     isVideoVisible,
     isVideoExpanded,
+    isPlaying,
     playbackSpeed,
+    pause,
+    resume,
     expandVideo,
     minimizeVideo,
     registerVideoPlayer,
@@ -247,8 +250,12 @@ export function VideoContainer() {
             className="absolute inset-0 z-[5]"
             onClick={(e) => {
               e.stopPropagation()
-              if (isVideoExpanded) minimizeVideo()
-              else expandVideo()
+              if (isVideoExpanded) {
+                if (isPlaying) pause()
+                else resume()
+              } else {
+                expandVideo()
+              }
             }}
           />
         </div>
