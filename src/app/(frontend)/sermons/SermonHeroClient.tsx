@@ -103,11 +103,11 @@ export function SermonHeroClient({
   if (!audioUrl && !hasVideos) return null
 
   return (
-    <div className="inline-flex items-center gap-0">
+    <div className="inline-flex items-stretch">
       <button
         onClick={handleClick}
         disabled={isCurrentlyLoading}
-        className="flex cursor-pointer items-center gap-2 rounded-lg border border-warm-white/20 px-4 py-2.5 text-sm font-bold text-warm-white/80 transition-colors hover:border-warm-white/40 hover:text-warm-white disabled:opacity-70"
+        className={`flex cursor-pointer items-center gap-2 border border-warm-white/20 px-4 py-2.5 text-sm font-bold text-warm-white/80 transition-colors hover:border-warm-white/40 hover:text-warm-white disabled:opacity-70 ${hasVideos ? 'rounded-l-lg border-r-0' : 'rounded-lg'}`}
       >
         <PlayIcon slug={slug} isPlaying={isCurrentlyPlaying} isLoading={isCurrentlyLoading} size={22} />
         {label}
@@ -117,9 +117,10 @@ export function SermonHeroClient({
         <button
           ref={chevronRef}
           onClick={toggleDropdown}
-          className="flex h-11 w-8 items-center justify-center text-warm-white/40 hover:text-warm-white/80"
+          className="flex items-center justify-center rounded-r-lg border border-l-0 border-warm-white/20 px-2 text-warm-white/40 transition-colors hover:border-warm-white/40 hover:text-warm-white/80"
           aria-label="Media options"
         >
+          <div className="mr-1.5 h-5 w-px bg-warm-white/20" />
           <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
           </svg>
