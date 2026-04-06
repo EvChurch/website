@@ -124,6 +124,10 @@ export function VideoContainer() {
       const endSec = activeVideo.endSeconds ?? 0
       const hasSegment = startSec > 0 && endSec > startSec
 
+      // Mobile browsers block unmuted autoplay. Start muted to guarantee
+      // playback begins, then unmute once playing.
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+
       const player = videojs(videoEl, {
         techOrder: ['youtube'],
         sources: [
@@ -146,6 +150,7 @@ export function VideoContainer() {
         },
         controls: false,
         autoplay: true,
+        muted: isMobile,
         preload: 'auto',
         fluid: false,
         responsive: false,
@@ -161,11 +166,19 @@ export function VideoContainer() {
         }
         if (player.paused()) {
           player.play()?.catch(() => {
+            // Last resort: muted autoplay
             player.muted(true)
             player.play()?.catch(() => {})
           })
         }
       })
+
+      // Unmute after playback starts on mobile
+      if (isMobile) {
+        player.one('playing', () => {
+          player.muted(false)
+        })
+      }
 
       if (hasSegment) {
         const enforceInterval = setInterval(() => {
