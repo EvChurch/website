@@ -38,6 +38,8 @@ export function VideoContainer() {
   const videoElRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<VjsPlayer | null>(null)
   const prevVideoIdRef = useRef<string | null>(null)
+  const [flashIcon, setFlashIcon] = useState<'play' | 'pause' | null>(null)
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pathname = usePathname()
 
   // Track positions for both states
@@ -251,6 +253,9 @@ export function VideoContainer() {
             onClick={(e) => {
               e.stopPropagation()
               if (isVideoExpanded) {
+                if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
+                setFlashIcon(isPlaying ? 'pause' : 'play')
+                flashTimerRef.current = setTimeout(() => setFlashIcon(null), 700)
                 if (isPlaying) pause()
                 else resume()
               } else {
@@ -258,6 +263,24 @@ export function VideoContainer() {
               }
             }}
           />
+
+          {/* Play/pause flash indicator */}
+          {flashIcon && isVideoExpanded && (
+            <div className="pointer-events-none absolute inset-0 z-[6] flex items-center justify-center">
+              <div className="animate-[fadeScale_0.7s_ease-out_forwards] flex h-16 w-16 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm">
+                {flashIcon === 'pause' ? (
+                  <svg className="h-7 w-7 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16" />
+                    <rect x="14" y="4" width="4" height="16" />
+                  </svg>
+                ) : (
+                  <svg className="ml-1 h-7 w-7 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
