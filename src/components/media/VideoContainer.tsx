@@ -165,7 +165,7 @@ export function VideoContainer() {
       const videojs = vjs.default
 
       if (playerRef.current && !playerRef.current.isDisposed()) {
-        playerRef.current.dispose()
+        try { playerRef.current.dispose() } catch { /* iframe may be detached */ }
         playerRef.current = null
       }
 
@@ -284,7 +284,11 @@ export function VideoContainer() {
   // Clean up player after fade-out completes
   useEffect(() => {
     if (!shouldRender && !isVideoVisible && playerRef.current && !playerRef.current.isDisposed()) {
-      playerRef.current.dispose()
+      try {
+        playerRef.current.dispose()
+      } catch {
+        // YouTube API may throw if iframe is already detached
+      }
       playerRef.current = null
       prevVideoIdRef.current = null
     }
