@@ -152,7 +152,7 @@ export function AudioPlayerBar() {
             <button
               ref={videoThumbnailRef as React.RefObject<HTMLButtonElement | null>}
               onClick={isVideoExpanded ? minimizeVideo : expandVideo}
-              className="group/art relative z-[64] hidden h-12 w-12 shrink-0 overflow-hidden rounded-lg sm:block"
+              className="group/art relative hidden h-12 w-12 shrink-0 overflow-hidden rounded-lg sm:block"
               aria-label={isVideoExpanded ? 'Minimize video' : 'Expand video'}
             >
               {currentSermon.artworkUrl ? (
@@ -169,15 +169,14 @@ export function AudioPlayerBar() {
                 <div className="h-12 w-12 bg-warm-white/10" />
               )}
               <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover/art:bg-black/40">
-                {isVideoExpanded ? (
-                  <svg className="h-5 w-5 text-white opacity-0 drop-shadow transition-opacity group-hover/art:opacity-100" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                  </svg>
-                ) : (
-                  <svg className="h-5 w-5 text-white opacity-0 drop-shadow transition-opacity group-hover/art:opacity-100" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6 1.41 1.41z" />
-                  </svg>
-                )}
+                <svg
+                  className="h-5 w-5 text-white opacity-0 drop-shadow transition-all duration-300 group-hover/art:opacity-100"
+                  style={{ transform: isVideoExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6 1.41 1.41z" />
+                </svg>
               </div>
             </button>
           ) : (

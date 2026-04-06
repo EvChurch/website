@@ -226,8 +226,8 @@ export function VideoContainer() {
         ref={(el) => {
           if (videoContainerRef) (videoContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
         }}
-        className={`fixed z-[63] overflow-hidden bg-black transition-all duration-300 ease-out ${
-          isVideoExpanded ? 'rounded-xl shadow-2xl' : 'cursor-pointer rounded-lg'
+        className={`fixed overflow-hidden bg-black transition-all duration-300 ease-out ${
+          isVideoExpanded ? 'z-[63] rounded-xl shadow-2xl' : 'z-[61] cursor-pointer rounded-lg'
         }`}
         style={currentStyle}
         onClick={isVideoExpanded ? undefined : expandVideo}
