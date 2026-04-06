@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getPayloadClient } from '@/lib/payload'
-import { getSermonAudioUrl, getSeriesBannerUrl } from '@/lib/sermon-utils'
+import { getSermonAudioUrl, getSeriesBannerUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { SermonCard } from '@/components/sermons/SermonCard'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
 
@@ -144,6 +144,7 @@ export default async function SpeakerPage({
                 passageReference={sermon.passageReference}
                 duration={sermon.duration ?? 0}
                 audioUrl={getSermonAudioUrl(sermon.audio)}
+                videos={getSermonVideos(sermon)}
                 seriesBannerUrl={getSeriesBannerUrl(sermon)}
               />
             ))}

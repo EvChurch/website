@@ -1,7 +1,7 @@
 import { MediaImage } from '@/components/media/MediaImage'
 import Link from 'next/link'
 import { getPayloadClient } from '@/lib/payload'
-import { getSermonAudioUrl } from '@/lib/sermon-utils'
+import { getSermonAudioUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { LatestSermonPlayButton } from './LatestSermonPlayButton'
 import { ListenedBadge } from '@/components/sermons/ListenedBadge'
 
@@ -175,6 +175,7 @@ export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockP
                     artworkUrl={bannerUrl ?? undefined}
                     artworkBlurDataURL={bannerMedia?.blurDataURL ?? undefined}
                     duration={sermon.duration ?? undefined}
+                    videos={getSermonVideos(sermon)}
                   />
                 </div>
               )}

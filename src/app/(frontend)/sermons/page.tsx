@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import type { Where } from 'payload'
 import { MediaImage } from '@/components/media/MediaImage'
 import { getPayloadClient } from '@/lib/payload'
-import { getSermonAudioUrl, getSeriesBannerUrl } from '@/lib/sermon-utils'
+import { getSermonAudioUrl, getSeriesBannerUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { SermonCard } from '@/components/sermons/SermonCard'
 import { SeriesCard } from '@/components/sermons/SeriesCard'
 import { Suspense } from 'react'
@@ -397,6 +397,7 @@ export default async function SermonsPage({
                     artworkUrl={heroBannerMedia?.url ?? undefined}
                     artworkBlurDataURL={heroBannerMedia?.blurDataURL ?? undefined}
                     duration={latestSermon.duration ?? undefined}
+                    videos={getSermonVideos(latestSermon)}
                   />
                 </div>
               </div>
@@ -483,6 +484,7 @@ export default async function SermonsPage({
                   passageReference={sermon.passageReference}
                   duration={sermon.duration ?? 0}
                   audioUrl={getSermonAudioUrl(sermon.audio)}
+                  videos={getSermonVideos(sermon)}
                   seriesBannerUrl={getSeriesBannerUrl(sermon)}
                 />
               ))}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useListeningStore, type ListeningRecord } from '@/lib/listening-store'
-import { PlayButton } from '@/components/audio/PlayButton'
+import { MediaPlayButton } from '@/components/media/MediaPlayButton'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
@@ -38,7 +38,7 @@ export function ContinueListening() {
           {records.map((r) => (
             <div key={r.slug} className="rounded-lg bg-warm-white/5 p-4">
               <div className="flex items-center gap-4">
-                <PlayButton
+                <MediaPlayButton
                   sermon={{
                     id: r.slug,
                     title: r.title,

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { MediaImage } from '@/components/media/MediaImage'
 import { getPayloadClient } from '@/lib/payload'
-import { getSermonAudioUrl } from '@/lib/sermon-utils'
+import { getSermonAudioUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { SermonCard } from '@/components/sermons/SermonCard'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
 import { SermonPlayButton } from './SermonPlayButton'
@@ -417,7 +417,7 @@ export default async function SermonPage({
               </div>
 
               {/* Play button */}
-              {getSermonAudioUrl(sermon.audio) && (
+              {(getSermonAudioUrl(sermon.audio) || videoSources.length > 0) && (
                 <div className="mt-6">
                   <SermonPlayButton
                     id={sermon.slug.length + (sermon.duration ?? 0)}
@@ -429,6 +429,7 @@ export default async function SermonPage({
                     artworkUrl={heroBannerMedia?.url ?? undefined}
                     artworkBlurDataURL={heroBannerMedia?.blurDataURL ?? undefined}
                     duration={sermon.duration ?? undefined}
+                    videos={getSermonVideos(sermon)}
                   />
                 </div>
               )}
