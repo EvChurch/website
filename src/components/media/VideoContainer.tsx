@@ -50,6 +50,8 @@ export function VideoContainer() {
   closeRef.current = animatedClose
   const [flashIcon, setFlashIcon] = useState<'play' | 'pause' | null>(null)
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [minimizePhase, setMinimizePhase] = useState<'idle' | 'slide-out' | 'reposition' | 'slide-in'>('idle')
+  const prevExpandedRef = useRef(isVideoExpanded)
   const [shouldRender, setShouldRender] = useState(false)
   const pathname = usePathname()
 
@@ -87,6 +89,31 @@ export function VideoContainer() {
       window.removeEventListener('resize', updatePositions)
     }
   }, [updatePositions, isVideoExpanded, isVideoVisible])
+
+  // Two-phase minimize animation (mobile only): slide out right, then slide in from left
+  useEffect(() => {
+    const wasExpanded = prevExpandedRef.current
+    prevExpandedRef.current = isVideoExpanded
+    const mobile = typeof window !== 'undefined' && window.innerWidth < 640
+    if (wasExpanded && !isVideoExpanded && mobile) {
+      setMinimizePhase('slide-out')
+      const t1 = setTimeout(() => {
+        // Instantly reposition off-screen left (no transition)
+        setMinimizePhase('reposition')
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            // Now animate in from left
+            setMinimizePhase('slide-in')
+            setTimeout(() => setMinimizePhase('idle'), 300)
+          })
+        })
+      }, 300)
+      return () => clearTimeout(t1)
+    }
+    if (!wasExpanded && isVideoExpanded) {
+      setMinimizePhase('idle')
+    }
+  }, [isVideoExpanded])
 
   // Auto-minimize on route change
   useEffect(() => {
@@ -270,7 +297,17 @@ export function VideoContainer() {
           : undefined
       : undefined
 
-  const currentStyle = closingStyle ?? (isVideoExpanded ? expandedStyle : minimizedStyle)
+  let currentStyle = closingStyle ?? (isVideoExpanded ? expandedStyle : minimizedStyle)
+
+  // Minimize animation phases (mobile only)
+  if (minimizePhase === 'slide-out') {
+    currentStyle = { ...expandedStyle, transform: `translateX(${vpW}px)` }
+  } else if (minimizePhase === 'reposition') {
+    // Instant reposition off-screen left — transition disabled via class
+    currentStyle = { ...minimizedStyle, transform: `translateX(-${vpW}px)` }
+  } else if (minimizePhase === 'slide-in') {
+    currentStyle = { ...minimizedStyle, transform: 'translateX(0)' }
+  }
 
   return (
     <>
@@ -290,7 +327,9 @@ export function VideoContainer() {
         ref={(el) => {
           if (videoContainerRef) (videoContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
         }}
-        className={`fixed z-[63] overflow-hidden bg-black transition-all duration-300 ease-out ${
+        className={`fixed z-[63] overflow-hidden bg-black ${
+          minimizePhase === 'reposition' ? '' : 'transition-all duration-300 ease-out'
+        } ${
           isVideoExpanded ? 'rounded-xl shadow-2xl' : 'cursor-pointer rounded-lg'
         } ${isClosing && isVideoExpanded ? 'opacity-0' : 'opacity-100'}`}
         style={currentStyle}
