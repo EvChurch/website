@@ -39,6 +39,8 @@ export function VideoContainer() {
   const videoElRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<VjsPlayer | null>(null)
   const prevVideoIdRef = useRef<string | null>(null)
+  const closeRef = useRef(close)
+  closeRef.current = close
   const [flashIcon, setFlashIcon] = useState<'play' | 'pause' | null>(null)
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pathname = usePathname()
@@ -163,7 +165,7 @@ export function VideoContainer() {
           }
           if (time >= endSec) {
             clearInterval(enforceInterval)
-            close()
+            closeRef.current()
           }
         }, 250)
         player.on('dispose', () => clearInterval(enforceInterval))
