@@ -197,14 +197,15 @@ export function VideoContainer() {
         }}
         className={`fixed z-[63] overflow-hidden bg-black transition-all duration-300 ease-out ${
           isVideoExpanded
-            ? 'inset-4 flex items-center justify-center rounded-xl shadow-2xl sm:inset-8 md:inset-x-[10vw] md:inset-y-12'
+            ? 'inset-0 flex items-center justify-center rounded-none p-4 shadow-2xl sm:p-8 md:px-[10vw] md:py-12'
             : 'cursor-pointer rounded-lg'
         }`}
         style={isVideoExpanded ? undefined : minimizedStyle}
         onClick={isVideoExpanded ? minimizeVideo : expandVideo}
       >
         <div
-          className={`relative ${isVideoExpanded ? 'aspect-video w-full max-h-full' : 'h-full w-full'}`}
+          className={`relative ${isVideoExpanded ? 'w-full max-w-[calc((100vh-6rem)*16/9)] overflow-hidden rounded-xl' : 'h-full w-full'}`}
+          style={isVideoExpanded ? { aspectRatio: '16/9' } : undefined}
           onClick={(e) => { if (isVideoExpanded) e.stopPropagation() }}
         >
           {/* video.js mount point */}
