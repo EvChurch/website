@@ -35,6 +35,8 @@ export function VideoContainer() {
   const videoElRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<VjsPlayer | null>(null)
   const prevVideoIdRef = useRef<string | null>(null)
+  const [isExpanding, setIsExpanding] = useState(false)
+  const prevExpandedRef = useRef(false)
   const pathname = usePathname()
 
   // Track positions for both states
@@ -61,6 +63,18 @@ export function VideoContainer() {
       window.removeEventListener('resize', updatePositions)
     }
   }, [updatePositions, isVideoExpanded, isVideoVisible])
+
+  // Track expand transitions - hide video content during expand animation
+  useEffect(() => {
+    const wasExpanded = prevExpandedRef.current
+    prevExpandedRef.current = isVideoExpanded
+    if (isVideoExpanded && !wasExpanded) {
+      // Expanding: hide video during animation, reveal after
+      setIsExpanding(true)
+      const timer = setTimeout(() => setIsExpanding(false), 300)
+      return () => clearTimeout(timer)
+    }
+  }, [isVideoExpanded])
 
   // Auto-minimize on route change
   useEffect(() => {
@@ -236,10 +250,10 @@ export function VideoContainer() {
           className="relative h-full w-full"
           onClick={isVideoExpanded ? undefined : expandVideo}
         >
-          {/* video.js mount point */}
+          {/* video.js mount point — hidden during expand animation to avoid ugly stretch */}
           <div
             ref={videoElRef}
-            className="h-full w-full [&_.video-js]:!block [&_.video-js]:!h-full [&_.video-js]:!w-full [&_iframe]:!h-full [&_iframe]:!w-full [&_.vjs-loading-spinner]:!hidden [&_.vjs-big-play-button]:!hidden"
+            className={`h-full w-full transition-opacity duration-150 [&_.video-js]:!block [&_.video-js]:!h-full [&_.video-js]:!w-full [&_iframe]:!h-full [&_iframe]:!w-full [&_.vjs-loading-spinner]:!hidden [&_.vjs-big-play-button]:!hidden ${isExpanding ? 'opacity-0' : 'opacity-100'}`}
           />
 
           {/* Click overlay to block YouTube iframe interaction */}
