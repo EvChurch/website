@@ -64,6 +64,7 @@ interface MediaPlayerState {
   registerVideoPlayer: (player: Player) => void
   videoContainerRef: React.RefObject<HTMLDivElement | null>
   videoThumbnailRef: React.RefObject<HTMLElement | null>
+  videoResumeTimeRef: React.MutableRefObject<number>
   onEndedRef: React.MutableRefObject<(() => void) | null>
 }
 
@@ -104,6 +105,7 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
   const currentSlugRef = useRef<string | null>(null)
   const currentMediaTypeRef = useRef<'audio' | 'video'>('audio')
   const activeVideoRef = useRef<VideoOption | null>(null)
+  const videoResumeTimeRef = useRef(0)
   const saveProgressRef = useRef<(() => void) | null>(null)
   const markCompletedRef = useRef<(() => void) | null>(null)
   const closeRef = useRef<(() => void) | null>(null)
@@ -421,6 +423,18 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
     stopAudio()
     saveProgressRef.current?.()
 
+    // Check for saved progress to resume from
+    const saved = useListeningStore.getState().history[sermon.slug]
+    const startSec = video.startSeconds ?? 0
+    const endSec = video.endSeconds ?? 0
+    const hasSegment = startSec > 0 && endSec > startSec
+    let resumeTime = 0
+    if (saved && !saved.completed && saved.progress > 10) {
+      // saved.progress is segment-relative; convert to absolute YouTube time
+      resumeTime = hasSegment ? startSec + saved.progress : saved.progress
+    }
+    videoResumeTimeRef.current = resumeTime
+
     currentMediaTypeRef.current = 'video'
     setMediaType('video')
     currentSlugRef.current = sermon.slug
@@ -430,12 +444,8 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
     setIsLoading(true)
     setIsVideoVisible(true)
     setIsVideoExpanded(true) // R6: video starts expanded
-    setProgress(0)
+    setProgress(resumeTime > 0 && hasSegment ? resumeTime - startSec : resumeTime)
     setDuration(0)
-
-    // The VideoContainer component handles player initialization
-    // when it sees activeVideo change and isVideoVisible is true.
-    // It calls back via registerVideoPlayer when the player is ready.
   }, [stopAudio])
 
   const play = useCallback((sermon: SermonMedia, type?: 'audio' | 'video', campusSlug?: string) => {
@@ -628,6 +638,7 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
         registerVideoPlayer,
         videoContainerRef,
         videoThumbnailRef,
+        videoResumeTimeRef,
         onEndedRef,
       }}
     >

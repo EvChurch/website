@@ -36,6 +36,7 @@ export function VideoContainer() {
     minimizeVideo,
     registerVideoPlayer,
     videoContainerRef,
+    videoResumeTimeRef,
     videoThumbnailRef,
     onEndedRef,
   } = useMediaPlayer()
@@ -195,7 +196,9 @@ export function VideoContainer() {
         ],
         youtube: {
           customVars: {
-            start: hasSegment ? Math.round(startSec) : undefined,
+            start: videoResumeTimeRef.current > 0
+              ? Math.round(videoResumeTimeRef.current)
+              : hasSegment ? Math.round(startSec) : undefined,
             controls: 0,
             showinfo: 0,
             modestbranding: 1,
@@ -218,12 +221,18 @@ export function VideoContainer() {
       player.on('loadedmetadata', () => {
         const speed = playbackSpeed
         if (speed !== 1) player.playbackRate(speed)
-        if (hasSegment && (player.currentTime() ?? 0) < startSec) {
+
+        // Seek to resume position or segment start
+        const resumeTime = videoResumeTimeRef.current
+        if (resumeTime > 0) {
+          player.currentTime(resumeTime)
+          videoResumeTimeRef.current = 0
+        } else if (hasSegment && (player.currentTime() ?? 0) < startSec) {
           player.currentTime(startSec)
         }
+
         if (player.paused()) {
           player.play()?.catch(() => {
-            // Last resort: muted autoplay
             player.muted(true)
             player.play()?.catch(() => {})
           })
