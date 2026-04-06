@@ -152,7 +152,7 @@ export function AudioPlayerBar() {
             <button
               ref={videoThumbnailRef as React.RefObject<HTMLButtonElement | null>}
               onClick={isVideoExpanded ? minimizeVideo : expandVideo}
-              className="group/art relative hidden h-12 w-12 shrink-0 overflow-hidden rounded-lg sm:block"
+              className="group/art relative z-[64] hidden h-12 w-12 shrink-0 overflow-hidden rounded-lg sm:block"
               aria-label={isVideoExpanded ? 'Minimize video' : 'Expand video'}
             >
               {currentSermon.artworkUrl ? (
