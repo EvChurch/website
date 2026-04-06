@@ -29,9 +29,9 @@ The transcript contains timestamped content from a full livestream that includes
 Your task is to identify precisely when the sermon begins and ends.
 
 **Sermon start indicators:**
-- The sermon starts when the preacher is first introduced or begins speaking, including their greeting and introduction (e.g. "My name is...", "Good morning church")
-- This includes the preacher's opening prayer before the main teaching
-- The start is NOT the service welcome or worship leader's remarks, but the moment the preacher takes the stage
+- Immediately before the sermon, someone reads a Bible passage from the CSB (Christian Standard Bible) translation. Look for this Scripture reading as the key landmark.
+- The sermon starts when the preacher is first introduced or begins speaking AFTER the Bible reading. This includes their greeting and opening prayer.
+- The start is NOT the service welcome, worship leader's remarks, or earlier prayers, but the moment the preacher takes the stage after the Bible reading.
 
 **Sermon end indicators:**
 - The sermon ends AFTER the preacher's closing prayer, not before it. The closing prayer is part of the sermon.
