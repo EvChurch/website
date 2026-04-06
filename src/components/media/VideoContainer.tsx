@@ -282,7 +282,7 @@ export function VideoContainer() {
   const mobileMinW = vpW / 2
   const mobileMinH = mobileMinW * 9 / 16
   const minimizedStyle: React.CSSProperties = isMobileView
-    ? { bottom: barHeight + 16, right: 16, width: mobileMinW, height: mobileMinH }
+    ? { bottom: barHeight + 32, right: 16, width: mobileMinW, height: mobileMinH }
     : thumbRect
       ? { top: thumbRect.top, left: thumbRect.left, width: thumbRect.width, height: thumbRect.height }
       : { top: vpH - 70, right: 16, width: 85, height: 48 }
@@ -330,7 +330,7 @@ export function VideoContainer() {
         className={`fixed z-[63] overflow-hidden bg-black ${
           minimizePhase === 'reposition' ? '' : 'transition-all duration-300 ease-out'
         } ${
-          isVideoExpanded ? 'rounded-xl shadow-2xl' : 'cursor-pointer rounded-lg'
+          isVideoExpanded ? 'rounded-xl shadow-2xl' : `cursor-pointer shadow-2xl ${isMobileView ? 'rounded-2xl' : 'rounded-lg'}`
         } ${isClosing && isVideoExpanded ? 'opacity-0' : 'opacity-100'}`}
         style={currentStyle}
         onClick={isVideoExpanded ? undefined : expandVideo}
