@@ -282,7 +282,7 @@ export function VideoContainer() {
   const mobileMinW = vpW / 2
   const mobileMinH = mobileMinW * 9 / 16
   const minimizedStyle: React.CSSProperties = isMobileView
-    ? { bottom: barHeight + 8, right: 16, width: mobileMinW, height: mobileMinH }
+    ? { bottom: barHeight + 16, right: 16, width: mobileMinW, height: mobileMinH }
     : thumbRect
       ? { top: thumbRect.top, left: thumbRect.left, width: thumbRect.width, height: thumbRect.height }
       : { top: vpH - 70, right: 16, width: 85, height: 48 }
@@ -303,8 +303,8 @@ export function VideoContainer() {
   if (minimizePhase === 'slide-out') {
     currentStyle = { ...expandedStyle, transform: `translateX(${vpW}px)` }
   } else if (minimizePhase === 'reposition') {
-    // Instant reposition off-screen left — transition disabled via class
-    currentStyle = { ...minimizedStyle, transform: `translateX(-${vpW}px)` }
+    // Instant reposition off-screen right — transition disabled via class
+    currentStyle = { ...minimizedStyle, transform: `translateX(${vpW}px)` }
   } else if (minimizePhase === 'slide-in') {
     currentStyle = { ...minimizedStyle, transform: 'translateX(0)' }
   }
