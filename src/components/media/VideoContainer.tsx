@@ -50,7 +50,7 @@ export function VideoContainer() {
   closeRef.current = animatedClose
   const [flashIcon, setFlashIcon] = useState<'play' | 'pause' | null>(null)
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [minimizePhase, setMinimizePhase] = useState<'idle' | 'slide-out' | 'reposition' | 'slide-in'>('idle')
+  const [animPhase, setAnimPhase] = useState<'idle' | 'min-out' | 'min-repos' | 'min-in' | 'exp-out' | 'exp-repos' | 'exp-in'>('idle')
   const prevExpandedRef = useRef(isVideoExpanded)
   const [shouldRender, setShouldRender] = useState(false)
   const pathname = usePathname()
@@ -90,28 +90,46 @@ export function VideoContainer() {
     }
   }, [updatePositions, isVideoExpanded, isVideoVisible])
 
-  // Two-phase minimize animation (mobile only): slide out right, then slide in from left
+  // Two-phase slide animations (mobile only)
+  // Minimize: expanded slides right, mini slides in from right
+  // Expand: mini slides right, expanded slides in from right
   useEffect(() => {
     const wasExpanded = prevExpandedRef.current
     prevExpandedRef.current = isVideoExpanded
     const mobile = typeof window !== 'undefined' && window.innerWidth < 640
-    if (wasExpanded && !isVideoExpanded && mobile) {
-      setMinimizePhase('slide-out')
+    if (!mobile) {
+      setAnimPhase('idle')
+      return
+    }
+
+    if (wasExpanded && !isVideoExpanded) {
+      // Minimize: expanded -> mini
+      setAnimPhase('min-out')
       const t1 = setTimeout(() => {
-        // Instantly reposition off-screen left (no transition)
-        setMinimizePhase('reposition')
+        setAnimPhase('min-repos')
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            // Now animate in from left
-            setMinimizePhase('slide-in')
-            setTimeout(() => setMinimizePhase('idle'), 300)
+            setAnimPhase('min-in')
+            setTimeout(() => setAnimPhase('idle'), 300)
           })
         })
       }, 300)
       return () => clearTimeout(t1)
     }
+
     if (!wasExpanded && isVideoExpanded) {
-      setMinimizePhase('idle')
+      // Expand: mini -> expanded
+      setAnimPhase('exp-out')
+      const t1 = setTimeout(() => {
+        setAnimPhase('exp-repos')
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setAnimPhase('exp-in')
+            setTimeout(() => setAnimPhase('idle'), 300)
+          })
+        })
+      }, 300)
+      return () => clearTimeout(t1)
     }
   }, [isVideoExpanded])
 
@@ -299,14 +317,25 @@ export function VideoContainer() {
 
   let currentStyle = closingStyle ?? (isVideoExpanded ? expandedStyle : minimizedStyle)
 
-  // Minimize animation phases (mobile only)
-  if (minimizePhase === 'slide-out') {
+  // Slide animation phases (mobile only)
+  if (animPhase === 'min-out') {
+    // Minimize: slide expanded off to right
     currentStyle = { ...expandedStyle, transform: `translateX(${vpW}px)` }
-  } else if (minimizePhase === 'reposition') {
-    // Instant reposition off-screen right — transition disabled via class
+  } else if (animPhase === 'min-repos') {
+    // Instant reposition mini off-screen right (no transition)
     currentStyle = { ...minimizedStyle, transform: `translateX(${vpW}px)` }
-  } else if (minimizePhase === 'slide-in') {
+  } else if (animPhase === 'min-in') {
+    // Slide mini in from right
     currentStyle = { ...minimizedStyle, transform: 'translateX(0)' }
+  } else if (animPhase === 'exp-out') {
+    // Expand: slide mini off to right
+    currentStyle = { ...minimizedStyle, transform: `translateX(${vpW}px)` }
+  } else if (animPhase === 'exp-repos') {
+    // Instant reposition expanded off-screen right (no transition)
+    currentStyle = { ...expandedStyle, transform: `translateX(${vpW}px)` }
+  } else if (animPhase === 'exp-in') {
+    // Slide expanded in from right
+    currentStyle = { ...expandedStyle, transform: 'translateX(0)' }
   }
 
   return (
@@ -328,7 +357,7 @@ export function VideoContainer() {
           if (videoContainerRef) (videoContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
         }}
         className={`fixed z-[63] overflow-hidden bg-black ${
-          minimizePhase === 'reposition' ? '' : 'transition-all duration-300 ease-out'
+          (animPhase === 'min-repos' || animPhase === 'exp-repos') ? '' : 'transition-all duration-300 ease-out'
         } ${
           isVideoExpanded ? 'rounded-xl shadow-2xl' : `cursor-pointer shadow-2xl ${isMobileView ? 'rounded-2xl' : 'rounded-lg'}`
         } ${isClosing && isVideoExpanded ? 'opacity-0' : 'opacity-100'}`}
