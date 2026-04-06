@@ -148,6 +148,21 @@ export function AudioPlayerBar() {
         className={`pointer-events-auto w-full max-w-2xl rounded-2xl border border-white/10 bg-brand-black/80 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl transition-transform duration-300 ease-out ${show ? 'translate-y-0' : 'translate-y-[calc(100%+2rem)]'}`}
         style={swipeX !== 0 ? { transform: `translateX(${swipeX}px)`, opacity: Math.max(0, 1 - Math.abs(swipeX) / (SWIPE_THRESHOLD * 2)), transition: 'opacity 0.15s' } : undefined}
       >
+        {/* Mobile title strip */}
+        <div className="flex items-center gap-2 truncate px-3 pt-2.5 sm:hidden">
+          <Link
+            href={`/sermons/${currentSermon.slug}`}
+            className="truncate text-xs font-medium text-warm-white hover:underline"
+          >
+            {currentSermon.title}
+          </Link>
+          {currentSermon.speaker && (
+            <span className="shrink-0 text-xs text-warm-white/40">
+              {currentSermon.speaker}
+            </span>
+          )}
+        </div>
+
         <div className="flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
           {/* Artwork + video iframe + chevron all stacked in the same spot */}
           <div ref={videoThumbnailRef as React.RefObject<HTMLDivElement | null>} className="relative aspect-video h-12 shrink-0 overflow-hidden rounded-lg">
@@ -181,8 +196,8 @@ export function AudioPlayerBar() {
             {/* Layer 3: chevron rendered as fixed element from VideoContainer */}
           </div>
 
-          {/* Sermon info + desktop progress */}
-          <div className="min-w-0 flex-1">
+          {/* Sermon info + desktop progress (hidden on mobile, shown in strip above) */}
+          <div className="hidden min-w-0 flex-1 sm:block">
             <Link
               href={`/sermons/${currentSermon.slug}`}
               className="block truncate text-sm font-medium leading-tight text-warm-white hover:underline"
