@@ -29,9 +29,11 @@ The transcript contains timestamped content from a full livestream that includes
 Your task is to identify precisely when the sermon begins and ends.
 
 **Sermon start indicators:**
-- Immediately before the sermon, someone reads a Bible passage from the CSB (Christian Standard Bible) translation. Look for this Scripture reading as the key landmark.
-- The sermon starts when the preacher is first introduced or begins speaking AFTER the Bible reading. This includes their greeting and opening prayer.
-- The start is NOT the service welcome, worship leader's remarks, or earlier prayers, but the moment the preacher takes the stage after the Bible reading.
+- The service follows this order: worship songs, prayers, announcements, then a Bible reading from the CSB (Christian Standard Bible), then the sermon.
+- The Bible reading is a long passage read aloud (often several paragraphs of Scripture). It is the LAST thing before the sermon.
+- The sermon starts immediately after the Bible reading ends. You will often hear a "thank you" or handoff, then the preacher begins speaking.
+- The preacher's first words (greeting, introduction, opening prayer) are part of the sermon.
+- IMPORTANT: There are prayers BEFORE the Bible reading that are NOT the sermon. Do not start the sermon at these earlier prayers. The sermon only begins after the Bible reading.
 
 **Sermon end indicators:**
 - The sermon ends AFTER the preacher's closing prayer, not before it. The closing prayer is part of the sermon.
