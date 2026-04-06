@@ -246,48 +246,41 @@ export function VideoContainer() {
     }
   }, [])
 
-  if (!isVideoVisible) return null
+  // Only render when video is expanded as an overlay.
+  // When minimized, the AudioPlayerBar shows the thumbnail and controls.
+  if (!isVideoVisible || !isVideoExpanded) return null
 
   return (
     <>
-      {/* Dark backdrop for expanded state */}
-      {isVideoExpanded && (
-        <div
-          className="fixed inset-0 z-[49] bg-black/70 transition-opacity duration-300"
-          onClick={minimizeVideo}
-        />
-      )}
+      {/* Dark backdrop */}
+      <div
+        className="fixed inset-0 z-[49] bg-black/70"
+        onClick={minimizeVideo}
+      />
 
-      {/* Video container - CSS-resized between expanded and minimized */}
+      {/* Expanded video overlay - fixed center */}
       <div
         ref={(el) => {
           wrapperRef.current = el
           if (videoContainerRef) (videoContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
         }}
-        className={`fixed z-50 overflow-hidden rounded-xl shadow-2xl transition-all duration-300 ease-out ${
-          isVideoExpanded
-            ? 'inset-x-4 top-1/2 -translate-y-1/2 sm:inset-x-auto sm:left-1/2 sm:w-[80vw] sm:max-w-5xl sm:-translate-x-1/2'
-            : 'bottom-20 right-4 h-[108px] w-48 cursor-pointer sm:bottom-24 sm:h-[135px] sm:w-60'
-        }`}
-        onClick={!isVideoExpanded ? expandVideo : undefined}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8"
       >
-        <div className={`relative bg-black ${isVideoExpanded ? 'aspect-video' : 'h-full w-full'}`}>
+        <div className="relative aspect-video w-full max-w-5xl overflow-hidden rounded-xl bg-black shadow-2xl">
           {/* video.js mount point */}
           <div
             ref={videoElRef}
-            className="h-full w-full [&_.video-js]:!block [&_.video-js]:!h-full [&_.video-js]:!w-full [&_iframe]:!h-full [&_iframe]:!w-full [&_.vjs-loading-spinner]:!hidden [&_.vjs-big-play-button]:!hidden"
+            className="absolute inset-0 [&_.video-js]:!block [&_.video-js]:!h-full [&_.video-js]:!w-full [&_iframe]:!h-full [&_iframe]:!w-full [&_.vjs-loading-spinner]:!hidden [&_.vjs-big-play-button]:!hidden"
           />
 
-          {/* Transparent click overlay to block YouTube iframe interaction */}
-          {isVideoExpanded && (
-            <div
-              className="absolute inset-0 z-[5]"
-              onClick={(e) => {
-                e.stopPropagation()
-                handlePlayPause()
-              }}
-            />
-          )}
+          {/* Click overlay to block YouTube iframe interaction */}
+          <div
+            className="absolute inset-0 z-[5]"
+            onClick={(e) => {
+              e.stopPropagation()
+              handlePlayPause()
+            }}
+          />
 
           {/* Loading spinner */}
           {isLoading && (
@@ -297,76 +290,24 @@ export function VideoContainer() {
           )}
 
           {/* Controls */}
-          {isVideoExpanded && (
-            <VideoControls
-              mode="full"
-              isPlaying={isPlaying}
-              progress={displayProgress}
-              elapsed={displayElapsed}
-              displayDuration={displayDuration}
-              volume={volume}
-              isMuted={isMuted}
-              speed={playbackSpeed}
-              isFullscreen={isFullscreen}
-              onPlayPause={handlePlayPause}
-              onSeek={handleSeek}
-              onVolumeChange={handleVolumeChange}
-              onMuteToggle={handleMuteToggle}
-              onSpeedChange={setSpeed}
-              onFullscreen={handleFullscreen}
-              onMinimize={minimizeVideo}
-            />
-          )}
-
-          {/* Minimized: small play/pause overlay */}
-          {!isVideoExpanded && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handlePlayPause()
-                }}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white"
-                aria-label={isPlaying ? 'Pause' : 'Play'}
-              >
-                {isPlaying ? (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M6 4h4v16H6zM14 4h4v16h-4z" />
-                  </svg>
-                ) : (
-                  <svg className="ml-0.5 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                )}
-              </button>
-              {/* Expand hint */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  expandVideo()
-                }}
-                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded bg-black/50 text-white/80 hover:text-white"
-                aria-label="Expand video"
-              >
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
-                </svg>
-              </button>
-              {/* Close button */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  close()
-                }}
-                className="absolute left-1 top-1 flex h-6 w-6 items-center justify-center rounded bg-black/50 text-white/80 hover:text-white"
-                aria-label="Close video"
-              >
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
-                </svg>
-              </button>
-            </div>
-          )}
+          <VideoControls
+            mode="full"
+            isPlaying={isPlaying}
+            progress={displayProgress}
+            elapsed={displayElapsed}
+            displayDuration={displayDuration}
+            volume={volume}
+            isMuted={isMuted}
+            speed={playbackSpeed}
+            isFullscreen={isFullscreen}
+            onPlayPause={handlePlayPause}
+            onSeek={handleSeek}
+            onVolumeChange={handleVolumeChange}
+            onMuteToggle={handleMuteToggle}
+            onSpeedChange={setSpeed}
+            onFullscreen={handleFullscreen}
+            onMinimize={minimizeVideo}
+          />
         </div>
       </div>
     </>

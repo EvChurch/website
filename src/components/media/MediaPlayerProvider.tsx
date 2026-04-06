@@ -311,15 +311,16 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
     const audio = audioRef.current
     if (!audio) return
 
-    // Stop video if active
-    stopVideo()
-    currentMediaTypeRef.current = 'audio'
-    setMediaType('audio')
-
+    // If already playing this sermon as audio, just resume
     if (currentSlugRef.current === sermon.slug && currentMediaTypeRef.current === 'audio') {
       audio.play().catch(() => {})
       return
     }
+
+    // Stop video if active
+    stopVideo()
+    currentMediaTypeRef.current = 'audio'
+    setMediaType('audio')
 
     // Save progress of current sermon before switching
     saveProgressRef.current?.()

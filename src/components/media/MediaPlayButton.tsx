@@ -115,77 +115,92 @@ export function MediaPlayButton({ sermon, size = 'md', className = '' }: MediaPl
     lg: 'h-6 w-6',
   }
 
+  const chevronSizes = {
+    sm: 'h-[32px] w-5',
+    md: 'h-[40px] w-6',
+    lg: 'h-[56px] w-8',
+  }
+
+  const chevronIconSizes = {
+    sm: 'h-3 w-3',
+    md: 'h-3.5 w-3.5',
+    lg: 'h-4 w-4',
+  }
+
   return (
-    <div className={`inline-flex items-center gap-0 ${className}`}>
-      {/* Main play button */}
-      <button
-        onClick={handleMainClick}
-        className="relative flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-brand-red text-warm-white transition-transform hover:scale-105 active:scale-95"
-        style={{ width: px, height: px }}
-        aria-label={
-          isCurrentlyPlaying
-            ? `Pause ${sermon.title}`
-            : `Play ${sermon.title}`
-        }
-        disabled={isCurrentlyLoading}
-      >
-        {(percent > 0 || isCurrentlyLoading) && (
-          <svg
-            className={`pointer-events-none absolute inset-0 ${isCurrentlyLoading ? 'animate-spin' : ''}`}
-            width={px}
-            height={px}
-            viewBox={`0 0 ${px} ${px}`}
-          >
-            <circle
-              cx={center}
-              cy={center}
-              r={radius}
-              fill="none"
-              stroke="rgba(254,250,244,0.2)"
-              strokeWidth={stroke}
-            />
-            <circle
-              cx={center}
-              cy={center}
-              r={radius}
-              fill="none"
-              stroke={percent >= 1 ? '#22c55e' : '#FEFAF4'}
-              strokeWidth={stroke}
-              strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={isCurrentlyLoading ? circumference * 0.75 : animatingComplete ? circumference : dashOffset}
-              transform={`rotate(-90 ${center} ${center})`}
-              className={isCurrentlyLoading ? '' : `transition-[stroke-dashoffset,stroke] ${animatingComplete ? 'duration-0' : 'duration-700'}`}
-            />
-          </svg>
-        )}
-
-        {isCurrentlyPlaying ? (
-          <svg className={iconSizes[size]} viewBox="0 0 24 24" fill="currentColor">
-            <rect x="6" y="4" width="4" height="16" />
-            <rect x="14" y="4" width="4" height="16" />
-          </svg>
-        ) : (
-          <svg className={`${iconSizes[size]} pl-0.5`} viewBox="0 0 24 24" fill="currentColor">
-            <polygon points="5,3 19,12 5,21" />
-          </svg>
-        )}
-      </button>
-
-      {/* Chevron dropdown trigger */}
-      {hasVideos && (
+    <div className={`inline-flex items-center ${className}`}>
+      {/* Connected button group */}
+      <div className="flex items-stretch">
+        {/* Main play button */}
         <button
-          ref={chevronRef}
-          onClick={toggleDropdown}
-          className="flex h-11 w-6 items-center justify-center text-warm-white/50 hover:text-warm-white/80"
-          aria-label="Media options"
-          aria-expanded={dropdownOpen}
+          onClick={handleMainClick}
+          className={`relative flex shrink-0 cursor-pointer items-center justify-center bg-brand-red text-warm-white transition-transform active:scale-95 ${hasVideos ? 'rounded-l-full' : 'rounded-full'}`}
+          style={{ width: px, height: px }}
+          aria-label={
+            isCurrentlyPlaying
+              ? `Pause ${sermon.title}`
+              : `Play ${sermon.title}`
+          }
+          disabled={isCurrentlyLoading}
         >
-          <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-          </svg>
+          {(percent > 0 || isCurrentlyLoading) && (
+            <svg
+              className={`pointer-events-none absolute inset-0 ${isCurrentlyLoading ? 'animate-spin' : ''}`}
+              width={px}
+              height={px}
+              viewBox={`0 0 ${px} ${px}`}
+            >
+              <circle
+                cx={center}
+                cy={center}
+                r={radius}
+                fill="none"
+                stroke="rgba(254,250,244,0.2)"
+                strokeWidth={stroke}
+              />
+              <circle
+                cx={center}
+                cy={center}
+                r={radius}
+                fill="none"
+                stroke={percent >= 1 ? '#22c55e' : '#FEFAF4'}
+                strokeWidth={stroke}
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={isCurrentlyLoading ? circumference * 0.75 : animatingComplete ? circumference : dashOffset}
+                transform={`rotate(-90 ${center} ${center})`}
+                className={isCurrentlyLoading ? '' : `transition-[stroke-dashoffset,stroke] ${animatingComplete ? 'duration-0' : 'duration-700'}`}
+              />
+            </svg>
+          )}
+
+          {isCurrentlyPlaying ? (
+            <svg className={iconSizes[size]} viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="4" width="4" height="16" />
+              <rect x="14" y="4" width="4" height="16" />
+            </svg>
+          ) : (
+            <svg className={`${iconSizes[size]} pl-0.5`} viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5,3 19,12 5,21" />
+            </svg>
+          )}
         </button>
-      )}
+
+        {/* Chevron - attached with separator */}
+        {hasVideos && (
+          <button
+            ref={chevronRef}
+            onClick={toggleDropdown}
+            className={`flex items-center justify-center rounded-r-full border-l border-white/20 bg-brand-red text-warm-white/80 hover:text-white ${chevronSizes[size]}`}
+            aria-label="Media options"
+            aria-expanded={dropdownOpen}
+          >
+            <svg className={chevronIconSizes[size]} viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+            </svg>
+          </button>
+        )}
+      </div>
 
       {/* Portal-rendered dropdown */}
       {dropdownOpen && dropdownPos && hasVideos && typeof document !== 'undefined' && createPortal(
