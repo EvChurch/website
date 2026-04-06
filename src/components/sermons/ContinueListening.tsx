@@ -50,6 +50,7 @@ export function ContinueListening() {
                     artworkBlurDataURL: r.artworkBlurDataURL,
                     videos: r.videos,
                   }}
+                  resumeAs={r.playedAs}
                   size="md"
                 />
 

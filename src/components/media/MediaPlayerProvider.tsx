@@ -261,6 +261,7 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
           artworkBlurDataURL: currentSermon.artworkBlurDataURL,
           audioUrl: currentSermon.audioUrl,
           videos: currentSermon.videos,
+          playedAs: 'audio',
         },
         audio.currentTime,
         audio.duration,
@@ -286,6 +287,9 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
           artworkBlurDataURL: currentSermon.artworkBlurDataURL,
           audioUrl: currentSermon.audioUrl,
           videos: currentSermon.videos,
+          playedAs: activeVideoRef.current
+            ? { type: 'video', campusSlug: activeVideoRef.current.campusSlug }
+            : 'audio',
         },
         segElapsed,
         segDuration,

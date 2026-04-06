@@ -9,6 +9,8 @@ interface MediaPlayButtonProps {
   sermon: SermonMedia
   size?: 'sm' | 'md' | 'lg'
   className?: string
+  /** Override preference — resume with the exact media type that was playing */
+  resumeAs?: 'audio' | { type: 'video'; campusSlug: string }
 }
 
 const dimensions = {
@@ -17,7 +19,7 @@ const dimensions = {
   lg: { px: 56, stroke: 3, radius: 24.5 },
 } as const
 
-export function MediaPlayButton({ sermon, size = 'md', className = '' }: MediaPlayButtonProps) {
+export function MediaPlayButton({ sermon, size = 'md', className = '', resumeAs }: MediaPlayButtonProps) {
   const { currentSermon, isPlaying, isLoading, progress, duration, play, pause, resume } =
     useMediaPlayer()
 
@@ -80,6 +82,13 @@ export function MediaPlayButton({ sermon, size = 'md', className = '' }: MediaPl
     if (isCurrentSermon) {
       if (isPlaying) pause()
       else resume()
+    } else if (resumeAs) {
+      // Resume with the exact media type that was saved
+      if (resumeAs === 'audio') {
+        play(sermon, 'audio')
+      } else {
+        play(sermon, 'video', resumeAs.campusSlug)
+      }
     } else {
       // play() reads mediaPreference internally
       play(sermon)

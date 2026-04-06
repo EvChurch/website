@@ -18,6 +18,8 @@ export interface ListeningRecord {
   artworkBlurDataURL?: string
   audioUrl: string
   videos?: ListeningVideoOption[]
+  /** Which media type was active when progress was saved */
+  playedAs?: 'audio' | { type: 'video'; campusSlug: string }
   progress: number
   duration: number
   completed: boolean
@@ -45,6 +47,7 @@ interface ListeningState {
     artworkBlurDataURL?: string
     audioUrl: string
     videos?: ListeningVideoOption[]
+    playedAs?: 'audio' | { type: 'video'; campusSlug: string }
   }, currentTime: number, audioDuration: number, fallbackDuration?: number) => void
   markCompleted: (slug: string) => void
   markAsListened: (slug: string) => void
@@ -78,6 +81,7 @@ export const useListeningStore = create<ListeningState>()(
               artworkBlurDataURL: sermon.artworkBlurDataURL,
               audioUrl: sermon.audioUrl,
               videos: sermon.videos ?? state.history[sermon.slug]?.videos,
+              playedAs: sermon.playedAs ?? state.history[sermon.slug]?.playedAs,
               progress: currentTime,
               duration: dur,
               completed: state.history[sermon.slug]?.completed || (dur > 0 && (
