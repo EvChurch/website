@@ -255,16 +255,16 @@ export function VideoContainer() {
       </div>
 
       {/* Chevron overlay — fixed position above the iframe, over the thumbnail spot */}
-      {!isVideoExpanded && thumbRect && (
+      {thumbRect && (
         <button
-          className="fixed z-[64] flex items-center justify-center rounded-lg bg-black/40"
+          className="group/chev fixed z-[64] flex items-center justify-center rounded-lg transition-colors hover:bg-black/40"
           style={{ top: thumbRect.top, left: thumbRect.left, width: thumbRect.width, height: thumbRect.height }}
-          onClick={expandVideo}
-          aria-label="Expand video"
+          onClick={isVideoExpanded ? minimizeVideo : expandVideo}
+          aria-label={isVideoExpanded ? 'Minimize video' : 'Expand video'}
         >
           <svg
-            className="h-5 w-5 text-white drop-shadow transition-transform duration-300"
-            style={{ transform: 'rotate(0deg)' }}
+            className="h-5 w-5 text-white opacity-0 drop-shadow transition-all duration-300 group-hover/chev:opacity-100 sm:opacity-0"
+            style={{ transform: isVideoExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
             viewBox="0 0 24 24"
             fill="currentColor"
           >
