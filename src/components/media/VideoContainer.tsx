@@ -240,7 +240,13 @@ export function VideoContainer() {
     ? { top: thumbRect.top, left: thumbRect.left, width: thumbRect.width, height: thumbRect.height }
     : { top: vpH - 70, right: 16, width: 85, height: 48 }
 
-  const currentStyle = isVideoExpanded ? expandedStyle : minimizedStyle
+  // When fading out from minimized, push the video down off-screen with the bar
+  const closingStyle: React.CSSProperties | undefined =
+    isFadingOut && !isVideoExpanded && thumbRect
+      ? { ...minimizedStyle, top: (thumbRect.top ?? 0) + 100 }
+      : undefined
+
+  const currentStyle = closingStyle ?? (isVideoExpanded ? expandedStyle : minimizedStyle)
 
   return (
     <>
@@ -262,7 +268,7 @@ export function VideoContainer() {
         }}
         className={`fixed z-[63] overflow-hidden bg-black transition-all duration-300 ease-out ${
           isVideoExpanded ? 'rounded-xl shadow-2xl' : 'cursor-pointer rounded-lg'
-        } ${isFadingOut ? 'opacity-0' : 'opacity-100'}`}
+        } ${isFadingOut && isVideoExpanded ? 'opacity-0' : 'opacity-100'}`}
         style={currentStyle}
         onClick={isVideoExpanded ? undefined : expandVideo}
       >
