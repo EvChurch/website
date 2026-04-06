@@ -96,9 +96,14 @@ export function MediaPlayButton({ sermon, size = 'md', className = '' }: MediaPl
   const toggleDropdown = () => {
     if (!dropdownOpen && chevronRef.current) {
       const rect = chevronRef.current.getBoundingClientRect()
+      // Position above the button, clamped to viewport edges
+      const vpW = window.innerWidth
+      let left = rect.left + rect.width / 2
+      // Clamp so dropdown doesn't go off-screen (assume ~160px wide dropdown)
+      left = Math.max(90, Math.min(left, vpW - 90))
       setDropdownPos({
         top: rect.top,
-        left: rect.left + rect.width / 2,
+        left,
       })
     }
     setDropdownOpen(!dropdownOpen)
@@ -204,8 +209,8 @@ export function MediaPlayButton({ sermon, size = 'md', className = '' }: MediaPl
       {dropdownOpen && dropdownPos && typeof document !== 'undefined' && createPortal(
         <div
           ref={dropdownRef}
-          className="fixed z-[60] -translate-x-1/2 rounded-lg border border-white/10 bg-brand-black/95 py-1 shadow-xl backdrop-blur-xl"
-          style={{ top: dropdownPos.top - 4, left: dropdownPos.left, transform: 'translate(-50%, -100%)' }}
+          className="fixed z-[60] -translate-x-1/2 -translate-y-full animate-[dropdownIn_0.15s_ease-out] rounded-lg border border-white/10 bg-brand-black/95 py-1 shadow-xl backdrop-blur-xl"
+          style={{ top: dropdownPos.top - 8, left: dropdownPos.left }}
         >
           {/* Audio option */}
           <button
