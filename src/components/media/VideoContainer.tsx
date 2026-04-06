@@ -248,14 +248,26 @@ export function VideoContainer() {
     height: expH,
   }
 
-  const minimizedStyle: React.CSSProperties = thumbRect
-    ? { top: thumbRect.top, left: thumbRect.left, width: thumbRect.width, height: thumbRect.height }
-    : { top: vpH - 70, right: 16, width: 85, height: 48 }
+  const isMobileView = vpW < 640
 
-  // When fading out from minimized, push the video down off-screen with the bar
+  // On mobile: half-width mini player above the bar
+  // On desktop: snap to the artwork thumbnail in the bar
+  const mobileMinW = vpW / 2
+  const mobileMinH = mobileMinW * 9 / 16
+  const minimizedStyle: React.CSSProperties = isMobileView
+    ? { bottom: barHeight, right: 16, width: mobileMinW, height: mobileMinH }
+    : thumbRect
+      ? { top: thumbRect.top, left: thumbRect.left, width: thumbRect.width, height: thumbRect.height }
+      : { top: vpH - 70, right: 16, width: 85, height: 48 }
+
+  // When closing, push down off-screen
   const closingStyle: React.CSSProperties | undefined =
-    isClosing && !isVideoExpanded && thumbRect
-      ? { ...minimizedStyle, top: (thumbRect.top ?? 0) + 100 }
+    isClosing && !isVideoExpanded
+      ? isMobileView
+        ? { ...minimizedStyle, bottom: -mobileMinH }
+        : thumbRect
+          ? { ...minimizedStyle, top: (thumbRect.top ?? 0) + 100 }
+          : undefined
       : undefined
 
   const currentStyle = closingStyle ?? (isVideoExpanded ? expandedStyle : minimizedStyle)
