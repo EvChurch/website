@@ -50,11 +50,16 @@ export function VideoContainer() {
     setResizeTick((t) => t + 1)
   }, [videoThumbnailRef])
 
-  // Update thumbnail position on expand/minimize and resize
+  // Update thumbnail position on expand/minimize, resize, and after bar animation
   useEffect(() => {
     updatePositions()
+    // Re-measure after the bar's slide-in animation completes
+    const delayed = setTimeout(updatePositions, 350)
     window.addEventListener('resize', updatePositions)
-    return () => window.removeEventListener('resize', updatePositions)
+    return () => {
+      clearTimeout(delayed)
+      window.removeEventListener('resize', updatePositions)
+    }
   }, [updatePositions, isVideoExpanded, isVideoVisible])
 
   // Auto-minimize on route change
