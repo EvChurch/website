@@ -180,10 +180,11 @@ export function VideoContainer() {
 
   // Compute both positions as inline styles so CSS transitions work
   const padding = typeof window !== 'undefined' && window.innerWidth >= 768 ? 48 : 16
+  const barHeight = 100 // bottom bar + its padding
   const vpW = typeof window !== 'undefined' ? window.innerWidth : 1024
   const vpH = typeof window !== 'undefined' ? window.innerHeight : 768
   const availW = vpW - padding * 2
-  const availH = vpH - padding * 2
+  const availH = vpH - padding - barHeight // top padding + reserve space for bar
   // 16:9 constrained to available space
   let expW = availW
   let expH = expW * 9 / 16
@@ -191,7 +192,7 @@ export function VideoContainer() {
     expH = availH
     expW = expH * 16 / 9
   }
-  const expTop = (vpH - expH) / 2
+  const expTop = (vpH - barHeight - expH) / 2
   const expLeft = (vpW - expW) / 2
 
   const expandedStyle: React.CSSProperties = {
