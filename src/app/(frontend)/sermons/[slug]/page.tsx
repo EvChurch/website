@@ -4,12 +4,11 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { MediaImage } from '@/components/media/MediaImage'
 import { getPayloadClient } from '@/lib/payload'
-import { getSermonAudioUrl } from '@/lib/sermon-utils'
+import { getSermonAudioUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { SermonCard } from '@/components/sermons/SermonCard'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
 import { SermonPlayButton } from './SermonPlayButton'
 import { ListenedBadge } from '@/components/sermons/ListenedBadge'
-import { VideoPlayer } from '@/components/media/VideoPlayer'
 
 export const dynamic = 'force-dynamic'
 
@@ -173,29 +172,6 @@ export default async function SermonPage({
             : null,
         )
         .filter((t): t is { name: string; slug: string } => t !== null)
-    : []
-
-  // Extract video references for the video player
-  const videoSources = Array.isArray(sermon.videos)
-    ? sermon.videos
-        .map((v) => {
-          if (typeof v !== 'object' || v === null) return null
-          const vid = v as Record<string, unknown>
-          const campus = vid.campus
-          const campusName =
-            typeof campus === 'object' && campus !== null && 'name' in campus
-              ? (campus as { name: string }).name
-              : 'Watch'
-          const youtubeVideoId = vid.youtubeVideoId as string | undefined
-          if (!youtubeVideoId) return null
-          return {
-            campusName,
-            youtubeVideoId,
-            startSeconds: (vid.sermonStartSeconds as number) ?? undefined,
-            endSeconds: (vid.sermonEndSeconds as number) ?? undefined,
-          }
-        })
-        .filter((v): v is NonNullable<typeof v> => v !== null)
     : []
 
   // Extract blog post cross-link
@@ -417,7 +393,7 @@ export default async function SermonPage({
               </div>
 
               {/* Play button */}
-              {getSermonAudioUrl(sermon.audio) && (
+              {(getSermonAudioUrl(sermon.audio) || getSermonVideos(sermon).length > 0) && (
                 <div className="mt-6">
                   <SermonPlayButton
                     id={sermon.slug.length + (sermon.duration ?? 0)}
@@ -429,6 +405,7 @@ export default async function SermonPage({
                     artworkUrl={heroBannerMedia?.url ?? undefined}
                     artworkBlurDataURL={heroBannerMedia?.blurDataURL ?? undefined}
                     duration={sermon.duration ?? undefined}
+                    videos={getSermonVideos(sermon)}
                   />
                 </div>
               )}
@@ -465,21 +442,6 @@ export default async function SermonPage({
           </div>
         </div>
       </section>
-
-      {/* Video player section */}
-      {videoSources.length > 0 && (
-        <section className="border-t border-warm-white/10 py-8">
-          <div className="mx-auto max-w-5xl px-6">
-            <div className="mb-4 flex items-center gap-3">
-              <h2 className="font-sans text-lg font-bold text-warm-white">Watch</h2>
-              {getSermonAudioUrl(sermon.audio) && (
-                <span className="text-sm text-warm-white/50">or listen to the audio above</span>
-              )}
-            </div>
-            <VideoPlayer videos={videoSources} />
-          </div>
-        </section>
-      )}
 
       {/* Blog post cross-link */}
       {blogPostLink && (

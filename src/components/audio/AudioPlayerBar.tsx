@@ -4,6 +4,7 @@ import { useAudioPlayer } from './AudioPlayerProvider'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useListeningStore } from '@/lib/listening-store'
 
 function formatTime(seconds: number): string {
   if (!seconds || !isFinite(seconds)) return '0:00'
@@ -17,6 +18,7 @@ const SPEED_OPTIONS = [1, 1.25, 1.5, 2] as const
 export function AudioPlayerBar() {
   const {
     currentSermon,
+    mediaType,
     isPlaying,
     isLoading,
     progress,
@@ -29,8 +31,17 @@ export function AudioPlayerBar() {
     skipForward,
     skipBack,
     close,
+    expandVideo,
+    minimizeVideo,
+    isVideoExpanded,
+    isVideoVisible,
+    activeVideo,
+    videoThumbnailRef,
+    setIsClosing,
     onEndedRef,
   } = useAudioPlayer()
+
+  const isVideoMode = mediaType === 'video'
 
   const [show, setShow] = useState(false)
   const [render, setRender] = useState(false)
@@ -50,6 +61,7 @@ export function AudioPlayerBar() {
   // Close with animation
   const handleClose = useCallback(() => {
     setShow(false)
+    setIsClosing(true)
     const el = barRef.current
     const onEnd = () => {
       el?.removeEventListener('transitionend', onEnd)
@@ -64,7 +76,7 @@ export function AudioPlayerBar() {
       close()
       setRender(false)
     }
-  }, [close])
+  }, [close, setIsClosing])
 
   // Register animated close so provider can trigger it on playback end
   useEffect(() => {
@@ -127,30 +139,47 @@ export function AudioPlayerBar() {
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-4 sm:px-6 sm:pb-5">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[62] flex justify-center px-4 pb-4 sm:px-6 sm:pb-5">
       <div
         ref={barRef}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className={`w-full max-w-2xl rounded-2xl border border-white/10 bg-brand-black/80 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl transition-transform duration-300 ease-out ${show ? 'translate-y-0' : 'translate-y-[calc(100%+2rem)]'}`}
+        className={`pointer-events-auto w-full max-w-2xl rounded-2xl border border-white/10 bg-brand-black/80 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl transition-transform duration-300 ease-out ${show ? 'translate-y-0' : 'translate-y-[calc(100%+2rem)]'}`}
         style={swipeX !== 0 ? { transform: `translateX(${swipeX}px)`, opacity: Math.max(0, 1 - Math.abs(swipeX) / (SWIPE_THRESHOLD * 2)), transition: 'opacity 0.15s' } : undefined}
       >
         <div className="flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
-          {/* Banner image */}
-          {currentSermon.artworkUrl && (
-            <Link href={`/sermons/${currentSermon.slug}`} className="relative hidden shrink-0 overflow-hidden rounded-lg sm:block">
-              <Image
-                src={currentSermon.artworkUrl}
-                alt=""
-                width={48}
-                height={48}
-                sizes="48px"
-                className="h-12 w-12 object-cover"
-                {...(currentSermon.artworkBlurDataURL ? { placeholder: 'blur' as const, blurDataURL: currentSermon.artworkBlurDataURL } : {})}
-              />
-            </Link>
-          )}
+          {/* Artwork + video iframe target (desktop only) */}
+          <div ref={videoThumbnailRef as React.RefObject<HTMLDivElement | null>} className="relative hidden aspect-video h-12 shrink-0 overflow-hidden rounded-lg sm:block">
+            {currentSermon.artworkUrl ? (
+              isVideoMode ? (
+                <Image
+                  src={currentSermon.artworkUrl}
+                  alt=""
+                  width={85}
+                  height={48}
+                  sizes="85px"
+                  className="h-full w-full object-cover"
+                  {...(currentSermon.artworkBlurDataURL ? { placeholder: 'blur' as const, blurDataURL: currentSermon.artworkBlurDataURL } : {})}
+                />
+              ) : (
+                <Link href={`/sermons/${currentSermon.slug}`}>
+                  <Image
+                    src={currentSermon.artworkUrl}
+                    alt=""
+                    width={85}
+                    height={48}
+                    sizes="85px"
+                    className="h-full w-full object-cover"
+                    {...(currentSermon.artworkBlurDataURL ? { placeholder: 'blur' as const, blurDataURL: currentSermon.artworkBlurDataURL } : {})}
+                  />
+                </Link>
+              )
+            ) : null}
+
+            {/* Layer 2: video iframe lands here via CSS positioning (z-[63]) */}
+            {/* Layer 3: chevron rendered as fixed element from VideoContainer */}
+          </div>
 
           {/* Sermon info + desktop progress */}
           <div className="min-w-0 flex-1">

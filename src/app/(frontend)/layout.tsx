@@ -5,7 +5,8 @@ import { Footer } from '@/components/layout/Footer'
 import { AnnouncementBanner } from '@/components/layout/AnnouncementBanner'
 import { OrganizationJsonLd } from '@/components/seo/OrganizationJsonLd'
 import { GoogleAnalytics } from '@/components/seo/GoogleAnalytics'
-import { AudioPlayerProvider } from '@/components/audio/AudioPlayerProvider'
+import { MediaPlayerProvider } from '@/components/media/MediaPlayerProvider'
+import { VideoContainer } from '@/components/media/VideoContainer'
 import { AudioPlayerBar } from '@/components/audio/AudioPlayerBar'
 import { AudioPlayerSpacer } from '@/components/audio/AudioPlayerSpacer'
 import '@/styles/globals.css'
@@ -75,7 +76,7 @@ export default function FrontendLayout({ children }: { children: ReactNode }) {
         <OrganizationJsonLd />
       </head>
       <body className="bg-brand-black font-sans text-brand-black antialiased">
-        <AudioPlayerProvider>
+        <MediaPlayerProvider>
           <GoogleAnalytics />
           <AnnouncementBanner />
           <Header />
@@ -83,7 +84,8 @@ export default function FrontendLayout({ children }: { children: ReactNode }) {
           <Footer />
           <AudioPlayerSpacer />
           <AudioPlayerBar />
-        </AudioPlayerProvider>
+          <VideoContainer />
+        </MediaPlayerProvider>
       </body>
     </html>
   )

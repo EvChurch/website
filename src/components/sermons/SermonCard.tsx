@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { PlayButton } from '@/components/audio/PlayButton'
-import { type SermonAudio } from '@/components/audio/AudioPlayerProvider'
+import { MediaPlayButton } from '@/components/media/MediaPlayButton'
+import { type SermonMedia, type VideoOption } from '@/components/media/MediaPlayerProvider'
 import { useListeningStore } from '@/lib/listening-store'
 import { useEffect, useState } from 'react'
 
@@ -18,6 +18,7 @@ interface SermonCardProps {
   passageReference?: string | null
   duration: number
   audioUrl: string
+  videos?: VideoOption[]
   hideSeriesBadge?: boolean
   seriesBannerUrl?: string | null
 }
@@ -48,6 +49,7 @@ export function SermonCard({
   scriptures,
   passageReference,
   audioUrl,
+  videos,
   hideSeriesBadge,
   seriesBannerUrl,
 }: SermonCardProps) {
@@ -55,7 +57,7 @@ export function SermonCard({
   useEffect(() => setHydrated(true), [])
   const isCompleted = useListeningStore((s) => s.history[slug]?.completed ?? false) && hydrated
 
-  const sermonAudio: SermonAudio = {
+  const sermonMedia: SermonMedia = {
     id,
     title,
     slug,
@@ -64,14 +66,15 @@ export function SermonCard({
     speakerSlug: speakers[0]?.slug,
     series: series[0]?.title,
     seriesSlug: series[0]?.slug,
-    artworkUrl: undefined,
+    artworkUrl: seriesBannerUrl ?? undefined,
     duration,
+    videos,
   }
 
   return (
     <div className="rounded-lg bg-brand-black p-4">
       <div className="flex items-center gap-4">
-        <PlayButton sermon={sermonAudio} size="md" />
+        <MediaPlayButton sermon={sermonMedia} size="md" />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
