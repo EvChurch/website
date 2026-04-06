@@ -551,7 +551,9 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
 
     player.on('ended', () => {
       if (currentMediaTypeRef.current !== 'video') return
-      closeRef.current?.()
+      // Use animated close (bar slide-down) when available
+      if (onEndedRef.current) onEndedRef.current()
+      else closeRef.current?.()
     })
   }, [startVideoPolling, stopVideoPolling])
 

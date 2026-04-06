@@ -34,16 +34,39 @@ export function VideoContainer() {
     registerVideoPlayer,
     videoContainerRef,
     videoThumbnailRef,
+    onEndedRef,
   } = useMediaPlayer()
 
   const videoElRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<VjsPlayer | null>(null)
   const prevVideoIdRef = useRef<string | null>(null)
-  const closeRef = useRef(close)
-  closeRef.current = close
+  // Use the animated close (bar slide-down) when available, otherwise raw close
+  const animatedClose = useCallback(() => {
+    if (onEndedRef.current) onEndedRef.current()
+    else close()
+  }, [close, onEndedRef])
+  const closeRef = useRef(animatedClose)
+  closeRef.current = animatedClose
   const [flashIcon, setFlashIcon] = useState<'play' | 'pause' | null>(null)
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [shouldRender, setShouldRender] = useState(false)
+  const [isFadingOut, setIsFadingOut] = useState(false)
   const pathname = usePathname()
+
+  // Keep rendered briefly after isVideoVisible goes false for fade-out
+  useEffect(() => {
+    if (isVideoVisible) {
+      setShouldRender(true)
+      setIsFadingOut(false)
+    } else if (shouldRender) {
+      setIsFadingOut(true)
+      const timer = setTimeout(() => {
+        setShouldRender(false)
+        setIsFadingOut(false)
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [isVideoVisible]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Track positions for both states
   const [thumbRect, setThumbRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null)
@@ -178,16 +201,16 @@ export function VideoContainer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeVideo?.youtubeVideoId, isVideoVisible])
 
-  // Clean up player when video is fully closed
+  // Clean up player after fade-out completes
   useEffect(() => {
-    if (!isVideoVisible && playerRef.current && !playerRef.current.isDisposed()) {
+    if (!shouldRender && !isVideoVisible && playerRef.current && !playerRef.current.isDisposed()) {
       playerRef.current.dispose()
       playerRef.current = null
       prevVideoIdRef.current = null
     }
-  }, [isVideoVisible])
+  }, [shouldRender, isVideoVisible])
 
-  if (!isVideoVisible) return null
+  if (!shouldRender) return null
 
   // Compute both positions as inline styles so CSS transitions work
   const padding = typeof window !== 'undefined' && window.innerWidth >= 768 ? 48 : 16
@@ -239,7 +262,7 @@ export function VideoContainer() {
         }}
         className={`fixed z-[63] overflow-hidden bg-black transition-all duration-300 ease-out ${
           isVideoExpanded ? 'rounded-xl shadow-2xl' : 'cursor-pointer rounded-lg'
-        }`}
+        } ${isFadingOut ? 'opacity-0' : 'opacity-100'}`}
         style={currentStyle}
         onClick={isVideoExpanded ? undefined : expandVideo}
       >
@@ -291,7 +314,7 @@ export function VideoContainer() {
       </div>
 
       {/* Chevron overlay — fixed position above the iframe, over the thumbnail spot */}
-      {thumbRect && (
+      {thumbRect && !isFadingOut && (
         <button
           className="group/chev fixed z-[64] flex items-center justify-center rounded-lg transition-colors hover:bg-black/40"
           style={{ top: thumbRect.top, left: thumbRect.left, width: thumbRect.width, height: thumbRect.height }}
