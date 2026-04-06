@@ -28,6 +28,7 @@ export function VideoContainer() {
     playbackSpeed,
     pause,
     resume,
+    close,
     expandVideo,
     minimizeVideo,
     registerVideoPlayer,
@@ -161,9 +162,8 @@ export function VideoContainer() {
             player.currentTime(startSec)
           }
           if (time >= endSec) {
-            player.pause()
-            player.currentTime(endSec)
             clearInterval(enforceInterval)
+            close()
           }
         }, 250)
         player.on('dispose', () => clearInterval(enforceInterval))

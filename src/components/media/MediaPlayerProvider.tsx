@@ -551,8 +551,7 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
 
     player.on('ended', () => {
       if (currentMediaTypeRef.current !== 'video') return
-      setIsPlaying(false)
-      stopVideoPolling()
+      closeRef.current?.()
     })
   }, [startVideoPolling, stopVideoPolling])
 
