@@ -103,11 +103,11 @@ export function SermonPlayButton({
   if (!audioUrl && !hasVideos) return null
 
   return (
-    <div className="inline-flex items-stretch">
+    <div className="group/btn inline-flex items-stretch rounded-lg border border-warm-white/20 transition-colors hover:border-warm-white/40">
       <button
         onClick={handleClick}
         disabled={isCurrentlyLoading}
-        className={`flex cursor-pointer items-center gap-2 border border-warm-white/20 px-4 py-2.5 text-sm font-bold text-warm-white/80 transition-colors hover:border-warm-white/40 hover:text-warm-white disabled:opacity-70 ${hasVideos ? 'rounded-l-lg border-r-0' : 'rounded-lg'}`}
+        className="flex cursor-pointer items-center gap-2 px-4 py-2.5 text-sm font-bold text-warm-white/80 transition-colors group-hover/btn:text-warm-white disabled:opacity-70"
       >
         <PlayIcon slug={slug} isPlaying={isCurrentlyPlaying} isLoading={isCurrentlyLoading} size={22} />
         {label}
@@ -117,7 +117,7 @@ export function SermonPlayButton({
         <button
           ref={chevronRef}
           onClick={toggleDropdown}
-          className="flex items-center justify-center rounded-r-lg border border-l-0 border-warm-white/20 px-2 text-warm-white/40 transition-colors hover:border-warm-white/40 hover:text-warm-white/80"
+          className="flex items-center justify-center px-2 text-warm-white/40 transition-colors group-hover/btn:text-warm-white/80"
           aria-label="Media options"
         >
           <div className="mr-1.5 h-5 w-px bg-warm-white/20" />

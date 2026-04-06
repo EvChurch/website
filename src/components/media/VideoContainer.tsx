@@ -252,9 +252,9 @@ export function VideoContainer() {
 
   return (
     <>
-      {/* Dark backdrop */}
+      {/* Dark backdrop - above header (z-50) and menu */}
       <div
-        className="fixed inset-0 z-[49] bg-black/70"
+        className="fixed inset-0 z-[60] bg-black/70"
         onClick={minimizeVideo}
       />
 
@@ -264,9 +264,10 @@ export function VideoContainer() {
           wrapperRef.current = el
           if (videoContainerRef) (videoContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
         }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8"
+        className="fixed inset-0 z-[61] flex items-center justify-center p-4 sm:p-8"
+        onClick={minimizeVideo}
       >
-        <div className="relative aspect-video w-full max-w-5xl overflow-hidden rounded-xl bg-black shadow-2xl">
+        <div className="relative aspect-video w-full max-w-5xl overflow-hidden rounded-xl bg-black shadow-2xl" onClick={(e) => e.stopPropagation()}>
           {/* video.js mount point */}
           <div
             ref={videoElRef}
