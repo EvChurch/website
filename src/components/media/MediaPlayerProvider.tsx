@@ -400,6 +400,7 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
   }, [stopAudio])
 
   const play = useCallback((sermon: SermonMedia, type?: 'audio' | 'video', campusSlug?: string) => {
+    setIsClosing(false)
     // Resolve media type from preference if not explicitly specified
     let resolvedType = type
     let resolvedCampusSlug = campusSlug
@@ -519,7 +520,6 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
     setActiveVideo(null)
     activeVideoRef.current = null
     setMediaType('audio')
-    setIsClosing(false)
     setIsPlaying(false)
     setProgress(0)
     setDuration(0)
