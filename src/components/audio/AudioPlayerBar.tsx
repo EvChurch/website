@@ -150,7 +150,7 @@ export function AudioPlayerBar() {
       >
         <div className="flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
           {/* Artwork + video iframe + chevron all stacked in the same spot */}
-          <div ref={videoThumbnailRef as React.RefObject<HTMLDivElement | null>} className="relative hidden aspect-video h-12 shrink-0 overflow-hidden rounded-lg sm:block">
+          <div ref={videoThumbnailRef as React.RefObject<HTMLDivElement | null>} className="relative aspect-video h-12 shrink-0 overflow-hidden rounded-lg">
             {currentSermon.artworkUrl ? (
               isVideoMode ? (
                 <Image
