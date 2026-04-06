@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import { useMediaPlayer } from './MediaPlayerProvider'
-import { VideoControls } from './VideoControls'
 
 // Lazy-load video.js to avoid SSR issues and reduce bundle
 let videojsPromise: Promise<typeof import('video.js')> | null = null
@@ -25,17 +24,7 @@ export function VideoContainer() {
     activeVideo,
     isVideoVisible,
     isVideoExpanded,
-    isPlaying,
-    isLoading,
-    progress,
-    duration,
     playbackSpeed,
-    pause,
-    resume,
-    seek,
-    setSpeed,
-    close,
-    expandVideo,
     minimizeVideo,
     registerVideoPlayer,
     videoContainerRef,
@@ -43,10 +32,6 @@ export function VideoContainer() {
 
   const videoElRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<VjsPlayer | null>(null)
-  const wrapperRef = useRef<HTMLDivElement>(null)
-  const [volume, setVolumeState] = useState(1)
-  const [isMuted, setIsMuted] = useState(false)
-  const [isFullscreen, setIsFullscreen] = useState(false)
   const prevVideoIdRef = useRef<string | null>(null)
   const pathname = usePathname()
 
@@ -55,16 +40,8 @@ export function VideoContainer() {
     if (isVideoExpanded) {
       minimizeVideo()
     }
-    // Only trigger on pathname change, not on isVideoExpanded changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname])
-
-  // Fullscreen listener
-  useEffect(() => {
-    const handleFs = () => setIsFullscreen(!!document.fullscreenElement)
-    document.addEventListener('fullscreenchange', handleFs)
-    return () => document.removeEventListener('fullscreenchange', handleFs)
-  }, [])
 
   // Initialize or switch video when activeVideo changes
   useEffect(() => {
@@ -85,7 +62,6 @@ export function VideoContainer() {
       const container = videoElRef.current
       if (!container) return
 
-      // Clear any leftover DOM
       container.innerHTML = ''
 
       const videoEl = document.createElement('video')
@@ -125,26 +101,22 @@ export function VideoContainer() {
 
       playerRef.current = player
 
-      // Apply current speed
       player.on('loadedmetadata', () => {
         const speed = playbackSpeed
         if (speed !== 1) player.playbackRate(speed)
         if (hasSegment && (player.currentTime() ?? 0) < startSec) {
           player.currentTime(startSec)
         }
-        // Retry autoplay if blocked
         if (player.paused()) {
           player.play()?.catch(() => {
             player.muted(true)
-            setIsMuted(true)
             player.play()?.catch(() => {})
           })
         }
       })
 
-      // Segment enforcement via polling in the provider
+      // Segment enforcement
       if (hasSegment) {
-        const segmentDuration = endSec - startSec
         const enforceInterval = setInterval(() => {
           if (player.isDisposed()) {
             clearInterval(enforceInterval)
@@ -160,7 +132,6 @@ export function VideoContainer() {
             clearInterval(enforceInterval)
           }
         }, 250)
-
         player.on('dispose', () => clearInterval(enforceInterval))
       }
 
@@ -168,14 +139,10 @@ export function VideoContainer() {
     }
 
     initPlayer()
-
-    return () => {
-      // Don't dispose here - the player persists across expand/minimize
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeVideo?.youtubeVideoId, isVideoVisible])
 
-  // Clean up player when video is hidden
+  // Clean up player when video is fully closed
   useEffect(() => {
     if (!isVideoVisible && playerRef.current && !playerRef.current.isDisposed()) {
       playerRef.current.dispose()
@@ -184,131 +151,58 @@ export function VideoContainer() {
     }
   }, [isVideoVisible])
 
-  // Compute display progress for controls
-  const startSec = activeVideo?.startSeconds ?? 0
-  const endSec = activeVideo?.endSeconds ?? 0
-  const hasSegment = startSec > 0 && endSec > startSec
-  const segmentDuration = hasSegment ? endSec - startSec : 0
-
-  let displayProgress = 0
-  let displayElapsed = 0
-  let displayDuration = duration
-
-  if (hasSegment && duration > 0) {
-    const elapsed = Math.max(0, progress - startSec)
-    displayElapsed = Math.min(elapsed, segmentDuration)
-    displayProgress = segmentDuration > 0 ? displayElapsed / segmentDuration : 0
-    displayDuration = segmentDuration
-  } else if (duration > 0) {
-    displayProgress = progress / duration
-    displayElapsed = progress
-  }
-
-  const handlePlayPause = useCallback(() => {
-    if (isPlaying) pause()
-    else resume()
-  }, [isPlaying, pause, resume])
-
-  const handleSeek = useCallback((ratio: number) => {
-    if (hasSegment) {
-      seek(startSec + ratio * segmentDuration)
-    } else if (duration > 0) {
-      seek(ratio * duration)
-    }
-  }, [hasSegment, startSec, segmentDuration, duration, seek])
-
-  const handleVolumeChange = useCallback((ratio: number) => {
-    setVolumeState(ratio)
-    setIsMuted(ratio === 0)
-    const vp = playerRef.current
-    if (vp && !vp.isDisposed()) {
-      vp.volume(ratio)
-      vp.muted(ratio === 0)
-    }
-  }, [])
-
-  const handleMuteToggle = useCallback(() => {
-    const newMuted = !isMuted
-    setIsMuted(newMuted)
-    const vp = playerRef.current
-    if (vp && !vp.isDisposed()) {
-      vp.muted(newMuted)
-    }
-  }, [isMuted])
-
-  const handleFullscreen = useCallback(() => {
-    const el = wrapperRef.current
-    if (!el) return
-    if (document.fullscreenElement) {
-      document.exitFullscreen()
-    } else {
-      el.requestFullscreen()
-    }
-  }, [])
-
-  // Only render when video is expanded as an overlay.
-  // When minimized, the AudioPlayerBar shows the thumbnail and controls.
-  if (!isVideoVisible || !isVideoExpanded) return null
+  // Don't render anything if no video is active
+  if (!isVideoVisible) return null
 
   return (
     <>
-      {/* Dark backdrop - above header (z-50) and menu */}
-      <div
-        className="fixed inset-0 z-[60] bg-black/70"
-        onClick={minimizeVideo}
-      />
+      {/* Dark backdrop - only when expanded, above header */}
+      {isVideoExpanded && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/70"
+          onClick={minimizeVideo}
+        />
+      )}
 
-      {/* Expanded video overlay - fixed center */}
+      {/*
+        Video iframe container.
+        - Expanded: centered overlay with the video visible.
+        - Minimized: hidden off-screen but still in DOM so the iframe stays alive.
+          The bar shows a static thumbnail; this element just keeps the player running.
+      */}
       <div
         ref={(el) => {
-          wrapperRef.current = el
           if (videoContainerRef) (videoContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
         }}
-        className="fixed inset-0 z-[61] flex items-center justify-center p-4 sm:p-8"
-        onClick={minimizeVideo}
+        className={
+          isVideoExpanded
+            ? 'fixed inset-0 z-[61] flex items-center justify-center p-4 sm:p-8'
+            : 'fixed -left-[9999px] top-0 h-1 w-1 overflow-hidden'
+        }
+        onClick={isVideoExpanded ? minimizeVideo : undefined}
       >
-        <div className="relative aspect-video w-full max-w-5xl overflow-hidden rounded-xl bg-black shadow-2xl" onClick={(e) => e.stopPropagation()}>
-          {/* video.js mount point */}
+        <div
+          className={
+            isVideoExpanded
+              ? 'relative aspect-video w-full max-w-5xl overflow-hidden rounded-xl bg-black shadow-2xl'
+              : 'h-1 w-1'
+          }
+          onClick={isVideoExpanded ? (e) => e.stopPropagation() : undefined}
+        >
+          {/* video.js mount point - always in DOM when video is visible */}
           <div
             ref={videoElRef}
-            className="absolute inset-0 [&_.video-js]:!block [&_.video-js]:!h-full [&_.video-js]:!w-full [&_iframe]:!h-full [&_iframe]:!w-full [&_.vjs-loading-spinner]:!hidden [&_.vjs-big-play-button]:!hidden"
+            className={
+              isVideoExpanded
+                ? 'absolute inset-0 [&_.video-js]:!block [&_.video-js]:!h-full [&_.video-js]:!w-full [&_iframe]:!h-full [&_iframe]:!w-full [&_.vjs-loading-spinner]:!hidden [&_.vjs-big-play-button]:!hidden'
+                : 'h-1 w-1 overflow-hidden'
+            }
           />
 
-          {/* Click overlay to block YouTube iframe interaction */}
-          <div
-            className="absolute inset-0 z-[5]"
-            onClick={(e) => {
-              e.stopPropagation()
-              handlePlayPause()
-            }}
-          />
-
-          {/* Loading spinner */}
-          {isLoading && (
-            <div className="pointer-events-none absolute inset-0 z-[6] flex items-center justify-center">
-              <div className="h-12 w-12 animate-spin rounded-full border-[3px] border-transparent border-t-rich-red" />
-            </div>
+          {/* Click overlay to block YouTube iframe hover - expanded only */}
+          {isVideoExpanded && (
+            <div className="absolute inset-0 z-[5]" />
           )}
-
-          {/* Controls */}
-          <VideoControls
-            mode="full"
-            isPlaying={isPlaying}
-            progress={displayProgress}
-            elapsed={displayElapsed}
-            displayDuration={displayDuration}
-            volume={volume}
-            isMuted={isMuted}
-            speed={playbackSpeed}
-            isFullscreen={isFullscreen}
-            onPlayPause={handlePlayPause}
-            onSeek={handleSeek}
-            onVolumeChange={handleVolumeChange}
-            onMuteToggle={handleMuteToggle}
-            onSpeedChange={setSpeed}
-            onFullscreen={handleFullscreen}
-            onMinimize={minimizeVideo}
-          />
         </div>
       </div>
     </>

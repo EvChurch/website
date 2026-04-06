@@ -458,6 +458,11 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
         audioRef.current.duration || 0,
         audioRef.current.currentTime + SKIP_SECONDS,
       )
+    } else {
+      const vp = videoPlayerRef.current
+      if (vp && !vp.isDisposed()) {
+        vp.currentTime(Math.min(vp.duration() ?? 0, (vp.currentTime() ?? 0) + SKIP_SECONDS))
+      }
     }
   }, [])
 
@@ -467,6 +472,11 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
         0,
         audioRef.current.currentTime - SKIP_SECONDS,
       )
+    } else {
+      const vp = videoPlayerRef.current
+      if (vp && !vp.isDisposed()) {
+        vp.currentTime(Math.max(0, (vp.currentTime() ?? 0) - SKIP_SECONDS))
+      }
     }
   }, [])
 
