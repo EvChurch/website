@@ -48,6 +48,7 @@ export function ContinueListening() {
                     series: r.series,
                     artworkUrl: r.artworkUrl,
                     artworkBlurDataURL: r.artworkBlurDataURL,
+                    videos: r.videos,
                   }}
                   size="md"
                 />

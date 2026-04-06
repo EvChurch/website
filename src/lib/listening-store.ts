@@ -1,6 +1,14 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+export interface ListeningVideoOption {
+  campusName: string
+  campusSlug: string
+  youtubeVideoId: string
+  startSeconds?: number
+  endSeconds?: number
+}
+
 export interface ListeningRecord {
   slug: string
   title: string
@@ -9,6 +17,7 @@ export interface ListeningRecord {
   artworkUrl?: string
   artworkBlurDataURL?: string
   audioUrl: string
+  videos?: ListeningVideoOption[]
   progress: number
   duration: number
   completed: boolean
@@ -35,6 +44,7 @@ interface ListeningState {
     artworkUrl?: string
     artworkBlurDataURL?: string
     audioUrl: string
+    videos?: ListeningVideoOption[]
   }, currentTime: number, audioDuration: number, fallbackDuration?: number) => void
   markCompleted: (slug: string) => void
   markAsListened: (slug: string) => void
@@ -67,6 +77,7 @@ export const useListeningStore = create<ListeningState>()(
               artworkUrl: sermon.artworkUrl,
               artworkBlurDataURL: sermon.artworkBlurDataURL,
               audioUrl: sermon.audioUrl,
+              videos: sermon.videos ?? state.history[sermon.slug]?.videos,
               progress: currentTime,
               duration: dur,
               completed: state.history[sermon.slug]?.completed || (dur > 0 && (
