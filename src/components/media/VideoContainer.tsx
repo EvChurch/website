@@ -152,7 +152,11 @@ export function VideoContainer() {
             clearInterval(enforceInterval)
             return
           }
+          // Only enforce boundaries while actively playing
+          if (player.paused()) return
           const time = player.currentTime() ?? 0
+          // Skip enforcement if time is 0 (YouTube briefly reports 0 during resume)
+          if (time === 0) return
           if (time < startSec - 1) {
             player.currentTime(startSec)
           }
