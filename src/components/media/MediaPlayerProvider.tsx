@@ -246,22 +246,50 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
 
   // Keep refs up to date
   saveProgressRef.current = () => {
-    if (!currentSermon || currentMediaTypeRef.current !== 'audio' || !audioRef.current) return
-    const audio = audioRef.current
-    saveProgress(
-      {
-        slug: currentSermon.slug,
-        title: currentSermon.title,
-        speaker: currentSermon.speaker,
-        series: currentSermon.series,
-        artworkUrl: currentSermon.artworkUrl,
-        artworkBlurDataURL: currentSermon.artworkBlurDataURL,
-        audioUrl: currentSermon.audioUrl,
-      },
-      audio.currentTime,
-      audio.duration,
-      currentSermon.duration,
-    )
+    if (!currentSermon) return
+
+    if (currentMediaTypeRef.current === 'audio') {
+      const audio = audioRef.current
+      if (!audio) return
+      saveProgress(
+        {
+          slug: currentSermon.slug,
+          title: currentSermon.title,
+          speaker: currentSermon.speaker,
+          series: currentSermon.series,
+          artworkUrl: currentSermon.artworkUrl,
+          artworkBlurDataURL: currentSermon.artworkBlurDataURL,
+          audioUrl: currentSermon.audioUrl,
+        },
+        audio.currentTime,
+        audio.duration,
+        currentSermon.duration,
+      )
+    } else {
+      const vp = videoPlayerRef.current
+      if (!vp || vp.isDisposed()) return
+      const vid = activeVideoRef.current
+      const startSec = vid?.startSeconds ?? 0
+      const endSec = vid?.endSeconds ?? 0
+      const hasSegment = startSec > 0 && endSec > startSec
+      const currentTime = vp.currentTime() ?? 0
+      const segElapsed = hasSegment ? Math.max(0, currentTime - startSec) : currentTime
+      const segDuration = hasSegment ? endSec - startSec : (vp.duration() ?? 0)
+      saveProgress(
+        {
+          slug: currentSermon.slug,
+          title: currentSermon.title,
+          speaker: currentSermon.speaker,
+          series: currentSermon.series,
+          artworkUrl: currentSermon.artworkUrl,
+          artworkBlurDataURL: currentSermon.artworkBlurDataURL,
+          audioUrl: currentSermon.audioUrl,
+        },
+        segElapsed,
+        segDuration,
+        currentSermon.duration,
+      )
+    }
   }
 
   markCompletedRef.current = () => {
@@ -301,6 +329,11 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
           setProgress(time)
           setDuration(dur)
         }
+      }
+
+      // Save progress every ~5 seconds (polling runs at 250ms)
+      if (Math.floor(time) % 5 === 0 && time > 0) {
+        saveProgressRef.current?.()
       }
     }, 250)
   }, [stopVideoPolling])
@@ -555,7 +588,7 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
 
     player.on('ended', () => {
       if (currentMediaTypeRef.current !== 'video') return
-      // Use animated close (bar slide-down) when available
+      markCompletedRef.current?.()
       if (onEndedRef.current) onEndedRef.current()
       else closeRef.current?.()
     })

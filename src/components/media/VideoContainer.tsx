@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
 import { useMediaPlayer } from './MediaPlayerProvider'
+import { useListeningStore } from '@/lib/listening-store'
 
 // Lazy-load video.js to avoid SSR issues and reduce bundle
 let videojsPromise: Promise<typeof import('video.js')> | null = null
@@ -21,6 +22,7 @@ type VjsPlayer = import('video.js/dist/types/player').default
 
 export function VideoContainer() {
   const {
+    currentSermon,
     activeVideo,
     isVideoVisible,
     isVideoExpanded,
@@ -46,6 +48,11 @@ export function VideoContainer() {
     if (onEndedRef.current) onEndedRef.current()
     else close()
   }, [close, onEndedRef])
+  const markCompleted = useListeningStore((s) => s.markCompleted)
+  const markCompletedRef = useRef(markCompleted)
+  markCompletedRef.current = markCompleted
+  const currentSermonRef = useRef(currentSermon)
+  currentSermonRef.current = currentSermon
   const closeRef = useRef(animatedClose)
   closeRef.current = animatedClose
   const [flashIcon, setFlashIcon] = useState<'play' | 'pause' | null>(null)
@@ -246,6 +253,8 @@ export function VideoContainer() {
           }
           if (time >= endSec) {
             clearInterval(enforceInterval)
+            const slug = currentSermonRef.current?.slug
+            if (slug) markCompletedRef.current(slug)
             closeRef.current()
           }
         }, 250)
