@@ -37,6 +37,7 @@ export function AudioPlayerBar() {
     isVideoVisible,
     activeVideo,
     videoThumbnailRef,
+    setIsClosing,
     onEndedRef,
   } = useAudioPlayer()
 
@@ -60,6 +61,7 @@ export function AudioPlayerBar() {
   // Close with animation
   const handleClose = useCallback(() => {
     setShow(false)
+    setIsClosing(true)
     const el = barRef.current
     const onEnd = () => {
       el?.removeEventListener('transitionend', onEnd)
@@ -74,7 +76,7 @@ export function AudioPlayerBar() {
       close()
       setRender(false)
     }
-  }, [close])
+  }, [close, setIsClosing])
 
   // Register animated close so provider can trigger it on playback end
   useEffect(() => {

@@ -25,6 +25,7 @@ export function VideoContainer() {
     isVideoVisible,
     isVideoExpanded,
     isPlaying,
+    isClosing,
     playbackSpeed,
     pause,
     resume,
@@ -50,20 +51,14 @@ export function VideoContainer() {
   const [flashIcon, setFlashIcon] = useState<'play' | 'pause' | null>(null)
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [shouldRender, setShouldRender] = useState(false)
-  const [isFadingOut, setIsFadingOut] = useState(false)
   const pathname = usePathname()
 
-  // Keep rendered briefly after isVideoVisible goes false for fade-out
+  // Keep rendered briefly after isVideoVisible goes false for close animation
   useEffect(() => {
     if (isVideoVisible) {
       setShouldRender(true)
-      setIsFadingOut(false)
     } else if (shouldRender) {
-      setIsFadingOut(true)
-      const timer = setTimeout(() => {
-        setShouldRender(false)
-        setIsFadingOut(false)
-      }, 300)
+      const timer = setTimeout(() => setShouldRender(false), 350)
       return () => clearTimeout(timer)
     }
   }, [isVideoVisible]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -242,7 +237,7 @@ export function VideoContainer() {
 
   // When fading out from minimized, push the video down off-screen with the bar
   const closingStyle: React.CSSProperties | undefined =
-    isFadingOut && !isVideoExpanded && thumbRect
+    isClosing && !isVideoExpanded && thumbRect
       ? { ...minimizedStyle, top: (thumbRect.top ?? 0) + 100 }
       : undefined
 
@@ -268,7 +263,7 @@ export function VideoContainer() {
         }}
         className={`fixed z-[63] overflow-hidden bg-black transition-all duration-300 ease-out ${
           isVideoExpanded ? 'rounded-xl shadow-2xl' : 'cursor-pointer rounded-lg'
-        } ${isFadingOut && isVideoExpanded ? 'opacity-0' : 'opacity-100'}`}
+        } ${isClosing && isVideoExpanded ? 'opacity-0' : 'opacity-100'}`}
         style={currentStyle}
         onClick={isVideoExpanded ? undefined : expandVideo}
       >
@@ -320,7 +315,7 @@ export function VideoContainer() {
       </div>
 
       {/* Chevron overlay — fixed position above the iframe, over the thumbnail spot */}
-      {thumbRect && !isFadingOut && (
+      {thumbRect && !isClosing && (
         <button
           className="group/chev fixed z-[64] flex items-center justify-center rounded-lg transition-colors hover:bg-black/40"
           style={{ top: thumbRect.top, left: thumbRect.left, width: thumbRect.width, height: thumbRect.height }}

@@ -49,6 +49,8 @@ interface MediaPlayerState {
   playbackSpeed: number
   isVideoExpanded: boolean
   isVideoVisible: boolean
+  isClosing: boolean
+  setIsClosing: (v: boolean) => void
   play: (sermon: SermonMedia, mediaType?: 'audio' | 'video', campusSlug?: string) => void
   pause: () => void
   resume: () => void
@@ -94,6 +96,7 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
   const [duration, setDuration] = useState(0)
   const [isVideoExpanded, setIsVideoExpanded] = useState(false)
   const [isVideoVisible, setIsVideoVisible] = useState(false)
+  const [isClosing, setIsClosing] = useState(false)
 
   const { playbackSpeed, setPlaybackSpeed, saveProgress, markCompleted, mediaPreference, setMediaPreference } =
     useListeningStore()
@@ -516,6 +519,7 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
     setActiveVideo(null)
     activeVideoRef.current = null
     setMediaType('audio')
+    setIsClosing(false)
     setIsPlaying(false)
     setProgress(0)
     setDuration(0)
@@ -570,6 +574,8 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
         playbackSpeed,
         isVideoExpanded,
         isVideoVisible,
+        isClosing,
+        setIsClosing,
         play,
         pause,
         resume,
