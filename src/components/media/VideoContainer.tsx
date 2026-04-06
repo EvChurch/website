@@ -52,6 +52,7 @@ export function VideoContainer() {
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [animPhase, setAnimPhase] = useState<'idle' | 'min-out' | 'min-repos' | 'min-in' | 'exp-out' | 'exp-repos' | 'exp-in'>('idle')
   const prevExpandedRef = useRef(isVideoExpanded)
+  const hasBeenMinimizedRef = useRef(false)
   const [shouldRender, setShouldRender] = useState(false)
   const pathname = usePathname()
 
@@ -59,7 +60,10 @@ export function VideoContainer() {
   useEffect(() => {
     if (isVideoVisible) {
       setShouldRender(true)
-    } else if (shouldRender) {
+    } else {
+      hasBeenMinimizedRef.current = false
+    }
+    if (!isVideoVisible && shouldRender) {
       const timer = setTimeout(() => setShouldRender(false), 350)
       return () => clearTimeout(timer)
     }
@@ -104,6 +108,7 @@ export function VideoContainer() {
 
     if (wasExpanded && !isVideoExpanded) {
       // Minimize: expanded -> mini
+      hasBeenMinimizedRef.current = true
       setAnimPhase('min-out')
       const t1 = setTimeout(() => {
         setAnimPhase('min-repos')
@@ -117,8 +122,8 @@ export function VideoContainer() {
       return () => clearTimeout(t1)
     }
 
-    if (!wasExpanded && isVideoExpanded) {
-      // Expand: mini -> expanded
+    if (!wasExpanded && isVideoExpanded && hasBeenMinimizedRef.current) {
+      // Expand from mini (not first play) -> slide animation
       setAnimPhase('exp-out')
       const t1 = setTimeout(() => {
         setAnimPhase('exp-repos')
