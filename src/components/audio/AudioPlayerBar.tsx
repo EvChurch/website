@@ -176,24 +176,8 @@ export function AudioPlayerBar() {
               )
             ) : null}
 
-            {/* Layer 2: video iframe lands here via CSS positioning (z-[61]) */}
-            {/* Layer 3: Chevron overlay — above video iframe */}
-            {isVideoMode && (
-              <button
-                onClick={isVideoExpanded ? minimizeVideo : expandVideo}
-                className="absolute inset-0 z-[65] flex items-center justify-center bg-black/40"
-                aria-label={isVideoExpanded ? 'Minimize video' : 'Expand video'}
-              >
-                <svg
-                  className="h-5 w-5 text-white drop-shadow transition-transform duration-300"
-                  style={{ transform: isVideoExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6 1.41 1.41z" />
-                </svg>
-              </button>
-            )}
+            {/* Layer 2: video iframe lands here via CSS positioning (z-[63]) */}
+            {/* Layer 3: chevron rendered as fixed element from VideoContainer */}
           </div>
 
           {/* Sermon info + desktop progress */}

@@ -226,8 +226,8 @@ export function VideoContainer() {
         ref={(el) => {
           if (videoContainerRef) (videoContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
         }}
-        className={`fixed overflow-hidden bg-black transition-all duration-300 ease-out ${
-          isVideoExpanded ? 'z-[63] rounded-xl shadow-2xl' : 'z-[61] cursor-pointer rounded-lg'
+        className={`fixed z-[63] overflow-hidden bg-black transition-all duration-300 ease-out ${
+          isVideoExpanded ? 'rounded-xl shadow-2xl' : 'cursor-pointer rounded-lg'
         }`}
         style={currentStyle}
         onClick={isVideoExpanded ? undefined : expandVideo}
@@ -253,6 +253,25 @@ export function VideoContainer() {
           />
         </div>
       </div>
+
+      {/* Chevron overlay — fixed position above the iframe, over the thumbnail spot */}
+      {!isVideoExpanded && thumbRect && (
+        <button
+          className="fixed z-[64] flex items-center justify-center rounded-lg bg-black/40"
+          style={{ top: thumbRect.top, left: thumbRect.left, width: thumbRect.width, height: thumbRect.height }}
+          onClick={expandVideo}
+          aria-label="Expand video"
+        >
+          <svg
+            className="h-5 w-5 text-white drop-shadow transition-transform duration-300"
+            style={{ transform: 'rotate(0deg)' }}
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6 1.41 1.41z" />
+          </svg>
+        </button>
+      )}
     </>
   )
 }
