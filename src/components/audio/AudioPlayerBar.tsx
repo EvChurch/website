@@ -148,17 +148,16 @@ export function AudioPlayerBar() {
       >
         <div className="flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
           {/* Artwork + video iframe + chevron all stacked in the same spot */}
-          <div ref={videoThumbnailRef as React.RefObject<HTMLDivElement | null>} className="relative hidden h-12 w-12 shrink-0 overflow-hidden rounded-lg sm:block">
-            {/* Layer 1: Series banner artwork */}
+          <div ref={videoThumbnailRef as React.RefObject<HTMLDivElement | null>} className="relative hidden aspect-video h-12 shrink-0 overflow-hidden rounded-lg sm:block">
             {currentSermon.artworkUrl ? (
               isVideoMode ? (
                 <Image
                   src={currentSermon.artworkUrl}
                   alt=""
-                  width={48}
+                  width={85}
                   height={48}
-                  sizes="48px"
-                  className="h-12 w-12 object-cover"
+                  sizes="85px"
+                  className="h-full w-full object-cover"
                   {...(currentSermon.artworkBlurDataURL ? { placeholder: 'blur' as const, blurDataURL: currentSermon.artworkBlurDataURL } : {})}
                 />
               ) : (
@@ -166,10 +165,10 @@ export function AudioPlayerBar() {
                   <Image
                     src={currentSermon.artworkUrl}
                     alt=""
-                    width={48}
+                    width={85}
                     height={48}
-                    sizes="48px"
-                    className="h-12 w-12 object-cover"
+                    sizes="85px"
+                    className="h-full w-full object-cover"
                     {...(currentSermon.artworkBlurDataURL ? { placeholder: 'blur' as const, blurDataURL: currentSermon.artworkBlurDataURL } : {})}
                   />
                 </Link>
