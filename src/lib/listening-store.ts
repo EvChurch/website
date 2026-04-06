@@ -18,9 +18,12 @@ export interface ListeningRecord {
 const COMPLETED_THRESHOLD = 0.95
 const COMPLETED_REMAINING_SECS = 300 // 5 minutes
 
+export type MediaPreference = 'audio' | { type: 'video'; campusSlug: string }
+
 interface ListeningState {
   history: Record<string, ListeningRecord>
   playbackSpeed: number
+  mediaPreference: MediaPreference
 
   getProgress: (slug: string) => ListeningRecord | null
   getListeningHistory: () => ListeningRecord[]
@@ -36,6 +39,7 @@ interface ListeningState {
   markCompleted: (slug: string) => void
   markAsListened: (slug: string) => void
   setPlaybackSpeed: (speed: number) => void
+  setMediaPreference: (pref: MediaPreference) => void
 }
 
 export const useListeningStore = create<ListeningState>()(
@@ -43,6 +47,7 @@ export const useListeningStore = create<ListeningState>()(
     (set, get) => ({
       history: {},
       playbackSpeed: 1,
+      mediaPreference: 'audio' as MediaPreference,
 
       getProgress: (slug) => get().history[slug] ?? null,
 
@@ -110,12 +115,14 @@ export const useListeningStore = create<ListeningState>()(
       },
 
       setPlaybackSpeed: (speed) => set({ playbackSpeed: speed }),
+      setMediaPreference: (pref) => set({ mediaPreference: pref }),
     }),
     {
       name: 'ev-sermon-history',
       partialize: (state) => ({
         history: state.history,
         playbackSpeed: state.playbackSpeed,
+        mediaPreference: state.mediaPreference,
       }),
     },
   ),
