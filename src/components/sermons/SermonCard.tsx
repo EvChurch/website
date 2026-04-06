@@ -66,7 +66,7 @@ export function SermonCard({
     speakerSlug: speakers[0]?.slug,
     series: series[0]?.title,
     seriesSlug: series[0]?.slug,
-    artworkUrl: undefined,
+    artworkUrl: seriesBannerUrl ?? undefined,
     duration,
     videos,
   }

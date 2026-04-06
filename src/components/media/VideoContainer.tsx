@@ -242,15 +242,30 @@ export function VideoContainer() {
             className="h-full w-full [&_.video-js]:!block [&_.video-js]:!h-full [&_.video-js]:!w-full [&_iframe]:!h-full [&_iframe]:!w-full [&_.vjs-loading-spinner]:!hidden [&_.vjs-big-play-button]:!hidden"
           />
 
-          {/* Click overlay to block YouTube iframe interaction */}
+          {/* Click overlay to block YouTube iframe interaction + hover chevron */}
           <div
-            className="absolute inset-0 z-[5]"
+            className="group/vid absolute inset-0 z-[5]"
             onClick={(e) => {
               e.stopPropagation()
               if (isVideoExpanded) minimizeVideo()
               else expandVideo()
             }}
-          />
+          >
+            {/* Chevron indicator on hover */}
+            <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover/vid:bg-black/30">
+              {isVideoExpanded ? (
+                /* Down chevron - minimize */
+                <svg className="h-8 w-8 text-white opacity-0 drop-shadow transition-opacity group-hover/vid:opacity-100" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                </svg>
+              ) : (
+                /* Up chevron - expand */
+                <svg className="h-6 w-6 text-white opacity-0 drop-shadow transition-opacity group-hover/vid:opacity-100" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6 1.41 1.41z" />
+                </svg>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </>
