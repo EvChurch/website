@@ -147,15 +147,10 @@ export function AudioPlayerBar() {
         style={swipeX !== 0 ? { transform: `translateX(${swipeX}px)`, opacity: Math.max(0, 1 - Math.abs(swipeX) / (SWIPE_THRESHOLD * 2)), transition: 'opacity 0.15s' } : undefined}
       >
         <div className="flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
-          {/* Artwork — video iframe overlays this spot when minimized */}
-          {isVideoMode ? (
-            <button
-              ref={videoThumbnailRef as React.RefObject<HTMLButtonElement | null>}
-              onClick={isVideoExpanded ? minimizeVideo : expandVideo}
-              className="group/art relative hidden h-12 w-12 shrink-0 overflow-hidden rounded-lg sm:block"
-              aria-label={isVideoExpanded ? 'Minimize video' : 'Expand video'}
-            >
-              {currentSermon.artworkUrl ? (
+          {/* Artwork */}
+          <div ref={videoThumbnailRef as React.RefObject<HTMLDivElement | null>} className="relative hidden h-12 w-12 shrink-0 overflow-hidden rounded-lg sm:block">
+            {currentSermon.artworkUrl ? (
+              isVideoMode ? (
                 <Image
                   src={currentSermon.artworkUrl}
                   alt=""
@@ -166,22 +161,6 @@ export function AudioPlayerBar() {
                   {...(currentSermon.artworkBlurDataURL ? { placeholder: 'blur' as const, blurDataURL: currentSermon.artworkBlurDataURL } : {})}
                 />
               ) : (
-                <div className="h-12 w-12 bg-warm-white/10" />
-              )}
-              <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover/art:bg-black/40">
-                <svg
-                  className="h-5 w-5 text-white opacity-0 drop-shadow transition-all duration-300 group-hover/art:opacity-100"
-                  style={{ transform: isVideoExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6 1.41 1.41z" />
-                </svg>
-              </div>
-            </button>
-          ) : (
-            <div ref={videoThumbnailRef as React.RefObject<HTMLDivElement | null>} className="relative hidden shrink-0 overflow-hidden rounded-lg sm:block">
-              {currentSermon.artworkUrl ? (
                 <Link href={`/sermons/${currentSermon.slug}`}>
                   <Image
                     src={currentSermon.artworkUrl}
@@ -193,8 +172,28 @@ export function AudioPlayerBar() {
                     {...(currentSermon.artworkBlurDataURL ? { placeholder: 'blur' as const, blurDataURL: currentSermon.artworkBlurDataURL } : {})}
                   />
                 </Link>
-              ) : null}
-            </div>
+              )
+            ) : null}
+          </div>
+
+          {/* Expand/minimize chevron — separate layer above the video iframe */}
+          {isVideoMode && (
+            <button
+              onClick={isVideoExpanded ? minimizeVideo : expandVideo}
+              className="group/chev -ml-2 hidden h-12 w-6 shrink-0 items-center justify-center sm:flex"
+              aria-label={isVideoExpanded ? 'Minimize video' : 'Expand video'}
+            >
+              <div className="flex h-8 w-6 items-center justify-center rounded bg-warm-white/0 transition-colors group-hover/chev:bg-warm-white/10">
+                <svg
+                  className="h-4 w-4 text-warm-white/40 transition-all duration-300 group-hover/chev:text-warm-white"
+                  style={{ transform: isVideoExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6 1.41 1.41z" />
+                </svg>
+              </div>
+            </button>
           )}
 
           {/* Sermon info + desktop progress */}
