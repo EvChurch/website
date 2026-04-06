@@ -147,8 +147,9 @@ export function AudioPlayerBar() {
         style={swipeX !== 0 ? { transform: `translateX(${swipeX}px)`, opacity: Math.max(0, 1 - Math.abs(swipeX) / (SWIPE_THRESHOLD * 2)), transition: 'opacity 0.15s' } : undefined}
       >
         <div className="flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
-          {/* Artwork */}
+          {/* Artwork + video iframe + chevron all stacked in the same spot */}
           <div ref={videoThumbnailRef as React.RefObject<HTMLDivElement | null>} className="relative hidden h-12 w-12 shrink-0 overflow-hidden rounded-lg sm:block">
+            {/* Layer 1: Series banner artwork */}
             {currentSermon.artworkUrl ? (
               isVideoMode ? (
                 <Image
@@ -174,27 +175,26 @@ export function AudioPlayerBar() {
                 </Link>
               )
             ) : null}
-          </div>
 
-          {/* Expand/minimize chevron — separate layer above the video iframe */}
-          {isVideoMode && (
-            <button
-              onClick={isVideoExpanded ? minimizeVideo : expandVideo}
-              className="group/chev -ml-2 hidden h-12 w-6 shrink-0 items-center justify-center sm:flex"
-              aria-label={isVideoExpanded ? 'Minimize video' : 'Expand video'}
-            >
-              <div className="flex h-8 w-6 items-center justify-center rounded bg-warm-white/0 transition-colors group-hover/chev:bg-warm-white/10">
+            {/* Layer 2: video iframe lands here via CSS positioning (z-[61]) */}
+            {/* Layer 3: Chevron overlay — above video iframe */}
+            {isVideoMode && (
+              <button
+                onClick={isVideoExpanded ? minimizeVideo : expandVideo}
+                className="absolute inset-0 z-[65] flex items-center justify-center bg-black/40"
+                aria-label={isVideoExpanded ? 'Minimize video' : 'Expand video'}
+              >
                 <svg
-                  className="h-4 w-4 text-warm-white/40 transition-all duration-300 group-hover/chev:text-warm-white"
+                  className="h-5 w-5 text-white drop-shadow transition-transform duration-300"
                   style={{ transform: isVideoExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
                   viewBox="0 0 24 24"
                   fill="currentColor"
                 >
                   <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6 1.41 1.41z" />
                 </svg>
-              </div>
-            </button>
-          )}
+              </button>
+            )}
+          </div>
 
           {/* Sermon info + desktop progress */}
           <div className="min-w-0 flex-1">
