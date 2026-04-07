@@ -423,10 +423,12 @@ export default async function SermonsPage({
                 </h1>
 
                 <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-warm-white/60">
-                  {heroSpeakers.length > 0 && (
-                    <span className="text-warm-white/80">{heroSpeakers.join(', ')}</span>
+                  {heroSeriesTitle && heroSeriesSlug && (
+                    <a href={`/sermons/series/${heroSeriesSlug}`} className="text-warm-white/80 hover:text-warm-white transition-colors">
+                      {heroSeriesTitle}
+                    </a>
                   )}
-                  {heroSpeakers.length > 0 && heroDate && (
+                  {heroSeriesTitle && heroDate && (
                     <span className="text-warm-white/30" aria-hidden="true">&middot;</span>
                   )}
                   {heroDate && <span>{heroDate}</span>}
