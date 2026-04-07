@@ -11,7 +11,7 @@ interface SermonCardProps {
   id: number | string
   title: string
   slug: string
-  speakers: { name: string; slug: string }[]
+  audioSpeaker?: { name: string; slug: string } | null
   publishedAt: string
   series: { title: string; slug: string }[]
   scriptures: { name: string; slug: string }[]
@@ -42,7 +42,7 @@ export function SermonCard({
   id,
   title,
   slug,
-  speakers,
+  audioSpeaker,
   publishedAt,
   series,
   duration,
@@ -57,13 +57,24 @@ export function SermonCard({
   useEffect(() => setHydrated(true), [])
   const isCompleted = useListeningStore((s) => s.history[slug]?.completed ?? false) && hydrated
 
+  // Collect unique speakers across audio + video
+  const allSpeakers: { name: string; slug: string }[] = []
+  const seenSlugs = new Set<string>()
+  if (audioSpeaker) { allSpeakers.push(audioSpeaker); seenSlugs.add(audioSpeaker.slug) }
+  for (const v of videos ?? []) {
+    if (v.speakerName && v.speakerSlug && !seenSlugs.has(v.speakerSlug)) {
+      allSpeakers.push({ name: v.speakerName, slug: v.speakerSlug })
+      seenSlugs.add(v.speakerSlug)
+    }
+  }
+
   const sermonMedia: SermonMedia = {
     id,
     title,
     slug,
     audioUrl,
-    speaker: speakers.map((s) => s.name).join(', ') || undefined,
-    speakerSlug: speakers[0]?.slug,
+    speaker: allSpeakers.map((s) => s.name).join(', ') || undefined,
+    speakerSlug: allSpeakers[0]?.slug,
     series: series[0]?.title,
     seriesSlug: series[0]?.slug,
     artworkUrl: seriesBannerUrl ?? undefined,
@@ -92,9 +103,9 @@ export function SermonCard({
           </div>
 
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-warm-white/70">
-            {speakers.length > 0 && (
+            {allSpeakers.length > 0 && (
               <span>
-                {speakers.map((s, i) => (
+                {allSpeakers.map((s, i) => (
                   <span key={s.slug}>
                     {i > 0 && ', '}
                     <Link

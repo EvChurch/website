@@ -61,10 +61,12 @@ export const Sermons: CollectionConfig = {
       hasMany: true,
     },
     {
-      name: 'speakers',
+      name: 'audioSpeaker',
       type: 'relationship',
       relationTo: 'speakers',
-      hasMany: true,
+      admin: {
+        description: 'The preacher for the audio version of this sermon',
+      },
     },
     {
       name: 'topics',

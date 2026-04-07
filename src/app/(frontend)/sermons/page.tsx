@@ -89,9 +89,9 @@ async function buildFilterOptions(
 
   // Count sermons for a dimension, using all OTHER active filters as base
   const countFor = async (
-    field: string,
     excludeFilterKey: keyof typeof activeFilterFields,
     items: { id: number; name?: string | null; title?: string | null; slug?: string | null }[],
+    buildCondition: (itemId: number) => Where,
   ): Promise<FilterOption[]> => {
     // Build conditions from all filters EXCEPT the current dimension
     const crossConditions: Where[] = [...baseConditions]
@@ -108,7 +108,7 @@ async function buildFilterOptions(
           where: {
             and: [
               ...crossConditions,
-              { [field]: { contains: item.id } },
+              buildCondition(item.id),
             ],
           },
         })
@@ -123,10 +123,14 @@ async function buildFilterOptions(
   }
 
   const [series, speakers, topics, scriptures] = await Promise.all([
-    countFor('series', 'series', seriesResult.docs as { id: number; title?: string | null; slug?: string | null }[]),
-    countFor('speakers', 'speaker', speakersResult.docs as { id: number; name?: string | null; slug?: string | null }[]),
-    countFor('topics', 'topic', topicsResult.docs as { id: number; name?: string | null; slug?: string | null }[]),
-    countFor('scriptures', 'scripture', scripturesResult.docs as { id: number; name?: string | null; slug?: string | null }[]),
+    countFor('series', seriesResult.docs as { id: number; title?: string | null; slug?: string | null }[],
+      (id) => ({ series: { contains: id } })),
+    countFor('speaker', speakersResult.docs as { id: number; name?: string | null; slug?: string | null }[],
+      (id) => ({ or: [{ audioSpeaker: { equals: id } }, { 'videos.speaker': { equals: id } }] } as Where)),
+    countFor('topic', topicsResult.docs as { id: number; name?: string | null; slug?: string | null }[],
+      (id) => ({ topics: { contains: id } })),
+    countFor('scripture', scripturesResult.docs as { id: number; name?: string | null; slug?: string | null }[],
+      (id) => ({ scriptures: { contains: id } })),
   ])
 
   return { series, speakers, topics, scriptures }
@@ -225,7 +229,7 @@ export default async function SermonsPage({
       allSpeakers.docs.map(async (sp) => {
         const count = await payload.count({
           collection: 'sermons',
-          where: { and: [{ isPublished: { equals: true } }, { speakers: { contains: sp.id } }] },
+          where: { and: [{ isPublished: { equals: true } }, { or: [{ audioSpeaker: { equals: sp.id } }, { 'videos.speaker': { equals: sp.id } }] }] },
         })
         return { name: sp.name, slug: sp.slug, sermonCount: count.totalDocs }
       }),
@@ -265,7 +269,12 @@ export default async function SermonsPage({
       limit: 1,
       depth: 0,
     })
-    if (doc.docs[0]) activeFilterFields.speaker = { speakers: { contains: doc.docs[0].id } }
+    if (doc.docs[0]) activeFilterFields.speaker = {
+      or: [
+        { audioSpeaker: { equals: doc.docs[0].id } },
+        { 'videos.speaker': { equals: doc.docs[0].id } },
+      ],
+    }
   }
   if (topic) {
     const doc = await payload.find({
@@ -349,16 +358,11 @@ export default async function SermonsPage({
   const heroBannerMedia =
     heroSeriesDoc?.bannerImage && typeof heroSeriesDoc.bannerImage === 'object' && 'url' in heroSeriesDoc.bannerImage
       ? (heroSeriesDoc.bannerImage as MediaObj) : null
-  const heroSpeakerObj = latestSermon && Array.isArray(latestSermon.speakers) && latestSermon.speakers[0]
-    && typeof latestSermon.speakers[0] === 'object' && 'slug' in latestSermon.speakers[0]
-    ? latestSermon.speakers[0] as { slug: string }
+  const heroAudioSpeaker = latestSermon?.audioSpeaker && typeof latestSermon.audioSpeaker === 'object' && 'name' in latestSermon.audioSpeaker
+    ? latestSermon.audioSpeaker as { name: string; slug: string }
     : null
-  const heroSpeakerSlug = heroSpeakerObj?.slug
-  const heroSpeakers = latestSermon && Array.isArray(latestSermon.speakers)
-    ? latestSermon.speakers
-        .map((s) => (typeof s === 'object' && s !== null && 'name' in s ? (s.name as string) : ''))
-        .filter(Boolean)
-    : []
+  const heroSpeakerSlug = heroAudioSpeaker?.slug
+  const heroSpeakers = heroAudioSpeaker ? [heroAudioSpeaker.name] : []
   const heroSeriesTitle = heroSeriesDoc?.title
   const heroSeriesSlug = heroSeriesDoc?.slug
   const heroDate = latestSermon?.publishedAt
@@ -498,16 +502,10 @@ export default async function SermonsPage({
                   id={Number(sermon.id)}
                   title={sermon.title}
                   slug={sermon.slug}
-                  speakers={
-                    Array.isArray(sermon.speakers)
-                      ? sermon.speakers
-                          .map((s) =>
-                            typeof s === 'object' && s !== null && 'name' in s
-                              ? { name: s.name as string, slug: (s as { slug?: string }).slug ?? '' }
-                              : null,
-                          )
-                          .filter((s): s is { name: string; slug: string } => s !== null)
-                      : []
+                  audioSpeaker={
+                    sermon.audioSpeaker && typeof sermon.audioSpeaker === 'object' && 'name' in sermon.audioSpeaker
+                      ? { name: sermon.audioSpeaker.name as string, slug: (sermon.audioSpeaker as { slug?: string }).slug ?? '' }
+                      : null
                   }
                   publishedAt={sermon.publishedAt ?? ''}
                   series={

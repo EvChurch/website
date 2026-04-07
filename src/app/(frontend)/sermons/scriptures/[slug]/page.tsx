@@ -107,16 +107,10 @@ export default async function ScripturePage({
                 id={Number(sermon.id)}
                 title={sermon.title}
                 slug={sermon.slug}
-                speakers={
-                  Array.isArray(sermon.speakers)
-                    ? sermon.speakers
-                        .map((s) =>
-                          typeof s === 'object' && s !== null && 'name' in s
-                            ? { name: s.name as string, slug: (s as { slug?: string }).slug ?? '' }
-                            : null,
-                        )
-                        .filter((s): s is { name: string; slug: string } => s !== null)
-                    : []
+                audioSpeaker={
+                  sermon.audioSpeaker && typeof sermon.audioSpeaker === 'object' && 'name' in sermon.audioSpeaker
+                    ? { name: sermon.audioSpeaker.name as string, slug: (sermon.audioSpeaker as { slug?: string }).slug ?? '' }
+                    : null
                 }
                 publishedAt={sermon.publishedAt ?? ''}
                 series={
