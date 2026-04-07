@@ -116,6 +116,14 @@ export const Sermons: CollectionConfig = {
           required: true,
         },
         {
+          name: 'speaker',
+          type: 'relationship',
+          relationTo: 'speakers',
+          admin: {
+            description: 'The preacher in this campus video (may differ from the audio speaker)',
+          },
+        },
+        {
           name: 'youtubeVideoId',
           type: 'text',
           required: true,

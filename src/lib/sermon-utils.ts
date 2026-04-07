@@ -31,6 +31,8 @@ export function getSermonVideos(sermon: { videos?: unknown }): {
   youtubeVideoId: string
   startSeconds?: number
   endSeconds?: number
+  speakerName?: string
+  speakerSlug?: string
 }[] {
   if (!Array.isArray(sermon.videos)) return []
   return sermon.videos
@@ -48,12 +50,23 @@ export function getSermonVideos(sermon: { videos?: unknown }): {
           : 'default'
       const youtubeVideoId = vid.youtubeVideoId as string | undefined
       if (!youtubeVideoId) return null
+      const speaker = vid.speaker
+      const speakerName =
+        typeof speaker === 'object' && speaker !== null && 'name' in speaker
+          ? (speaker as { name: string }).name
+          : undefined
+      const speakerSlug =
+        typeof speaker === 'object' && speaker !== null && 'slug' in speaker
+          ? (speaker as { slug: string }).slug
+          : undefined
       return {
         campusName,
         campusSlug,
         youtubeVideoId,
         startSeconds: (vid.sermonStartSeconds as number) ?? undefined,
         endSeconds: (vid.sermonEndSeconds as number) ?? undefined,
+        speakerName,
+        speakerSlug,
       }
     })
     .filter((v): v is NonNullable<typeof v> => v !== null)

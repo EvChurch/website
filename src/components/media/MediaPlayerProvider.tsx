@@ -18,6 +18,8 @@ export interface VideoOption {
   youtubeVideoId: string
   startSeconds?: number
   endSeconds?: number
+  speakerName?: string
+  speakerSlug?: string
 }
 
 export interface SermonMedia {
