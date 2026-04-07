@@ -134,17 +134,15 @@ export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockP
               </h2>
 
               <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-warm-white/60">
-                {audioSpeaker && (
-                  <span className="text-warm-white/80">
-                    <Link
-                      href={`/sermons/speakers/${audioSpeaker.slug}`}
-                      className="hover:text-warm-white transition-colors"
-                    >
-                      {audioSpeaker.name}
-                    </Link>
-                  </span>
+                {series && (
+                  <Link
+                    href={`/sermons/series/${series.slug}`}
+                    className="text-warm-white/80 hover:text-warm-white transition-colors"
+                  >
+                    {series.title}
+                  </Link>
                 )}
-                {audioSpeaker && date && (
+                {series && date && (
                   <span className="text-warm-white/30" aria-hidden="true">&middot;</span>
                 )}
                 {date && <span>{date}</span>}
