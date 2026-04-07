@@ -4,7 +4,7 @@ import { MediaImage } from '@/components/media/MediaImage'
 import { getPayloadClient } from '@/lib/payload'
 import { getSermonAudioUrl, getSeriesBannerUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { SermonCard } from '@/components/sermons/SermonCard'
-import { SeriesCard } from '@/components/sermons/SeriesCard'
+import { BrowseTabs } from '@/components/sermons/BrowseTabs'
 import { Suspense } from 'react'
 import { SermonFilters } from '@/components/sermons/SermonFilters'
 import { SermonHeroClient } from './SermonHeroClient'
@@ -214,6 +214,37 @@ export default async function SermonsPage({
     return b.latestSermonDate.localeCompare(a.latestSermonDate)
   })
 
+  // Fetch speakers and scriptures with sermon counts for browse tabs
+  const [allSpeakers, allScriptures] = await Promise.all([
+    payload.find({ collection: 'speakers', sort: 'name', limit: 200, depth: 0, select: { name: true, slug: true } }),
+    payload.find({ collection: 'scriptures', sort: 'name', limit: 200, depth: 0, select: { name: true, slug: true } }),
+  ])
+
+  const [speakersWithCounts, scripturesWithCounts] = await Promise.all([
+    Promise.all(
+      allSpeakers.docs.map(async (sp) => {
+        const count = await payload.count({
+          collection: 'sermons',
+          where: { and: [{ isPublished: { equals: true } }, { speakers: { contains: sp.id } }] },
+        })
+        return { name: sp.name, slug: sp.slug, sermonCount: count.totalDocs }
+      }),
+    ),
+    Promise.all(
+      allScriptures.docs.map(async (sc) => {
+        const count = await payload.count({
+          collection: 'sermons',
+          where: { and: [{ isPublished: { equals: true } }, { scriptures: { contains: sc.id } }] },
+        })
+        return { name: sc.name, slug: sc.slug, sermonCount: count.totalDocs }
+      }),
+    ),
+  ])
+
+  // Filter out zero-count items and sort by count descending
+  const browseSpeakers = speakersWithCounts.filter((s) => s.sermonCount > 0).sort((a, b) => b.sermonCount - a.sermonCount)
+  const browseScriptures = scripturesWithCounts.filter((s) => s.sermonCount > 0).sort((a, b) => b.sermonCount - a.sermonCount)
+
   // Resolve filter slugs to IDs and build conditions
   const baseConditions: Where[] = [{ isPublished: { equals: true } }]
   const activeFilterFields: { series?: Where; speaker?: Where; topic?: Where; scripture?: Where; q?: Where } = {}
@@ -277,6 +308,26 @@ export default async function SermonsPage({
       depth: 2,
     })
     filteredSermons = filtered.docs
+
+    // When searching, re-sort to prioritise exact passage reference matches.
+    // e.g. searching "Romans 2" should rank "Romans 2:1-16" above "Romans 12:1-8"
+    if (q) {
+      const normalised = q.trim().toLowerCase()
+      filteredSermons.sort((a, b) => {
+        const aRef = (a.passageReference ?? '').toLowerCase()
+        const bRef = (b.passageReference ?? '').toLowerCase()
+        const aExact = aRef.startsWith(normalised)
+        const bExact = bRef.startsWith(normalised)
+        if (aExact && !bExact) return -1
+        if (!aExact && bExact) return 1
+        // Secondary: title match
+        const aTitle = a.title.toLowerCase().includes(normalised)
+        const bTitle = b.title.toLowerCase().includes(normalised)
+        if (aTitle && !bTitle) return -1
+        if (!aTitle && bTitle) return 1
+        return 0 // preserve original -publishedAt order
+      })
+    }
   }
 
   // Fetch the series doc with populated images for the hero
@@ -493,32 +544,30 @@ export default async function SermonsPage({
         </section>
       )}
 
-      {/* Series grid */}
+      {/* Browse tabs: Series / Scripture / Preachers */}
       {!hasFilters && (
         <section className="pb-12">
           <div className="mx-auto max-w-5xl px-6">
-            <h2 className="mb-5 font-sans text-xl font-semibold text-warm-white">Browse by Series</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {seriesWithCounts
+            <BrowseTabs
+              seriesItems={seriesWithCounts
                 .filter((s) => s.sermonCount > 0)
-                .map((s) => (
-                  <SeriesCard
-                    key={s.id}
-                    title={s.title}
-                    slug={s.slug}
-                    bannerImage={
-                      typeof s.bannerImage === 'object' &&
-                      s.bannerImage !== null &&
-                      'url' in s.bannerImage
-                        ? { url: s.bannerImage.url as string, blurDataURL: (s.bannerImage as { blurDataURL?: string | null }).blurDataURL }
-                        : null
-                    }
-                    sermonCount={s.sermonCount}
-                    earliestDate={s.earliestSermonDate}
-                    latestDate={s.latestSermonDate}
-                  />
-                ))}
-            </div>
+                .map((s) => ({
+                  id: Number(s.id),
+                  title: s.title,
+                  slug: s.slug,
+                  bannerImage:
+                    typeof s.bannerImage === 'object' &&
+                    s.bannerImage !== null &&
+                    'url' in s.bannerImage
+                      ? { url: s.bannerImage.url as string, blurDataURL: (s.bannerImage as { blurDataURL?: string | null }).blurDataURL }
+                      : null,
+                  sermonCount: s.sermonCount,
+                  earliestDate: s.earliestSermonDate,
+                  latestDate: s.latestSermonDate,
+                }))}
+              scriptureItems={browseScriptures}
+              speakerItems={browseSpeakers}
+            />
           </div>
         </section>
       )}
