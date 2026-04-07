@@ -224,54 +224,26 @@ export default async function SermonPage({
     }
   }
 
-  // Fetch "More from this speaker" and "More from this scripture" in parallel
-  const speakerDoc = Array.isArray(sermon.speakers) ? sermon.speakers[0] : null
-  const speakerId =
-    typeof speakerDoc === 'object' && speakerDoc !== null && 'id' in speakerDoc
-      ? (speakerDoc as { id: number }).id
-      : null
+  // Fetch "More from this series" sermons
+  const primarySeriesId = seriesList[0]?.id ?? null
+  const primarySeriesTitle = seriesList[0]?.title ?? null
 
-  const scriptureDoc = Array.isArray(sermon.scriptures) ? sermon.scriptures[0] : null
-  const scriptureId =
-    typeof scriptureDoc === 'object' && scriptureDoc !== null && 'id' in scriptureDoc
-      ? (scriptureDoc as { id: number }).id
-      : null
-  const scriptureLabel = scriptureId ? scripturesList[0]?.name ?? '' : ''
-
-  const [moreBySpeakerResult, moreByScriptureResult] = await Promise.all([
-    speakerId
-      ? payload.find({
-          collection: 'sermons',
-          where: {
-            and: [
-              { isPublished: { equals: true } },
-              { speakers: { contains: speakerId } },
-              { id: { not_equals: sermon.id } },
-            ],
-          },
-          sort: '-publishedAt',
-          limit: 3,
-          depth: 1,
-        })
-      : Promise.resolve({ docs: [] as typeof sermon[] }),
-    scriptureId
-      ? payload.find({
-          collection: 'sermons',
-          where: {
-            and: [
-              { isPublished: { equals: true } },
-              { scriptures: { contains: scriptureId } },
-              { id: { not_equals: sermon.id } },
-            ],
-          },
-          sort: '-publishedAt',
-          limit: 3,
-          depth: 1,
-        })
-      : Promise.resolve({ docs: [] as typeof sermon[] }),
-  ])
-  const moreBySpeaker = moreBySpeakerResult.docs
-  const moreByScripture = moreByScriptureResult.docs
+  const moreBySeriesResult = primarySeriesId
+    ? await payload.find({
+        collection: 'sermons',
+        where: {
+          and: [
+            { isPublished: { equals: true } },
+            { series: { contains: primarySeriesId } },
+            { id: { not_equals: sermon.id } },
+          ],
+        },
+        sort: '-publishedAt',
+        limit: 3,
+        depth: 1,
+      })
+    : { docs: [] as typeof sermon[] }
+  const moreBySeries = moreBySeriesResult.docs
 
   // Structured data
   const breadcrumbItems = [
@@ -512,100 +484,90 @@ export default async function SermonPage({
         </section>
       )}
 
-      {/* More sermons: speaker + scripture side by side */}
-      {(moreBySpeaker.length > 0 || moreByScripture.length > 0) && (
+      {/* More from this series */}
+      {moreBySeries.length > 0 && (
         <section className="border-t border-warm-white/10 py-12">
           <div className="mx-auto max-w-5xl px-6">
-            <div className="grid gap-10 lg:grid-cols-2">
-              {moreBySpeaker.length > 0 && (
-                <div>
-                  <h2 className="mb-5 font-sans text-lg font-bold text-warm-white">
-                    More from {speakers[0]?.name ?? 'this Speaker'}
-                  </h2>
-                  <div className="space-y-3">
-                    {moreBySpeaker.map((s) => {
-                      const bannerUrl = getSeriesBannerUrl(s)
-                      return (
-                        <Link key={s.id} href={`/sermons/${s.slug}`} className="flex items-center gap-3 rounded-lg border border-warm-white/10 p-3 transition-all hover:border-warm-white/20 hover:bg-warm-white/5 hover:shadow-lg hover:shadow-black/20">
-                          {bannerUrl && (
-                            <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-md">
-                              <Image src={bannerUrl} alt="" fill sizes="80px" className="object-cover" />
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <span
-                              className="block truncate text-sm font-semibold text-warm-white"
-                            >
-                              {s.title}
-                            </span>
-                            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-warm-white/50">
-                              {s.passageReference && <span>{s.passageReference}</span>}
-                              {s.publishedAt && (
-                                <span>
-                                  {new Date(s.publishedAt).toLocaleDateString('en-NZ', {
-                                    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Pacific/Auckland',
-                                  })}
-                                </span>
-                              )}
-                              {s.duration && s.duration > 0 && <span>{formatDuration(s.duration)}</span>}
-                            </div>
-                          </div>
-                        </Link>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {moreByScripture.length > 0 && (
-                <div>
-                  <h2 className="mb-5 font-sans text-lg font-bold text-warm-white">
-                    More from {scriptureLabel}
-                  </h2>
-                  <div className="space-y-3">
-                    {moreByScripture.map((s) => {
-                      const bannerUrl = getSeriesBannerUrl(s)
-                      return (
-                        <Link key={s.id} href={`/sermons/${s.slug}`} className="flex items-center gap-3 rounded-lg border border-warm-white/10 p-3 transition-all hover:border-warm-white/20 hover:bg-warm-white/5 hover:shadow-lg hover:shadow-black/20">
-                          {bannerUrl && (
-                            <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-md">
-                              <Image src={bannerUrl} alt="" fill sizes="80px" className="object-cover" />
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-semibold text-warm-white">
-                              {s.title}
-                            </span>
-                            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-warm-white/50">
-                              {Array.isArray(s.speakers) && s.speakers.length > 0 && (
-                                <span>
-                                  {s.speakers
-                                    .map((sp) => (typeof sp === 'object' && sp !== null && 'name' in sp ? (sp.name as string) : ''))
-                                    .filter(Boolean)
-                                    .join(', ')}
-                                </span>
-                              )}
-                              {s.passageReference && <span>{s.passageReference}</span>}
-                              {s.publishedAt && (
-                                <span>
-                                  {new Date(s.publishedAt).toLocaleDateString('en-NZ', {
-                                    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Pacific/Auckland',
-                                  })}
-                                </span>
-                              )}
-                              {s.duration && s.duration > 0 && <span>{formatDuration(s.duration)}</span>}
-                            </div>
-                          </div>
-                        </Link>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
+            <h2 className="mb-5 font-sans text-lg font-bold text-warm-white">
+              More from {primarySeriesTitle}
+            </h2>
+            <div className="space-y-3">
+              {moreBySeries.map((s) => {
+                const bannerUrl = getSeriesBannerUrl(s)
+                return (
+                  <Link key={s.id} href={`/sermons/${s.slug}`} className="flex items-center gap-3 rounded-lg border border-warm-white/10 p-3 transition-all hover:border-warm-white/20 hover:bg-warm-white/5 hover:shadow-lg hover:shadow-black/20">
+                    {bannerUrl && (
+                      <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-md">
+                        <Image src={bannerUrl} alt="" fill sizes="80px" className="object-cover" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-warm-white">
+                        {s.title}
+                      </span>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-warm-white/50">
+                        {Array.isArray(s.speakers) && s.speakers.length > 0 && (
+                          <span>
+                            {s.speakers
+                              .map((sp) => (typeof sp === 'object' && sp !== null && 'name' in sp ? (sp.name as string) : ''))
+                              .filter(Boolean)
+                              .join(', ')}
+                          </span>
+                        )}
+                        {s.passageReference && <span>{s.passageReference}</span>}
+                        {s.publishedAt && (
+                          <span>
+                            {new Date(s.publishedAt).toLocaleDateString('en-NZ', {
+                              day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Pacific/Auckland',
+                            })}
+                          </span>
+                        )}
+                        {s.duration && s.duration > 0 && <span>{formatDuration(s.duration)}</span>}
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
             </div>
           </div>
         </section>
       )}
+
+      {/* Browse buttons */}
+      <section className="border-t border-warm-white/10 py-12">
+        <div className="mx-auto max-w-5xl px-6">
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/sermons"
+              className="flex items-center gap-2 rounded-xl bg-warm-white/10 px-5 py-3 text-sm font-medium text-warm-white transition-all hover:-translate-y-0.5 hover:bg-warm-white/15 hover:shadow-lg hover:shadow-black/20"
+            >
+              <svg className="h-4 w-4 text-warm-white/60" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M7 3.5A1.5 1.5 0 018.5 2h3.879a1.5 1.5 0 011.06.44l3.122 3.12A1.5 1.5 0 0117 6.622V12.5a1.5 1.5 0 01-1.5 1.5h-1v-3.379a3 3 0 00-.879-2.121L10.5 5.379A3 3 0 008.379 4.5H7v-1z" />
+                <path d="M4.5 6A1.5 1.5 0 003 7.5v9A1.5 1.5 0 004.5 18h7a1.5 1.5 0 001.5-1.5v-5.879a1.5 1.5 0 00-.44-1.06L9.44 6.44A1.5 1.5 0 008.378 6H4.5z" />
+              </svg>
+              Browse by Series
+            </Link>
+            <Link
+              href="/sermons#scripture"
+              className="flex items-center gap-2 rounded-xl bg-warm-white/10 px-5 py-3 text-sm font-medium text-warm-white transition-all hover:-translate-y-0.5 hover:bg-warm-white/15 hover:shadow-lg hover:shadow-black/20"
+            >
+              <svg className="h-4 w-4 text-warm-white/60" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10.75 16.82A7.462 7.462 0 0115 15.5c.71 0 1.396.098 2.046.282A.75.75 0 0018 15.06v-11a.75.75 0 00-.546-.721A9.006 9.006 0 0015 3a8.999 8.999 0 00-4.25 1.065v12.757zM9.25 4.065A8.999 8.999 0 005 3c-.85 0-1.673.118-2.454.339A.75.75 0 002 4.06v11a.75.75 0 00.954.721A7.506 7.506 0 015 15.5c1.579 0 3.042.487 4.25 1.32V4.065z" />
+              </svg>
+              Browse by Scripture
+            </Link>
+            <Link
+              href="/sermons#preachers"
+              className="flex items-center gap-2 rounded-xl bg-warm-white/10 px-5 py-3 text-sm font-medium text-warm-white transition-all hover:-translate-y-0.5 hover:bg-warm-white/15 hover:shadow-lg hover:shadow-black/20"
+            >
+              <svg className="h-4 w-4 text-warm-white/60" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" />
+              </svg>
+              Browse by Preacher
+            </Link>
+          </div>
+        </div>
+      </section>
     </main>
   )
 }
