@@ -19,6 +19,7 @@ interface Props {
   artworkBlurDataURL?: string
   duration?: number
   videos?: VideoOption[]
+  passageReference?: string
 }
 
 export function LatestSermonPlayButton({
@@ -34,6 +35,7 @@ export function LatestSermonPlayButton({
   artworkBlurDataURL,
   duration,
   videos,
+  passageReference,
 }: Props) {
   const { currentSermon, isPlaying, isLoading, play, pause, resume } = useMediaPlayer()
 
@@ -66,7 +68,7 @@ export function LatestSermonPlayButton({
   }, [dropdownOpen])
 
   const buildSermon = (): SermonMedia => ({
-    id: sermonId, title, slug, audioUrl, speaker, speakerSlug, series: seriesTitle, seriesSlug, artworkUrl, artworkBlurDataURL, duration, videos,
+    id: sermonId, title, slug, audioUrl, speaker, speakerSlug, series: seriesTitle, seriesSlug, artworkUrl, artworkBlurDataURL, duration, videos, passageReference,
   })
 
   const handleClick = () => {

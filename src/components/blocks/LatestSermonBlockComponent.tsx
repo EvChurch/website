@@ -29,6 +29,18 @@ export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockP
       ? { name: sermon.audioSpeaker.name as string, slug: (sermon.audioSpeaker as { slug?: string }).slug ?? '' }
       : null
 
+  // Extract scripture info
+  const passageReference = sermon.passageReference ?? null
+  const scriptures = Array.isArray(sermon.scriptures)
+    ? sermon.scriptures
+        .map((s) =>
+          typeof s === 'object' && s !== null && 'name' in s
+            ? { name: s.name as string, slug: (s as { slug?: string }).slug ?? '' }
+            : null,
+        )
+        .filter((s): s is { name: string; slug: string } => s !== null)
+    : []
+
   // Extract series info
   const series = Array.isArray(sermon.series) && sermon.series[0] && typeof sermon.series[0] === 'object'
     ? sermon.series[0] as { id: number; title: string; slug: string }
@@ -142,7 +154,34 @@ export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockP
                     {series.title}
                   </Link>
                 )}
-                {series && date && (
+                {passageReference && scriptures.length > 0 ? (
+                  <>
+                    {series && <span className="text-warm-white/30" aria-hidden="true">&middot;</span>}
+                    <Link href={`/sermons/scriptures/${scriptures[0].slug}`} className="text-warm-white/80 hover:text-warm-white transition-colors">
+                      {passageReference}
+                    </Link>
+                  </>
+                ) : passageReference ? (
+                  <>
+                    {series && <span className="text-warm-white/30" aria-hidden="true">&middot;</span>}
+                    <span>{passageReference}</span>
+                  </>
+                ) : scriptures.length > 0 ? (
+                  <>
+                    {series && <span className="text-warm-white/30" aria-hidden="true">&middot;</span>}
+                    <span>
+                      {scriptures.map((s, i) => (
+                        <span key={s.slug}>
+                          {i > 0 && ', '}
+                          <Link href={`/sermons/scriptures/${s.slug}`} className="text-warm-white/80 hover:text-warm-white transition-colors">
+                            {s.name}
+                          </Link>
+                        </span>
+                      ))}
+                    </span>
+                  </>
+                ) : null}
+                {(series || passageReference || scriptures.length > 0) && date && (
                   <span className="text-warm-white/30" aria-hidden="true">&middot;</span>
                 )}
                 {date && <span>{date}</span>}
@@ -164,6 +203,7 @@ export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockP
                     artworkBlurDataURL={bannerMedia?.blurDataURL ?? undefined}
                     duration={sermon.duration ?? undefined}
                     videos={getSermonVideos(sermon)}
+                    passageReference={passageReference ?? undefined}
                   />
                 </div>
               )}

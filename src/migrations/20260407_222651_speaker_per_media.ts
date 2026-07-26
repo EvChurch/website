@@ -41,6 +41,12 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   ALTER TABLE "sermons_rels" ADD COLUMN "speakers_id" integer;
   ALTER TABLE "sermons_rels" ADD CONSTRAINT "sermons_rels_speakers_fk" FOREIGN KEY ("speakers_id") REFERENCES "public"."speakers"("id") ON DELETE cascade ON UPDATE no action;
   CREATE INDEX "sermons_rels_speakers_id_idx" ON "sermons_rels" USING btree ("speakers_id");
+
+  INSERT INTO "sermons_rels" ("order", "parent_id", "path", "speakers_id")
+  SELECT 1, "id", 'speakers', "audio_speaker_id"
+  FROM "sermons"
+  WHERE "audio_speaker_id" IS NOT NULL;
+
   ALTER TABLE "sermons_videos" DROP COLUMN "speaker_id";
   ALTER TABLE "sermons" DROP COLUMN "audio_speaker_id";`)
 }

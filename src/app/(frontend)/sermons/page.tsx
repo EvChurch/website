@@ -365,6 +365,16 @@ export default async function SermonsPage({
   const heroSpeakers = heroAudioSpeaker ? [heroAudioSpeaker.name] : []
   const heroSeriesTitle = heroSeriesDoc?.title
   const heroSeriesSlug = heroSeriesDoc?.slug
+  const heroPassageReference = latestSermon?.passageReference ?? null
+  const heroScriptures = latestSermon && Array.isArray(latestSermon.scriptures)
+    ? latestSermon.scriptures
+        .map((s) =>
+          typeof s === 'object' && s !== null && 'name' in s
+            ? { name: s.name as string, slug: (s as { slug?: string }).slug ?? '' }
+            : null,
+        )
+        .filter((s): s is { name: string; slug: string } => s !== null)
+    : []
   const heroDate = latestSermon?.publishedAt
     ? new Date(latestSermon.publishedAt).toLocaleDateString('en-NZ', {
         day: 'numeric',
@@ -428,7 +438,34 @@ export default async function SermonsPage({
                       {heroSeriesTitle}
                     </a>
                   )}
-                  {heroSeriesTitle && heroDate && (
+                  {heroPassageReference && heroScriptures.length > 0 ? (
+                    <>
+                      {heroSeriesTitle && <span className="text-warm-white/30" aria-hidden="true">&middot;</span>}
+                      <a href={`/sermons/scriptures/${heroScriptures[0].slug}`} className="text-warm-white/80 hover:text-warm-white transition-colors">
+                        {heroPassageReference}
+                      </a>
+                    </>
+                  ) : heroPassageReference ? (
+                    <>
+                      {heroSeriesTitle && <span className="text-warm-white/30" aria-hidden="true">&middot;</span>}
+                      <span>{heroPassageReference}</span>
+                    </>
+                  ) : heroScriptures.length > 0 ? (
+                    <>
+                      {heroSeriesTitle && <span className="text-warm-white/30" aria-hidden="true">&middot;</span>}
+                      <span>
+                        {heroScriptures.map((s, i) => (
+                          <span key={s.slug}>
+                            {i > 0 && ', '}
+                            <a href={`/sermons/scriptures/${s.slug}`} className="text-warm-white/80 hover:text-warm-white transition-colors">
+                              {s.name}
+                            </a>
+                          </span>
+                        ))}
+                      </span>
+                    </>
+                  ) : null}
+                  {(heroSeriesTitle || heroPassageReference || heroScriptures.length > 0) && heroDate && (
                     <span className="text-warm-white/30" aria-hidden="true">&middot;</span>
                   )}
                   {heroDate && <span>{heroDate}</span>}
@@ -455,6 +492,7 @@ export default async function SermonsPage({
                     artworkBlurDataURL={heroBannerMedia?.blurDataURL ?? undefined}
                     duration={latestSermon.duration ?? undefined}
                     videos={getSermonVideos(latestSermon)}
+                    passageReference={heroPassageReference ?? undefined}
                   />
                 </div>
               </div>

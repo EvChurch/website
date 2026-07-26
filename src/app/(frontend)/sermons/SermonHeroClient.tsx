@@ -19,6 +19,7 @@ interface SermonHeroClientProps {
   artworkBlurDataURL?: string
   duration?: number
   videos?: VideoOption[]
+  passageReference?: string
 }
 
 export function SermonHeroClient({
@@ -34,6 +35,7 @@ export function SermonHeroClient({
   artworkBlurDataURL,
   duration,
   videos,
+  passageReference,
 }: SermonHeroClientProps) {
   const { currentSermon, isPlaying, isLoading, play, pause, resume } = useMediaPlayer()
 
@@ -66,7 +68,7 @@ export function SermonHeroClient({
   }, [dropdownOpen])
 
   const buildSermon = (): SermonMedia => ({
-    id: sermonId, title, slug, audioUrl, speaker, speakerSlug, series: seriesTitle, seriesSlug, artworkUrl, artworkBlurDataURL, duration, videos,
+    id: sermonId, title, slug, audioUrl, speaker, speakerSlug, series: seriesTitle, seriesSlug, artworkUrl, artworkBlurDataURL, duration, videos, passageReference,
   })
 
   const handleClick = () => {

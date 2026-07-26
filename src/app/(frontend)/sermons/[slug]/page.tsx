@@ -382,6 +382,7 @@ export default async function SermonPage({
                     artworkBlurDataURL={heroBannerMedia?.blurDataURL ?? undefined}
                     duration={sermon.duration ?? undefined}
                     videos={getSermonVideos(sermon)}
+                    passageReference={sermon.passageReference ?? undefined}
                   />
                 </div>
               )}

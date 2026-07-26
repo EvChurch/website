@@ -17,6 +17,7 @@ interface SermonPlayButtonProps {
   artworkBlurDataURL?: string
   duration?: number
   videos?: VideoOption[]
+  passageReference?: string
 }
 
 export function SermonPlayButton({
@@ -30,6 +31,7 @@ export function SermonPlayButton({
   artworkBlurDataURL,
   duration,
   videos,
+  passageReference,
 }: SermonPlayButtonProps) {
   const { currentSermon, isPlaying, isLoading, play, pause, resume } = useMediaPlayer()
 
@@ -63,7 +65,7 @@ export function SermonPlayButton({
   }, [dropdownOpen])
 
   const buildSermon = (): SermonMedia => ({
-    id, title, slug, audioUrl, speaker, series: seriesTitle, artworkUrl, artworkBlurDataURL, duration, videos,
+    id, title, slug, audioUrl, speaker, series: seriesTitle, artworkUrl, artworkBlurDataURL, duration, videos, passageReference,
   })
 
   const handleClick = () => {
