@@ -14,6 +14,10 @@ import sys
 from pathlib import Path
 
 COMPOUND_ENGINEERING_REF = "a9f6d530d4446d805a3100387dedd86268d7e695"
+COMPOUND_ENGINEERING_MARKETPLACE = "compound-engineering-plugin"
+COMPOUND_ENGINEERING_PLUGIN = (
+    f"compound-engineering@{COMPOUND_ENGINEERING_MARKETPLACE}"
+)
 
 
 def setup_compound_engineering():
@@ -34,7 +38,54 @@ def setup_compound_engineering():
             capture_output=True,
             text=True,
         ).stdout
-        if "compound-engineering-plugin" not in marketplaces:
+        plugins = subprocess.run(
+            [codex, "plugin", "list"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        plugin_installed = any(
+            line.startswith(f"{COMPOUND_ENGINEERING_PLUGIN} ")
+            and "installed, enabled" in line
+            for line in plugins.splitlines()
+        )
+
+        marketplace_line = next(
+            (
+                line
+                for line in marketplaces.splitlines()
+                if line.startswith(f"{COMPOUND_ENGINEERING_MARKETPLACE} ")
+            ),
+            None,
+        )
+        if marketplace_line is not None:
+            marketplace_path = marketplace_line.split(maxsplit=1)[1]
+            installed_ref = subprocess.run(
+                ["git", "-C", marketplace_path, "rev-parse", "HEAD"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            if installed_ref != COMPOUND_ENGINEERING_REF:
+                if plugin_installed:
+                    subprocess.run(
+                        [codex, "plugin", "remove", COMPOUND_ENGINEERING_PLUGIN],
+                        check=True,
+                    )
+                    plugin_installed = False
+                subprocess.run(
+                    [
+                        codex,
+                        "plugin",
+                        "marketplace",
+                        "remove",
+                        COMPOUND_ENGINEERING_MARKETPLACE,
+                    ],
+                    check=True,
+                )
+                marketplace_line = None
+
+        if marketplace_line is None:
             subprocess.run(
                 [
                     codex,
@@ -48,22 +99,13 @@ def setup_compound_engineering():
                 check=True,
             )
 
-        plugins = subprocess.run(
-            [codex, "plugin", "list"],
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout
-        if not any(
-            line.startswith("compound-engineering@") and "installed, enabled" in line
-            for line in plugins.splitlines()
-        ):
+        if not plugin_installed:
             subprocess.run(
                 [
                     codex,
                     "plugin",
                     "add",
-                    "compound-engineering@compound-engineering-plugin",
+                    COMPOUND_ENGINEERING_PLUGIN,
                 ],
                 check=True,
             )
@@ -251,9 +293,9 @@ def main():
     """Run all post-install configuration."""
     print("[post_install] Starting post-install configuration...", file=sys.stderr)
 
+    fix_directory_ownership()
     setup_compound_engineering()
     setup_tmux_config()
-    fix_directory_ownership()
     setup_global_gitignore()
 
     print("[post_install] Configuration complete!", file=sys.stderr)
