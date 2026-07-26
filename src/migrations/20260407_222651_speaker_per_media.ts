@@ -32,10 +32,9 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
 
 export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
-   ALTER TABLE "sermons_videos" DROP CONSTRAINT "sermons_videos_speaker_id_speakers_id_fk";
-  
+  ALTER TABLE "sermons_videos" DROP CONSTRAINT "sermons_videos_speaker_id_speakers_id_fk";
   ALTER TABLE "sermons" DROP CONSTRAINT "sermons_audio_speaker_id_speakers_id_fk";
-  
+
   DROP INDEX "sermons_videos_speaker_idx";
   DROP INDEX "sermons_audio_speaker_idx";
   ALTER TABLE "sermons_rels" ADD COLUMN "speakers_id" integer;
