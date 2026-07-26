@@ -9,7 +9,7 @@
   "updateRemoteUserUID": true,
   "customizations": {
     "vscode": {
-      "extensions": ["anthropic.claude-code"],
+      "extensions": ["openai.chatgpt"],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "zsh",
         "terminal.integrated.profiles.linux": {
@@ -30,7 +30,6 @@
   "remoteUser": "vscode",
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
-    "CLAUDE_CONFIG_DIR": "/home/vscode/.claude",
     "POWERLEVEL9K_DISABLE_GITSTATUS": "true",
     "GIT_CONFIG_GLOBAL": "/home/vscode/.gitconfig.local",
     "UV_LINK_MODE": "copy",

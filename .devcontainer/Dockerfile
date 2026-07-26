@@ -1,4 +1,4 @@
-# Claude Code Devcontainer
+# Codex Devcontainer
 # Based on Microsoft devcontainer image for better devcontainer integration
 ARG UV_VERSION=0.10.0
 FROM ghcr.io/astral-sh/uv:${UV_VERSION}@sha256:78a7ff97cd27b7124a5f3c2aefe146170793c56a1e03321dd31a289f6d82a04f AS uv
@@ -11,7 +11,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install additional system packages (base image already includes git, curl, sudo, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-  # Sandboxing support for Claude Code
+  # Sandboxing support for agent tooling
   bubblewrap \
   socat \
   # Modern CLI tools
@@ -54,10 +54,10 @@ RUN ARCH=$(dpkg --print-architecture) && \
   curl -fsSL "https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/fzf-${FZF_VERSION}-${FZF_ARCH}.tar.gz" | tar -xz -C /usr/local/bin
 
 # Create directories and set ownership (combined for fewer layers)
-RUN mkdir -p /commandhistory /workspace /home/vscode/.claude /opt && \
+RUN mkdir -p /commandhistory /workspace /home/vscode/.codex /opt && \
   touch /commandhistory/.bash_history && \
   touch /commandhistory/.zsh_history && \
-  chown -R vscode:vscode /commandhistory /workspace /home/vscode/.claude /opt
+  chown -R vscode:vscode /commandhistory /workspace /home/vscode/.codex /opt
 
 # Set environment variables
 ENV DEVCONTAINER=true
@@ -70,14 +70,8 @@ WORKDIR /workspace
 # Switch to non-root user for remaining setup
 USER vscode
 
-# Set PATH early so claude and other user-installed binaries are available
+# Set PATH early so user-installed binaries are available
 ENV PATH="/home/vscode/.local/bin:$PATH"
-
-# Install Claude Code natively with marketplace plugins
-RUN curl -fsSL https://claude.ai/install.sh | bash && \
-  claude plugin marketplace add anthropics/skills && \
-  claude plugin marketplace add trailofbits/skills && \
-  claude plugin marketplace add trailofbits/skills-curated
 
 # Install Python 3.13 via uv (fast binary download, not source compilation)
 RUN uv python install 3.13 --default
@@ -93,6 +87,15 @@ RUN curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir "$FNM_D
   eval "$(fnm env)" && \
   fnm install ${NODE_VERSION} && \
   fnm default ${NODE_VERSION}
+
+# Install Codex CLI. Compound Engineering is installed into the persistent
+# Codex config volume by post_install.py.
+ARG CODEX_VERSION=0.145.0
+RUN export PATH="$FNM_DIR:$PATH" && \
+  eval "$(fnm env)" && \
+  npm install --global "@openai/codex@${CODEX_VERSION}" && \
+  sudo ln -sf "$(command -v node)" /usr/local/bin/node && \
+  sudo ln -sf "$(command -v codex)" /usr/local/bin/codex
 
 # Install Oh My Zsh
 ARG ZSH_IN_DOCKER_VERSION=1.2.1

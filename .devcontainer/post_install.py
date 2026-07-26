@@ -1,40 +1,122 @@
 #!/usr/bin/env python3
-"""Post-install configuration for Claude Code devcontainer.
+"""Post-install configuration for the Codex devcontainer.
 
 Runs on container creation to set up:
-- Claude settings (bypassPermissions mode)
+- Compound Engineering for Codex
 - Tmux configuration (200k history, mouse support)
 - Directory ownership fixes for mounted volumes
 """
 
-import contextlib
-import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
+COMPOUND_ENGINEERING_REF = "a9f6d530d4446d805a3100387dedd86268d7e695"
+COMPOUND_ENGINEERING_MARKETPLACE = "compound-engineering-plugin"
+COMPOUND_ENGINEERING_PLUGIN = (
+    f"compound-engineering@{COMPOUND_ENGINEERING_MARKETPLACE}"
+)
 
-def setup_claude_settings():
-    """Configure Claude Code with bypassPermissions enabled."""
-    claude_dir = Path.home() / ".claude"
-    claude_dir.mkdir(parents=True, exist_ok=True)
 
-    settings_file = claude_dir / "settings.json"
+def setup_compound_engineering():
+    """Install the Compound Engineering marketplace and plugin for Codex."""
+    codex = shutil.which("codex")
+    if codex is None:
+        print(
+            "[post_install] Warning: Codex is not on PATH; "
+            "Compound Engineering was not installed",
+            file=sys.stderr,
+        )
+        return
 
-    # Load existing settings or start fresh
-    settings = {}
-    if settings_file.exists():
-        with contextlib.suppress(json.JSONDecodeError):
-            settings = json.loads(settings_file.read_text())
+    try:
+        marketplaces = subprocess.run(
+            [codex, "plugin", "marketplace", "list"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        plugins = subprocess.run(
+            [codex, "plugin", "list"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        plugin_installed = any(
+            line.startswith(f"{COMPOUND_ENGINEERING_PLUGIN} ")
+            and "installed, enabled" in line
+            for line in plugins.splitlines()
+        )
 
-    # Set bypassPermissions mode
-    if "permissions" not in settings:
-        settings["permissions"] = {}
-    settings["permissions"]["defaultMode"] = "bypassPermissions"
+        marketplace_line = next(
+            (
+                line
+                for line in marketplaces.splitlines()
+                if line.startswith(f"{COMPOUND_ENGINEERING_MARKETPLACE} ")
+            ),
+            None,
+        )
+        if marketplace_line is not None:
+            marketplace_path = marketplace_line.split(maxsplit=1)[1]
+            installed_ref = subprocess.run(
+                ["git", "-C", marketplace_path, "rev-parse", "HEAD"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            if installed_ref != COMPOUND_ENGINEERING_REF:
+                if plugin_installed:
+                    subprocess.run(
+                        [codex, "plugin", "remove", COMPOUND_ENGINEERING_PLUGIN],
+                        check=True,
+                    )
+                    plugin_installed = False
+                subprocess.run(
+                    [
+                        codex,
+                        "plugin",
+                        "marketplace",
+                        "remove",
+                        COMPOUND_ENGINEERING_MARKETPLACE,
+                    ],
+                    check=True,
+                )
+                marketplace_line = None
 
-    settings_file.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
-    print(f"[post_install] Claude settings configured: {settings_file}", file=sys.stderr)
+        if marketplace_line is None:
+            subprocess.run(
+                [
+                    codex,
+                    "plugin",
+                    "marketplace",
+                    "add",
+                    "--ref",
+                    COMPOUND_ENGINEERING_REF,
+                    "EveryInc/compound-engineering-plugin",
+                ],
+                check=True,
+            )
+
+        if not plugin_installed:
+            subprocess.run(
+                [
+                    codex,
+                    "plugin",
+                    "add",
+                    COMPOUND_ENGINEERING_PLUGIN,
+                ],
+                check=True,
+            )
+
+        print("[post_install] Compound Engineering ready", file=sys.stderr)
+    except subprocess.CalledProcessError as error:
+        print(
+            "[post_install] Warning: Could not install Compound Engineering: "
+            f"{error}",
+            file=sys.stderr,
+        )
 
 
 def setup_tmux_config():
@@ -90,7 +172,7 @@ def fix_directory_ownership():
     gid = os.getgid()
 
     dirs_to_fix = [
-        Path.home() / ".claude",
+        Path.home() / ".codex",
         Path("/commandhistory"),
         Path.home() / ".config" / "gh",
     ]
@@ -131,8 +213,8 @@ def setup_global_gitignore():
 
     # Create global gitignore with common patterns
     patterns = """\
-# Claude Code
-.claude/
+# Codex user state
+.codex/
 
 # macOS
 .DS_Store
@@ -211,9 +293,9 @@ def main():
     """Run all post-install configuration."""
     print("[post_install] Starting post-install configuration...", file=sys.stderr)
 
-    setup_claude_settings()
-    setup_tmux_config()
     fix_directory_ownership()
+    setup_compound_engineering()
+    setup_tmux_config()
     setup_global_gitignore()
 
     print("[post_install] Configuration complete!", file=sys.stderr)

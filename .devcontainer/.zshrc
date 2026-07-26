@@ -1,7 +1,7 @@
 # shellcheck shell=bash
-# Zsh configuration for Claude Code devcontainer
+# Zsh configuration for the Codex devcontainer
 
-# Add Claude Code to PATH
+# Add user-installed tools to PATH
 export PATH="$HOME/.local/bin:$PATH"
 
 # fnm (Fast Node Manager)
@@ -32,7 +32,7 @@ setopt ALWAYS_TO_END           # Move cursor to end after completion
 # Aliases
 alias fd=fdfind
 alias sg=ast-grep
-alias claude-yolo='claude --dangerously-skip-permissions'
+alias codex-container='codex --dangerously-bypass-approvals-and-sandbox'
 alias ll='ls -lah --color=auto'
 alias la='ls -A --color=auto'
 alias l='ls -CF --color=auto'
