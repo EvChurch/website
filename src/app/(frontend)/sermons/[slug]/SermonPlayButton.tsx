@@ -17,6 +17,7 @@ interface SermonPlayButtonProps {
   artworkBlurDataURL?: string
   duration?: number
   videos?: VideoOption[]
+  passageReference?: string
 }
 
 export function SermonPlayButton({
@@ -30,6 +31,7 @@ export function SermonPlayButton({
   artworkBlurDataURL,
   duration,
   videos,
+  passageReference,
 }: SermonPlayButtonProps) {
   const { currentSermon, isPlaying, isLoading, play, pause, resume } = useMediaPlayer()
 
@@ -63,7 +65,7 @@ export function SermonPlayButton({
   }, [dropdownOpen])
 
   const buildSermon = (): SermonMedia => ({
-    id, title, slug, audioUrl, speaker, series: seriesTitle, artworkUrl, artworkBlurDataURL, duration, videos,
+    id, title, slug, audioUrl, speaker, series: seriesTitle, artworkUrl, artworkBlurDataURL, duration, videos, passageReference,
   })
 
   const handleClick = () => {
@@ -162,7 +164,10 @@ export function SermonPlayButton({
                 <svg className="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M3.25 4A2.25 2.25 0 001 6.25v7.5A2.25 2.25 0 003.25 16h7.5A2.25 2.25 0 0013 13.75v-7.5A2.25 2.25 0 0010.75 4h-7.5zM19 4.75a.75.75 0 00-1.14-.64l-3.25 1.95c-.38.22-.61.63-.61 1.07v5.74c0 .44.23.85.61 1.07l3.25 1.95A.75.75 0 0019 15.25v-10.5z" />
                 </svg>
-                {v.campusName}
+                <span>
+                  {v.campusName}
+                  {v.speakerName && <span className="ml-1 text-white/40">({v.speakerName})</span>}
+                </span>
                 {isSelected && (
                   <svg className="ml-auto h-3.5 w-3.5 text-rich-red" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />

@@ -11,7 +11,7 @@ interface SermonCardProps {
   id: number | string
   title: string
   slug: string
-  speakers: { name: string; slug: string }[]
+  audioSpeaker?: { name: string; slug: string } | null
   publishedAt: string
   series: { title: string; slug: string }[]
   scriptures: { name: string; slug: string }[]
@@ -42,7 +42,7 @@ export function SermonCard({
   id,
   title,
   slug,
-  speakers,
+  audioSpeaker,
   publishedAt,
   series,
   duration,
@@ -56,19 +56,43 @@ export function SermonCard({
   const [hydrated, setHydrated] = useState(false)
   useEffect(() => setHydrated(true), [])
   const isCompleted = useListeningStore((s) => s.history[slug]?.completed ?? false) && hydrated
+  const mediaPreference = useListeningStore((s) => s.mediaPreference)
+
+  // Determine the speaker and duration for the media type that will auto-play.
+  // Only use mediaPreference after hydration to avoid SSR/client mismatch.
+  const resolvedSpeaker = (() => {
+    if (hydrated && mediaPreference !== 'audio' && videos && videos.length > 0) {
+      const prefVideo = videos.find((v) => v.campusSlug === mediaPreference.campusSlug) ?? videos[0]
+      if (prefVideo?.speakerName && prefVideo?.speakerSlug) {
+        return { name: prefVideo.speakerName, slug: prefVideo.speakerSlug }
+      }
+    }
+    return audioSpeaker ?? null
+  })()
+
+  const resolvedDuration = (() => {
+    if (hydrated && mediaPreference !== 'audio' && videos && videos.length > 0) {
+      const prefVideo = videos.find((v) => v.campusSlug === mediaPreference.campusSlug) ?? videos[0]
+      if (prefVideo?.startSeconds != null && prefVideo?.endSeconds != null && prefVideo.endSeconds > prefVideo.startSeconds) {
+        return prefVideo.endSeconds - prefVideo.startSeconds
+      }
+    }
+    return duration
+  })()
 
   const sermonMedia: SermonMedia = {
     id,
     title,
     slug,
     audioUrl,
-    speaker: speakers.map((s) => s.name).join(', ') || undefined,
-    speakerSlug: speakers[0]?.slug,
+    speaker: audioSpeaker?.name,
+    speakerSlug: audioSpeaker?.slug,
     series: series[0]?.title,
     seriesSlug: series[0]?.slug,
     artworkUrl: seriesBannerUrl ?? undefined,
     duration,
     videos,
+    passageReference: passageReference ?? undefined,
   }
 
   return (
@@ -92,20 +116,13 @@ export function SermonCard({
           </div>
 
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-warm-white/70">
-            {speakers.length > 0 && (
-              <span>
-                {speakers.map((s, i) => (
-                  <span key={s.slug}>
-                    {i > 0 && ', '}
-                    <Link
-                      href={`/sermons/speakers/${s.slug}`}
-                      className="hover:text-warm-white transition-colors"
-                    >
-                      {s.name}
-                    </Link>
-                  </span>
-                ))}
-              </span>
+            {resolvedSpeaker && (
+              <Link
+                href={`/sermons/speakers/${resolvedSpeaker.slug}`}
+                className="hover:text-warm-white transition-colors"
+              >
+                {resolvedSpeaker.name}
+              </Link>
             )}
 
             {passageReference && scriptures.length > 0 ? (
@@ -135,7 +152,7 @@ export function SermonCard({
 
             <span>{formatDate(publishedAt)}</span>
 
-            {duration > 0 && <span>{formatDuration(duration)}</span>}
+            {resolvedDuration > 0 && <span>{formatDuration(resolvedDuration)}</span>}
           </div>
         </div>
 

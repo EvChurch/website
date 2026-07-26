@@ -35,7 +35,9 @@ export function ContinueListening() {
       <div className="mx-auto max-w-5xl px-6">
         <h2 className="mb-5 font-sans text-xl font-semibold text-warm-white">Continue Listening</h2>
         <div className="space-y-2">
-          {records.map((r) => (
+          {records.map((r) => {
+            const isVideo = r.playedAs !== undefined && r.playedAs !== 'audio'
+            return (
             <div key={r.slug} className="rounded-lg bg-warm-white/5 p-4">
               <div className="flex items-center gap-4">
                 <MediaPlayButton
@@ -49,6 +51,7 @@ export function ContinueListening() {
                     artworkUrl: r.artworkUrl,
                     artworkBlurDataURL: r.artworkBlurDataURL,
                     videos: r.videos,
+                    passageReference: r.passageReference,
                   }}
                   resumeAs={r.playedAs}
                   size="md"
@@ -62,7 +65,18 @@ export function ContinueListening() {
                     {r.title}
                   </Link>
                   <div className="mt-0.5 flex items-center gap-x-3 text-sm text-warm-white/50">
-                    {r.speaker && <span>{r.speaker}</span>}
+                    {(() => {
+                      // Show the speaker matching the media type that was playing
+                      const playedAs = r.playedAs
+                      if (playedAs && typeof playedAs === 'object' && r.videos) {
+                        const campusSlug = playedAs.campusSlug
+                        const vid = r.videos.find((v) => v.campusSlug === campusSlug)
+                        if (vid?.speakerName) return <span>{vid.speakerName}</span>
+                      }
+                      if (r.speaker) return <span>{r.speaker}</span>
+                      if (r.passageReference) return <span>{r.passageReference}</span>
+                      return null
+                    })()}
                     <span>{formatTimeLeft(r.progress, r.duration)}</span>
                   </div>
                 </div>
@@ -70,16 +84,17 @@ export function ContinueListening() {
                 <button
                   onClick={() => handleMarkListened(r.slug)}
                   className="hidden shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs text-warm-white/40 transition-colors hover:bg-warm-white/10 hover:text-warm-white/70 sm:flex"
-                  aria-label={`Mark "${r.title}" as listened`}
+                  aria-label={`Mark "${r.title}" as ${isVideo ? 'watched' : 'listened'}`}
                 >
                   <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
                   </svg>
-                  Mark as listened
+                  {isVideo ? 'Mark as watched' : 'Mark as listened'}
                 </button>
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     </section>

@@ -23,9 +23,16 @@ export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockP
   const sermon = result.docs[0]
   if (!sermon) return null
 
-  // Extract speaker info
-  const speakers = Array.isArray(sermon.speakers)
-    ? sermon.speakers
+  // Extract audio speaker info
+  const audioSpeaker =
+    sermon.audioSpeaker && typeof sermon.audioSpeaker === 'object' && 'name' in sermon.audioSpeaker
+      ? { name: sermon.audioSpeaker.name as string, slug: (sermon.audioSpeaker as { slug?: string }).slug ?? '' }
+      : null
+
+  // Extract scripture info
+  const passageReference = sermon.passageReference ?? null
+  const scriptures = Array.isArray(sermon.scriptures)
+    ? sermon.scriptures
         .map((s) =>
           typeof s === 'object' && s !== null && 'name' in s
             ? { name: s.name as string, slug: (s as { slug?: string }).slug ?? '' }
@@ -139,22 +146,42 @@ export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockP
               </h2>
 
               <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-warm-white/60">
-                {speakers.length > 0 && (
-                  <span className="text-warm-white/80">
-                    {speakers.map((s, i) => (
-                      <span key={s.slug}>
-                        {i > 0 && ', '}
-                        <Link
-                          href={`/sermons/speakers/${s.slug}`}
-                          className="hover:text-warm-white transition-colors"
-                        >
-                          {s.name}
-                        </Link>
-                      </span>
-                    ))}
-                  </span>
+                {series && (
+                  <Link
+                    href={`/sermons/series/${series.slug}`}
+                    className="text-warm-white/80 hover:text-warm-white transition-colors"
+                  >
+                    {series.title}
+                  </Link>
                 )}
-                {speakers.length > 0 && date && (
+                {passageReference && scriptures.length > 0 ? (
+                  <>
+                    {series && <span className="text-warm-white/30" aria-hidden="true">&middot;</span>}
+                    <Link href={`/sermons/scriptures/${scriptures[0].slug}`} className="text-warm-white/80 hover:text-warm-white transition-colors">
+                      {passageReference}
+                    </Link>
+                  </>
+                ) : passageReference ? (
+                  <>
+                    {series && <span className="text-warm-white/30" aria-hidden="true">&middot;</span>}
+                    <span>{passageReference}</span>
+                  </>
+                ) : scriptures.length > 0 ? (
+                  <>
+                    {series && <span className="text-warm-white/30" aria-hidden="true">&middot;</span>}
+                    <span>
+                      {scriptures.map((s, i) => (
+                        <span key={s.slug}>
+                          {i > 0 && ', '}
+                          <Link href={`/sermons/scriptures/${s.slug}`} className="text-warm-white/80 hover:text-warm-white transition-colors">
+                            {s.name}
+                          </Link>
+                        </span>
+                      ))}
+                    </span>
+                  </>
+                ) : null}
+                {(series || passageReference || scriptures.length > 0) && date && (
                   <span className="text-warm-white/30" aria-hidden="true">&middot;</span>
                 )}
                 {date && <span>{date}</span>}
@@ -168,14 +195,15 @@ export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockP
                     title={sermon.title}
                     slug={sermon.slug}
                     audioUrl={audioUrl}
-                    speaker={speakers.map((s) => s.name).join(', ') || undefined}
-                    speakerSlug={speakers[0]?.slug}
+                    speaker={audioSpeaker?.name}
+                    speakerSlug={audioSpeaker?.slug}
                     seriesTitle={series?.title}
                     seriesSlug={series?.slug}
                     artworkUrl={bannerUrl ?? undefined}
                     artworkBlurDataURL={bannerMedia?.blurDataURL ?? undefined}
                     duration={sermon.duration ?? undefined}
                     videos={getSermonVideos(sermon)}
+                    passageReference={passageReference ?? undefined}
                   />
                 </div>
               )}

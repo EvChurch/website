@@ -156,12 +156,13 @@ export function VideoContainer() {
 
   // Initialize or switch video when activeVideo changes
   useEffect(() => {
-    if (!activeVideo || !isVideoVisible) return
+    if (!activeVideo || !isVideoVisible || !shouldRender) return
     if (prevVideoIdRef.current === activeVideo.youtubeVideoId) return
-    prevVideoIdRef.current = activeVideo.youtubeVideoId
+    let cancelled = false
 
     const initPlayer = async () => {
       const vjs = await getVideojs()
+      if (cancelled) return
       const videojs = vjs.default
 
       if (playerRef.current && !playerRef.current.isDisposed()) {
@@ -171,6 +172,8 @@ export function VideoContainer() {
 
       const container = videoElRef.current
       if (!container) return
+
+      prevVideoIdRef.current = activeVideo.youtubeVideoId
 
       container.innerHTML = ''
 
@@ -182,10 +185,10 @@ export function VideoContainer() {
       const endSec = activeVideo.endSeconds ?? 0
       const hasSegment = startSec > 0 && endSec > startSec
 
-      // Mobile browsers block unmuted autoplay. Start muted to guarantee
-      // playback begins, then unmute once playing.
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-
+      // Browsers block unmuted autoplay unless there's a synchronous user
+      // activation. Because we lazy-load video.js, the activation expires
+      // before the player is created. Start muted to guarantee autoplay,
+      // then unmute once playback has begun.
       const player = videojs(videoEl, {
         techOrder: ['youtube'],
         sources: [
@@ -210,7 +213,7 @@ export function VideoContainer() {
         },
         controls: false,
         autoplay: true,
-        muted: isMobile,
+        muted: true,
         preload: 'auto',
         fluid: false,
         responsive: false,
@@ -232,19 +235,14 @@ export function VideoContainer() {
         }
 
         if (player.paused()) {
-          player.play()?.catch(() => {
-            player.muted(true)
-            player.play()?.catch(() => {})
-          })
+          player.play()?.catch(() => {})
         }
       })
 
-      // Unmute after playback starts on mobile
-      if (isMobile) {
-        player.one('playing', () => {
-          player.muted(false)
-        })
-      }
+      // Unmute once playback has actually started
+      player.one('playing', () => {
+        player.muted(false)
+      })
 
       if (hasSegment) {
         const enforceInterval = setInterval(() => {
@@ -277,9 +275,14 @@ export function VideoContainer() {
       })
     }
 
-    initPlayer()
+    void initPlayer().catch(() => {
+      if (!cancelled) prevVideoIdRef.current = null
+    })
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeVideo?.youtubeVideoId, isVideoVisible])
+  }, [activeVideo?.youtubeVideoId, isVideoVisible, shouldRender])
 
   // Clean up player after fade-out completes
   useEffect(() => {

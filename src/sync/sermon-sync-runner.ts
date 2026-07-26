@@ -635,9 +635,9 @@ async function syncSermons(limit?: number): Promise<SyncResult> {
       const seriesIds = sermon.series
         .map((s) => seriesMap.get(s.id))
         .filter((id): id is number => id != null)
-      const speakerIds = sermon.authors
-        .map((a) => speakerMap.get(a.id))
-        .filter((id): id is number => id != null)
+      const audioSpeakerId = sermon.authors.length > 0
+        ? speakerMap.get(sermon.authors[0].id) ?? null
+        : null
       const topicIds = sermon.topics
         .map((t) => topicMap.get(t.id))
         .filter((id): id is number => id != null)
@@ -698,7 +698,7 @@ async function syncSermons(limit?: number): Promise<SyncResult> {
         publishedAt: sermon.publishedAt,
         duration,
         series: seriesIds,
-        speakers: speakerIds,
+        audioSpeaker: audioSpeakerId,
         topics: topicIds,
         scriptures: scriptureIds,
         passageReference: passageReference || null,

@@ -41,15 +41,10 @@ export async function GET() {
     .filter((sermon) => getSermonAudioUrl(sermon.audio))
     .map((sermon) => {
       const audioUrl = getSermonAudioUrl(sermon.audio)
-      const speakers = Array.isArray(sermon.speakers)
-        ? sermon.speakers
-            .map((s) =>
-              typeof s === 'object' && s !== null && 'name' in s
-                ? s.name
-                : '',
-            )
-            .filter(Boolean)
-        : []
+      const speakerName =
+        sermon.audioSpeaker && typeof sermon.audioSpeaker === 'object' && 'name' in sermon.audioSpeaker
+          ? (sermon.audioSpeaker.name as string)
+          : ''
       const scriptures = Array.isArray(sermon.scriptures)
         ? sermon.scriptures
             .map((s) =>
@@ -60,7 +55,7 @@ export async function GET() {
             .filter(Boolean)
         : []
 
-      const speaker = speakers.join(', ')
+      const speaker = speakerName
       const scripture = scriptures.join(', ')
       const description = [speaker, scripture, sermon.publishedAt ? new Date(sermon.publishedAt).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' }) : ''].filter(Boolean).join(' | ')
 

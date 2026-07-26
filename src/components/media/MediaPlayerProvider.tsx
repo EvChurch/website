@@ -18,6 +18,8 @@ export interface VideoOption {
   youtubeVideoId: string
   startSeconds?: number
   endSeconds?: number
+  speakerName?: string
+  speakerSlug?: string
 }
 
 export interface SermonMedia {
@@ -33,6 +35,7 @@ export interface SermonMedia {
   artworkBlurDataURL?: string
   duration?: number
   videos?: VideoOption[]
+  passageReference?: string
 }
 
 // Re-export for consumers
@@ -263,6 +266,7 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
           artworkBlurDataURL: currentSermon.artworkBlurDataURL,
           audioUrl: currentSermon.audioUrl,
           videos: currentSermon.videos,
+          passageReference: currentSermon.passageReference,
           playedAs: 'audio',
         },
         audio.currentTime,
@@ -289,6 +293,7 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
           artworkBlurDataURL: currentSermon.artworkBlurDataURL,
           audioUrl: currentSermon.audioUrl,
           videos: currentSermon.videos,
+          passageReference: currentSermon.passageReference,
           playedAs: activeVideoRef.current
             ? { type: 'video', campusSlug: activeVideoRef.current.campusSlug }
             : 'audio',
@@ -390,7 +395,10 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
 
     // Resume from saved position if available
     const saved = useListeningStore.getState().history[sermon.slug]
-    const resumeTime = saved && !saved.completed && saved.progress > 10 ? saved.progress : 0
+    const isAudioProgress = saved?.playedAs === undefined || saved.playedAs === 'audio'
+    const resumeTime = saved && isAudioProgress && !saved.completed && saved.progress > 10
+      ? saved.progress
+      : 0
     setProgress(resumeTime)
 
     const filename = sermon.audioUrl.split('/').pop()
@@ -429,7 +437,11 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
     const endSec = video.endSeconds ?? 0
     const hasSegment = startSec > 0 && endSec > startSec
     let resumeTime = 0
-    if (saved && !saved.completed && saved.progress > 10) {
+    const isSameVideoProgress =
+      saved?.playedAs !== undefined &&
+      saved.playedAs !== 'audio' &&
+      saved.playedAs.campusSlug === video.campusSlug
+    if (saved && isSameVideoProgress && !saved.completed && saved.progress > 10) {
       // saved.progress is segment-relative; convert to absolute YouTube time
       resumeTime = hasSegment ? startSec + saved.progress : saved.progress
     }
@@ -438,7 +450,11 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
     currentMediaTypeRef.current = 'video'
     setMediaType('video')
     currentSlugRef.current = sermon.slug
-    setCurrentSermon(sermon)
+    setCurrentSermon({
+      ...sermon,
+      speaker: video.speakerName ?? sermon.speaker,
+      speakerSlug: video.speakerSlug ?? sermon.speakerSlug,
+    })
     setActiveVideo(video)
     activeVideoRef.current = video
     setIsLoading(true)

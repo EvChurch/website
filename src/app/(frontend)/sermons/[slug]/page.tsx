@@ -42,16 +42,13 @@ export async function generateMetadata({
 
   if (!sermon) return {}
 
-  const speakers = Array.isArray(sermon.speakers)
-    ? sermon.speakers
-        .map((s) =>
-          typeof s === 'object' && s !== null && 'name' in s ? (s.name as string) : null,
-        )
-        .filter(Boolean)
-    : []
+  const speakerName =
+    sermon.audioSpeaker && typeof sermon.audioSpeaker === 'object' && 'name' in sermon.audioSpeaker
+      ? (sermon.audioSpeaker.name as string)
+      : null
 
-  const description = speakers.length > 0
-    ? `Listen to "${sermon.title}" by ${speakers.join(', ')} from Ev Church Auckland.`
+  const description = speakerName
+    ? `Listen to "${sermon.title}" by ${speakerName} from Ev Church Auckland.`
     : `Listen to "${sermon.title}" from Ev Church Auckland.`
 
   return {
@@ -116,16 +113,23 @@ export default async function SermonPage({
 
   if (!sermon) notFound()
 
-  // Extract populated relationships
-  const speakers = Array.isArray(sermon.speakers)
-    ? sermon.speakers
-        .map((s) =>
-          typeof s === 'object' && s !== null && 'name' in s
-            ? { name: s.name as string, slug: (s as { slug?: string }).slug ?? '' }
-            : null,
-        )
-        .filter((s): s is { name: string; slug: string } => s !== null)
-    : []
+  // Extract audio speaker (singular) from populated relationship
+  const audioSpeaker =
+    sermon.audioSpeaker && typeof sermon.audioSpeaker === 'object' && 'name' in sermon.audioSpeaker
+      ? { name: sermon.audioSpeaker.name as string, slug: (sermon.audioSpeaker as { slug?: string }).slug ?? '' }
+      : null
+
+  // Collect all unique speakers across audio + video for display
+  const videos = getSermonVideos(sermon)
+  const allSpeakers: { name: string; slug: string }[] = []
+  const seenSlugs = new Set<string>()
+  if (audioSpeaker) { allSpeakers.push(audioSpeaker); seenSlugs.add(audioSpeaker.slug) }
+  for (const v of videos) {
+    if (v.speakerName && v.speakerSlug && !seenSlugs.has(v.speakerSlug)) {
+      allSpeakers.push({ name: v.speakerName, slug: v.speakerSlug })
+      seenSlugs.add(v.speakerSlug)
+    }
+  }
 
   const seriesList = Array.isArray(sermon.series)
     ? sermon.series
@@ -258,9 +262,9 @@ export default async function SermonPage({
     name: sermon.title,
     url: `https://ev.church/sermons/${sermon.slug}`,
     ...(sermon.publishedAt ? { datePublished: sermon.publishedAt } : {}),
-    ...(speakers.length > 0
+    ...(allSpeakers.length > 0
       ? {
-          author: speakers.map((s) => ({
+          author: allSpeakers.map((s) => ({
             '@type': 'Person',
             name: s.name,
           })),
@@ -334,9 +338,9 @@ export default async function SermonPage({
               </h1>
 
               <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-warm-white/60">
-                {speakers.length > 0 && (
+                {allSpeakers.length > 0 && (
                   <span className="text-warm-white/80">
-                    {speakers.map((s, i) => (
+                    {allSpeakers.map((s, i) => (
                       <span key={s.slug}>
                         {i > 0 && ', '}
                         <Link
@@ -349,7 +353,7 @@ export default async function SermonPage({
                     ))}
                   </span>
                 )}
-                {speakers.length > 0 && sermon.publishedAt && (
+                {allSpeakers.length > 0 && sermon.publishedAt && (
                   <span className="text-warm-white/30" aria-hidden="true">&middot;</span>
                 )}
                 {sermon.publishedAt && (
@@ -372,12 +376,13 @@ export default async function SermonPage({
                     title={sermon.title}
                     slug={sermon.slug}
                     audioUrl={getSermonAudioUrl(sermon.audio)}
-                    speaker={speakers.map((s) => s.name).join(', ') || undefined}
+                    speaker={allSpeakers.map((s) => s.name).join(', ') || undefined}
                     seriesTitle={seriesList[0]?.title}
                     artworkUrl={heroBannerMedia?.url ?? undefined}
                     artworkBlurDataURL={heroBannerMedia?.blurDataURL ?? undefined}
                     duration={sermon.duration ?? undefined}
                     videos={getSermonVideos(sermon)}
+                    passageReference={sermon.passageReference ?? undefined}
                   />
                 </div>
               )}
@@ -506,13 +511,8 @@ export default async function SermonPage({
                         {s.title}
                       </span>
                       <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-warm-white/50">
-                        {Array.isArray(s.speakers) && s.speakers.length > 0 && (
-                          <span>
-                            {s.speakers
-                              .map((sp) => (typeof sp === 'object' && sp !== null && 'name' in sp ? (sp.name as string) : ''))
-                              .filter(Boolean)
-                              .join(', ')}
-                          </span>
+                        {s.audioSpeaker && typeof s.audioSpeaker === 'object' && 'name' in s.audioSpeaker && (
+                          <span>{(s.audioSpeaker as { name: string }).name}</span>
                         )}
                         {s.passageReference && <span>{s.passageReference}</span>}
                         {s.publishedAt && (

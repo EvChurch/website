@@ -5,6 +5,7 @@ import * as migration_20260331_190736_add_key_color from './20260331_190736_add_
 import * as migration_20260331_233500_add_banner_overlay from './20260331_233500_add_banner_overlay';
 import * as migration_20260405_121839 from './20260405_121839';
 import * as migration_20260405_212901_per_video_boundaries from './20260405_212901_per_video_boundaries';
+import * as migration_20260407_222651_speaker_per_media from './20260407_222651_speaker_per_media';
 
 export const migrations = [
   {
@@ -40,6 +41,11 @@ export const migrations = [
   {
     up: migration_20260405_212901_per_video_boundaries.up,
     down: migration_20260405_212901_per_video_boundaries.down,
-    name: '20260405_212901_per_video_boundaries'
+    name: '20260405_212901_per_video_boundaries',
+  },
+  {
+    up: migration_20260407_222651_speaker_per_media.up,
+    down: migration_20260407_222651_speaker_per_media.down,
+    name: '20260407_222651_speaker_per_media'
   },
 ];

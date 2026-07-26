@@ -61,10 +61,12 @@ export const Sermons: CollectionConfig = {
       hasMany: true,
     },
     {
-      name: 'speakers',
+      name: 'audioSpeaker',
       type: 'relationship',
       relationTo: 'speakers',
-      hasMany: true,
+      admin: {
+        description: 'The preacher for the audio version of this sermon',
+      },
     },
     {
       name: 'topics',
@@ -114,6 +116,14 @@ export const Sermons: CollectionConfig = {
           type: 'relationship',
           relationTo: 'campuses',
           required: true,
+        },
+        {
+          name: 'speaker',
+          type: 'relationship',
+          relationTo: 'speakers',
+          admin: {
+            description: 'The preacher in this campus video (may differ from the audio speaker)',
+          },
         },
         {
           name: 'youtubeVideoId',
