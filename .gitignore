@@ -4,6 +4,9 @@ node_modules/
 # MCP server config (contains API keys)
 .mcp.json
 
+# Compound Engineering machine-local preferences
+.compound-engineering/*.local.yaml
+
 # Next.js
 .next/
 out/

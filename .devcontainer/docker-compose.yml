@@ -15,9 +15,9 @@ services:
       - NET_RAW
     volumes:
       - ..:/workspace:cached
-      - claude-code-bashhistory:/commandhistory
-      - claude-code-config:/home/vscode/.claude
-      - claude-code-gh:/home/vscode/.config/gh
+      - shell-history:/commandhistory
+      - codex-config:/home/vscode/.codex
+      - github-cli-config:/home/vscode/.config/gh
       - ${HOME}/.gitconfig:/home/vscode/.gitconfig:ro
       - .:/workspace/.devcontainer:ro
     depends_on:
@@ -40,7 +40,7 @@ services:
       retries: 5
 
 volumes:
-  claude-code-bashhistory:
-  claude-code-config:
-  claude-code-gh:
+  shell-history:
+  codex-config:
+  github-cli-config:
   postgres-data:
