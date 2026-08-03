@@ -4,6 +4,8 @@ import {
   CONNECTION_OPPORTUNITY_SIGNUP_BLOCK_TYPE_GUID,
   initializeRockConnectionSignup,
   listEligibleRockConnectionSignups,
+  RockConnectionSignupOutcomeUnknownError,
+  sendRockConnectionSignup,
 } from './server'
 
 const blockGuid = '495cda8e-60fe-4f77-a452-932b460fb44c'
@@ -257,5 +259,50 @@ describe('Rock connection signup server adapter', () => {
 
     await expect(initializeRockConnectionSignup(blockGuid)).rejects.toThrow()
     expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('sends the exact anonymous Signup body once and returns only the 19.2 result', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      jsonResponse({ resultType: 0, responseMessage: '<p>Thanks</p>', redirectUrl: 'https://ignored.test' }),
+    )
+    const bag = {
+      firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.test',
+      campusId: 3, attributeValues: { Note: 'Hello' },
+    }
+    await expect(sendRockConnectionSignup({
+      pageGuid, blockGuid,
+      sessionGuid: '22222222-2222-4222-8222-222222222222',
+      interactionGuid: '33333333-3333-4333-8333-333333333333', bag,
+    })).resolves.toEqual({ resultType: 0, responseMessage: '<p>Thanks</p>' })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe(`https://rock.example.test/api/v2/BlockActions/${pageGuid}/${blockGuid}/Signup`)
+    expect(options.headers).toMatchObject({
+      'CF-Access-Client-Id': 'edge-client',
+      'CF-Access-Client-Secret': 'edge-secret',
+    })
+    expect(options.headers).not.toHaveProperty('Authorization-Token')
+    expect(JSON.parse(String(options.body))).toEqual({
+      __context: {
+        pageParameters: {},
+        sessionGuid: '22222222-2222-4222-8222-222222222222',
+        interactionGuid: '33333333-3333-4333-8333-333333333333',
+      },
+      bag,
+    })
+  })
+
+  it('does not retry a timed-out Signup and reports an indeterminate outcome', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(
+      new DOMException('timed out', 'TimeoutError'),
+    )
+    await expect(sendRockConnectionSignup({
+      pageGuid, blockGuid,
+      sessionGuid: '22222222-2222-4222-8222-222222222222',
+      interactionGuid: '33333333-3333-4333-8333-333333333333',
+      bag: { firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.test' },
+    })).rejects.toBeInstanceOf(RockConnectionSignupOutcomeUnknownError)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

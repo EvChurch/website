@@ -17,6 +17,7 @@ import {
 } from '@/lib/rock-forms/server'
 import { getTurnstileSiteKey } from '@/lib/rock-forms/config'
 import type { RockPersonBasicValues, RockPersonEntryValues } from '@/lib/rock-forms/types'
+import { isSameOriginRequest } from '@/lib/request-origin'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,17 +28,6 @@ const FILE_FIELD_GUIDS = new Set<string>([
 
 function jsonError(message: string, status: number) {
   return NextResponse.json({ error: message }, { status })
-}
-
-function isSameOrigin(request: NextRequest): boolean {
-  const origin = request.headers.get('origin')
-  if (!origin) return process.env.NODE_ENV !== 'production'
-
-  try {
-    return new URL(origin).host === request.nextUrl.host
-  } catch {
-    return false
-  }
 }
 
 function parseObject<T>(value: FormDataEntryValue | null, fallback: T): T {
@@ -159,7 +149,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
-  if (!isSameOrigin(request)) return jsonError('Invalid request origin', 403)
+  if (!isSameOriginRequest(request)) return jsonError('Invalid request origin', 403)
 
   const { workflowTypeGuid } = await context.params
   if (!isGuid(workflowTypeGuid)) return jsonError('Invalid form identifier', 400)

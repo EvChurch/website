@@ -9,6 +9,8 @@ import type {
   RockConnectionSignupAttribute,
   RockConnectionSignupInitialization,
   RockConnectionSignupOption,
+  RockConnectionSignupRequestBag,
+  RockConnectionSignupResult,
   RockConnectionSignupSchema,
   RockObsidianBlockConfig,
   RockPublicAttribute,
@@ -75,6 +77,12 @@ type EligibleCandidate = {
 }
 
 class RockConnectionUnavailableError extends Error {}
+
+export class RockConnectionSignupOutcomeUnknownError extends Error {
+  constructor() {
+    super('Connection signup outcome is unknown')
+  }
+}
 
 class RockResponseError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -520,4 +528,62 @@ export async function listEligibleRockConnectionSignups(): Promise<
   }
 
   return options.sort((a, b) => a.label.localeCompare(b.label))
+}
+
+export async function sendRockConnectionSignup({
+  pageGuid,
+  blockGuid,
+  sessionGuid,
+  interactionGuid,
+  bag,
+}: {
+  pageGuid: string
+  blockGuid: string
+  sessionGuid: string
+  interactionGuid: string
+  bag: RockConnectionSignupRequestBag
+}): Promise<RockConnectionSignupResult> {
+  if (![pageGuid, blockGuid, sessionGuid, interactionGuid].every(isGuid)) {
+    throw new Error('Invalid Rock connection signup request')
+  }
+
+  let value: unknown
+  try {
+    value = await rockRequest({
+      path: `v2/BlockActions/${normalizedGuid(pageGuid)}/${normalizedGuid(blockGuid)}/Signup`,
+      method: 'POST',
+      body: {
+        __context: {
+          pageParameters: {},
+          sessionGuid: normalizedGuid(sessionGuid),
+          interactionGuid: normalizedGuid(interactionGuid),
+        },
+        bag,
+      },
+      authenticated: false,
+    })
+  } catch (error) {
+    if (
+      error instanceof DOMException && error.name === 'TimeoutError' ||
+      error instanceof Error && error.name === 'TimeoutError'
+    ) {
+      throw new RockConnectionSignupOutcomeUnknownError()
+    }
+    throw error
+  }
+
+  if (!isRecord(value) || !Number.isInteger(value.resultType)) {
+    throw new Error('Rock returned an invalid response')
+  }
+  if (
+    value.responseMessage !== undefined &&
+    value.responseMessage !== null &&
+    (typeof value.responseMessage !== 'string' || value.responseMessage.length > 20_000)
+  ) {
+    throw new Error('Rock returned an invalid response')
+  }
+  return {
+    resultType: value.resultType as number,
+    responseMessage: (value.responseMessage as string | null | undefined) ?? null,
+  }
 }
