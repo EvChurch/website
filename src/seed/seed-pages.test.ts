@@ -24,15 +24,20 @@ function form(overrides: Record<string, unknown> = {}) {
 }
 
 describe('ensureNewishConnectionForm', () => {
-  it('is wired into the seed while existing Workflow blocks stay explicit', () => {
+  it('maps the live form pages to their matching Rock sources', () => {
     const source = readFileSync(new URL('./seed-pages.ts', import.meta.url), 'utf8')
+    const visitSection = source.slice(
+      source.indexOf("await upsertPage('visit'"),
+      source.indexOf("await upsertPage('about'"),
+    )
     const newishSection = source.slice(
       source.indexOf("await upsertPage('newish'"),
       source.indexOf("await upsertPage('explaining-christianity'"),
     )
+    expect(visitSection).toContain("rockWorkflowGuid: 'de3d06a6-7fca-41a5-8c37-a485767de970'")
     expect(newishSection).toContain('layout: ensureNewishConnectionForm([')
     expect(newishSection).not.toContain(OLD_NEWISH_WORKFLOW_GUID)
-    expect(source.match(/sourceType: 'workflow'/g)).toHaveLength(2)
+    expect(source.match(/sourceType: 'workflow'/g)).toHaveLength(3)
   })
 
   it('inserts exactly one centered form immediately before the closing CTA', () => {

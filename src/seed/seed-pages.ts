@@ -498,6 +498,16 @@ async function seed() {
         ],
       },
       {
+        blockType: 'formEmbed',
+        eyebrow: 'Plan your first Sunday',
+        heading: "Let us know you're coming",
+        description:
+          'Fill out the form and our team will help you feel at home when you arrive.',
+        sourceType: 'workflow',
+        rockWorkflowGuid: 'de3d06a6-7fca-41a5-8c37-a485767de970',
+        layout: 'centered',
+      },
+      {
         blockType: 'cta',
         heading: 'We would love to meet you',
         text: 'Have questions before visiting? Get in touch and we will help with anything you need, from finding the right campus to knowing what to expect on Sunday.',
