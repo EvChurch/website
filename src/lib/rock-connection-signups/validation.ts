@@ -79,7 +79,7 @@ function isCalendarDate(value: string): boolean {
 }
 
 function validateAttributeValue(attribute: RockConnectionContextAttribute, value: unknown): string {
-  const maximum = attribute.fieldTypeGuid === FIELD_TYPES.text
+  const baseMaximum = attribute.fieldTypeGuid === FIELD_TYPES.text
     ? 500
     : attribute.fieldTypeGuid === FIELD_TYPES.memo
       ? 4_000
@@ -88,6 +88,10 @@ function validateAttributeValue(attribute: RockConnectionContextAttribute, value
         : attribute.fieldTypeGuid === FIELD_TYPES.url
           ? 2_048
           : 200
+  const configuredMaximum = Number(attribute.configurationValues.maxcharacters)
+  const maximum = Number.isSafeInteger(configuredMaximum) && configuredMaximum > 0
+    ? Math.min(baseMaximum, configuredMaximum)
+    : baseMaximum
   const string = boundedString(value, maximum, attribute.isRequired)
   if (!string && !attribute.isRequired) return ''
 

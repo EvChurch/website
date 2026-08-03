@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
+import { connectionSchemaAvailability } from './field-types'
+
 import {
   getRockConnectionApiBaseUrl,
   getRockDiscoveryApiKey,
@@ -424,6 +426,9 @@ function parseInitialization(
   const attributes = Object.entries(initialization.attributes)
     .map(([key, attribute]) => parseAttribute(key, attribute))
     .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))
+  if (!connectionSchemaAvailability(attributes).available) {
+    throw new RockConnectionUnavailableError('unsupported')
+  }
 
   return {
     pageGuid: candidate.pageGuid,

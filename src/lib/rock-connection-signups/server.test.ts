@@ -219,6 +219,23 @@ describe('Rock connection signup server adapter', () => {
           },
         },
       },
+      {
+        disableCaptchaSupport: true,
+        displayHomePhone: false,
+        displayMobilePhone: false,
+        campuses: [],
+        attributes: {
+          Choice: {
+            attributeGuid: '33333333-3333-4333-8333-333333333333',
+            fieldTypeGuid: '7525c4cb-ee6b-41d4-9b64-a08048d5a5c0',
+            configurationValues: {},
+            isRequired: true,
+            key: 'Choice',
+            name: 'Choice',
+            order: 0,
+          },
+        },
+      },
       { disableCaptchaSupport: false, displayHomePhone: false, displayMobilePhone: false, campuses: [], attributes: {} },
       { attributes: null },
     ]) {

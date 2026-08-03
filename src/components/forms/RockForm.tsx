@@ -1,7 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import DOMPurify from 'dompurify'
+import { SafeRockHtml } from './SafeRockHtml'
+import { TurnstileWidget } from './TurnstileWidget'
+import { formInputClass as inputClass, formLabelClass as labelClass } from './RockAttributeField'
 import {
   parseRockOptions,
   ROCK_FIELD_TYPES,
@@ -21,29 +23,6 @@ import type {
   RockPersonEntryValues,
 } from '@/lib/rock-forms/types'
 
-declare global {
-  interface Window {
-    turnstile?: {
-      render: (
-        element: HTMLElement,
-        options: {
-          sitekey: string
-          action: string
-          callback: (token: string) => void
-          'expired-callback': () => void
-          'error-callback': () => void
-        },
-      ) => string
-      reset: (widgetId?: string) => void
-      remove: (widgetId: string) => void
-    }
-  }
-}
-
-const inputClass =
-  'mt-2 w-full rounded-lg border border-warm-grey bg-white px-4 py-3 text-brand-black outline-none transition focus:border-rich-red focus:ring-2 focus:ring-rich-red/15'
-const labelClass = 'block text-sm font-semibold text-brand-black'
-
 type FormStartResponse = Partial<RockFormSchema> & {
   turnstileSiteKey?: string
   error?: string
@@ -55,69 +34,6 @@ type FormSubmitResponse = {
   message?: string
   redirectUrl?: string | null
   error?: string
-}
-
-function Html({ value }: { value?: string | null }) {
-  if (!value) return null
-  return <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(value) }} />
-}
-
-function TurnstileWidget({
-  siteKey,
-  action,
-  resetKey,
-  onToken,
-}: {
-  siteKey: string
-  action: string
-  resetKey: number
-  onToken: (token: string) => void
-}) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const widgetId = useRef<string | undefined>(undefined)
-
-  useEffect(() => {
-    let cancelled = false
-    const render = () => {
-      if (cancelled || !containerRef.current || !window.turnstile) return
-      containerRef.current.innerHTML = ''
-      widgetId.current = window.turnstile.render(containerRef.current, {
-        sitekey: siteKey,
-        action,
-        callback: onToken,
-        'expired-callback': () => onToken(''),
-        'error-callback': () => onToken(''),
-      })
-    }
-
-    if (window.turnstile) {
-      render()
-    } else {
-      const existing = document.querySelector<HTMLScriptElement>(
-        'script[data-ev-turnstile]',
-      )
-      const script = existing || document.createElement('script')
-      script.addEventListener('load', render, { once: true })
-      if (!existing) {
-        script.src =
-          'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
-        script.async = true
-        script.defer = true
-        script.dataset.evTurnstile = 'true'
-        document.head.appendChild(script)
-      }
-    }
-
-    return () => {
-      cancelled = true
-      if (widgetId.current && window.turnstile) {
-        window.turnstile.remove(widgetId.current)
-        widgetId.current = undefined
-      }
-    }
-  }, [siteKey, action, resetKey, onToken])
-
-  return <div ref={containerRef} className="min-h-[65px]" />
 }
 
 function PersonFields({
@@ -441,7 +357,7 @@ function RockField({
 
   return (
     <div className="space-y-1">
-      <Html value={field.preHtml || field.attribute.preHtml} />
+      <SafeRockHtml value={field.preHtml || field.attribute.preHtml} />
       <label className={labelClass}>
         {!field.isLabelHidden && (
           <span>
@@ -456,7 +372,7 @@ function RockField({
         )}
         {control}
       </label>
-      <Html value={field.postHtml || field.attribute.postHtml} />
+      <SafeRockHtml value={field.postHtml || field.attribute.postHtml} />
     </div>
   )
 }
@@ -833,11 +749,11 @@ export function RockForm({ workflowTypeGuid }: { workflowTypeGuid: string }) {
         }
       }}
     >
-      <Html value={schema.headerHtml} />
+      <SafeRockHtml value={schema.headerHtml} />
 
       {schema.personEntry && personEntryValues && (
         <section className="space-y-5">
-          <Html value={schema.personEntry.preHtml} />
+          <SafeRockHtml value={schema.personEntry.preHtml} />
           {schema.personEntry.title && (
             <h3 className="text-2xl font-semibold text-brand-black">
               {schema.personEntry.title}
@@ -931,7 +847,7 @@ export function RockForm({ workflowTypeGuid }: { workflowTypeGuid: string }) {
               />
             </label>
           )}
-          <Html value={schema.personEntry.postHtml} />
+          <SafeRockHtml value={schema.personEntry.postHtml} />
         </section>
       )}
 
@@ -950,7 +866,7 @@ export function RockForm({ workflowTypeGuid }: { workflowTypeGuid: string }) {
       )}
       {renderFields(fieldsBySection.get('') || [])}
 
-      <Html value={schema.footerHtml} />
+      <SafeRockHtml value={schema.footerHtml} />
       <TurnstileWidget
         siteKey={schema.turnstileSiteKey}
         action={ROCK_FORM_SUBMIT_ACTION}
