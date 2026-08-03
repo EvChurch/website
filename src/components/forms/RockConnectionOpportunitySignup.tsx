@@ -13,13 +13,7 @@ import type {
   RockPhoneValue,
 } from '@/lib/rock-connection-signups/types'
 import { RockAttributeField } from './RockAttributeField'
-import {
-  formInputClass,
-  formLabelClass,
-  formRootClass,
-  formSubmitClass,
-  formTwoColumnGridClass,
-} from './form-styles'
+import { formInputClass, formLabelClass } from './form-styles'
 import { SafeRockHtml } from './SafeRockHtml'
 import { TurnstileWidget } from './TurnstileWidget'
 
@@ -125,7 +119,7 @@ function PhoneField({
   onChange: (value: RockPhoneValue) => void
 }) {
   return (
-    <div className="space-y-[5px]">
+    <div className="space-y-2">
       <label htmlFor={id} className={formLabelClass}>{label}</label>
       <input
         id={id}
@@ -167,8 +161,9 @@ export function ConnectionSignupFields({
   )
 
   return (
-    <div className="space-y-[15px]">
-      <div className={formTwoColumnGridClass}>
+    <div className="space-y-7">
+      <h3 className="text-2xl font-semibold text-brand-black">{schema.opportunityName}</h3>
+      <div className="grid gap-5 sm:grid-cols-2">
         <label className={formLabelClass}>
           First name <span aria-hidden="true">*</span>
           <input className={formInputClass} maxLength={100} value={values.firstName} onChange={(event) => set('firstName', event.target.value)} required autoComplete="given-name" />
@@ -193,7 +188,7 @@ export function ConnectionSignupFields({
         </label>
       )}
 
-      <div className={formTwoColumnGridClass}>
+      <div className="grid gap-6 sm:grid-cols-2">
         {schema.displayHomePhone && <PhoneField id="rock-connection-home-phone" label="Home phone" value={values.homePhone} onChange={(value) => set('homePhone', value)} />}
         {schema.displayMobilePhone && <PhoneField id="rock-connection-mobile-phone" label="Mobile phone" value={values.mobilePhone} onChange={(value) => set('mobilePhone', value)} />}
       </div>
@@ -353,7 +348,7 @@ export function RockConnectionOpportunitySignup({ blockGuid }: { blockGuid: stri
   const isSubmitting = state.phase === 'submitting'
   return (
     <form
-      className={formRootClass}
+      className="space-y-8"
       onSubmit={async (event) => {
         event.preventDefault()
         if (!turnstileToken) {
@@ -393,7 +388,7 @@ export function RockConnectionOpportunitySignup({ blockGuid }: { blockGuid: stri
       <TurnstileWidget siteKey={siteKey} action={ROCK_CONNECTION_SUBMIT_ACTION} resetKey={turnstileResetKey} onToken={setTurnstileToken} />
       {'error' in state && state.error && <p ref={errorRef} tabIndex={-1} role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-800 outline-none">{state.error}</p>}
       <button
-        className={formSubmitClass}
+        className="rounded-full bg-rich-red px-7 py-3 font-semibold text-white transition hover:bg-rich-red/90 disabled:cursor-not-allowed disabled:opacity-60"
         type="submit"
         disabled={isSubmitting}
       >

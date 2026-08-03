@@ -29,7 +29,5 @@ describe('FormEmbedBlockComponent protocol dispatch', () => {
     expect(markup).toContain('Get connected')
     expect(markup).toContain('Loading signup…')
     expect(markup).not.toContain('Loading form…')
-    expect(markup).toContain('max-w-3xl')
-    expect(markup).not.toContain('rounded-xl border')
   })
 })

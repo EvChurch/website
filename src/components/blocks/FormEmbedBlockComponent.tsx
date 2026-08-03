@@ -92,7 +92,7 @@ export function FormEmbedBlockComponent({
 
         <ScrollReveal>
           {layout === 'centered' ? (
-            <div className="mx-auto max-w-3xl">
+            <div className="mx-auto max-w-2xl rounded-xl border border-warm-grey/60 bg-white p-8 shadow-sm lg:p-10">
               <EmbeddedRockForm
                 sourceType={sourceType}
                 rockWorkflowGuid={rockWorkflowGuid}
