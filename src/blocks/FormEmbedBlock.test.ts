@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  activeFormIdentifier,
   validateEligibleRockConnectionBlockGuid,
   validateRockConnectionBlockGuid,
   validateRockWorkflowGuid,
@@ -34,17 +35,24 @@ describe('FormEmbed source validation', () => {
     await expect(validateEligibleRockConnectionBlockGuid(
       blockGuid.toUpperCase(),
       siblings,
-      async () => [{ blockGuid, label: 'Newish' }],
+      async () => true,
     )).resolves.toBe(true)
     await expect(validateEligibleRockConnectionBlockGuid(
       blockGuid,
       siblings,
-      async () => [],
+      async () => false,
     )).resolves.toContain('no longer eligible')
     await expect(validateEligibleRockConnectionBlockGuid(
       blockGuid,
       siblings,
       async () => { throw new Error('offline') },
     )).resolves.toContain('Unable to verify')
+  })
+
+  it('clears the inactive identifier when the source changes', () => {
+    expect(activeFormIdentifier(workflowGuid, { sourceType: 'connectionOpportunity' }, 'workflow')).toBeNull()
+    expect(activeFormIdentifier(blockGuid, { sourceType: 'workflow' }, 'connectionOpportunity')).toBeNull()
+    expect(activeFormIdentifier(workflowGuid, { sourceType: 'workflow' }, 'workflow')).toBe(workflowGuid)
+    expect(activeFormIdentifier(blockGuid, { sourceType: 'connectionOpportunity' }, 'connectionOpportunity')).toBe(blockGuid)
   })
 })

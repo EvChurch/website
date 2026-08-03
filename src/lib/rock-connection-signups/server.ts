@@ -31,6 +31,7 @@ type RockAttributeValue = { Value?: unknown }
 
 type RockBlockMetadata = {
   Guid?: unknown
+  IsActive?: unknown
   Name?: unknown
   PageId?: unknown
   LayoutId?: unknown
@@ -256,7 +257,8 @@ function parseStructuralCandidate(
     !isGuid(blockTypeGuid) ||
     normalizedGuid(blockTypeGuid) !==
       CONNECTION_OPPORTUNITY_SIGNUP_BLOCK_TYPE_GUID ||
-    block.BlockType?.IsActive === false ||
+    block.IsActive !== true ||
+    block.BlockType?.IsActive !== true ||
     typeof block.PageId !== 'number' ||
     block.LayoutId != null ||
     block.SiteId != null ||
@@ -495,6 +497,11 @@ export async function initializeRockConnectionSignup(
   }
 }
 
+export async function isEligibleRockConnectionSignup(blockGuid: string): Promise<boolean> {
+  await initializeRockConnectionSignup(blockGuid)
+  return true
+}
+
 export async function listEligibleRockConnectionSignups(): Promise<
   RockConnectionSignupOption[]
 > {
@@ -512,25 +519,30 @@ export async function listEligibleRockConnectionSignups(): Promise<
     return pending
   }
 
-  for (const block of blocks) {
-    const candidate = await resolveCandidate(block, loadOpportunity)
-    if (!candidate) continue
-    try {
-      await refreshCandidate(candidate)
-    } catch (error) {
-      if (
-        error instanceof RockConnectionUnavailableError ||
-        (error instanceof RockResponseError && error.status >= 400 && error.status < 500)
-      ) {
-        continue
+  const workerCount = Math.min(5, blocks.length)
+  await Promise.all(
+    Array.from({ length: workerCount }, async (_, workerIndex) => {
+      for (let index = workerIndex; index < blocks.length; index += workerCount) {
+        const candidate = await resolveCandidate(blocks[index], loadOpportunity)
+        if (!candidate) continue
+        try {
+          await refreshCandidate(candidate)
+        } catch (error) {
+          if (
+            error instanceof RockConnectionUnavailableError ||
+            (error instanceof RockResponseError && error.status >= 400 && error.status < 500)
+          ) {
+            continue
+          }
+          throw error
+        }
+        options.push({
+          blockGuid: candidate.blockGuid,
+          label: `${candidate.opportunityName} — ${candidate.pageName} — ${candidate.blockName}`,
+        })
       }
-      throw error
-    }
-    options.push({
-      blockGuid: candidate.blockGuid,
-      label: `${candidate.opportunityName} — ${candidate.pageName} — ${candidate.blockName}`,
-    })
-  }
+    }),
+  )
 
   return options.sort((a, b) => a.label.localeCompare(b.label))
 }
@@ -552,9 +564,8 @@ export async function sendRockConnectionSignup({
     throw new Error('Invalid Rock connection signup request')
   }
 
-  let value: unknown
   try {
-    value = await rockRequest({
+    const value = await rockRequest({
       path: `v2/BlockActions/${normalizedGuid(pageGuid)}/${normalizedGuid(blockGuid)}/Signup`,
       method: 'POST',
       body: {
@@ -567,28 +578,30 @@ export async function sendRockConnectionSignup({
       },
       authenticated: false,
     })
-  } catch (error) {
+
+    if (!isRecord(value) || !Number.isInteger(value.resultType)) {
+      throw new RockConnectionSignupOutcomeUnknownError()
+    }
     if (
-      error instanceof DOMException && error.name === 'TimeoutError' ||
-      error instanceof Error && error.name === 'TimeoutError'
+      value.responseMessage !== undefined &&
+      value.responseMessage !== null &&
+      (typeof value.responseMessage !== 'string' || value.responseMessage.length > 20_000)
     ) {
       throw new RockConnectionSignupOutcomeUnknownError()
     }
-    throw error
-  }
-
-  if (!isRecord(value) || !Number.isInteger(value.resultType)) {
-    throw new Error('Rock returned an invalid response')
-  }
-  if (
-    value.responseMessage !== undefined &&
-    value.responseMessage !== null &&
-    (typeof value.responseMessage !== 'string' || value.responseMessage.length > 20_000)
-  ) {
-    throw new Error('Rock returned an invalid response')
-  }
-  return {
-    resultType: value.resultType as number,
-    responseMessage: (value.responseMessage as string | null | undefined) ?? null,
+    return {
+      resultType: value.resultType as number,
+      responseMessage: (value.responseMessage as string | null | undefined) ?? null,
+    }
+  } catch (error) {
+    if (error instanceof RockConnectionSignupOutcomeUnknownError) throw error
+    if (
+      error instanceof RockResponseError &&
+      error.status >= 400 &&
+      error.status < 500
+    ) {
+      throw error
+    }
+    throw new RockConnectionSignupOutcomeUnknownError()
   }
 }

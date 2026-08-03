@@ -1,15 +1,23 @@
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 import { RockForm } from '@/components/forms/RockForm'
 import { RockConnectionOpportunitySignup } from '@/components/forms/RockConnectionOpportunitySignup'
+import type { FormEmbedBlock as PayloadFormEmbedBlock } from '@/payload-types'
 
-interface FormEmbedBlockProps {
-  eyebrow?: string | null
-  heading?: string | null
-  description?: string | null
+type FormEmbedBlockProps = Omit<
+  Pick<
+    PayloadFormEmbedBlock,
+    | 'eyebrow'
+    | 'heading'
+    | 'description'
+    | 'sourceType'
+    | 'rockWorkflowGuid'
+    | 'rockConnectionBlockGuid'
+    | 'layout'
+  >,
+  'sourceType'
+> & {
+  // Rows created before the discriminator migration still render as Workflow.
   sourceType?: 'workflow' | 'connectionOpportunity' | null
-  rockWorkflowGuid?: string | null
-  rockConnectionBlockGuid?: string | null
-  layout?: 'full' | 'centered' | null
 }
 
 function assertNever(value: never): never {

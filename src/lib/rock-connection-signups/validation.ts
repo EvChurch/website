@@ -121,6 +121,7 @@ export function validateRockConnectionSubmission(value: unknown, context: RockCo
     campusId = candidate as number
   }
   if (campusId != null && !context.campuses.includes(String(campusId))) invalid()
+  if (campusId == null && context.campuses.length > 1) invalid()
 
   let homePhone: RockPhoneValue | null | undefined
   if (input.homePhone != null) {

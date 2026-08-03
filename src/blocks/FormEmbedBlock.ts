@@ -1,11 +1,21 @@
 import type { Block } from 'payload'
-import { listEligibleRockConnectionSignups } from '@/lib/rock-connection-signups/server'
+import { isEligibleRockConnectionSignup } from '@/lib/rock-connection-signups/server'
 import { isGuid } from '@/lib/rock-forms/constants'
 
 type FormEmbedSiblingData = { sourceType?: unknown }
 
 function isConnectionSource(siblingData: FormEmbedSiblingData): boolean {
   return siblingData.sourceType === 'connectionOpportunity'
+}
+
+export function activeFormIdentifier(
+  value: unknown,
+  siblingData: FormEmbedSiblingData,
+  source: 'workflow' | 'connectionOpportunity',
+): unknown {
+  return isConnectionSource(siblingData) === (source === 'connectionOpportunity')
+    ? value
+    : null
 }
 
 export function validateRockWorkflowGuid(
@@ -31,14 +41,13 @@ export function validateRockConnectionBlockGuid(
 export async function validateEligibleRockConnectionBlockGuid(
   value: unknown,
   siblingData: FormEmbedSiblingData,
-  listEligible = listEligibleRockConnectionSignups,
+  isEligible = isEligibleRockConnectionSignup,
 ): Promise<true | string> {
   const structural = validateRockConnectionBlockGuid(value, siblingData)
   if (structural !== true || !isConnectionSource(siblingData)) return structural
   try {
     const normalized = String(value).toLowerCase()
-    const eligible = await listEligible()
-    return eligible.some(({ blockGuid }) => blockGuid.toLowerCase() === normalized)
+    return await isEligible(normalized)
       ? true
       : 'This Rock Connection Signup is no longer eligible. Choose a replacement before publishing.'
   } catch {
@@ -81,6 +90,10 @@ export const FormEmbedBlock: Block = {
     {
       name: 'rockWorkflowGuid',
       type: 'text',
+      hooks: {
+        beforeValidate: [({ value, siblingData }) =>
+          activeFormIdentifier(value, siblingData, 'workflow')],
+      },
       validate: (
         value: unknown,
         { siblingData }: { siblingData: FormEmbedSiblingData },
@@ -99,6 +112,10 @@ export const FormEmbedBlock: Block = {
     {
       name: 'rockConnectionBlockGuid',
       type: 'text',
+      hooks: {
+        beforeValidate: [({ value, siblingData }) =>
+          activeFormIdentifier(value, siblingData, 'connectionOpportunity')],
+      },
       validate: async (
         value: unknown,
         { siblingData }: { siblingData: FormEmbedSiblingData },

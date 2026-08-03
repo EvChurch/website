@@ -12,7 +12,8 @@ import type {
   RockConnectionSignupSchema,
   RockPhoneValue,
 } from '@/lib/rock-connection-signups/types'
-import { RockAttributeField, formInputClass, formLabelClass } from './RockAttributeField'
+import { RockAttributeField } from './RockAttributeField'
+import { formInputClass, formLabelClass } from './form-styles'
 import { SafeRockHtml } from './SafeRockHtml'
 import { TurnstileWidget } from './TurnstileWidget'
 
@@ -69,12 +70,19 @@ export function claimConnectionSubmission(lock: { current: boolean }): boolean {
   return true
 }
 
-function emptyValues(schema: PublicConnectionSchema): ConnectionSignupValues {
+export function emptyConnectionSignupValues(schema: PublicConnectionSchema): ConnectionSignupValues {
+  const selectedCampus = schema.selectedCampusId == null
+    ? ''
+    : String(schema.selectedCampusId)
   return {
     firstName: '',
     lastName: '',
     email: '',
-    campusId: schema.campuses.length === 1 ? schema.campuses[0].value : '',
+    campusId: schema.campuses.length === 1
+      ? schema.campuses[0].value
+      : schema.campuses.some(({ value }) => value === selectedCampus)
+        ? selectedCampus
+        : '',
     homePhone: {},
     mobilePhone: {},
     comments: '',
@@ -310,7 +318,7 @@ export function RockConnectionOpportunitySignup({ blockGuid }: { blockGuid: stri
       }
       setSchema(data.schema)
       setContextToken(data.contextToken)
-      setValues(emptyValues(data.schema))
+      setValues(emptyConnectionSignupValues(data.schema))
       dispatch({ type: 'started' })
     } catch (error) {
       dispatch({ type: 'failed', message: error instanceof Error ? error.message : 'Unable to start this signup' })

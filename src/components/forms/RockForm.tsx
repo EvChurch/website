@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SafeRockHtml } from './SafeRockHtml'
 import { TurnstileWidget } from './TurnstileWidget'
-import { formInputClass as inputClass, formLabelClass as labelClass } from './RockAttributeField'
+import { formInputClass as inputClass, formLabelClass as labelClass } from './form-styles'
 import {
   parseRockOptions,
   ROCK_FIELD_TYPES,

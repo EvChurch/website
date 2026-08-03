@@ -97,4 +97,12 @@ describe('Rock Connection submission validation', () => {
     const values = { firstName: 'A', lastName: 'B', email: 'a@b.test', attributeValues: { Text: 'x'.repeat(501), Count: '2147483648' } }
     expect(() => validateRockConnectionSubmission(values, configured)).toThrow('Invalid submission')
   })
+
+  it('requires an explicit campus when several are available without a default', () => {
+    const context = { ...base, campuses: ['3', '4'], selectedCampusId: null }
+    expect(() => validateRockConnectionSubmission({
+      firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.test',
+      attributeValues: { Note: 'Interested' },
+    }, context)).toThrow('Invalid submission')
+  })
 })

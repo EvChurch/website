@@ -5,6 +5,7 @@ import type { RockConnectionSignupSchema } from '@/lib/rock-connection-signups/t
 import {
   buildConnectionSubmissionValues,
   claimConnectionSubmission,
+  emptyConnectionSignupValues,
   ConnectionSignupFields,
   ConnectionSignupTerminal,
   connectionSignupReducer,
@@ -31,6 +32,10 @@ function schema(overrides: Partial<RockConnectionSignupSchema> = {}): RockConnec
 }
 
 describe('Rock Connection Opportunity signup UI', () => {
+  it('preserves an initialized default among multiple campuses', () => {
+    expect(emptyConnectionSignupValues(schema({ selectedCampusId: 2 })).campusId).toBe('2')
+  })
+
   it('renders ordered built-ins, campus, phones, and comments as text', () => {
     const markup = renderToStaticMarkup(
       <ConnectionSignupFields

@@ -58,7 +58,8 @@ replace this rule.
 EV sends `CF-Access-Client-Id` and `CF-Access-Client-Secret` only to the fixed
 HTTPS Rock origin and these fixed action paths. It does not send the Rock API
 key on runtime refresh or Signup requests. `ROCK_API_KEY` is used only for
-authenticated editor discovery metadata.
+authenticated discovery metadata, including the runtime eligibility recheck
+that resolves the current page and opportunity before each anonymous action.
 
 After the rule is active, an operator may verify direct denial without personal
 data. Replace placeholders locally; do not paste secrets into shell history or
@@ -89,7 +90,7 @@ All values except the Turnstile site key are server-only. Keep them out of
 | Variable | Purpose |
 |---|---|
 | `ROCK_API_URL` | Fixed HTTPS Rock API URL ending in `/api`. |
-| `ROCK_API_KEY` | Least-privilege Rock credential for authenticated editor discovery only. |
+| `ROCK_API_KEY` | Least-privilege Rock credential for authenticated discovery metadata and runtime eligibility revalidation. |
 | `ROCK_EDGE_ACCESS_CLIENT_ID` | Cloudflare Access service-token client ID for the exact proxy routes. |
 | `ROCK_EDGE_ACCESS_CLIENT_SECRET` | Cloudflare Access service-token secret. |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Public Turnstile widget site key. |

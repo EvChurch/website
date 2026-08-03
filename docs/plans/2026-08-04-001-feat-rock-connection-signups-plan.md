@@ -260,7 +260,7 @@ stateDiagram-v2
 
 #### Security configuration contract
 
-- `ROCK_API_KEY` remains the least-privilege credential for authenticated editor discovery only.
+- `ROCK_API_KEY` remains the least-privilege credential for authenticated discovery metadata, including runtime eligibility revalidation; refresh and Signup actions remain anonymous to Rock.
 - `ROCK_CONNECTION_CONTEXT_KEYS` is a server-only ordered key ring of `kid:base64-secret` entries; the first key signs, current plus one previous key verify during a documented bounded rotation, unknown keys fail closed, and production has no default.
 - `ROCK_CONNECTION_RATE_LIMIT_SECRET` is a separate server-only HMAC key for irreversible client-address bucket keys.
 - `ROCK_EDGE_ACCESS_CLIENT_ID` and `ROCK_EDGE_ACCESS_CLIENT_SECRET` are the Cloudflare Access service-token credentials sent only to the fixed Rock origin and exact allowlisted proxy paths.

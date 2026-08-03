@@ -176,20 +176,29 @@ export async function handlePost(
   const correlationId = randomUUID()
   const startedAt = Date.now()
   let operation: 'unknown' | 'start' | 'submit' = 'unknown'
+  const failureResponse = (
+    failure: string,
+    message: string,
+    status: number,
+    headers?: Record<string, string>,
+  ) => {
+    logFailure(correlationId, operation, failure, startedAt)
+    return errorResponse(message, status, headers)
+  }
   try {
-    if (!isSameOriginRequest(request)) return errorResponse('Invalid request origin', 403)
+    if (!isSameOriginRequest(request)) return failureResponse('origin_invalid', 'Invalid request origin', 403)
     const { blockGuid: rawBlockGuid } = await routeContext.params
-    if (!isGuid(rawBlockGuid)) return errorResponse('Invalid signup identifier', 400)
+    if (!isGuid(rawBlockGuid)) return failureResponse('identifier_invalid', 'Invalid signup identifier', 400)
     const blockGuid = rawBlockGuid.toLowerCase()
     const body = await boundedJson(request)
     operation = body.intent === 'submit' ? 'submit' : body.intent === 'start' ? 'start' : 'unknown'
-    if (operation === 'unknown') return errorResponse('Invalid request', 400)
+    if (operation === 'unknown') return failureResponse('request_invalid', 'Invalid request', 400)
 
     await protectRequest(request, body, operation, dependencies)
-    if (!(await isRockConnectionSignupPublished(blockGuid))) return errorResponse('This signup is not published on the website', 404)
+    if (!(await isRockConnectionSignupPublished(blockGuid))) return failureResponse('not_published', 'This signup is not published on the website', 404)
 
     if (operation === 'start') {
-      if (Object.keys(body).some((key) => !['intent', 'turnstileToken'].includes(key))) return errorResponse('Invalid request', 400)
+      if (Object.keys(body).some((key) => !['intent', 'turnstileToken'].includes(key))) return failureResponse('request_invalid', 'Invalid request', 400)
       const schema = await initializeRockConnectionSignup(blockGuid)
       const context = contextFromSchema(schema, Date.now())
       await dependencies.nonceStore.create({
@@ -209,13 +218,13 @@ export async function handlePost(
       })
     }
 
-    if (Object.keys(body).some((key) => !['intent', 'turnstileToken', 'contextToken', 'values'].includes(key))) return errorResponse('Invalid request', 400)
-    if (typeof body.contextToken !== 'string') return errorResponse('Invalid connection context', 400)
+    if (Object.keys(body).some((key) => !['intent', 'turnstileToken', 'contextToken', 'values'].includes(key))) return failureResponse('request_invalid', 'Invalid request', 400)
+    if (typeof body.contextToken !== 'string') return failureResponse('context_invalid', 'Invalid connection context', 400)
     const signedContext = verifyRockConnectionContextToken(body.contextToken)
-    if (signedContext.blockGuid !== blockGuid) return errorResponse('Invalid connection context', 400)
+    if (signedContext.blockGuid !== blockGuid) return failureResponse('context_invalid', 'Invalid connection context', 400)
 
     const currentSchema = await initializeRockConnectionSignup(blockGuid)
-    if (!schemasMatchContext(currentSchema, signedContext)) return errorResponse('This signup configuration changed; please reload', 409)
+    if (!schemasMatchContext(currentSchema, signedContext)) return failureResponse('configuration_changed', 'This signup configuration changed; please reload', 409)
     const bag = validateRockConnectionSubmission(body.values, signedContext)
     const nonceRecord = {
       nonceDigest: digestConnectionNonce(signedContext.nonce),
@@ -224,7 +233,7 @@ export async function handlePost(
       blockGuid: signedContext.blockGuid,
       expiresAt: new Date(signedContext.expiresAt),
     }
-    if (!(await dependencies.nonceStore.consume(nonceRecord))) return errorResponse('This signup has expired or was already submitted', 409)
+    if (!(await dependencies.nonceStore.consume(nonceRecord))) return failureResponse('nonce_rejected', 'This signup has expired or was already submitted', 409)
 
     const result = await sendRockConnectionSignup({
       pageGuid: signedContext.pageGuid,
@@ -234,8 +243,7 @@ export async function handlePost(
       bag,
     })
     if (result.resultType !== 0) {
-      logFailure(correlationId, operation, 'rock_rejected', startedAt)
-      return errorResponse('Unable to submit this signup right now', 502)
+      return failureResponse('rock_rejected', 'Unable to submit this signup right now', 502)
     }
     return response({
       status: 'complete',
@@ -244,15 +252,18 @@ export async function handlePost(
     })
   } catch (error) {
     if (error instanceof ConnectionRateLimitError) {
-      return errorResponse('Too many requests', 429, { 'Retry-After': String(error.retryAfterSeconds) })
+      return failureResponse('rate_limited', 'Too many requests', 429, { 'Retry-After': String(error.retryAfterSeconds) })
     }
     if (error instanceof RockConnectionSignupOutcomeUnknownError) {
       logFailure(correlationId, operation, 'outcome_unknown', startedAt)
       return response({ error: 'The submission outcome could not be confirmed', outcomeUnknown: true }, 504)
     }
     const message = error instanceof Error ? error.message : ''
-    if (error instanceof TurnstileVerificationError) return errorResponse(error.message, 400)
-    if (['Invalid request', 'Invalid connection context', 'Invalid submission'].includes(message)) return errorResponse(message, 400)
+    if (error instanceof TurnstileVerificationError) return failureResponse('turnstile_rejected', error.message, 400)
+    if (['Invalid request', 'Invalid connection context', 'Invalid submission'].includes(message)) {
+      const failure = message === 'Invalid connection context' ? 'context_invalid' : 'request_invalid'
+      return failureResponse(failure, message, 400)
+    }
     logFailure(correlationId, operation, 'service_unavailable', startedAt)
     return errorResponse('Unable to process this signup right now', 503)
   }

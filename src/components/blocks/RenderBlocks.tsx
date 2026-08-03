@@ -15,6 +15,7 @@ import { PhotoStripBlockComponent } from './PhotoStripBlockComponent'
 import { PageHeaderBlockComponent } from './PageHeaderBlockComponent'
 import { GospelStepperBlockComponent } from './GospelStepperBlockComponent'
 import { LatestSermonBlockComponent } from './LatestSermonBlockComponent'
+import type { FormEmbedBlock as PayloadFormEmbedBlock } from '@/payload-types'
 
 /**
  * Union of all known block types.
@@ -163,15 +164,9 @@ interface BlockquoteBlockType extends BaseBlock {
   style?: 'centered' | 'leftBorder' | null
 }
 
-interface FormEmbedBlock extends BaseBlock {
-  blockType: 'formEmbed'
-  eyebrow?: string | null
-  heading?: string | null
-  description?: string | null
-  sourceType?: 'workflow' | 'connectionOpportunity' | null
-  rockWorkflowGuid?: string | null
-  rockConnectionBlockGuid?: string | null
-  layout?: 'full' | 'centered' | null
+type FormEmbedBlock = Omit<PayloadFormEmbedBlock, 'sourceType'> & {
+  // Rows created before the discriminator migration still render as Workflow.
+  sourceType?: PayloadFormEmbedBlock['sourceType'] | null
 }
 
 interface ManualCardGridBlock extends BaseBlock {

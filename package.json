@@ -7,6 +7,7 @@
     "dev": "next dev",
     "build": "payload generate:types && next build",
     "test": "vitest run",
+    "test:migration:postgres": "vitest run src/migrations/20260804_rock_connection_signup.integration.test.ts",
     "start": "next start",
     "lint": "next lint",
     "payload": "payload",
@@ -40,10 +41,12 @@
   "devDependencies": {
     "@payloadcms/ui": "3.80.0",
     "@types/node": "25.5.0",
+    "@types/pg": "8.10.2",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "dotenv": "17.4.1",
     "eslint": "10.1.0",
+    "pg": "8.16.3",
     "sass": "1.99.0",
     "typescript": "5.9.3",
     "vitest": "^4.1.10"

@@ -23,6 +23,7 @@ function jsonResponse(value: unknown, init?: ResponseInit) {
 function metadataBlock(overrides: Record<string, unknown> = {}) {
   return {
     Guid: blockGuid,
+    IsActive: true,
     Name: 'Newish signup proxy',
     PageId: 42,
     LayoutId: null,
@@ -166,6 +167,10 @@ describe('Rock connection signup server adapter', () => {
 
   it.each([
     ['wrong block type', { BlockType: { Guid: '22222222-2222-4222-8222-222222222222', IsActive: true } }],
+    ['inactive block', { IsActive: false }],
+    ['missing block activity', { IsActive: undefined }],
+    ['inactive block type', { BlockType: { Guid: CONNECTION_OPPORTUNITY_SIGNUP_BLOCK_TYPE_GUID, IsActive: false } }],
+    ['missing block type activity', { BlockType: { Guid: CONNECTION_OPPORTUNITY_SIGNUP_BLOCK_TYPE_GUID } }],
     ['layout ownership', { PageId: null, LayoutId: 2 }],
     ['missing fixed opportunity', { AttributeValues: { ExcludeNonPublicAttributes: { Value: 'True' }, DisableCaptchaSupport: { Value: 'True' } } }],
     ['non-public attributes', { AttributeValues: { ConnectionOpportunity: { Value: opportunityGuid }, ExcludeNonPublicAttributes: { Value: 'False' }, DisableCaptchaSupport: { Value: 'True' } } }],
@@ -321,5 +326,31 @@ describe('Rock connection signup server adapter', () => {
       bag: { firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.test' },
     })).rejects.toBeInstanceOf(RockConnectionSignupOutcomeUnknownError)
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['connection failure', () => Promise.reject(new TypeError('connection reset'))],
+    ['server failure', () => Promise.resolve(jsonResponse({}, { status: 500 }))],
+    ['malformed success', () => Promise.resolve(new Response('{', { headers: { 'content-type': 'application/json' } }))],
+    ['invalid success schema', () => Promise.resolve(jsonResponse({ responseMessage: 'missing result' }))],
+  ])('reports an indeterminate outcome after a %s', async (_name, response) => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementationOnce(response)
+    await expect(sendRockConnectionSignup({
+      pageGuid, blockGuid,
+      sessionGuid: '22222222-2222-4222-8222-222222222222',
+      interactionGuid: '33333333-3333-4333-8333-333333333333',
+      bag: { firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.test' },
+    })).rejects.toBeInstanceOf(RockConnectionSignupOutcomeUnknownError)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves an explicit client rejection as a definite failure', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({}, { status: 400 }))
+    await expect(sendRockConnectionSignup({
+      pageGuid, blockGuid,
+      sessionGuid: '22222222-2222-4222-8222-222222222222',
+      interactionGuid: '33333333-3333-4333-8333-333333333333',
+      bag: { firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.test' },
+    })).rejects.not.toBeInstanceOf(RockConnectionSignupOutcomeUnknownError)
   })
 })
