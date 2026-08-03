@@ -1,19 +1,55 @@
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 import { RockForm } from '@/components/forms/RockForm'
+import { RockConnectionOpportunitySignup } from '@/components/forms/RockConnectionOpportunitySignup'
 
 interface FormEmbedBlockProps {
   eyebrow?: string | null
   heading?: string | null
   description?: string | null
-  rockWorkflowGuid: string
+  sourceType?: 'workflow' | 'connectionOpportunity' | null
+  rockWorkflowGuid?: string | null
+  rockConnectionBlockGuid?: string | null
   layout?: 'full' | 'centered' | null
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unsupported form source: ${String(value)}`)
+}
+
+function EmbeddedRockForm({
+  sourceType,
+  rockWorkflowGuid,
+  rockConnectionBlockGuid,
+}: Pick<
+  FormEmbedBlockProps,
+  'sourceType' | 'rockWorkflowGuid' | 'rockConnectionBlockGuid'
+>) {
+  const source = sourceType ?? 'workflow'
+  switch (source) {
+    case 'workflow':
+      return rockWorkflowGuid ? (
+        <RockForm workflowTypeGuid={rockWorkflowGuid} />
+      ) : (
+        <p role="alert">This form is not configured.</p>
+      )
+    case 'connectionOpportunity':
+      return rockConnectionBlockGuid ? (
+        <RockConnectionOpportunitySignup blockGuid={rockConnectionBlockGuid} />
+      ) : (
+        <p role="alert">This signup is not configured.</p>
+      )
+    default:
+      return assertNever(source)
+  }
 }
 
 export function FormEmbedBlockComponent({
   eyebrow,
   heading,
   description,
+  sourceType,
   rockWorkflowGuid,
+  rockConnectionBlockGuid,
   layout = 'centered',
 }: FormEmbedBlockProps) {
   return (
@@ -46,14 +82,21 @@ export function FormEmbedBlockComponent({
           </ScrollReveal>
         )}
 
-        {/* Form */}
         <ScrollReveal>
           {layout === 'centered' ? (
             <div className="mx-auto max-w-2xl rounded-xl border border-warm-grey/60 bg-white p-8 shadow-sm lg:p-10">
-              <RockForm workflowTypeGuid={rockWorkflowGuid} />
+              <EmbeddedRockForm
+                sourceType={sourceType}
+                rockWorkflowGuid={rockWorkflowGuid}
+                rockConnectionBlockGuid={rockConnectionBlockGuid}
+              />
             </div>
           ) : (
-            <RockForm workflowTypeGuid={rockWorkflowGuid} />
+            <EmbeddedRockForm
+              sourceType={sourceType}
+              rockWorkflowGuid={rockWorkflowGuid}
+              rockConnectionBlockGuid={rockConnectionBlockGuid}
+            />
           )}
         </ScrollReveal>
       </div>

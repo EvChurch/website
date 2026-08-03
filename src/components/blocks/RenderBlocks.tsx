@@ -168,7 +168,9 @@ interface FormEmbedBlock extends BaseBlock {
   eyebrow?: string | null
   heading?: string | null
   description?: string | null
-  rockWorkflowGuid: string
+  sourceType?: 'workflow' | 'connectionOpportunity' | null
+  rockWorkflowGuid?: string | null
+  rockConnectionBlockGuid?: string | null
   layout?: 'full' | 'centered' | null
 }
 
@@ -417,7 +419,9 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
                 eyebrow={b.eyebrow}
                 heading={b.heading}
                 description={b.description}
+                sourceType={b.sourceType}
                 rockWorkflowGuid={b.rockWorkflowGuid}
+                rockConnectionBlockGuid={b.rockConnectionBlockGuid}
                 layout={b.layout}
               />
             )
