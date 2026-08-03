@@ -1,13 +1,11 @@
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
-import { ContactForm } from '@/components/forms/ContactForm'
-import { SignupForm } from '@/components/forms/SignupForm'
+import { RockForm } from '@/components/forms/RockForm'
 
 interface FormEmbedBlockProps {
   eyebrow?: string | null
   heading?: string | null
   description?: string | null
-  formType: 'contact' | 'signup'
-  formTitle?: string | null
+  rockWorkflowGuid: string
   layout?: 'full' | 'centered' | null
 }
 
@@ -15,17 +13,9 @@ export function FormEmbedBlockComponent({
   eyebrow,
   heading,
   description,
-  formType,
-  formTitle,
+  rockWorkflowGuid,
   layout = 'centered',
 }: FormEmbedBlockProps) {
-  const FormComponent =
-    formType === 'contact' ? (
-      <ContactForm />
-    ) : (
-      <SignupForm formTitle={formTitle ?? 'Sign Up'} />
-    )
-
   return (
     <section className="bg-warm-white px-5 py-16 lg:px-8 lg:py-24">
       <div className="mx-auto max-w-[80rem] px-5 lg:px-8">
@@ -60,10 +50,10 @@ export function FormEmbedBlockComponent({
         <ScrollReveal>
           {layout === 'centered' ? (
             <div className="mx-auto max-w-2xl rounded-xl border border-warm-grey/60 bg-white p-8 shadow-sm lg:p-10">
-              {FormComponent}
+              <RockForm workflowTypeGuid={rockWorkflowGuid} />
             </div>
           ) : (
-            <div>{FormComponent}</div>
+            <RockForm workflowTypeGuid={rockWorkflowGuid} />
           )}
         </ScrollReveal>
       </div>

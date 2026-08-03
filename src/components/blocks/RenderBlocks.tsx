@@ -168,8 +168,7 @@ interface FormEmbedBlock extends BaseBlock {
   eyebrow?: string | null
   heading?: string | null
   description?: string | null
-  formType: 'contact' | 'signup'
-  formTitle?: string | null
+  rockWorkflowGuid: string
   layout?: 'full' | 'centered' | null
 }
 
@@ -418,8 +417,7 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
                 eyebrow={b.eyebrow}
                 heading={b.heading}
                 description={b.description}
-                formType={b.formType}
-                formTitle={b.formTitle}
+                rockWorkflowGuid={b.rockWorkflowGuid}
                 layout={b.layout}
               />
             )

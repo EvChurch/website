@@ -835,7 +835,7 @@ async function seed() {
       },
       {
         blockType: 'formEmbed',
-        formType: 'contact',
+        rockWorkflowGuid: '874418b5-a477-4382-94dc-38060b005bfa',
         layout: 'full',
       },
       {
@@ -1128,15 +1128,6 @@ async function seed() {
         ],
       },
       {
-        blockType: 'formEmbed',
-        eyebrow: 'Join us',
-        heading: 'Sign up for Newish Connect',
-        description: 'The next Newish Connect gathering will be announced soon. Register below and we will save you a spot.',
-        formType: 'signup',
-        formTitle: 'Newish Connect',
-        layout: 'centered',
-      },
-      {
         blockType: 'cta',
         heading: 'We would love to meet you',
         text: 'Newish Connect is the easiest way to take your next step at Ev. Come along and see what it is all about.',
@@ -1222,8 +1213,7 @@ async function seed() {
         eyebrow: 'Register your interest',
         heading: 'Sign up for the next course',
         description: 'The next Explaining Christianity course will be announced soon. Register your interest and we will let you know when dates are confirmed.',
-        formType: 'signup',
-        formTitle: 'Explaining Christianity',
+        rockWorkflowGuid: '16d675d3-00cf-459e-990d-817003cbbc88',
         layout: 'centered',
       },
       {

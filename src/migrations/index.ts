@@ -6,6 +6,7 @@ import * as migration_20260331_233500_add_banner_overlay from './20260331_233500
 import * as migration_20260405_121839 from './20260405_121839';
 import * as migration_20260405_212901_per_video_boundaries from './20260405_212901_per_video_boundaries';
 import * as migration_20260407_222651_speaker_per_media from './20260407_222651_speaker_per_media';
+import * as migration_20260803_110431_rock_form_embed from './20260803_110431_rock_form_embed';
 
 export const migrations = [
   {
@@ -46,6 +47,11 @@ export const migrations = [
   {
     up: migration_20260407_222651_speaker_per_media.up,
     down: migration_20260407_222651_speaker_per_media.down,
-    name: '20260407_222651_speaker_per_media'
+    name: '20260407_222651_speaker_per_media',
+  },
+  {
+    up: migration_20260803_110431_rock_form_embed.up,
+    down: migration_20260803_110431_rock_form_embed.down,
+    name: '20260803_110431_rock_form_embed'
   },
 ];

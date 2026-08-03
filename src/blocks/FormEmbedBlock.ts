@@ -1,4 +1,5 @@
 import type { Block } from 'payload'
+import { isGuid } from '@/lib/rock-forms/constants'
 
 export const FormEmbedBlock: Block = {
   slug: 'formEmbed',
@@ -17,20 +18,19 @@ export const FormEmbedBlock: Block = {
       type: 'textarea',
     },
     {
-      name: 'formType',
-      type: 'select',
-      required: true,
-      options: [
-        { label: 'Contact Form', value: 'contact' },
-        { label: 'Signup Form', value: 'signup' },
-      ],
-    },
-    {
-      name: 'formTitle',
+      name: 'rockWorkflowGuid',
       type: 'text',
+      required: true,
+      validate: (value: unknown) =>
+        typeof value === 'string' && isGuid(value)
+          ? true
+          : 'Choose a public Rock Form Builder workflow.',
       admin: {
-        description: 'Label passed to signup form (e.g. "Explaining Christianity")',
-        condition: (_, siblingData) => siblingData?.formType === 'signup',
+        description:
+          'The active public Rock Form Builder workflow rendered and submitted directly to Rock.',
+        components: {
+          Field: '@/components/admin/RockWorkflowPicker#RockWorkflowPicker',
+        },
       },
     },
     {

@@ -12,6 +12,9 @@ type RockRequestOptions = {
   endpoint: string
   params?: Record<string, string>
   retries?: number
+  method?: 'GET' | 'POST'
+  body?: unknown
+  timeoutMs?: number
 }
 
 class RockAPIError extends Error {
@@ -33,6 +36,9 @@ export async function rockFetch<T>({
   endpoint,
   params,
   retries = 3,
+  method = 'GET',
+  body,
+  timeoutMs = 15_000,
 }: RockRequestOptions): Promise<T> {
   const url = new URL(`${ROCK_API_URL}/${endpoint}`)
   if (params) {
@@ -44,10 +50,14 @@ export async function rockFetch<T>({
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const response = await fetch(url.toString(), {
+        method,
         headers: {
           'Authorization-Token': ROCK_API_KEY,
           Accept: 'application/json',
+          ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         },
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+        signal: AbortSignal.timeout(timeoutMs),
         next: { revalidate: 0 },
       })
 
@@ -61,6 +71,13 @@ export async function rockFetch<T>({
 
       return (await response.json()) as T
     } catch (error) {
+      if (
+        error instanceof RockAPIError &&
+        error.status < 500 &&
+        error.status !== 429
+      ) {
+        throw error
+      }
       if (attempt === retries) throw error
       // Exponential backoff: 1s, 2s, 4s
       await sleep(1000 * Math.pow(2, attempt))
