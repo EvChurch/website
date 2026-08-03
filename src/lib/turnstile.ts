@@ -6,6 +6,12 @@ type TurnstileResponse = {
   action?: string
 }
 
+export class TurnstileVerificationError extends Error {}
+
+function invalidTurnstile(message: string): never {
+  throw new TurnstileVerificationError(message)
+}
+
 export async function verifyTurnstileToken({
   token,
   remoteIp,
@@ -17,7 +23,7 @@ export async function verifyTurnstileToken({
   expectedHostname?: string | null
   expectedAction?: string | null
 }): Promise<void> {
-  if (!token) throw new Error('Please complete the bot check')
+  if (!token) invalidTurnstile('Please complete the bot check')
 
   const body = new URLSearchParams({
     secret: getTurnstileSecretKey(),
@@ -36,15 +42,15 @@ export async function verifyTurnstileToken({
   const result = (await response.json()) as TurnstileResponse
 
   if (!result.success) {
-    throw new Error('The bot check expired or could not be verified')
+    invalidTurnstile('The bot check expired or could not be verified')
   }
   if (
     expectedHostname &&
     result.hostname?.toLowerCase() !== expectedHostname.toLowerCase()
   ) {
-    throw new Error('The bot check was issued for a different website')
+    invalidTurnstile('The bot check was issued for a different website')
   }
   if (expectedAction && result.action !== expectedAction) {
-    throw new Error('The bot check was issued for a different action')
+    invalidTurnstile('The bot check was issued for a different action')
   }
 }

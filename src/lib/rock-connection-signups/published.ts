@@ -1,9 +1,8 @@
 import { getPayloadClient } from '@/lib/payload'
-
-const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+import { isGuid } from '@/lib/rock-forms/constants'
 
 export async function isRockConnectionSignupPublished(blockGuid: string): Promise<boolean> {
-  if (!GUID_PATTERN.test(blockGuid)) return false
+  if (!isGuid(blockGuid)) return false
   const payload = await getPayloadClient()
   const result = await payload.find({
     collection: 'pages',

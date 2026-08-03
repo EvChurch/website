@@ -77,7 +77,7 @@ describe('Rock Connection submission validation', () => {
       ...base,
       attributes: [
         { attributeGuid: '44444444-4444-4444-8444-444444444444', fieldTypeGuid: '9c204cd0-1233-41c5-818a-c5da439445aa', key: 'OptionalNote', isRequired: false, configurationValues: {} },
-        { attributeGuid: '55555555-5555-5555-8555-555555555555', fieldTypeGuid: 'bd0d9b57-2a41-4490-89ff-f01dab7d4904', key: 'Choices', isRequired: true, configurationValues: { values: '[{"value":"first"},{"value":"second"},{"value":"third"}]' } },
+        { attributeGuid: '55555555-5555-5555-8555-555555555555', fieldTypeGuid: 'bd0d9b57-2a41-4490-89ff-f01dab7d4904', key: 'Choices', isRequired: true, configurationValues: { values: '[{"value":"first","text":"First"},{"value":"second","text":"Second"},{"value":"third","text":"Third"}]' } },
       ],
     }
     expect(validateRockConnectionSubmission({

@@ -6,6 +6,7 @@ import { createMemoryNonceStore, digestConnectionNonce } from '@/lib/rock-connec
 import { createMemoryRateLimitStore } from '@/lib/rock-connection-signups/rate-limit'
 import { RockConnectionSignupOutcomeUnknownError } from '@/lib/rock-connection-signups/server'
 import type { RockConnectionSignupSchema } from '@/lib/rock-connection-signups/types'
+import { TurnstileVerificationError } from '@/lib/turnstile'
 
 const {
   verifyTurnstileToken,
@@ -19,7 +20,10 @@ const {
   sendRockConnectionSignup: vi.fn(),
 }))
 
-vi.mock('@/lib/turnstile', () => ({ verifyTurnstileToken }))
+vi.mock('@/lib/turnstile', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/turnstile')>()),
+  verifyTurnstileToken,
+}))
 vi.mock('@/lib/rock-connection-signups/published', () => ({ isRockConnectionSignupPublished }))
 vi.mock('@/lib/rock-connection-signups/server', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/rock-connection-signups/server')>()),
@@ -146,7 +150,7 @@ describe('public Rock Connection signup route', () => {
     expect(response.status).toBe(403)
     expect(verifyTurnstileToken).not.toHaveBeenCalled()
 
-    verifyTurnstileToken.mockRejectedValueOnce(new Error('The bot check expired or could not be verified'))
+    verifyTurnstileToken.mockRejectedValueOnce(new TurnstileVerificationError('The bot check expired or could not be verified'))
     response = await handlePost(
       request({ intent: 'start', turnstileToken: 'bad' }), context(),
       { nonceStore: createMemoryNonceStore(), rateLimitStore: createMemoryRateLimitStore() },

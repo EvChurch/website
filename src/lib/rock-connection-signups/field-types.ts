@@ -1,16 +1,17 @@
 import type { RockConnectionSignupAttribute, RockListItem } from './types'
+import { ROCK_FIELD_TYPES } from '@/lib/rock-forms/field-types'
 
 export const ROCK_CONNECTION_FIELD_TYPES = {
-  text: '9c204cd0-1233-41c5-818a-c5da439445aa',
-  memo: 'c28c7bf3-a552-4d77-9408-dedcf760ced0',
-  singleSelect: '7525c4cb-ee6b-41d4-9b64-a08048d5a5c0',
-  multiSelect: 'bd0d9b57-2a41-4490-89ff-f01dab7d4904',
-  boolean: '1edafded-dfe6-4334-b019-6eecba89e05a',
-  date: '6b6aa175-4758-453f-8d83-fcd8044b5f36',
-  integer: 'a75dfc58-7a1b-4799-bf31-451b2bbe38ff',
-  currency: '3ee69cbc-35ce-4496-88cc-8327a447603f',
-  phone: '6b1908ec-12a2-463a-a7bd-970ce0faf097',
-  url: 'c0d0d7e2-c3b0-4004-abea-4bbfad10d5d2',
+  text: ROCK_FIELD_TYPES.text,
+  memo: ROCK_FIELD_TYPES.memo,
+  singleSelect: ROCK_FIELD_TYPES.singleSelect,
+  multiSelect: ROCK_FIELD_TYPES.multiSelect,
+  boolean: ROCK_FIELD_TYPES.boolean,
+  date: ROCK_FIELD_TYPES.date,
+  integer: ROCK_FIELD_TYPES.integer,
+  currency: ROCK_FIELD_TYPES.currency,
+  phone: ROCK_FIELD_TYPES.phone,
+  url: ROCK_FIELD_TYPES.url,
 } as const
 
 export type ConnectionAttributeControl =
@@ -37,7 +38,7 @@ const UNAVAILABLE = {
   reason: 'This signup includes a field that is not supported on the website.',
 } as const
 
-function parseOptions(value: string | undefined): RockListItem[] | null {
+export function parseConnectionOptions(value: string | undefined): RockListItem[] | null {
   if (!value) return null
   try {
     const parsed = JSON.parse(value) as unknown
@@ -60,6 +61,26 @@ function parseOptions(value: string | undefined): RockListItem[] | null {
   }
 }
 
+export function connectionAttributeMaxLength(
+  fieldTypeGuid: string,
+  configurationValues: Record<string, string>,
+): number {
+  const type = fieldTypeGuid.toLowerCase()
+  const maximum = type === ROCK_CONNECTION_FIELD_TYPES.text
+    ? 500
+    : type === ROCK_CONNECTION_FIELD_TYPES.memo
+      ? 4_000
+      : type === ROCK_CONNECTION_FIELD_TYPES.phone
+        ? 50
+        : type === ROCK_CONNECTION_FIELD_TYPES.url
+          ? 2_048
+          : 200
+  const configuredMaximum = Number(configurationValues.maxcharacters)
+  return Number.isSafeInteger(configuredMaximum) && configuredMaximum > 0
+    ? Math.min(maximum, configuredMaximum)
+    : maximum
+}
+
 export function getConnectionAttributeControl(
   attribute: RockConnectionSignupAttribute,
 ): ConnectionAttributeControl {
@@ -79,21 +100,12 @@ export function getConnectionAttributeControl(
   const kind = kinds.get(type)
   if (!kind) return UNAVAILABLE
 
-  const maximum = kind === 'text'
-    ? 500
-    : kind === 'memo'
-      ? 4_000
-      : kind === 'phone'
-        ? 50
-        : kind === 'url'
-          ? 2_048
-          : 200
-  const configuredMaximum = Number(attribute.configurationValues.maxcharacters)
-  const maxLength = Number.isSafeInteger(configuredMaximum) && configuredMaximum > 0
-    ? Math.min(maximum, configuredMaximum)
-    : maximum
+  const maxLength = connectionAttributeMaxLength(
+    attribute.fieldTypeGuid,
+    attribute.configurationValues,
+  )
   if (kind === 'singleSelect' || kind === 'multiSelect') {
-    const options = parseOptions(attribute.configurationValues.values)
+    const options = parseConnectionOptions(attribute.configurationValues.values)
     if (!options) return UNAVAILABLE
     return { available: true, kind, maxLength, options }
   }

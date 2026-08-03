@@ -19,6 +19,7 @@ import { getTurnstileSiteKey } from '@/lib/rock-forms/config'
 import type { RockPersonBasicValues, RockPersonEntryValues } from '@/lib/rock-forms/types'
 import { isSameOriginRequest } from '@/lib/request-origin'
 import { safeRockWorkflowRedirect } from '@/lib/rock-forms/redirect'
+import { TurnstileVerificationError } from '@/lib/turnstile'
 
 export const dynamic = 'force-dynamic'
 
@@ -120,13 +121,9 @@ function publicSubmissionError(error: unknown) {
   const safeMessages = [
     'Invalid form context',
     'Expired or invalid form context',
-    'Please complete the bot check',
-    'The bot check expired or could not be verified',
-    'The bot check was issued for a different website',
-    'The bot check was issued for a different action',
   ]
 
-  return safeMessages.includes(message)
+  return error instanceof TurnstileVerificationError || safeMessages.includes(message)
     ? { message, status: 400 }
     : { message: 'Unable to submit this form right now', status: 502 }
 }

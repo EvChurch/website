@@ -1,19 +1,12 @@
 import type { RockConnectionContext, RockConnectionContextAttribute } from './context-token'
 import type { RockConnectionSignupRequestBag, RockPhoneValue } from './types'
+import {
+  connectionAttributeMaxLength,
+  parseConnectionOptions,
+  ROCK_CONNECTION_FIELD_TYPES as FIELD_TYPES,
+} from './field-types'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const FIELD_TYPES = {
-  text: '9c204cd0-1233-41c5-818a-c5da439445aa',
-  memo: 'c28c7bf3-a552-4d77-9408-dedcf760ced0',
-  singleSelect: '7525c4cb-ee6b-41d4-9b64-a08048d5a5c0',
-  multiSelect: 'bd0d9b57-2a41-4490-89ff-f01dab7d4904',
-  boolean: '1edafded-dfe6-4334-b019-6eecba89e05a',
-  date: '6b6aa175-4758-453f-8d83-fcd8044b5f36',
-  integer: 'a75dfc58-7a1b-4799-bf31-451b2bbe38ff',
-  currency: '3ee69cbc-35ce-4496-88cc-8327a447603f',
-  phone: '6b1908ec-12a2-463a-a7bd-970ce0faf097',
-  url: 'c0d0d7e2-c3b0-4004-abea-4bbfad10d5d2',
-} as const
 
 function invalid(): never {
   throw new Error('Invalid submission')
@@ -45,27 +38,9 @@ function phone(value: unknown): RockPhoneValue {
 }
 
 function configuredOptions(attribute: RockConnectionContextAttribute): string[] | null {
-  for (const key of ['values', 'items', 'options']) {
-    const raw = attribute.configurationValues[key]
-    if (!raw) continue
-    try {
-      const parsed = JSON.parse(raw) as unknown
-      if (!Array.isArray(parsed) || parsed.length > 500) return null
-      const values = parsed.flatMap((item): string[] => {
-        if (typeof item === 'string') return [item]
-        if (item && typeof item === 'object') {
-          const candidate = (item as { value?: unknown }).value
-          return typeof candidate === 'string' ? [candidate] : []
-        }
-        return []
-      })
-      if (values.length !== parsed.length) return null
-      return values.length === new Set(values).size ? values : null
-    } catch {
-      return null
-    }
-  }
-  return null
+  return parseConnectionOptions(attribute.configurationValues.values)?.map(
+    ({ value }) => value,
+  ) ?? null
 }
 
 function isCalendarDate(value: string): boolean {
@@ -79,19 +54,10 @@ function isCalendarDate(value: string): boolean {
 }
 
 function validateAttributeValue(attribute: RockConnectionContextAttribute, value: unknown): string {
-  const baseMaximum = attribute.fieldTypeGuid === FIELD_TYPES.text
-    ? 500
-    : attribute.fieldTypeGuid === FIELD_TYPES.memo
-      ? 4_000
-      : attribute.fieldTypeGuid === FIELD_TYPES.phone
-        ? 50
-        : attribute.fieldTypeGuid === FIELD_TYPES.url
-          ? 2_048
-          : 200
-  const configuredMaximum = Number(attribute.configurationValues.maxcharacters)
-  const maximum = Number.isSafeInteger(configuredMaximum) && configuredMaximum > 0
-    ? Math.min(baseMaximum, configuredMaximum)
-    : baseMaximum
+  const maximum = connectionAttributeMaxLength(
+    attribute.fieldTypeGuid,
+    attribute.configurationValues,
+  )
   const string = boundedString(value, maximum, attribute.isRequired)
   if (!string && !attribute.isRequired) return ''
 

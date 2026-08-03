@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { sql } from '@payloadcms/db-postgres'
 
 import { getPayloadClient } from '@/lib/payload'
+import { drizzleResultRows } from './db-result'
 
 export type ConnectionNonceRecord = {
   nonceDigest: string
@@ -18,12 +19,6 @@ export type ConnectionNonceStore = {
 
 export function digestConnectionNonce(nonce: string): string {
   return createHash('sha256').update(nonce).digest('hex')
-}
-
-function resultRows(value: unknown): unknown[] {
-  if (Array.isArray(value)) return value
-  if (value && typeof value === 'object' && 'rows' in value && Array.isArray(value.rows)) return value.rows
-  return []
 }
 
 export function createMemoryNonceStore(now = () => new Date()): ConnectionNonceStore {
@@ -64,7 +59,7 @@ export function createPostgresNonceStore(): ConnectionNonceStore {
           AND "expires_at" > now()
         RETURNING "nonce_digest"
       `)
-      return resultRows(result).length === 1
+      return drizzleResultRows(result).length === 1
     },
   }
 }

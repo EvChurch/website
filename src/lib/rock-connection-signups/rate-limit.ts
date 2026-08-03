@@ -3,6 +3,7 @@ import { isIP } from 'node:net'
 import { sql } from '@payloadcms/db-postgres'
 
 import { getPayloadClient } from '@/lib/payload'
+import { drizzleResultRows } from './db-result'
 
 export type ConnectionRateClass = 'start' | 'submit'
 
@@ -44,12 +45,6 @@ export function digestConnectionClientAddress(address: string): string {
   return createHmac('sha256', secret()).update(`rock-connection-client\0${address}`).digest('hex')
 }
 
-function resultRows(value: unknown): unknown[] {
-  if (Array.isArray(value)) return value
-  if (value && typeof value === 'object' && 'rows' in value && Array.isArray(value.rows)) return value.rows
-  return []
-}
-
 export function createPostgresRateLimitStore(): ConnectionRateLimitStore {
   return {
     async increment(record) {
@@ -63,7 +58,7 @@ export function createPostgresRateLimitStore(): ConnectionRateLimitStore {
         DO UPDATE SET "count" = "rock_connection_signup_rate_limits"."count" + 1
         RETURNING "count"
       `)
-      const row = resultRows(result)[0]
+      const row = drizzleResultRows(result)[0]
       const count = row && typeof row === 'object' && 'count' in row ? Number(row.count) : NaN
       if (!Number.isSafeInteger(count) || count < 1) throw new Error('Connection rate limit is unavailable')
       return count

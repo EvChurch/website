@@ -1,7 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 
+import {
+  ROCK_CONNECTION_START_ACTION,
+  ROCK_CONNECTION_SUBMIT_ACTION,
+} from '@/lib/rock-connection-signups/constants'
 import { connectionSchemaAvailability } from '@/lib/rock-connection-signups/field-types'
 import type {
   RockConnectionSignupRequestBag,
@@ -12,8 +16,7 @@ import { RockAttributeField, formInputClass, formLabelClass } from './RockAttrib
 import { SafeRockHtml } from './SafeRockHtml'
 import { TurnstileWidget } from './TurnstileWidget'
 
-export const ROCK_CONNECTION_START_ACTION = 'rock-connection-signup-start'
-export const ROCK_CONNECTION_SUBMIT_ACTION = 'rock-connection-signup-submit'
+export { ROCK_CONNECTION_START_ACTION, ROCK_CONNECTION_SUBMIT_ACTION }
 
 type PublicConnectionSchema = Omit<RockConnectionSignupSchema, 'sessionGuid' | 'interactionGuid'>
 
@@ -144,7 +147,10 @@ export function ConnectionSignupFields({
   const set = <Key extends keyof ConnectionSignupValues>(key: Key, value: ConnectionSignupValues[Key]) => {
     onChange({ ...values, [key]: value })
   }
-  const orderedAttributes = [...schema.attributes].sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))
+  const orderedAttributes = useMemo(
+    () => [...schema.attributes].sort((a, b) => a.order - b.order || a.name.localeCompare(b.name)),
+    [schema.attributes],
+  )
 
   return (
     <div className="space-y-7">
@@ -254,6 +260,7 @@ export function RockConnectionOpportunitySignup({ blockGuid }: { blockGuid: stri
   const [turnstileToken, setTurnstileToken] = useState('')
   const [turnstileResetKey, setTurnstileResetKey] = useState(0)
   const [configurationError, setConfigurationError] = useState('')
+  const startingLock = useRef(false)
   const submitting = useRef(false)
   const errorRef = useRef<HTMLParagraphElement>(null)
 
@@ -285,7 +292,8 @@ export function RockConnectionOpportunitySignup({ blockGuid }: { blockGuid: stri
   }, [])
 
   const start = useCallback(async (token: string) => {
-    if (!token || starting) return
+    if (!token || startingLock.current) return
+    startingLock.current = true
     setStarting(true)
     try {
       const response = await fetch(endpoint, {
@@ -307,10 +315,11 @@ export function RockConnectionOpportunitySignup({ blockGuid }: { blockGuid: stri
     } catch (error) {
       dispatch({ type: 'failed', message: error instanceof Error ? error.message : 'Unable to start this signup' })
     } finally {
+      startingLock.current = false
       setStarting(false)
       resetTurnstile()
     }
-  }, [endpoint, resetTurnstile, starting])
+  }, [endpoint, resetTurnstile])
 
   if (loadingSiteKey) return <p role="status" aria-live="polite" className="text-dark-grey">Loading signup…</p>
   if (configurationError) {

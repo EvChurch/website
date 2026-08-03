@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import { connectionSchemaAvailability } from './field-types'
+import { isGuid as isRockGuid } from '@/lib/rock-forms/constants'
 
 import {
   getRockConnectionApiBaseUrl,
@@ -21,25 +22,10 @@ import type {
 export const CONNECTION_OPPORTUNITY_SIGNUP_BLOCK_TYPE_GUID =
   '35d5ef65-0b0d-4e99-82b5-3f5fc2e0344f'
 
-const GUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const MAX_RESPONSE_BYTES = 512_000
 const MAX_JSON_DEPTH = 16
 const MAX_JSON_NODES = 10_000
 const REQUEST_TIMEOUT_MS = 10_000
-
-const SUPPORTED_FIELD_TYPES = new Set([
-  '9c204cd0-1233-41c5-818a-c5da439445aa', // Text
-  'c28c7bf3-a552-4d77-9408-dedcf760ced0', // Memo
-  '7525c4cb-ee6b-41d4-9b64-a08048d5a5c0', // Single Select
-  'bd0d9b57-2a41-4490-89ff-f01dab7d4904', // Multi Select
-  '1edafded-dfe6-4334-b019-6eecba89e05a', // Boolean
-  '6b6aa175-4758-453f-8d83-fcd8044b5f36', // Date
-  'a75dfc58-7a1b-4799-bf31-451b2bbe38ff', // Integer
-  '3ee69cbc-35ce-4496-88cc-8327a447603f', // Currency
-  '6b1908ec-12a2-463a-a7bd-970ce0faf097', // Phone
-  'c0d0d7e2-c3b0-4004-abea-4bbfad10d5d2', // URL
-])
 
 type RockAttributeValue = { Value?: unknown }
 
@@ -97,7 +83,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isGuid(value: unknown): value is string {
-  return typeof value === 'string' && GUID_PATTERN.test(value)
+  return typeof value === 'string' && isRockGuid(value)
 }
 
 function normalizedGuid(value: string): string {
@@ -217,13 +203,17 @@ function parseBlockList(value: unknown): RockBlockMetadata[] {
   return value.filter(isRecord) as RockBlockMetadata[]
 }
 
-async function fetchBlockMetadata(): Promise<RockBlockMetadata[]> {
+async function fetchBlockMetadata(blockGuid?: string): Promise<RockBlockMetadata[]> {
+  const typeFilter = `BlockType/Guid eq guid'${CONNECTION_OPPORTUNITY_SIGNUP_BLOCK_TYPE_GUID}'`
   return parseBlockList(
     await rockRequest({
       path: 'Blocks',
       params: {
-        '$filter': `BlockType/Guid eq guid'${CONNECTION_OPPORTUNITY_SIGNUP_BLOCK_TYPE_GUID}'`,
+        '$filter': blockGuid
+          ? `${typeFilter} and Guid eq guid'${blockGuid}'`
+          : typeFilter,
         '$expand': 'BlockType,Page',
+        ...(blockGuid ? { '$top': '2' } : {}),
         loadAttributes: 'simple',
       },
       authenticated: true,
@@ -293,11 +283,12 @@ function parseStructuralCandidate(
 
 async function resolveCandidate(
   block: RockBlockMetadata,
+  loadOpportunity = fetchOpportunity,
 ): Promise<EligibleCandidate | null> {
   const candidate = parseStructuralCandidate(block)
   if (!candidate) return null
 
-  const opportunity = await fetchOpportunity(candidate.opportunityGuid)
+  const opportunity = await loadOpportunity(candidate.opportunityGuid)
   if (
     !opportunity ||
     !isGuid(opportunity.Guid) ||
@@ -330,7 +321,6 @@ function parseAttribute(
   if (
     !isGuid(attributeGuid) ||
     !isGuid(fieldTypeGuid) ||
-    !SUPPORTED_FIELD_TYPES.has(normalizedGuid(fieldTypeGuid)) ||
     typeof key !== 'string' ||
     key !== mapKey ||
     key.length === 0 ||
@@ -477,16 +467,15 @@ async function refreshCandidate(
 }
 
 async function findCandidate(blockGuid: string): Promise<EligibleCandidate> {
-  const blocks = await fetchBlockMetadata()
-  const matching = blocks.filter(
-    (block) =>
-      typeof block.Guid === 'string' &&
-      block.Guid.toLowerCase() === blockGuid.toLowerCase(),
-  )
-  if (matching.length !== 1) {
+  const blocks = await fetchBlockMetadata(blockGuid)
+  if (
+    blocks.length !== 1 ||
+    typeof blocks[0].Guid !== 'string' ||
+    normalizedGuid(blocks[0].Guid) !== blockGuid
+  ) {
     throw new RockConnectionUnavailableError('not available')
   }
-  const candidate = await resolveCandidate(matching[0])
+  const candidate = await resolveCandidate(blocks[0])
   if (!candidate) throw new RockConnectionUnavailableError('not available')
   return candidate
 }
@@ -511,9 +500,20 @@ export async function listEligibleRockConnectionSignups(): Promise<
 > {
   const blocks = await fetchBlockMetadata()
   const options: RockConnectionSignupOption[] = []
+  const opportunities = new Map<
+    string,
+    Promise<RockOpportunityMetadata | null>
+  >()
+  const loadOpportunity = (guid: string) => {
+    const existing = opportunities.get(guid)
+    if (existing) return existing
+    const pending = fetchOpportunity(guid)
+    opportunities.set(guid, pending)
+    return pending
+  }
 
   for (const block of blocks) {
-    const candidate = await resolveCandidate(block)
+    const candidate = await resolveCandidate(block, loadOpportunity)
     if (!candidate) continue
     try {
       await refreshCandidate(candidate)

@@ -45,7 +45,8 @@ function invalid(): never {
 
 function exactKeys(value: Record<string, unknown>, keys: string[]): boolean {
   const actual = Object.keys(value).sort()
-  return actual.length === keys.length && actual.every((key, index) => key === [...keys].sort()[index])
+  const expected = [...keys].sort()
+  return actual.length === expected.length && actual.every((key, index) => key === expected[index])
 }
 
 function keyRing(): SigningKey[] {

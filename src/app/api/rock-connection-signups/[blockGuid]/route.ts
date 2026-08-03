@@ -2,12 +2,17 @@ import { randomUUID } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 
 import { getTurnstileSiteKey } from '@/lib/rock-forms/config'
+import { isGuid } from '@/lib/rock-forms/constants'
 import {
   createRockConnectionContextToken,
   createRockConnectionNonce,
   verifyRockConnectionContextToken,
   type RockConnectionContext,
 } from '@/lib/rock-connection-signups/context-token'
+import {
+  ROCK_CONNECTION_START_ACTION,
+  ROCK_CONNECTION_SUBMIT_ACTION,
+} from '@/lib/rock-connection-signups/constants'
 import {
   createPostgresNonceStore,
   digestConnectionNonce,
@@ -32,21 +37,16 @@ import {
   validateRockConnectionSubmission,
 } from '@/lib/rock-connection-signups/validation'
 import { isSameOriginRequest } from '@/lib/request-origin'
-import { verifyTurnstileToken } from '@/lib/turnstile'
+import {
+  TurnstileVerificationError,
+  verifyTurnstileToken,
+} from '@/lib/turnstile'
 
 export const dynamic = 'force-dynamic'
-export const ROCK_CONNECTION_START_ACTION = 'rock-connection-signup-start'
-export const ROCK_CONNECTION_SUBMIT_ACTION = 'rock-connection-signup-submit'
+export { ROCK_CONNECTION_START_ACTION, ROCK_CONNECTION_SUBMIT_ACTION }
 
 const NO_STORE = { 'Cache-Control': 'no-store, max-age=0' }
 const MAX_REQUEST_BYTES = 128_000
-const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const SAFE_TURNSTILE_ERRORS = new Set([
-  'Please complete the bot check',
-  'The bot check expired or could not be verified',
-  'The bot check was issued for a different website',
-  'The bot check was issued for a different action',
-])
 
 type RouteContext = { params: Promise<{ blockGuid: string }> }
 type RouteDependencies = {
@@ -77,17 +77,13 @@ async function boundedJson(request: NextRequest): Promise<Record<string, unknown
   return value as Record<string, unknown>
 }
 
-function contextFromSchema(schema: RockConnectionSignupSchema, now: number): RockConnectionContext {
+function contextClaimsFromSchema(schema: RockConnectionSignupSchema) {
   return {
-    version: 1,
-    purpose: 'rock-connection-signup',
-    audience: 'ev.church',
     pageGuid: schema.pageGuid,
     blockGuid: schema.blockGuid,
     opportunityGuid: schema.opportunityGuid,
     sessionGuid: schema.sessionGuid,
     interactionGuid: schema.interactionGuid,
-    nonce: createRockConnectionNonce(),
     campuses: schema.campuses.map(({ value }) => value),
     selectedCampusId: schema.selectedCampusId,
     displayHomePhone: schema.displayHomePhone,
@@ -99,13 +95,23 @@ function contextFromSchema(schema: RockConnectionSignupSchema, now: number): Roc
       isRequired,
       configurationValues,
     })),
+  }
+}
+
+function contextFromSchema(schema: RockConnectionSignupSchema, now: number): RockConnectionContext {
+  return {
+    version: 1,
+    purpose: 'rock-connection-signup',
+    audience: 'ev.church',
+    ...contextClaimsFromSchema(schema),
+    nonce: createRockConnectionNonce(),
     issuedAt: now,
     expiresAt: now + 5 * 60_000,
   }
 }
 
 function schemasMatchContext(schema: RockConnectionSignupSchema, context: RockConnectionContext): boolean {
-  const current = contextFromSchema(schema, context.issuedAt)
+  const current = contextClaimsFromSchema(schema)
   return (
     current.pageGuid === context.pageGuid &&
     current.blockGuid === context.blockGuid &&
@@ -137,7 +143,7 @@ async function protectRequest(
   body: Record<string, unknown>,
   routeClass: 'start' | 'submit',
   dependencies: RouteDependencies,
-): Promise<string> {
+): Promise<void> {
   const address = trustedConnectionClientAddress(request.headers)
   await enforceConnectionRateLimit({ address, routeClass, store: dependencies.rateLimitStore })
   await verifyTurnstileToken({
@@ -146,13 +152,12 @@ async function protectRequest(
     expectedHostname: expectedHostname(request),
     expectedAction: routeClass === 'start' ? ROCK_CONNECTION_START_ACTION : ROCK_CONNECTION_SUBMIT_ACTION,
   })
-  return address
 }
 
 export async function GET(_request: NextRequest, routeContext: RouteContext) {
   try {
     const { blockGuid } = await routeContext.params
-    if (!GUID_PATTERN.test(blockGuid)) return errorResponse('Invalid signup identifier', 400)
+    if (!isGuid(blockGuid)) return errorResponse('Invalid signup identifier', 400)
     if (!(await isRockConnectionSignupPublished(blockGuid))) return errorResponse('This signup is not published on the website', 404)
     return response({ turnstileSiteKey: getTurnstileSiteKey() })
   } catch {
@@ -174,7 +179,7 @@ export async function handlePost(
   try {
     if (!isSameOriginRequest(request)) return errorResponse('Invalid request origin', 403)
     const { blockGuid: rawBlockGuid } = await routeContext.params
-    if (!GUID_PATTERN.test(rawBlockGuid)) return errorResponse('Invalid signup identifier', 400)
+    if (!isGuid(rawBlockGuid)) return errorResponse('Invalid signup identifier', 400)
     const blockGuid = rawBlockGuid.toLowerCase()
     const body = await boundedJson(request)
     operation = body.intent === 'submit' ? 'submit' : body.intent === 'start' ? 'start' : 'unknown'
@@ -246,7 +251,7 @@ export async function handlePost(
       return response({ error: 'The submission outcome could not be confirmed', outcomeUnknown: true }, 504)
     }
     const message = error instanceof Error ? error.message : ''
-    if (SAFE_TURNSTILE_ERRORS.has(message)) return errorResponse(message, 400)
+    if (error instanceof TurnstileVerificationError) return errorResponse(error.message, 400)
     if (['Invalid request', 'Invalid connection context', 'Invalid submission'].includes(message)) return errorResponse(message, 400)
     logFailure(correlationId, operation, 'service_unavailable', startedAt)
     return errorResponse('Unable to process this signup right now', 503)
