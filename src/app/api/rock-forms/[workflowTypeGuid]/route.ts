@@ -18,6 +18,7 @@ import {
 import { getTurnstileSiteKey } from '@/lib/rock-forms/config'
 import type { RockPersonBasicValues, RockPersonEntryValues } from '@/lib/rock-forms/types'
 import { isSameOriginRequest } from '@/lib/request-origin'
+import { safeRockWorkflowRedirect } from '@/lib/rock-forms/redirect'
 
 export const dynamic = 'force-dynamic'
 
@@ -269,17 +270,30 @@ export async function POST(request: NextRequest, context: RouteContext) {
       })
     }
 
+    const completionMessage = result.actionData?.message
+    const isRedirectAction =
+      completionMessage?.type === 4 ||
+      completionMessage?.type === 'Redirect'
+    const requestedRedirect =
+      isRedirectAction
+        ? completionMessage?.content || null
+        : result.url || null
+    const requestOrigin =
+      request.headers.get('origin') || request.nextUrl.origin
+    const redirectUrl = safeRockWorkflowRedirect(
+      requestedRedirect,
+      requestOrigin,
+    )
+
     return NextResponse.json({
       status: 'complete',
       message:
-        result.actionData?.message?.content ||
+        (isRedirectAction && !redirectUrl
+          ? null
+          : completionMessage?.content) ||
         result.noActionMessage ||
         'Thanks. Your form has been submitted.',
-      redirectUrl:
-        result.actionData?.message?.type === 4 ||
-        result.actionData?.message?.type === 'Redirect'
-          ? result.actionData.message.content || null
-          : result.url || null,
+      redirectUrl,
     })
   } catch (error) {
     console.error('Unable to submit Rock form', error)

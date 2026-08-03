@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
 const mocks = vi.hoisted(() => ({
@@ -46,6 +46,11 @@ describe('Rock form route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.isPublished.mockResolvedValue(true)
+    process.env.ROCK_WORKFLOW_REDIRECT_ORIGINS = 'https://ev.church'
+  })
+
+  afterEach(() => {
+    delete process.env.ROCK_WORKFLOW_REDIRECT_ORIGINS
   })
 
   it('does not start a Rock workflow until Turnstile is verified', async () => {
@@ -97,6 +102,66 @@ describe('Rock form route', () => {
       status: 'complete',
       message: 'https://ev.church/thanks',
       redirectUrl: 'https://ev.church/thanks',
+    })
+  })
+
+  it('normalizes relative Workflow redirects against the verified request origin', async () => {
+    mocks.verifyContext.mockReturnValue({
+      workflowTypeGuid,
+      initialFieldValues: {},
+      allowedFields: [],
+      buttonTitles: ['Submit'],
+    })
+    mocks.submitForm.mockResolvedValue({
+      workflow: { guid: workflowTypeGuid, name: 'Contact Us' },
+      action: { url: '/thanks?source=workflow' },
+    })
+    const body = new FormData()
+    body.set('contextToken', 'signed-context')
+    body.set('turnstileToken', 'verified-token')
+    body.set('fieldValues', '{}')
+    body.set('personEntryValues', 'null')
+    body.set('button', 'Submit')
+
+    const response = await POST(postRequest(body), routeContext)
+    expect(await response.json()).toMatchObject({
+      status: 'complete',
+      redirectUrl: 'http://localhost/thanks?source=workflow',
+    })
+    expect(mocks.submitForm).toHaveBeenCalledOnce()
+  })
+
+  it('removes an unsafe Workflow redirect after submission', async () => {
+    mocks.verifyContext.mockReturnValue({
+      workflowTypeGuid,
+      initialFieldValues: {},
+      allowedFields: [],
+      buttonTitles: ['Submit'],
+    })
+    mocks.submitForm.mockResolvedValue({
+      workflow: { guid: workflowTypeGuid, name: 'Contact Us' },
+      action: {
+        actionData: {
+          message: {
+            type: 'Redirect',
+            content: 'javascript:alert(document.cookie)',
+          },
+        },
+      },
+    })
+    const body = new FormData()
+    body.set('contextToken', 'signed-context')
+    body.set('turnstileToken', 'verified-token')
+    body.set('fieldValues', '{}')
+    body.set('personEntryValues', 'null')
+    body.set('button', 'Submit')
+
+    const response = await POST(postRequest(body), routeContext)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      status: 'complete',
+      message: 'Thanks. Your form has been submitted.',
+      redirectUrl: null,
     })
   })
 
