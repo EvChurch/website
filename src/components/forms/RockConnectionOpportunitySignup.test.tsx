@@ -36,7 +36,7 @@ describe('Rock Connection Opportunity signup UI', () => {
     expect(emptyConnectionSignupValues(schema({ selectedCampusId: 2 })).campusId).toBe('2')
   })
 
-  it('renders ordered built-ins, campus, phones, and comments as text', () => {
+  it('renders ordered built-ins without repeating Rock opportunity metadata', () => {
     const markup = renderToStaticMarkup(
       <ConnectionSignupFields
         schema={schema()}
@@ -47,8 +47,10 @@ describe('Rock Connection Opportunity signup UI', () => {
     for (const label of ['First name', 'Last name', 'Email', 'Campus', 'Home phone', 'Mobile phone', 'Anything else?']) {
       expect(markup).toContain(label)
     }
-    expect(markup).toContain('&lt;script&gt;')
+    expect(markup).not.toContain('Newish')
     expect(markup).not.toContain('<script>')
+    expect(markup).toContain('font-serif text-base font-bold')
+    expect(markup).toContain('min-h-9 w-full rounded-[4px]')
   })
 
   it('hides a sole campus while preserving it in the submission', () => {

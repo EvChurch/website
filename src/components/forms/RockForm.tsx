@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SafeRockHtml } from './SafeRockHtml'
 import { TurnstileWidget } from './TurnstileWidget'
-import { formInputClass as inputClass, formLabelClass as labelClass } from './form-styles'
+import {
+  formGridGapClass,
+  formInputClass as inputClass,
+  formLabelClass as labelClass,
+  formRootClass,
+  formSubmitClass as submitClass,
+  formTwoColumnGridClass,
+} from './form-styles'
 import {
   parseRockOptions,
   ROCK_FIELD_TYPES,
@@ -53,7 +60,7 @@ function PersonFields({
   const fieldPrefix = prefix ? `${prefix} ` : ''
 
   return (
-    <div className="grid gap-5 sm:grid-cols-2">
+    <div className={formTwoColumnGridClass}>
       <label className={labelClass}>
         {fieldPrefix}First name <span aria-hidden="true">*</span>
         <input
@@ -167,7 +174,7 @@ function AddressInputs({
     onChange(JSON.stringify({ ...address, [key]: nextValue }))
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className={formTwoColumnGridClass}>
       <input
         className={`${inputClass} sm:col-span-2`}
         aria-label="Street address"
@@ -656,7 +663,7 @@ export function RockForm({ workflowTypeGuid }: { workflowTypeGuid: string }) {
     setFieldValues((current) => ({ ...current, [guid]: value }))
 
   const renderFields = (fields: RockFormField[]) => (
-    <div className="grid grid-cols-12 gap-x-5 gap-y-6">
+    <div className={`grid grid-cols-12 ${formGridGapClass}`}>
       {fields.map((field) =>
         isRockRuleVisible(field.visibilityRule, fieldValues) ? (
           <div
@@ -692,7 +699,7 @@ export function RockForm({ workflowTypeGuid }: { workflowTypeGuid: string }) {
 
   return (
     <form
-      className="space-y-8"
+      className={formRootClass}
       onSubmit={async (event) => {
         event.preventDefault()
         if (!turnstileToken) {
@@ -882,7 +889,7 @@ export function RockForm({ workflowTypeGuid }: { workflowTypeGuid: string }) {
         {schema.buttons.map((button) => (
             <button
               key={button.title}
-              className="rounded-full bg-rich-red px-7 py-3 font-semibold text-white transition hover:bg-rich-red/90 disabled:cursor-not-allowed disabled:opacity-60"
+              className={submitClass}
               type="submit"
               value={button.title}
               disabled={submitting}
