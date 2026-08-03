@@ -4,6 +4,7 @@ import { resolve, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { existsSync, readFileSync } from 'node:fs'
 import sharp from 'sharp'
+import { ensureNewishConnectionForm } from './newish-form'
 
 async function generateBlur(filePath: string): Promise<string | null> {
   try {
@@ -835,6 +836,7 @@ async function seed() {
       },
       {
         blockType: 'formEmbed',
+        sourceType: 'workflow',
         rockWorkflowGuid: '874418b5-a477-4382-94dc-38060b005bfa',
         layout: 'full',
       },
@@ -1068,7 +1070,7 @@ async function seed() {
   await upsertPage('newish', {
     title: 'Newish Connect',
     _status: 'published',
-    layout: [
+    layout: ensureNewishConnectionForm([
       {
         blockType: 'hero',
         image: img('newish-connect-banner'),
@@ -1137,7 +1139,7 @@ async function seed() {
           { label: 'Get in touch', href: '/contact', variant: 'secondary' },
         ],
       },
-    ],
+    ]),
     seo: {
       metaTitle: 'New to Ev Church Auckland? | Newish Connect',
       metaDescription: 'Just started coming to Ev Church? Newish Connect is the perfect way to meet people and find where you belong.',
@@ -1213,6 +1215,7 @@ async function seed() {
         eyebrow: 'Register your interest',
         heading: 'Sign up for the next course',
         description: 'The next Explaining Christianity course will be announced soon. Register your interest and we will let you know when dates are confirmed.',
+        sourceType: 'workflow',
         rockWorkflowGuid: '16d675d3-00cf-459e-990d-817003cbbc88',
         layout: 'centered',
       },
