@@ -27,15 +27,13 @@ export function EventImage({ event, priority = false, sizes, className = '' }: E
 
   return (
     <div
-      className={`absolute inset-0 flex items-end overflow-hidden bg-brand-black ${className}`}
+      className={`absolute inset-0 flex items-end overflow-hidden bg-[#1d1d1d] ${className}`}
       role="img"
       aria-label={`${event.title} event artwork`}
     >
-      <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-rich-red/80 blur-2xl" />
-      <div className="absolute -bottom-28 -left-16 h-72 w-72 rounded-full bg-deep-red/70 blur-3xl" />
-      <div className="relative p-6 text-xs font-bold uppercase tracking-[0.24em] text-white/70">
-        Ev Church Event
-      </div>
+      <div className="absolute -right-20 -top-28 h-80 w-80 rounded-full bg-rich-red/85 blur-[70px]" />
+      <div className="absolute -bottom-36 left-[12%] h-80 w-[70%] rounded-full bg-deep-red/45 blur-[90px]" />
+      <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_center,white_1px,transparent_1px)] [background-size:24px_24px]" />
     </div>
   )
 }

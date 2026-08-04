@@ -16,9 +16,9 @@ export function EventStatus({ event, compact = false }: { event: PublicEvent; co
     <span
       className={`inline-flex items-center gap-2 font-semibold ${
         compact ? 'text-xs uppercase tracking-[0.12em]' : 'text-sm'
-      } ${isOpen ? 'text-rich-red' : 'text-mid-grey'}`}
+      } ${isOpen ? 'text-light-red-1' : 'text-white/55'}`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${isOpen ? 'bg-rich-red' : 'bg-mid-grey/60'}`} />
+      <span className={`h-1.5 w-1.5 rounded-full ${isOpen ? 'bg-light-red-1' : 'bg-white/40'}`} />
       {labels[status]}
     </span>
   )

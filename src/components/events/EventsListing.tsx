@@ -27,31 +27,25 @@ export async function EventsListing({
   const remaining = events.slice(1)
 
   return (
-    <div className="bg-warm-white">
-      {featured ? (
-        <EventFeature event={featured} />
-      ) : (
-        <section className="bg-brand-black px-5 pb-20 pt-40 text-white lg:px-8 lg:pb-24">
-          <div className="mx-auto max-w-[80rem]">
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-light-red-2">Events</p>
-            <h1 className="mt-4 max-w-4xl text-[clamp(3.5rem,9vw,7.5rem)] leading-[0.9] tracking-[-0.045em] text-white">
-              {heading}
-            </h1>
-          </div>
-        </section>
-      )}
-
-      <section className="px-5 py-16 lg:px-8 lg:py-24">
+    <div className="min-h-screen bg-[#080808] text-white">
+      <section className="px-5 pb-5 pt-24 lg:px-8 lg:pb-6 lg:pt-28">
         <div className="mx-auto max-w-[80rem]">
-          <div className="max-w-3xl">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-rich-red">Upcoming events</p>
-            <h2 className="mt-3 text-[clamp(2.4rem,5vw,4.5rem)] leading-[0.95] tracking-[-0.035em] text-brand-black">
-              {heading}
-            </h2>
-            <p className="mt-5 text-lg leading-relaxed text-dark-grey">{introduction}</p>
+          <div className="flex flex-wrap items-end justify-between gap-5">
+            <div className="max-w-3xl">
+              <h1 className="text-[clamp(2rem,3vw,2.75rem)] leading-tight tracking-[-0.025em] text-white">{heading}</h1>
+            </div>
+            <p className="max-w-xl text-base leading-relaxed text-white/60">{introduction}</p>
           </div>
 
-          <nav className="mt-10 flex flex-wrap gap-2" aria-label="Filter events by campus">
+          {featured && <div className="mt-8"><EventFeature event={featured} /></div>}
+        </div>
+      </section>
+
+      <section className="px-5 pb-20 pt-5 lg:px-8 lg:pb-28 lg:pt-6">
+        <div className="mx-auto max-w-[80rem]">
+          <h2 className="text-[clamp(1.75rem,3vw,2.5rem)] leading-tight tracking-[-0.02em] text-white">Happening at our church</h2>
+
+          <nav className="mt-7 flex flex-wrap gap-2" aria-label="Filter events by campus">
             {filters.map((filter) => {
               const active = filter.slug === (campusSlug ?? null)
               return (
@@ -59,10 +53,10 @@ export async function EventsListing({
                   key={filter.href}
                   href={filter.href}
                   aria-current={active ? 'page' : undefined}
-                  className={`inline-flex min-h-11 items-center border px-5 text-sm font-bold transition-colors focus:outline-none focus:ring-4 focus:ring-light-red-2 ${
+                  className={`inline-flex min-h-10 items-center rounded-full border px-5 text-sm font-bold transition-colors focus:outline-none focus:ring-4 focus:ring-rich-red ${
                     active
-                      ? 'border-brand-black bg-brand-black text-white'
-                      : 'border-warm-grey bg-transparent text-brand-black hover:border-rich-red hover:text-rich-red'
+                      ? 'border-white bg-white text-brand-black'
+                      : 'border-white/25 bg-transparent text-white/75 hover:border-white hover:text-white'
                   }`}
                 >
                   {filter.label}
@@ -72,19 +66,19 @@ export async function EventsListing({
           </nav>
 
           {remaining.length > 0 ? (
-            <div className="mt-14 grid grid-cols-1 gap-x-7 gap-y-14 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-10 grid grid-cols-1 gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3">
               {remaining.map((event) => (
                 <EventCard key={event.id} event={event} />
               ))}
             </div>
           ) : featured ? (
-            <p className="mt-14 border-t border-warm-grey pt-8 text-dark-grey">
+            <p className="mt-10 border-t border-white/15 pt-8 text-white/60">
               That’s the next event for this campus. Check back soon for more.
             </p>
           ) : (
-            <div className="mt-14 border-y border-warm-grey py-12">
-              <h2 className="text-2xl text-brand-black">No upcoming events just yet</h2>
-              <p className="mt-3 max-w-xl text-dark-grey">
+            <div className="mt-10 rounded-[1.25rem] border border-white/15 px-6 py-12">
+              <h3 className="text-2xl text-white">No upcoming events just yet</h3>
+              <p className="mt-3 max-w-xl text-white/60">
                 New events are added regularly. You can browse every campus or check back soon.
               </p>
               {campusSlug && (
