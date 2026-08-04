@@ -50,6 +50,21 @@ export function normalizeRockDateTime(value: string | null): string | null {
   return new Date(instant).toISOString()
 }
 
+export function selectNextEventOccurrences(
+  occurrences: RockEventItemOccurrence[],
+): RockEventItemOccurrence[] {
+  const selectedEventItemIds = new Set<number>()
+
+  return occurrences.filter((occurrence) => {
+    if (!occurrence.NextStartDateTime || selectedEventItemIds.has(occurrence.EventItemId)) {
+      return false
+    }
+
+    selectedEventItemIds.add(occurrence.EventItemId)
+    return true
+  })
+}
+
 export function mapRockEvent(rock: RockEventItemOccurrence, eventItem: RockEventItem) {
   return {
     title: eventItem.Name,

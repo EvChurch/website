@@ -177,7 +177,7 @@ export type RockEventItemOccurrence = {
     iCalendarContent: string
     EffectiveEndDate: string
   }
-  NextStartDateTime: string
+  NextStartDateTime: string | null
   CampusId: number | null
   Location?: string
   ContactPersonAlias?: {

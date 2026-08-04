@@ -9,7 +9,7 @@ import type {
 } from '@/lib/rock-api'
 import { mapRockCampus } from './mappers/campus'
 import { mapRockTeamMember, TEAM_GROUP_IDS } from './mappers/team-member'
-import { mapRockEvent } from './mappers/event'
+import { mapRockEvent, selectNextEventOccurrences } from './mappers/event'
 import { mapRockConnectGroup } from './mappers/connect-group'
 import { syncRockImage } from './rock-media'
 import { runSermonSync } from './sermon-sync-runner'
@@ -159,12 +159,9 @@ async function syncEvents(): Promise<SyncResult> {
       },
     })
     const eventItemsById = new Map(eventItems.map((eventItem) => [eventItem.Id, eventItem]))
-    const syncedEventItemIds = new Set<number>()
-
-    for (const occ of occurrences) {
+    for (const occ of selectNextEventOccurrences(occurrences)) {
       const eventItem = eventItemsById.get(occ.EventItemId)
-      if (!eventItem || syncedEventItemIds.has(eventItem.Id)) continue
-      syncedEventItemIds.add(eventItem.Id)
+      if (!eventItem) continue
 
       const mapped = mapRockEvent(occ, eventItem)
       const { _campusRockId, _imageUrl, ...eventData } = mapped
