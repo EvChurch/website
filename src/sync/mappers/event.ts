@@ -3,7 +3,9 @@ import type {
   RockEventCalendarItem,
   RockEventItem,
   RockEventItemOccurrence,
+  RockPerson,
 } from '@/lib/rock-api'
+import { getRockPersonName } from './person'
 
 function slugify(name: string): string {
   return name
@@ -91,7 +93,15 @@ export function getEventItemIdsForCalendar(
   return eventItemIds
 }
 
-export function mapRockEvent(rock: RockEventItemOccurrence, eventItem: RockEventItem) {
+export function mapRockEvent(
+  rock: RockEventItemOccurrence,
+  eventItem: RockEventItem,
+  resolvedContactPerson?: RockPerson | null,
+) {
+  const contactPerson = resolvedContactPerson ?? rock.ContactPersonAlias?.Person
+  const contactEmail = rock.ContactEmail || contactPerson?.Email || ''
+  const contactPhone = rock.ContactPhone || ''
+
   return {
     title: eventItem.Name,
     slug: slugify(eventItem.Name),
@@ -105,13 +115,14 @@ export function mapRockEvent(rock: RockEventItemOccurrence, eventItem: RockEvent
       name: rock.Location || '',
       address: '',
     },
-    contactPerson: rock.ContactPersonAlias?.Person
+    contactPerson: contactPerson || contactEmail || contactPhone
       ? {
-          name: rock.ContactPersonAlias.Person.FullName,
-          email: rock.ContactPersonAlias.Person.Email || '',
-          phone: '',
+          name: contactPerson ? getRockPersonName(contactPerson) : '',
+          email: contactEmail,
+          phone: contactPhone,
         }
       : undefined,
+    _descriptionHtml: rock.Note || eventItem.Description || eventItem.Summary || '',
     _imageUrl: eventItem.Photo?.Guid
       ? `/GetImage.ashx?Guid=${eventItem.Photo.Guid}`
       : null,

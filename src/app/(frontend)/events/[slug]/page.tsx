@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 
 import RichText from '@/components/blocks/RichTextRenderer'
 import { EventImage } from '@/components/events/EventImage'
+import { EventSharing } from '@/components/events/EventSharing'
 import { EventStatus } from '@/components/events/EventStatus'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
 import { EventJsonLd } from '@/components/seo/EventJsonLd'
@@ -127,11 +128,13 @@ export default async function EventDetailPage({ params }: Props) {
                   <dd className="mt-3"><EventStatus event={event} /></dd>
                 </div>
               )}
-              {event.contactPerson?.name && (
+              {(event.contactPerson?.name || event.contactPerson?.email || event.contactPerson?.phone) && (
                 <div>
                   <dt className="text-xs font-bold uppercase tracking-[0.16em] text-rich-red">Contact</dt>
                   <dd className="mt-2 text-base leading-relaxed text-brand-black">
-                    <span className="block font-semibold">{event.contactPerson.name}</span>
+                    {event.contactPerson.name && (
+                      <span className="block font-semibold">{event.contactPerson.name}</span>
+                    )}
                     {event.contactPerson.email && (
                       <a className="block text-rich-red hover:text-deep-red" href={`mailto:${event.contactPerson.email}`}>
                         {event.contactPerson.email}
@@ -157,6 +160,8 @@ export default async function EventDetailPage({ params }: Props) {
                 Continue to registration
               </a>
             )}
+
+            <EventSharing event={event} />
 
             <Link href="/events" className="mt-7 inline-flex font-bold text-rich-red hover:text-deep-red">
               ← Back to all events

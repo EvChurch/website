@@ -1,4 +1,5 @@
 import type { RockGroupMember } from '@/lib/rock-api'
+import { getRockPersonName } from './person'
 
 function slugify(name: string): string {
   return name
@@ -18,9 +19,11 @@ export function mapRockTeamMember(
   member: RockGroupMember,
   groupId: number,
 ) {
+  const fullName = getRockPersonName(member.Person)
+
   return {
-    fullName: member.Person.FullName,
-    slug: slugify(member.Person.FullName),
+    fullName,
+    slug: slugify(fullName),
     rockPersonId: member.Person.Id,
     role: member.GroupRole.Name,
     email: member.Person.Email || '',

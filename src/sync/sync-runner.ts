@@ -1,5 +1,7 @@
 import { getPayloadClient } from '@/lib/payload'
 import { rockFetch } from '@/lib/rock-api'
+import { convertHTMLToLexical, editorConfigFactory } from '@payloadcms/richtext-lexical'
+import { JSDOM } from 'jsdom'
 import type {
   RockCampus,
   RockEventCalendar,
@@ -8,6 +10,7 @@ import type {
   RockEventItem,
   RockEventItemOccurrence,
   RockGroup,
+  RockPersonAlias,
 } from '@/lib/rock-api'
 import { mapRockCampus } from './mappers/campus'
 import { mapRockTeamMember, TEAM_GROUP_IDS } from './mappers/team-member'
@@ -150,6 +153,7 @@ async function syncEvents(): Promise<SyncResult> {
 
   try {
     const payload = await getPayloadClient()
+    const eventEditorConfig = await editorConfigFactory.default({ config: payload.config })
     const occurrences = await rockFetch<RockEventItemOccurrence[]>({
       endpoint: 'EventItemOccurrences',
       params: {
@@ -183,8 +187,21 @@ async function syncEvents(): Promise<SyncResult> {
       const eventItem = eventItemsById.get(occ.EventItemId)
       if (!eventItem || !publicEventItemIds.has(eventItem.Id)) continue
 
-      const mapped = mapRockEvent(occ, eventItem)
-      const { _campusRockId, _imageUrl, ...eventData } = mapped
+      const resolvedContactPerson = occ.ContactPersonAlias?.Person ?? (
+        occ.ContactPersonAliasId
+          ? (await rockFetch<RockPersonAlias>({
+              endpoint: `PersonAlias/${occ.ContactPersonAliasId}`,
+              params: { $expand: 'Person' },
+            })).Person
+          : null
+      )
+      const mapped = mapRockEvent(occ, eventItem, resolvedContactPerson)
+      const {
+        _campusRockId,
+        _descriptionHtml,
+        _imageUrl,
+        ...eventData
+      } = mapped
       const existing = await payload.find({
         collection: 'events',
         where: { rockEventId: { equals: eventData.rockEventId } },
@@ -208,6 +225,13 @@ async function syncEvents(): Promise<SyncResult> {
         : null
       const data = {
         ...eventData,
+        summary: _descriptionHtml
+          ? convertHTMLToLexical({
+              editorConfig: eventEditorConfig,
+              html: _descriptionHtml,
+              JSDOM,
+            })
+          : null,
         ...(campus !== undefined ? { campus } : {}),
         ...(image !== null ? { image } : {}),
       }

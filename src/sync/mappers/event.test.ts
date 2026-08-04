@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   getEventItemIdsForCalendar,
+  mapRockEvent,
   normalizeRockDateTime,
   selectNextEventOccurrences,
 } from './event'
@@ -14,6 +15,46 @@ describe('normalizeRockDateTime', () => {
 
   it('preserves timestamps that already include an offset', () => {
     expect(normalizeRockDateTime('2026-08-08T22:15:00Z')).toBe('2026-08-08T22:15:00.000Z')
+  })
+})
+
+describe('mapRockEvent', () => {
+  it('carries occurrence notes and contact details into the synced event', () => {
+    const mapped = mapRockEvent(
+      {
+        EventItemId: 24,
+        NextStartDateTime: '2026-08-31T19:15:00',
+        CampusId: null,
+        Note: '<p><strong>Israel and the Land of Palestine</strong></p>',
+        ContactPersonAliasId: 7634,
+        ContactEmail: 'ryan@aucklandev.co.nz',
+        ContactPhone: '021 555 0123',
+        Location: 'Ev Central',
+      },
+      {
+        Id: 24,
+        Name: 'Going Deeper',
+        Summary: '',
+        Description: '<p><br></p>',
+        IsActive: true,
+      },
+      {
+        Id: 7626,
+        NickName: 'Ryan',
+        LastName: 'Green',
+        Email: 'ryan@aucklandev.co.nz',
+        PhotoUrl: '',
+      },
+    )
+
+    expect(mapped._descriptionHtml).toBe(
+      '<p><strong>Israel and the Land of Palestine</strong></p>',
+    )
+    expect(mapped.contactPerson).toEqual({
+      name: 'Ryan Green',
+      email: 'ryan@aucklandev.co.nz',
+      phone: '021 555 0123',
+    })
   })
 })
 
