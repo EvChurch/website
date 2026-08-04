@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   filterUpcomingEvents,
   getCampusSlug,
+  getDisplayLocation,
   getRegistrationHref,
   isPastEvent,
   toPlainText,
@@ -45,6 +46,12 @@ describe('event helpers', () => {
   it('extracts a campus slug only from a populated relationship', () => {
     expect(getCampusSlug(baseEvent)).toBe('central')
     expect(getCampusSlug({ ...baseEvent, campus: 42 })).toBeNull()
+  })
+
+  it('does not repeat a campus when the venue already names it', () => {
+    expect(getDisplayLocation({ ...baseEvent, location: { name: 'Ev Church Central' } })).toBe('Ev Church Central')
+    expect(getDisplayLocation({ ...baseEvent, location: { name: 'Central' } })).toBe('Central')
+    expect(getDisplayLocation({ ...baseEvent, location: { name: 'Town Hall' } })).toBe('Central · Town Hall')
   })
 
   it('only accepts an open Rock registration URL', () => {

@@ -97,6 +97,24 @@ export function getCampusName(event: PublicEvent): string | null {
   return typeof campus.name === 'string' ? campus.name : null
 }
 
+export function getDisplayLocation(event: PublicEvent): string | null {
+  const campus = getCampusName(event)
+  const location = event.location?.name?.trim() || null
+  if (!location) return campus
+  if (!campus) return location
+
+  const normalizedCampus = campus.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const normalizedLocation = location.toLowerCase().replace(/[^a-z0-9]/g, '')
+  if (
+    normalizedLocation === normalizedCampus ||
+    normalizedLocation === `evchurch${normalizedCampus}`
+  ) {
+    return location
+  }
+
+  return `${campus} · ${location}`
+}
+
 export function getEventImage(event: PublicEvent): PublicMedia | null {
   if (!event.image || typeof event.image !== 'object') return null
   const media = event.image as PublicMedia
@@ -144,6 +162,34 @@ export function formatEventDate(event: PublicEvent): string {
     timeZone: AUCKLAND_TIME_ZONE,
   }).format(end)
   return `${date}, ${startTime}–${endTime}`
+}
+
+export function formatEventDay(event: PublicEvent): string {
+  if (!event.startDate) return 'Date to be confirmed'
+  return new Intl.DateTimeFormat('en-NZ', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: AUCKLAND_TIME_ZONE,
+  }).format(new Date(event.startDate))
+}
+
+export function formatEventTime(event: PublicEvent): string {
+  if (!event.startDate) return 'Time to be confirmed'
+
+  const formatter = new Intl.DateTimeFormat('en-NZ', {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: AUCKLAND_TIME_ZONE,
+  })
+  const start = new Date(event.startDate)
+  if (!event.endDate) return formatter.format(start)
+
+  const end = new Date(event.endDate)
+  const sameDay = new Intl.DateTimeFormat('en-CA', { timeZone: AUCKLAND_TIME_ZONE }).format(start)
+    === new Intl.DateTimeFormat('en-CA', { timeZone: AUCKLAND_TIME_ZONE }).format(end)
+  return sameDay ? `${formatter.format(start)}–${formatter.format(end)}` : formatter.format(start)
 }
 
 export function toPlainText(value: unknown): string {

@@ -10,6 +10,7 @@ import { mapRockCampus } from './mappers/campus'
 import { mapRockTeamMember, TEAM_GROUP_IDS } from './mappers/team-member'
 import { mapRockEvent } from './mappers/event'
 import { mapRockConnectGroup } from './mappers/connect-group'
+import { syncRockImage } from './rock-media'
 import { runSermonSync } from './sermon-sync-runner'
 import { revalidateTag } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache-tags'
@@ -153,24 +154,45 @@ async function syncEvents(): Promise<SyncResult> {
 
     for (const occ of occurrences) {
       const mapped = mapRockEvent(occ)
+      const { _campusRockId, _imageUrl, ...eventData } = mapped
       const existing = await payload.find({
         collection: 'events',
-        where: { rockEventId: { equals: mapped.rockEventId } },
+        where: { rockEventId: { equals: eventData.rockEventId } },
         depth: 0,
         limit: 1,
       })
+
+      let campus: number | undefined
+      if (_campusRockId !== null) {
+        const matchingCampus = await payload.find({
+          collection: 'campuses',
+          where: { rockId: { equals: _campusRockId } },
+          depth: 0,
+          limit: 1,
+        })
+        campus = matchingCampus.docs[0]?.id
+      }
+
+      const image = _imageUrl
+        ? await syncRockImage({ payload, photoUrl: _imageUrl, alt: `${eventData.title} event` })
+        : null
+      const data = {
+        ...eventData,
+        ...(campus !== undefined ? { campus } : {}),
+        ...(image !== null ? { image } : {}),
+      }
 
       if (existing.docs.length > 0) {
         await payload.update({
           collection: 'events',
           id: existing.docs[0].id,
-          data: mapped,
+          data,
         })
         result.updated++
       } else {
         await payload.create({
           collection: 'events',
-          data: mapped,
+          data,
         })
         result.created++
       }
