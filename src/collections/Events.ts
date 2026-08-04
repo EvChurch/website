@@ -46,6 +46,9 @@ export const Events: CollectionConfig = {
       name: 'image',
       type: 'upload',
       relationTo: 'media',
+      admin: {
+        description: 'Event artwork should use a 16:9 aspect ratio.',
+      },
     },
     {
       name: 'startDate',
