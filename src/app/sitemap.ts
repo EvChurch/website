@@ -26,6 +26,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Hardcoded pages (not CMS-managed)
   const hardcodedRoutes: MetadataRoute.Sitemap = [
+    { url: `${SITE_URL}/events`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
+    { url: `${SITE_URL}/events/north`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
+    { url: `${SITE_URL}/events/central`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
+    { url: `${SITE_URL}/events/unichurch`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
     { url: `${SITE_URL}/blog`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.6 },
     { url: `${SITE_URL}/privacy`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/hs`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
@@ -44,6 +48,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     lastModified: campus.updatedAt ? new Date(campus.updatedAt) : new Date(),
     changeFrequency: 'monthly' as const,
     priority: 0.8,
+  }))
+
+  const events = await payload.find({
+    collection: 'events',
+    depth: 0,
+    select: { slug: true, updatedAt: true },
+    limit: 1000,
+  })
+
+  const eventRoutes: MetadataRoute.Sitemap = events.docs.map((event) => ({
+    url: `${SITE_URL}/events/${event.slug}`,
+    lastModified: event.updatedAt ? new Date(event.updatedAt) : new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.7,
   }))
 
   // Dynamic blog post routes
@@ -142,6 +160,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...pageRoutes,
     ...hardcodedRoutes,
     ...campusRoutes,
+    ...eventRoutes,
     ...blogRoutes,
     ...sermonRoutes,
     ...seriesRoutes,
