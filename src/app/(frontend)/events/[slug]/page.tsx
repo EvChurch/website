@@ -69,20 +69,28 @@ export default async function EventDetailPage({ params }: Props) {
         ]}
       />
 
-      <section className="relative flex min-h-[70vh] items-end overflow-hidden bg-brand-black text-white">
-        <EventImage event={event} priority sizes="100vw" />
-        <div className="absolute inset-0 bg-gradient-to-t from-brand-black via-brand-black/55 to-brand-black/15" />
-        <div className="relative mx-auto w-full max-w-[80rem] px-5 pb-16 pt-40 lg:px-8 lg:pb-20">
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-light-red-2">
-            {past ? 'Past event' : 'Upcoming event'}
-          </p>
-          <h1 className="mt-5 max-w-5xl text-[clamp(3.5rem,9vw,8rem)] leading-[0.88] tracking-[-0.045em] text-white">
-            {event.title}
-          </h1>
-          <p className="mt-7 max-w-3xl text-sm font-semibold uppercase tracking-[0.12em] text-white/80 sm:text-base">
-            {formatEventDate(event)}
-            {campus ? ` · ${campus}` : ''}
-          </p>
+      <section className="overflow-hidden bg-[linear-gradient(90deg,#0b0003,#18070b_50%,#0b0003)] text-white">
+        <div className="mx-auto flex max-w-[80rem] flex-col pb-12 pt-20 sm:pb-16 lg:grid lg:min-h-[37.5rem] lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-center lg:gap-14 lg:px-8 lg:py-[4.5rem]">
+          <div className="min-w-0 px-5 pt-10 sm:px-8 sm:pt-12 lg:px-0 lg:pt-0">
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-light-red-2">
+              {past ? 'Past event' : 'Upcoming event'}
+            </p>
+            <h1 className="mt-[1.125rem] text-[clamp(3.375rem,15vw,4.5rem)] leading-[0.86] tracking-[-0.055em] text-white sm:text-[clamp(4rem,9vw,5.25rem)] lg:text-[clamp(4rem,6.2vw,5.25rem)]">
+              {event.title}
+            </h1>
+            <p className="mt-6 max-w-96 text-sm font-semibold uppercase leading-normal tracking-[0.12em] text-white/80">
+              {formatEventDate(event)}
+              {campus ? ` · ${campus}` : ''}
+            </p>
+          </div>
+
+          <div className="relative order-first aspect-video w-full overflow-hidden shadow-[0_28px_70px_rgba(0,0,0,0.53)] lg:order-none">
+            <EventImage
+              event={event}
+              priority
+              sizes="(max-width: 1023px) 100vw, (max-width: 1280px) 60vw, 720px"
+            />
+          </div>
         </div>
       </section>
 
