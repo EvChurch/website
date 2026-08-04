@@ -3,6 +3,7 @@ import { rockFetch } from '@/lib/rock-api'
 import type {
   RockCampus,
   RockGroupMember,
+  RockEventItem,
   RockEventItemOccurrence,
   RockGroup,
 } from '@/lib/rock-api'
@@ -146,14 +147,26 @@ async function syncEvents(): Promise<SyncResult> {
     const occurrences = await rockFetch<RockEventItemOccurrence[]>({
       endpoint: 'EventItemOccurrences',
       params: {
-        $filter: 'EventItem/IsActive eq true',
-        $expand: 'EventItem,Schedule,Campus',
+        $expand: 'Schedule,Campus,ContactPersonAlias/Person',
         $orderby: 'NextStartDateTime',
       },
     })
+    const eventItems = await rockFetch<RockEventItem[]>({
+      endpoint: 'EventItems',
+      params: {
+        $filter: 'IsActive eq true',
+        $expand: 'Photo',
+      },
+    })
+    const eventItemsById = new Map(eventItems.map((eventItem) => [eventItem.Id, eventItem]))
+    const syncedEventItemIds = new Set<number>()
 
     for (const occ of occurrences) {
-      const mapped = mapRockEvent(occ)
+      const eventItem = eventItemsById.get(occ.EventItemId)
+      if (!eventItem || syncedEventItemIds.has(eventItem.Id)) continue
+      syncedEventItemIds.add(eventItem.Id)
+
+      const mapped = mapRockEvent(occ, eventItem)
       const { _campusRockId, _imageUrl, ...eventData } = mapped
       const existing = await payload.find({
         collection: 'events',

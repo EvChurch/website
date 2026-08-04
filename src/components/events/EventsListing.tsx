@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 import { EventCard } from '@/components/events/EventCard'
 import { EventFeature } from '@/components/events/EventFeature'
-import { getUpcomingEvents } from '@/lib/events'
+import { getEventImage, getUpcomingEvents } from '@/lib/events'
 
 const filters = [
   { label: 'All events', href: '/events', slug: null },
@@ -23,8 +23,8 @@ export async function EventsListing({
   introduction = 'Find gatherings, courses, and opportunities to connect across our Auckland church community.',
 }: EventsListingProps) {
   const events = await getUpcomingEvents(campusSlug)
-  const featured = events[0]
-  const remaining = events.slice(1)
+  const featured = events.find((event) => getEventImage(event)) ?? events[0]
+  const remaining = featured ? events.filter((event) => event.id !== featured.id) : events
 
   return (
     <div className="min-h-screen bg-[#080808] text-white">

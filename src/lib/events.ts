@@ -75,7 +75,7 @@ export function filterUpcomingEvents(
   now = new Date(),
 ): PublicEvent[] {
   return events
-    .filter((event) => !isPastEvent(event, now))
+    .filter((event) => Boolean(event.startDate) && !isPastEvent(event, now))
     .sort((a, b) => dateValue(a.startDate) - dateValue(b.startDate))
 }
 

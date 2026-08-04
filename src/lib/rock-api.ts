@@ -161,14 +161,18 @@ export type RockGroupMember = {
   GroupOrder: number
 }
 
-export type RockEventItemOccurrence = {
-  EventItem: {
-    Id: number
-    Name: string
-    Summary: string
-    PhotoUrl: string
-    IsActive: boolean
+export type RockEventItem = {
+  Id: number
+  Name: string
+  Summary: string
+  IsActive: boolean
+  Photo?: {
+    Guid: string
   }
+}
+
+export type RockEventItemOccurrence = {
+  EventItemId: number
   Schedule?: {
     iCalendarContent: string
     EffectiveEndDate: string
@@ -177,7 +181,7 @@ export type RockEventItemOccurrence = {
   CampusId: number | null
   Location?: string
   ContactPersonAlias?: {
-    Person: RockPerson
+    Person?: RockPerson | null
   }
 }
 

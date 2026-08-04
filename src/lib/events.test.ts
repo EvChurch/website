@@ -38,6 +38,10 @@ describe('event helpers', () => {
     ])
   })
 
+  it('does not list undated events as upcoming', () => {
+    expect(filterUpcomingEvents([{ ...baseEvent, startDate: null, endDate: null }])).toEqual([])
+  })
+
   it('uses the end date to classify a past event', () => {
     expect(isPastEvent(baseEvent, new Date('2026-08-10T09:00:00.000Z'))).toBe(true)
     expect(isPastEvent(baseEvent, new Date('2026-08-10T07:00:00.000Z'))).toBe(false)
