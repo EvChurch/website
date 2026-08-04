@@ -8,7 +8,7 @@ const base: RockConnectionContext = {
   purpose: 'rock-connection-signup',
   audience: 'ev.church',
   pageGuid: 'eab9cb2b-474f-4939-b665-e32b4d2e1bb2',
-  blockGuid: '495cda8e-60fe-4f77-a452-932b460fb44c',
+  blockGuid: '70f9eb00-5961-42bc-b1ea-dbcb8fce6369',
   opportunityGuid: '11111111-1111-4111-8111-111111111111',
   sessionGuid: '22222222-2222-4222-8222-222222222222',
   interactionGuid: '33333333-3333-4333-8333-333333333333',

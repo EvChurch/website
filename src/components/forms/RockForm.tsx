@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { SafeRockHtml } from './SafeRockHtml'
 import { TurnstileWidget } from './TurnstileWidget'
 import { formInputClass as inputClass, formLabelClass as labelClass } from './form-styles'
@@ -421,6 +421,7 @@ function PersonSearchField({
   useEffect(() => {
     if (query.trim().length < 3 || query === selected.text) {
       setResults([])
+      setSearching(false)
       return
     }
 
@@ -505,22 +506,35 @@ function PersonSearchField({
   )
 }
 
-export function RockForm({ workflowTypeGuid }: { workflowTypeGuid: string }) {
-  const [schema, setSchema] = useState<RockFormSchema | null>(null)
-  const [startupSiteKey, setStartupSiteKey] = useState('')
-  const [fieldValues, setFieldValues] = useState<Record<string, string>>({})
+export function RockForm({
+  workflowTypeGuid,
+  initialSchema = null,
+}: {
+  workflowTypeGuid: string
+  initialSchema?: RockFormSchema | null
+}) {
+  const [schema, setSchema] = useState<RockFormSchema | null>(initialSchema)
+  const [startupSiteKey, setStartupSiteKey] = useState(
+    initialSchema?.turnstileSiteKey || '',
+  )
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>(
+    initialSchema?.initialFieldValues || {},
+  )
   const [personEntryValues, setPersonEntryValues] =
-    useState<RockPersonEntryValues | null>(null)
+    useState<RockPersonEntryValues | null>(
+      initialSchema?.initialPersonEntryValues || null,
+    )
   const [files, setFiles] = useState<Record<string, File>>({})
   const [turnstileToken, setTurnstileToken] = useState('')
   const [turnstileResetKey, setTurnstileResetKey] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!initialSchema)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [completeMessage, setCompleteMessage] = useState('')
   const startController = useRef<AbortController | null>(null)
   const submitController = useRef<AbortController | null>(null)
   const mounted = useRef(true)
+  const spouseFieldsId = useId()
 
   useEffect(() => {
     mounted.current = true
@@ -541,6 +555,17 @@ export function RockForm({ workflowTypeGuid }: { workflowTypeGuid: string }) {
   }, [])
 
   useEffect(() => {
+    if (initialSchema) {
+      setSchema(initialSchema)
+      setStartupSiteKey(initialSchema.turnstileSiteKey)
+      setFieldValues(initialSchema.initialFieldValues)
+      setPersonEntryValues(initialSchema.initialPersonEntryValues)
+      setFiles({})
+      setError('')
+      setLoading(false)
+      return
+    }
+
     const controller = new AbortController()
     let active = true
     setSchema(null)
@@ -566,7 +591,7 @@ export function RockForm({ workflowTypeGuid }: { workflowTypeGuid: string }) {
       startController.current?.abort()
       submitController.current?.abort()
     }
-  }, [workflowTypeGuid])
+  }, [workflowTypeGuid, initialSchema])
 
   const startForm = useCallback(
     async (token: string) => {
@@ -574,7 +599,6 @@ export function RockForm({ workflowTypeGuid }: { workflowTypeGuid: string }) {
       startController.current?.abort()
       const controller = new AbortController()
       startController.current = controller
-      setLoading(true)
       setError('')
 
       try {
@@ -601,8 +625,6 @@ export function RockForm({ workflowTypeGuid }: { workflowTypeGuid: string }) {
           setError(caught.message)
           setTurnstileResetKey((key) => key + 1)
         }
-      } finally {
-        if (!controller.signal.aborted && mounted.current) setLoading(false)
       }
     },
     [workflowTypeGuid, applySchema],
@@ -690,6 +712,23 @@ export function RockForm({ workflowTypeGuid }: { workflowTypeGuid: string }) {
     </div>
   )
 
+  const contextReady = Boolean(schema.contextToken)
+  const spouseFields = schema.personEntry && personEntryValues && (
+    <PersonFields
+      prefix={schema.personEntry.spouseLabel || 'Spouse'}
+      values={personEntryValues.spouse || {}}
+      configuration={schema.personEntry}
+      onChange={(spouse) =>
+        setPersonEntryValues({
+          ...personEntryValues,
+          spouse,
+          maritalStatusGuid:
+            personEntryValues.maritalStatusGuid || marriedStatusGuid,
+        })
+      }
+    />
+  )
+
   return (
     <form
       className="space-y-8"
@@ -749,7 +788,8 @@ export function RockForm({ workflowTypeGuid }: { workflowTypeGuid: string }) {
         }
       }}
     >
-      <SafeRockHtml value={schema.headerHtml} />
+      <fieldset disabled={!contextReady} className="contents">
+        <SafeRockHtml value={schema.headerHtml} />
 
       {schema.personEntry && personEntryValues && (
         <section className="space-y-5">
@@ -793,13 +833,15 @@ export function RockForm({ workflowTypeGuid }: { workflowTypeGuid: string }) {
             }
           />
           {schema.personEntry.spouseOption !== 0 && (
-            <div className="space-y-5 border-t border-warm-grey pt-6">
+            <div className="border-t border-warm-grey pt-6 pb-4">
               {schema.personEntry.spouseOption === 1 && (
-                <label className="flex items-start gap-3 text-sm font-semibold text-brand-black">
+                <label className="flex cursor-pointer items-center gap-3 text-sm font-semibold text-brand-black">
                   <input
-                    className="mt-1 h-4 w-4 accent-rich-red"
+                    className="h-4 w-4 shrink-0 accent-rich-red"
                     type="checkbox"
                     checked={personEntryValues.spouse != null}
+                    aria-expanded={personEntryValues.spouse != null}
+                    aria-controls={spouseFieldsId}
                     onChange={(event) =>
                       setPersonEntryValues({
                         ...personEntryValues,
@@ -814,21 +856,28 @@ export function RockForm({ workflowTypeGuid }: { workflowTypeGuid: string }) {
                   Show {schema.personEntry.spouseLabel || 'Spouse'}
                 </label>
               )}
-              {(schema.personEntry.spouseOption === 2 ||
-                personEntryValues.spouse != null) && (
-                <PersonFields
-                  prefix={schema.personEntry.spouseLabel || 'Spouse'}
-                  values={personEntryValues.spouse || {}}
-                  configuration={schema.personEntry}
-                  onChange={(spouse) =>
-                    setPersonEntryValues({
-                      ...personEntryValues,
-                      spouse,
-                      maritalStatusGuid:
-                        personEntryValues.maritalStatusGuid || marriedStatusGuid,
-                    })
-                  }
-                />
+              {schema.personEntry.spouseOption === 2 ? (
+                spouseFields
+              ) : (
+                <div
+                  id={spouseFieldsId}
+                  aria-hidden={personEntryValues.spouse == null}
+                  className="grid transition-[grid-template-rows,opacity] duration-300 ease-out"
+                  style={{
+                    gridTemplateRows:
+                      personEntryValues.spouse != null ? '1fr' : '0fr',
+                    opacity: personEntryValues.spouse != null ? 1 : 0,
+                  }}
+                >
+                  <div className="min-h-0 overflow-hidden">
+                    <fieldset
+                      className="pt-5"
+                      disabled={personEntryValues.spouse == null}
+                    >
+                      {spouseFields}
+                    </fieldset>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -866,12 +915,14 @@ export function RockForm({ workflowTypeGuid }: { workflowTypeGuid: string }) {
       )}
       {renderFields(fieldsBySection.get('') || [])}
 
-      <SafeRockHtml value={schema.footerHtml} />
+        <SafeRockHtml value={schema.footerHtml} />
+      </fieldset>
       <TurnstileWidget
         siteKey={schema.turnstileSiteKey}
-        action={ROCK_FORM_SUBMIT_ACTION}
+        action={contextReady ? ROCK_FORM_SUBMIT_ACTION : ROCK_FORM_START_ACTION}
         resetKey={turnstileResetKey}
-        onToken={setTurnstileToken}
+        onToken={contextReady ? setTurnstileToken : startForm}
+        onError={setError}
       />
       {error && (
         <p role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-800">
@@ -885,7 +936,7 @@ export function RockForm({ workflowTypeGuid }: { workflowTypeGuid: string }) {
               className="rounded-full bg-rich-red px-7 py-3 font-semibold text-white transition hover:bg-rich-red/90 disabled:cursor-not-allowed disabled:opacity-60"
               type="submit"
               value={button.title}
-              disabled={submitting}
+              disabled={submitting || !contextReady}
             >
               {submitting ? 'Submitting…' : button.title}
             </button>

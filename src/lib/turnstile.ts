@@ -1,4 +1,7 @@
-import { getTurnstileSecretKey } from '@/lib/rock-forms/config'
+import {
+  getTurnstileSecretKey,
+  TURNSTILE_TEST_SECRET_KEY,
+} from '@/lib/rock-forms/config'
 
 type TurnstileResponse = {
   success: boolean
@@ -25,8 +28,9 @@ export async function verifyTurnstileToken({
 }): Promise<void> {
   if (!token) invalidTurnstile('Please complete the bot check')
 
+  const secret = getTurnstileSecretKey()
   const body = new URLSearchParams({
-    secret: getTurnstileSecretKey(),
+    secret,
     response: token,
     ...(remoteIp ? { remoteip: remoteIp } : {}),
   })
@@ -50,7 +54,14 @@ export async function verifyTurnstileToken({
   ) {
     invalidTurnstile('The bot check was issued for a different website')
   }
-  if (expectedAction && result.action !== expectedAction) {
+  const usingDevelopmentTestKey =
+    process.env.NODE_ENV !== 'production' &&
+    secret === TURNSTILE_TEST_SECRET_KEY
+  if (
+    expectedAction &&
+    result.action !== expectedAction &&
+    !usingDevelopmentTestKey
+  ) {
     invalidTurnstile('The bot check was issued for a different action')
   }
 }

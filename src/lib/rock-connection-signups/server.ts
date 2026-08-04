@@ -3,11 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { connectionSchemaAvailability } from './field-types'
 import { isGuid as isRockGuid } from '@/lib/rock-forms/constants'
 
-import {
-  getRockConnectionApiBaseUrl,
-  getRockDiscoveryApiKey,
-  getRockEdgeAccessHeaders,
-} from './config'
+import { getRockConnectionApiBaseUrl, getRockApiKey } from './config'
 import type {
   RockConnectionSignupAttribute,
   RockConnectionSignupInitialization,
@@ -41,19 +37,26 @@ type RockBlockMetadata = {
     Name?: unknown
     IsActive?: unknown
   } | null
-  Page?: {
-    Guid?: unknown
-    InternalName?: unknown
-    PageTitle?: unknown
-  } | null
   AttributeValues?: Record<string, RockAttributeValue> | null
+}
+
+type RockPageMetadata = {
+  Id?: unknown
+  Guid?: unknown
+  InternalName?: unknown
+  PageTitle?: unknown
 }
 
 type RockOpportunityMetadata = {
   Guid?: unknown
   Name?: unknown
   IsActive?: unknown
-  ConnectionType?: { Name?: unknown; IsActive?: unknown } | null
+  ConnectionTypeId?: unknown
+}
+
+type RockConnectionTypeMetadata = {
+  Id?: unknown
+  IsActive?: unknown
 }
 
 type EligibleCandidate = {
@@ -65,6 +68,19 @@ type EligibleCandidate = {
   opportunityName: string
 }
 
+type StructuralCandidate = Pick<
+  EligibleCandidate,
+  'blockGuid' | 'blockName' | 'opportunityGuid'
+> & { pageId: number }
+
+type CandidateLoaders = {
+  opportunity: (guid: string) => Promise<RockOpportunityMetadata | null>
+  page: (pageId: number) => Promise<RockPageMetadata | null>
+  connectionType: (
+    connectionTypeId: number,
+  ) => Promise<RockConnectionTypeMetadata | null>
+}
+
 class RockConnectionUnavailableError extends Error {}
 
 export class RockConnectionSignupOutcomeUnknownError extends Error {
@@ -74,7 +90,10 @@ export class RockConnectionSignupOutcomeUnknownError extends Error {
 }
 
 class RockResponseError extends Error {
-  constructor(public readonly status: number, message: string) {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
     super(message)
   }
 }
@@ -93,14 +112,18 @@ function normalizedGuid(value: string): string {
 
 function normalizedLabel(value: unknown, fallback: string): string {
   if (typeof value !== 'string') return fallback
-  const label = value.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim()
+  const label = value
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
   return label ? label.slice(0, 160) : fallback
 }
 
 function rockBoolean(value: unknown): boolean {
   return (
     value === true ||
-    (typeof value === 'string' && ['true', 'yes', '1'].includes(value.toLowerCase()))
+    (typeof value === 'string' &&
+      ['true', 'yes', '1'].includes(value.toLowerCase()))
   )
 }
 
@@ -162,13 +185,11 @@ async function rockRequest({
   params,
   method = 'GET',
   body,
-  authenticated,
 }: {
   path: string
   params?: Record<string, string>
   method?: 'GET' | 'POST'
   body?: unknown
-  authenticated: boolean
 }): Promise<unknown> {
   const baseUrl = getRockConnectionApiBaseUrl()
   const url = new URL(`${baseUrl}/${path}`)
@@ -183,9 +204,7 @@ async function rockRequest({
     method,
     headers: {
       Accept: 'application/json',
-      ...(authenticated
-        ? { 'Authorization-Token': getRockDiscoveryApiKey() }
-        : getRockEdgeAccessHeaders()),
+      'Authorization-Token': getRockApiKey(),
       ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -204,22 +223,30 @@ function parseBlockList(value: unknown): RockBlockMetadata[] {
   return value.filter(isRecord) as RockBlockMetadata[]
 }
 
-async function fetchBlockMetadata(blockGuid?: string): Promise<RockBlockMetadata[]> {
+async function fetchBlockMetadata(
+  blockGuid?: string,
+): Promise<RockBlockMetadata[]> {
   const typeFilter = `BlockType/Guid eq guid'${CONNECTION_OPPORTUNITY_SIGNUP_BLOCK_TYPE_GUID}'`
   return parseBlockList(
     await rockRequest({
       path: 'Blocks',
       params: {
-        '$filter': blockGuid
+        $filter: blockGuid
           ? `${typeFilter} and Guid eq guid'${blockGuid}'`
           : typeFilter,
-        '$expand': 'BlockType,Page',
-        ...(blockGuid ? { '$top': '2' } : {}),
+        $expand: 'BlockType',
+        ...(blockGuid ? { $top: '2' } : {}),
         loadAttributes: 'simple',
       },
-      authenticated: true,
     }),
   )
+}
+
+async function fetchPageMetadata(
+  pageId: number,
+): Promise<RockPageMetadata | null> {
+  const value = await rockRequest({ path: `Pages/${pageId}` })
+  return isRecord(value) ? (value as RockPageMetadata) : null
 }
 
 async function fetchOpportunity(
@@ -228,11 +255,9 @@ async function fetchOpportunity(
   const value = await rockRequest({
     path: 'ConnectionOpportunities',
     params: {
-      '$filter': `Guid eq guid'${opportunityGuid}'`,
-      '$expand': 'ConnectionType',
-      '$top': '2',
+      $filter: `Guid eq guid'${opportunityGuid}'`,
+      $top: '2',
     },
-    authenticated: true,
   })
   if (!Array.isArray(value) || value.length > 1) return null
   return value.length === 1 && isRecord(value[0])
@@ -240,11 +265,19 @@ async function fetchOpportunity(
     : null
 }
 
+async function fetchConnectionType(
+  connectionTypeId: number,
+): Promise<RockConnectionTypeMetadata | null> {
+  const value = await rockRequest({
+    path: `ConnectionTypes/${connectionTypeId}`,
+  })
+  return isRecord(value) ? (value as RockConnectionTypeMetadata) : null
+}
+
 function parseStructuralCandidate(
   block: RockBlockMetadata,
-): Omit<EligibleCandidate, 'opportunityName'> | null {
+): StructuralCandidate | null {
   const blockGuid = block.Guid
-  const pageGuid = block.Page?.Guid
   const blockTypeGuid = block.BlockType?.Guid
   const opportunityGuid = attributeValue(
     block.AttributeValues,
@@ -253,13 +286,13 @@ function parseStructuralCandidate(
 
   if (
     !isGuid(blockGuid) ||
-    !isGuid(pageGuid) ||
     !isGuid(blockTypeGuid) ||
     normalizedGuid(blockTypeGuid) !==
       CONNECTION_OPPORTUNITY_SIGNUP_BLOCK_TYPE_GUID ||
-    block.IsActive !== true ||
-    block.BlockType?.IsActive !== true ||
-    typeof block.PageId !== 'number' ||
+    block.IsActive === false ||
+    block.BlockType?.IsActive === false ||
+    !Number.isSafeInteger(block.PageId) ||
+    Number(block.PageId) <= 0 ||
     block.LayoutId != null ||
     block.SiteId != null ||
     !isGuid(opportunityGuid) ||
@@ -274,35 +307,60 @@ function parseStructuralCandidate(
   return {
     blockGuid: normalizedGuid(blockGuid),
     blockName: normalizedLabel(block.Name, normalizedGuid(blockGuid)),
-    pageGuid: normalizedGuid(pageGuid),
-    pageName: normalizedLabel(
-      block.Page?.PageTitle || block.Page?.InternalName,
-      normalizedGuid(pageGuid),
-    ),
+    pageId: Number(block.PageId),
     opportunityGuid: normalizedGuid(opportunityGuid),
   }
 }
 
 async function resolveCandidate(
   block: RockBlockMetadata,
-  loadOpportunity = fetchOpportunity,
+  loaders: CandidateLoaders = {
+    opportunity: fetchOpportunity,
+    page: fetchPageMetadata,
+    connectionType: fetchConnectionType,
+  },
 ): Promise<EligibleCandidate | null> {
   const candidate = parseStructuralCandidate(block)
   if (!candidate) return null
 
-  const opportunity = await loadOpportunity(candidate.opportunityGuid)
+  const [page, opportunity] = await Promise.all([
+    loaders.page(candidate.pageId),
+    loaders.opportunity(candidate.opportunityGuid),
+  ])
+  if (!page || page.Id !== candidate.pageId || !isGuid(page.Guid)) {
+    return null
+  }
+
   if (
     !opportunity ||
     !isGuid(opportunity.Guid) ||
     normalizedGuid(opportunity.Guid) !== candidate.opportunityGuid ||
     opportunity.IsActive !== true ||
-    opportunity.ConnectionType?.IsActive !== true
+    !Number.isSafeInteger(opportunity.ConnectionTypeId) ||
+    Number(opportunity.ConnectionTypeId) <= 0
+  ) {
+    return null
+  }
+
+  const connectionTypeId = Number(opportunity.ConnectionTypeId)
+  const connectionType = await loaders.connectionType(connectionTypeId)
+  if (
+    !connectionType ||
+    connectionType.Id !== connectionTypeId ||
+    connectionType.IsActive !== true
   ) {
     return null
   }
 
   return {
-    ...candidate,
+    blockGuid: candidate.blockGuid,
+    blockName: candidate.blockName,
+    pageGuid: normalizedGuid(page.Guid),
+    pageName: normalizedLabel(
+      page.PageTitle || page.InternalName,
+      normalizedGuid(page.Guid),
+    ),
+    opportunityGuid: candidate.opportunityGuid,
     opportunityName: normalizedLabel(
       opportunity.Name,
       candidate.opportunityGuid,
@@ -403,7 +461,10 @@ function parseInitialization(
     ) {
       throw new RockConnectionUnavailableError('invalid')
     }
-    return { value: campus.value, text: normalizedLabel(campus.text, campus.value) }
+    return {
+      value: campus.value,
+      text: normalizedLabel(campus.text, campus.value),
+    }
   })
 
   const selectedCampusId = initialization.selectedCampusId ?? null
@@ -463,7 +524,6 @@ async function refreshCandidate(
         interactionGuid,
       },
     },
-    authenticated: false,
   })
   return parseInitialization(value, candidate, sessionGuid, interactionGuid)
 }
@@ -497,7 +557,9 @@ export async function initializeRockConnectionSignup(
   }
 }
 
-export async function isEligibleRockConnectionSignup(blockGuid: string): Promise<boolean> {
+export async function isEligibleRockConnectionSignup(
+  blockGuid: string,
+): Promise<boolean> {
   await initializeRockConnectionSignup(blockGuid)
   return true
 }
@@ -507,30 +569,40 @@ export async function listEligibleRockConnectionSignups(): Promise<
 > {
   const blocks = await fetchBlockMetadata()
   const options: RockConnectionSignupOption[] = []
-  const opportunities = new Map<
-    string,
-    Promise<RockOpportunityMetadata | null>
-  >()
-  const loadOpportunity = (guid: string) => {
-    const existing = opportunities.get(guid)
-    if (existing) return existing
-    const pending = fetchOpportunity(guid)
-    opportunities.set(guid, pending)
-    return pending
+  const memoizeAsync = <Key, Value>(fetcher: (key: Key) => Promise<Value>) => {
+    const values = new Map<Key, Promise<Value>>()
+    return (key: Key) => {
+      const existing = values.get(key)
+      if (existing) return existing
+      const pending = fetcher(key)
+      values.set(key, pending)
+      return pending
+    }
+  }
+  const loaders: CandidateLoaders = {
+    opportunity: memoizeAsync(fetchOpportunity),
+    page: memoizeAsync(fetchPageMetadata),
+    connectionType: memoizeAsync(fetchConnectionType),
   }
 
   const workerCount = Math.min(5, blocks.length)
   await Promise.all(
     Array.from({ length: workerCount }, async (_, workerIndex) => {
-      for (let index = workerIndex; index < blocks.length; index += workerCount) {
-        const candidate = await resolveCandidate(blocks[index], loadOpportunity)
+      for (
+        let index = workerIndex;
+        index < blocks.length;
+        index += workerCount
+      ) {
+        const candidate = await resolveCandidate(blocks[index], loaders)
         if (!candidate) continue
         try {
           await refreshCandidate(candidate)
         } catch (error) {
           if (
             error instanceof RockConnectionUnavailableError ||
-            (error instanceof RockResponseError && error.status >= 400 && error.status < 500)
+            (error instanceof RockResponseError &&
+              error.status >= 400 &&
+              error.status < 500)
           ) {
             continue
           }
@@ -576,7 +648,6 @@ export async function sendRockConnectionSignup({
         },
         bag,
       },
-      authenticated: false,
     })
 
     if (!isRecord(value) || !Number.isInteger(value.resultType)) {
@@ -585,13 +656,15 @@ export async function sendRockConnectionSignup({
     if (
       value.responseMessage !== undefined &&
       value.responseMessage !== null &&
-      (typeof value.responseMessage !== 'string' || value.responseMessage.length > 20_000)
+      (typeof value.responseMessage !== 'string' ||
+        value.responseMessage.length > 20_000)
     ) {
       throw new RockConnectionSignupOutcomeUnknownError()
     }
     return {
       resultType: value.resultType as number,
-      responseMessage: (value.responseMessage as string | null | undefined) ?? null,
+      responseMessage:
+        (value.responseMessage as string | null | undefined) ?? null,
     }
   } catch (error) {
     if (error instanceof RockConnectionSignupOutcomeUnknownError) throw error

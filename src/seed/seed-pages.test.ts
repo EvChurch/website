@@ -6,6 +6,7 @@ import {
   OLD_NEWISH_WORKFLOW_GUID,
   ensureNewishConnectionForm,
 } from './newish-form'
+import { EXPLAINING_CHRISTIANITY_CONNECTION_BLOCK_GUID } from './explaining-christianity-form'
 
 const closingCta = {
   blockType: 'cta',
@@ -34,10 +35,29 @@ describe('ensureNewishConnectionForm', () => {
       source.indexOf("await upsertPage('newish'"),
       source.indexOf("await upsertPage('explaining-christianity'"),
     )
+    const explainingChristianitySection = source.slice(
+      source.indexOf("await upsertPage('explaining-christianity'"),
+      source.indexOf("await upsertPage('connect-groups'"),
+    )
     expect(visitSection).toContain("rockWorkflowGuid: 'de3d06a6-7fca-41a5-8c37-a485767de970'")
     expect(newishSection).toContain('layout: ensureNewishConnectionForm([')
     expect(newishSection).not.toContain(OLD_NEWISH_WORKFLOW_GUID)
-    expect(source.match(/sourceType: 'workflow'/g)).toHaveLength(3)
+    expect(explainingChristianitySection).toContain(
+      "sourceType: 'connectionOpportunity'",
+    )
+    expect(explainingChristianitySection).toContain(
+      'rockConnectionBlockGuid:',
+    )
+    expect(explainingChristianitySection).toContain(
+      'EXPLAINING_CHRISTIANITY_CONNECTION_BLOCK_GUID',
+    )
+    expect(EXPLAINING_CHRISTIANITY_CONNECTION_BLOCK_GUID).toBe(
+      'bb4f2585-2b30-49c1-ae82-f13b060b84c1',
+    )
+    expect(explainingChristianitySection).not.toContain(
+      '16d675d3-00cf-459e-990d-817003cbbc88',
+    )
+    expect(source.match(/sourceType: 'workflow'/g)).toHaveLength(2)
   })
 
   it('inserts exactly one centered form immediately before the closing CTA', () => {

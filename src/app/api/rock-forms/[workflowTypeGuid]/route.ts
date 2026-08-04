@@ -27,6 +27,47 @@ const FILE_FIELD_GUIDS = new Set<string>([
   ROCK_FIELD_TYPES.file,
   ROCK_FIELD_TYPES.image,
 ])
+const MAX_MULTIPART_BYTES = 17 * 1024 * 1024
+const MAX_MULTIPART_ENTRIES = 200
+const MAX_MULTIPART_FILES = 10
+
+async function boundedFormData(request: NextRequest): Promise<FormData> {
+  const declaredSize = Number(request.headers.get('content-length') || 0)
+  if (declaredSize > MAX_MULTIPART_BYTES) {
+    throw new Error('Form submission is too large')
+  }
+  if (!request.body) throw new Error('Invalid form submission')
+
+  const reader = request.body.getReader()
+  const chunks: Uint8Array[] = []
+  let totalBytes = 0
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    totalBytes += value.byteLength
+    if (totalBytes > MAX_MULTIPART_BYTES) {
+      await reader.cancel()
+      throw new Error('Form submission is too large')
+    }
+    chunks.push(value)
+  }
+
+  const boundedRequest = new Request(request.url, {
+    method: 'POST',
+    headers: request.headers,
+    body: Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))),
+  })
+  const body = await boundedRequest.formData()
+  const entries = [...body.entries()]
+  const fileCount = entries.filter(([, value]) => value instanceof File).length
+  if (
+    entries.length > MAX_MULTIPART_ENTRIES ||
+    fileCount > MAX_MULTIPART_FILES
+  ) {
+    throw new Error('Form submission has too many fields')
+  }
+  return body
+}
 
 function jsonError(message: string, status: number) {
   return NextResponse.json({ error: message }, { status })
@@ -121,6 +162,9 @@ function publicSubmissionError(error: unknown) {
   const safeMessages = [
     'Invalid form context',
     'Expired or invalid form context',
+    'Form submission is too large',
+    'Form submission has too many fields',
+    'Invalid form submission',
   ]
 
   return error instanceof TurnstileVerificationError || safeMessages.includes(message)
@@ -153,7 +197,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
   if (!isGuid(workflowTypeGuid)) return jsonError('Invalid form identifier', 400)
 
   try {
-    const body = await request.formData()
+    const body = await boundedFormData(request)
     const isStart = body.get('intent') === 'start'
 
     if (!(await isRockFormPublished(workflowTypeGuid))) {

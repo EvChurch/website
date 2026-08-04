@@ -14628,7 +14628,7 @@
         },
         "rock_connection_signup_rate_class_check": {
           "name": "rock_connection_signup_rate_class_check",
-          "value": "route_class IN ('start', 'submit')"
+          "value": "route_class IN ('start', 'submit', 'personSearch')"
         },
         "rock_connection_signup_rate_count_check": {
           "name": "rock_connection_signup_rate_count_check",

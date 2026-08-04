@@ -5,7 +5,7 @@ import { sql } from '@payloadcms/db-postgres'
 import { getPayloadClient } from '@/lib/payload'
 import { drizzleResultRows } from './db-result'
 
-export type ConnectionRateClass = 'start' | 'submit'
+export type ConnectionRateClass = 'start' | 'submit' | 'personSearch'
 
 export type ConnectionRateLimitRecord = {
   bucketDigest: string
@@ -26,14 +26,20 @@ export class ConnectionRateLimitError extends Error {
 
 function secret(): string {
   const value = process.env.ROCK_CONNECTION_RATE_LIMIT_SECRET?.trim()
+  if (!value && process.env.NODE_ENV !== 'production') {
+    return 'rock-connection-local-rate-limit-secret'
+  }
   if (!value || Buffer.byteLength(value) < 32) {
     throw new Error('Connection rate limit is unavailable')
   }
   return value
 }
 
-export function trustedConnectionClientAddress(headers: Pick<Headers, 'get'>): string {
+export function trustedConnectionClientAddress(
+  headers: Pick<Headers, 'get'>,
+): string {
   if (process.env.ROCK_CONNECTION_TRUST_CF_CONNECTING_IP !== 'true') {
+    if (process.env.NODE_ENV !== 'production') return '127.0.0.1'
     throw new Error('Connection rate limit is unavailable')
   }
   const address = headers.get('cf-connecting-ip')?.trim() || ''
@@ -42,7 +48,9 @@ export function trustedConnectionClientAddress(headers: Pick<Headers, 'get'>): s
 }
 
 export function digestConnectionClientAddress(address: string): string {
-  return createHmac('sha256', secret()).update(`rock-connection-client\0${address}`).digest('hex')
+  return createHmac('sha256', secret())
+    .update(`rock-connection-client\0${address}`)
+    .digest('hex')
 }
 
 export function createPostgresRateLimitStore(): ConnectionRateLimitStore {
@@ -59,8 +67,12 @@ export function createPostgresRateLimitStore(): ConnectionRateLimitStore {
         RETURNING "count"
       `)
       const row = drizzleResultRows(result)[0]
-      const count = row && typeof row === 'object' && 'count' in row ? Number(row.count) : NaN
-      if (!Number.isSafeInteger(count) || count < 1) throw new Error('Connection rate limit is unavailable')
+      const count =
+        row && typeof row === 'object' && 'count' in row
+          ? Number(row.count)
+          : NaN
+      if (!Number.isSafeInteger(count) || count < 1)
+        throw new Error('Connection rate limit is unavailable')
       return count
     },
   }
@@ -91,15 +103,19 @@ export async function enforceConnectionRateLimit({
 }): Promise<void> {
   const windowMs = 10 * 60_000
   const windowStart = Math.floor(now / windowMs) * windowMs
-  const defaultMaximum = routeClass === 'start' ? 10 : 5
+  const defaultMaximum =
+    routeClass === 'start' ? 10 : routeClass === 'submit' ? 5 : 30
   const configured = Number(
     routeClass === 'start'
       ? process.env.ROCK_CONNECTION_START_RATE_LIMIT || defaultMaximum
-      : process.env.ROCK_CONNECTION_SUBMIT_RATE_LIMIT || defaultMaximum,
+      : routeClass === 'submit'
+        ? process.env.ROCK_CONNECTION_SUBMIT_RATE_LIMIT || defaultMaximum
+        : process.env.ROCK_PERSON_SEARCH_RATE_LIMIT || defaultMaximum,
   )
-  const maximum = Number.isSafeInteger(configured) && configured >= 1
-    ? Math.min(defaultMaximum, configured)
-    : defaultMaximum
+  const maximum =
+    Number.isSafeInteger(configured) && configured >= 1
+      ? Math.min(defaultMaximum, configured)
+      : defaultMaximum
   const count = await store.increment({
     bucketDigest: digestConnectionClientAddress(address),
     routeClass,
@@ -107,6 +123,8 @@ export async function enforceConnectionRateLimit({
     expiresAt: new Date(windowStart + 2 * windowMs),
   })
   if (count > maximum) {
-    throw new ConnectionRateLimitError(Math.max(1, Math.ceil((windowStart + windowMs - now) / 1_000)))
+    throw new ConnectionRateLimitError(
+      Math.max(1, Math.ceil((windowStart + windowMs - now) / 1_000)),
+    )
   }
 }

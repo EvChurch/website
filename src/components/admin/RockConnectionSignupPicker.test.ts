@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { deriveConnectionPickerState } from './RockConnectionSignupPicker.state'
 
 const options = [
-  { blockGuid: '495cda8e-60fe-4f77-a452-932b460fb44c', label: 'Newish — proxy' },
+  { blockGuid: '70f9eb00-5961-42bc-b1ea-dbcb8fce6369', label: 'Newish — proxy' },
 ]
 
 describe('Rock Connection Signup picker state', () => {

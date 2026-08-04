@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { existsSync, readFileSync } from 'node:fs'
 import sharp from 'sharp'
 import { ensureNewishConnectionForm } from './newish-form'
+import { EXPLAINING_CHRISTIANITY_CONNECTION_BLOCK_GUID } from './explaining-christianity-form'
 
 async function generateBlur(filePath: string): Promise<string | null> {
   try {
@@ -1225,8 +1226,9 @@ async function seed() {
         eyebrow: 'Register your interest',
         heading: 'Sign up for the next course',
         description: 'The next Explaining Christianity course will be announced soon. Register your interest and we will let you know when dates are confirmed.',
-        sourceType: 'workflow',
-        rockWorkflowGuid: '16d675d3-00cf-459e-990d-817003cbbc88',
+        sourceType: 'connectionOpportunity',
+        rockConnectionBlockGuid:
+          EXPLAINING_CHRISTIANITY_CONNECTION_BLOCK_GUID,
         layout: 'centered',
       },
       {

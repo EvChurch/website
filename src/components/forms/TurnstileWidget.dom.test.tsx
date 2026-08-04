@@ -23,6 +23,7 @@ describe('TurnstileWidget lifecycle', () => {
     await act(async () => root.unmount())
     container.remove()
     delete window.turnstile
+    document.querySelectorAll('script[data-ev-turnstile]').forEach((script) => script.remove())
   })
 
   it('renders, forwards callbacks, replaces on reset, and removes on unmount', async () => {
@@ -40,6 +41,11 @@ describe('TurnstileWidget lifecycle', () => {
     ))
     expect(onToken.mock.calls).toEqual([['verified-token'], ['']])
     expect(render).toHaveBeenCalledOnce()
+    expect(render).toHaveBeenCalledWith(
+      expect.any(HTMLElement),
+      expect.objectContaining({ appearance: 'interaction-only' }),
+    )
+    expect(container.firstElementChild?.className).not.toContain('min-h-')
 
     await act(async () => root.render(
       <TurnstileWidget siteKey="site-key" action="start" resetKey={1} onToken={onToken} />,
@@ -49,5 +55,40 @@ describe('TurnstileWidget lifecycle', () => {
 
     await act(async () => root.unmount())
     expect(remove).toHaveBeenLastCalledWith('widget-2')
+  })
+
+  it('reports script load failures and permits a fresh script attempt', async () => {
+    const onError = vi.fn()
+    await act(async () => root.render(
+      <TurnstileWidget
+        siteKey="site-key"
+        action="start"
+        resetKey={0}
+        onToken={() => undefined}
+        onError={onError}
+      />,
+    ))
+
+    const failedScript = document.querySelector<HTMLScriptElement>(
+      'script[data-ev-turnstile]',
+    )
+    failedScript?.dispatchEvent(new Event('error'))
+    expect(onError).toHaveBeenCalledWith(
+      'The security check could not load. Please try again.',
+    )
+    expect(failedScript?.dataset.evTurnstileState).toBe('error')
+
+    await act(async () => root.render(
+      <TurnstileWidget
+        siteKey="site-key"
+        action="start"
+        resetKey={1}
+        onToken={() => undefined}
+        onError={onError}
+      />,
+    ))
+    expect(document.querySelector('script[data-ev-turnstile]')).not.toBe(
+      failedScript,
+    )
   })
 })

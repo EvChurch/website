@@ -34,7 +34,7 @@ describe('Rock connection signup admin discovery route', () => {
       permissions: { collections: { pages: { update: true } } },
     })
     mocks.list.mockResolvedValue([
-      { blockGuid: '495cda8e-60fe-4f77-a452-932b460fb44c', label: 'Newish' },
+      { blockGuid: '70f9eb00-5961-42bc-b1ea-dbcb8fce6369', label: 'Newish' },
     ])
 
     const response = await GET(request())
@@ -44,7 +44,7 @@ describe('Rock connection signup admin discovery route', () => {
     expect(response.headers.get('cache-control')).toContain('no-store')
     expect(await response.json()).toEqual({
       configurations: [
-        { blockGuid: '495cda8e-60fe-4f77-a452-932b460fb44c', label: 'Newish' },
+        { blockGuid: '70f9eb00-5961-42bc-b1ea-dbcb8fce6369', label: 'Newish' },
       ],
     })
     expect(mocks.list).toHaveBeenCalledOnce()

@@ -6,15 +6,17 @@ import {
   buildConnectionSubmissionValues,
   claimConnectionSubmission,
   emptyConnectionSignupValues,
+  preserveConnectionSignupValues,
   ConnectionSignupFields,
   ConnectionSignupTerminal,
+  RockConnectionOpportunitySignup,
   connectionSignupReducer,
 } from './RockConnectionOpportunitySignup'
 
 function schema(overrides: Partial<RockConnectionSignupSchema> = {}): RockConnectionSignupSchema {
   return {
     pageGuid: 'eab9cb2b-474f-4939-b665-e32b4d2e1bb2',
-    blockGuid: '495cda8e-60fe-4f77-a452-932b460fb44c',
+    blockGuid: '70f9eb00-5961-42bc-b1ea-dbcb8fce6369',
     blockTypeGuid: '35d5ef65-0b0d-4e99-82b5-3f5fc2e0344f',
     opportunityGuid: '11111111-1111-4111-8111-111111111111',
     opportunityName: 'Newish <script>alert(1)</script>',
@@ -32,14 +34,65 @@ function schema(overrides: Partial<RockConnectionSignupSchema> = {}): RockConnec
 }
 
 describe('Rock Connection Opportunity signup UI', () => {
+  it('includes initialized fields in the server-rendered HTML', () => {
+    const initialized = schema({ opportunityName: 'Connect with us' })
+    const markup = renderToStaticMarkup(
+      <RockConnectionOpportunitySignup
+        blockGuid={initialized.blockGuid}
+        initialSchema={initialized}
+        initialSiteKey="site-key"
+      />,
+    )
+
+    expect(markup).toContain('aria-label="Connect with us"')
+    expect(markup).not.toContain('>Connect with us<')
+    expect(markup).toContain('First name')
+    expect(markup).toContain('<form')
+    expect(markup).toContain('<input')
+    expect(markup).toContain('disabled=""')
+    expect(markup).not.toContain('Loading signup')
+    expect(markup).not.toContain('Complete the security check to begin')
+  })
+
   it('preserves an initialized default among multiple campuses', () => {
     expect(emptyConnectionSignupValues(schema({ selectedCampusId: 2 })).campusId).toBe('2')
+  })
+
+  it('preserves entered values when a fresh context is required', () => {
+    const current = {
+      ...emptyConnectionSignupValues(schema()),
+      firstName: 'Ada',
+      campusId: '2',
+      attributeValues: { kept: 'yes', removed: 'no' },
+    }
+    const refreshed = schema({
+      attributes: [
+        {
+          attributeGuid: '77777777-7777-4777-8777-777777777777',
+          fieldTypeGuid: '88888888-8888-4888-8888-888888888888',
+          key: 'kept',
+          name: 'Kept',
+          description: '',
+          isRequired: false,
+          order: 0,
+          configurationValues: {},
+        },
+      ],
+    })
+
+    expect(preserveConnectionSignupValues(refreshed, current)).toMatchObject({
+      firstName: 'Ada',
+      campusId: '2',
+      attributeValues: { kept: 'yes' },
+    })
   })
 
   it('renders ordered built-ins, campus, phones, and comments as text', () => {
     const markup = renderToStaticMarkup(
       <ConnectionSignupFields
-        schema={schema()}
+        schema={schema({
+          commentFieldLabel: 'Anything else? <script>alert(1)</script>',
+        })}
         values={{ firstName: '', lastName: '', email: '', campusId: '', homePhone: {}, mobilePhone: {}, comments: '', attributeValues: {} }}
         onChange={() => undefined}
       />,
@@ -47,6 +100,7 @@ describe('Rock Connection Opportunity signup UI', () => {
     for (const label of ['First name', 'Last name', 'Email', 'Campus', 'Home phone', 'Mobile phone', 'Anything else?']) {
       expect(markup).toContain(label)
     }
+    expect(markup).not.toContain('I agree to receive text messages')
     expect(markup).toContain('&lt;script&gt;')
     expect(markup).not.toContain('<script>')
   })

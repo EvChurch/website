@@ -1,4 +1,9 @@
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+} from 'node:crypto'
 import type { RockFormContext } from './types'
 
 function getSigningSecret(): string {
@@ -11,34 +16,51 @@ function getSigningSecret(): string {
   return secret
 }
 
-function sign(encodedPayload: string): string {
-  return createHmac('sha256', getSigningSecret())
-    .update(encodedPayload)
-    .digest('base64url')
+function encryptionKey(): Buffer {
+  return createHash('sha256').update(getSigningSecret()).digest()
 }
 
 export function createRockFormContextToken(context: RockFormContext): string {
-  const payload = Buffer.from(JSON.stringify(context)).toString('base64url')
-  return `${payload}.${sign(payload)}`
+  const initializationVector = randomBytes(12)
+  const cipher = createCipheriv('aes-256-gcm', encryptionKey(), initializationVector)
+  const encrypted = Buffer.concat([
+    cipher.update(JSON.stringify(context), 'utf8'),
+    cipher.final(),
+  ])
+
+  return [
+    'v2',
+    initializationVector.toString('base64url'),
+    encrypted.toString('base64url'),
+    cipher.getAuthTag().toString('base64url'),
+  ].join('.')
 }
 
 export function verifyRockFormContextToken(token: string): RockFormContext {
-  const [payload, signature, extra] = token.split('.')
-
-  if (!payload || !signature || extra) {
-    throw new Error('Invalid form context')
-  }
-
-  const expected = Buffer.from(sign(payload))
-  const supplied = Buffer.from(signature)
-
-  if (expected.length !== supplied.length || !timingSafeEqual(expected, supplied)) {
+  const [version, encodedIv, encodedPayload, encodedTag, extra] = token.split('.')
+  if (
+    version !== 'v2' ||
+    !encodedIv ||
+    !encodedPayload ||
+    !encodedTag ||
+    extra
+  ) {
     throw new Error('Invalid form context')
   }
 
   let context: RockFormContext
   try {
-    context = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
+    const decipher = createDecipheriv(
+      'aes-256-gcm',
+      encryptionKey(),
+      Buffer.from(encodedIv, 'base64url'),
+    )
+    decipher.setAuthTag(Buffer.from(encodedTag, 'base64url'))
+    const decrypted = Buffer.concat([
+      decipher.update(Buffer.from(encodedPayload, 'base64url')),
+      decipher.final(),
+    ])
+    context = JSON.parse(decrypted.toString('utf8'))
   } catch {
     throw new Error('Invalid form context')
   }

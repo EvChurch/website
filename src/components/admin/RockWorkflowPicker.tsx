@@ -11,7 +11,7 @@ type RockFormsListResponse = { forms?: RockFormOption[]; error?: string }
 let formsRequest: Promise<RockFormOption[]> | null = null
 
 function loadForms() {
-  formsRequest ||= fetch('/api/rock-forms').then(async (response) => {
+  formsRequest ||= fetch('/api/admin/rock-forms').then(async (response) => {
     const data = (await response.json()) as RockFormsListResponse
     if (!response.ok) throw new Error(data.error || 'Unable to load forms')
     return data.forms || []

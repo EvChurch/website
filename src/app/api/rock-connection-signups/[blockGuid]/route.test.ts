@@ -35,9 +35,9 @@ import {
   handlePost,
   ROCK_CONNECTION_START_ACTION,
   ROCK_CONNECTION_SUBMIT_ACTION,
-} from './route'
+} from './handler'
 
-const blockGuid = '495cda8e-60fe-4f77-a452-932b460fb44c'
+const blockGuid = '70f9eb00-5961-42bc-b1ea-dbcb8fce6369'
 const pageGuid = 'eab9cb2b-474f-4939-b665-e32b4d2e1bb2'
 const opportunityGuid = '11111111-1111-4111-8111-111111111111'
 const now = Date.now()
@@ -195,6 +195,7 @@ describe('public Rock Connection signup route', () => {
       values: { firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.test', campusId: 3 },
     }), context(), dependencies)
     expect(replay.status).toBe(409)
+    await expect(replay.json()).resolves.toMatchObject({ restartRequired: true })
     expect(sendRockConnectionSignup).toHaveBeenCalledTimes(1)
   })
 
@@ -240,6 +241,7 @@ describe('public Rock Connection signup route', () => {
       intent: 'submit', turnstileToken: 'fresh', contextToken: createRockConnectionContextToken(signed), values: {},
     }), context(), { nonceStore, rateLimitStore: createMemoryRateLimitStore() })
     expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toMatchObject({ restartRequired: true })
     expect(sendRockConnectionSignup).not.toHaveBeenCalled()
   })
 })

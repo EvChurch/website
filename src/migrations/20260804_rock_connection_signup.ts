@@ -1,6 +1,12 @@
 import type { MigrateDownArgs, MigrateUpArgs } from '@payloadcms/db-postgres'
 import { sql } from '@payloadcms/db-postgres'
 
+import { NEWISH_CONNECTION_BLOCK_GUID } from '@/seed/newish-form'
+import {
+  EXPLAINING_CHRISTIANITY_CONNECTION_BLOCK_GUID,
+  OLD_EXPLAINING_CHRISTIANITY_WORKFLOW_GUID,
+} from '@/seed/explaining-christianity-form'
+
 export const ROCK_CONNECTION_SIGNUP_UP_SQL = String.raw`
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
@@ -65,7 +71,7 @@ BEGIN
   JOIN "_pages_v" v ON v."id" = b."_parent_id"
   WHERE lower(v."version_slug") = 'newish'
     AND lower(coalesce(b."rock_workflow_guid", '')) = '00778880-81fe-4871-aa91-7c81783b8c4d'
-    AND b."_path" = 'layout'
+    AND b."_path" = 'version.layout'
     AND b."_order" = 5
     AND b."layout"::text = 'centered';
 
@@ -117,7 +123,7 @@ BEGIN
     JOIN "_pages_v" v ON v."id" = b."_parent_id"
     WHERE lower(v."version_slug") = 'newish'
       AND lower(coalesce(b."rock_workflow_guid", '')) = '00778880-81fe-4871-aa91-7c81783b8c4d'
-      AND b."_path" = 'layout'
+      AND b."_path" = 'version.layout'
       AND b."_order" = 5
       AND b."layout"::text = 'centered'
     GROUP BY b."_parent_id"
@@ -129,7 +135,7 @@ END $$;
 
 UPDATE "pages_blocks_form_embed" b
 SET "source_type" = 'connectionOpportunity',
-    "rock_connection_block_guid" = '495cda8e-60fe-4f77-a452-932b460fb44c',
+    "rock_connection_block_guid" = '${NEWISH_CONNECTION_BLOCK_GUID}',
     "rock_workflow_guid" = NULL
 FROM "pages" p
 WHERE p."id" = b."_parent_id"
@@ -141,13 +147,100 @@ WHERE p."id" = b."_parent_id"
 
 UPDATE "_pages_v_blocks_form_embed" b
 SET "source_type" = 'connectionOpportunity',
-    "rock_connection_block_guid" = '495cda8e-60fe-4f77-a452-932b460fb44c',
+    "rock_connection_block_guid" = '${NEWISH_CONNECTION_BLOCK_GUID}',
     "rock_workflow_guid" = NULL
 FROM "_pages_v" v
 WHERE v."id" = b."_parent_id"
   AND lower(v."version_slug") = 'newish'
   AND lower(coalesce(b."rock_workflow_guid", '')) = '00778880-81fe-4871-aa91-7c81783b8c4d'
+  AND b."_path" = 'version.layout'
+  AND b."_order" = 5
+  AND b."layout"::text = 'centered';
+
+DO $$
+DECLARE
+  live_old_guid_count integer;
+  live_candidate_count integer;
+  version_old_guid_count integer;
+  version_candidate_count integer;
+BEGIN
+  SELECT count(*) INTO live_old_guid_count
+  FROM "pages_blocks_form_embed" b
+  JOIN "pages" p ON p."id" = b."_parent_id"
+  WHERE lower(p."slug") = 'explaining-christianity'
+    AND lower(coalesce(b."rock_workflow_guid", '')) = '${OLD_EXPLAINING_CHRISTIANITY_WORKFLOW_GUID}';
+
+  SELECT count(*) INTO live_candidate_count
+  FROM "pages_blocks_form_embed" b
+  JOIN "pages" p ON p."id" = b."_parent_id"
+  WHERE lower(p."slug") = 'explaining-christianity'
+    AND lower(coalesce(b."rock_workflow_guid", '')) = '${OLD_EXPLAINING_CHRISTIANITY_WORKFLOW_GUID}'
+    AND b."_path" = 'layout'
+    AND b."_order" = 5
+    AND b."layout"::text = 'centered';
+
+  SELECT count(*) INTO version_old_guid_count
+  FROM "_pages_v_blocks_form_embed" b
+  JOIN "_pages_v" v ON v."id" = b."_parent_id"
+  WHERE lower(v."version_slug") = 'explaining-christianity'
+    AND lower(coalesce(b."rock_workflow_guid", '')) = '${OLD_EXPLAINING_CHRISTIANITY_WORKFLOW_GUID}';
+
+  SELECT count(*) INTO version_candidate_count
+  FROM "_pages_v_blocks_form_embed" b
+  JOIN "_pages_v" v ON v."id" = b."_parent_id"
+  WHERE lower(v."version_slug") = 'explaining-christianity'
+    AND lower(coalesce(b."rock_workflow_guid", '')) = '${OLD_EXPLAINING_CHRISTIANITY_WORKFLOW_GUID}'
+    AND b."_path" = 'version.layout'
+    AND b."_order" = 5
+    AND b."layout"::text = 'centered';
+
+  RAISE NOTICE 'Rock Explaining Christianity candidate manifest: live=%/% versions=%/%',
+    live_candidate_count, live_old_guid_count,
+    version_candidate_count, version_old_guid_count;
+
+  IF live_candidate_count > 1 OR live_candidate_count <> live_old_guid_count THEN
+    RAISE EXCEPTION 'Unsafe live Explaining Christianity form candidate set: % reviewed of % matching old GUID', live_candidate_count, live_old_guid_count;
+  END IF;
+  IF version_candidate_count <> version_old_guid_count THEN
+    RAISE EXCEPTION 'Unsafe version Explaining Christianity form candidate set: % reviewed of % matching old GUID', version_candidate_count, version_old_guid_count;
+  END IF;
+  IF EXISTS (
+    SELECT 1
+    FROM "_pages_v_blocks_form_embed" b
+    JOIN "_pages_v" v ON v."id" = b."_parent_id"
+    WHERE lower(v."version_slug") = 'explaining-christianity'
+      AND lower(coalesce(b."rock_workflow_guid", '')) = '${OLD_EXPLAINING_CHRISTIANITY_WORKFLOW_GUID}'
+      AND b."_path" = 'version.layout'
+      AND b."_order" = 5
+      AND b."layout"::text = 'centered'
+    GROUP BY b."_parent_id"
+    HAVING count(*) > 1
+  ) THEN
+    RAISE EXCEPTION 'Duplicate Explaining Christianity form candidates exist in one page version';
+  END IF;
+END $$;
+
+UPDATE "pages_blocks_form_embed" b
+SET "source_type" = 'connectionOpportunity',
+    "rock_connection_block_guid" = '${EXPLAINING_CHRISTIANITY_CONNECTION_BLOCK_GUID}',
+    "rock_workflow_guid" = NULL
+FROM "pages" p
+WHERE p."id" = b."_parent_id"
+  AND lower(p."slug") = 'explaining-christianity'
+  AND lower(coalesce(b."rock_workflow_guid", '')) = '${OLD_EXPLAINING_CHRISTIANITY_WORKFLOW_GUID}'
   AND b."_path" = 'layout'
+  AND b."_order" = 5
+  AND b."layout"::text = 'centered';
+
+UPDATE "_pages_v_blocks_form_embed" b
+SET "source_type" = 'connectionOpportunity',
+    "rock_connection_block_guid" = '${EXPLAINING_CHRISTIANITY_CONNECTION_BLOCK_GUID}',
+    "rock_workflow_guid" = NULL
+FROM "_pages_v" v
+WHERE v."id" = b."_parent_id"
+  AND lower(v."version_slug") = 'explaining-christianity'
+  AND lower(coalesce(b."rock_workflow_guid", '')) = '${OLD_EXPLAINING_CHRISTIANITY_WORKFLOW_GUID}'
+  AND b."_path" = 'version.layout'
   AND b."_order" = 5
   AND b."layout"::text = 'centered';
 
@@ -246,7 +339,7 @@ CREATE TABLE IF NOT EXISTS "rock_connection_signup_rate_limits" (
   "created_at" timestamp(3) with time zone NOT NULL DEFAULT now(),
   PRIMARY KEY ("bucket_digest", "route_class", "window_started_at"),
   CONSTRAINT "rock_connection_signup_rate_digest_check" CHECK ("bucket_digest" ~ '^[0-9a-f]{64}$'),
-  CONSTRAINT "rock_connection_signup_rate_class_check" CHECK ("route_class" IN ('start', 'submit')),
+  CONSTRAINT "rock_connection_signup_rate_class_check" CHECK ("route_class" IN ('start', 'submit', 'personSearch')),
   CONSTRAINT "rock_connection_signup_rate_count_check" CHECK ("count" > 0)
 );
 CREATE INDEX "rock_connection_signup_rate_limits_expires_idx"

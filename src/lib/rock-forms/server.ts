@@ -174,6 +174,14 @@ export function buildRockFormSchema({
     buttonTitles: parsed.buttons.map((button) => button.title),
     expiresAt: Date.now() + ROCK_FORM_CONTEXT_TTL_SECONDS * 1000,
   }
+  const publicFields = parsed.fields.map((field) => ({
+    ...field,
+    securityGrantToken: undefined,
+    attribute: {
+      ...field.attribute,
+      securityGrantToken: undefined,
+    },
+  }))
 
   return {
     workflowTypeGuid: workflow.guid,
@@ -181,7 +189,7 @@ export function buildRockFormSchema({
     headerHtml: parsed.headerHtml,
     footerHtml: parsed.footerHtml,
     sections: parsed.sections,
-    fields: parsed.fields,
+    fields: publicFields,
     personEntry: parsed.personEntry,
     initialFieldValues: parsed.initialFieldValues,
     initialPersonEntryValues,

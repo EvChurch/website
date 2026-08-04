@@ -36,6 +36,25 @@ describe('Rock form context tokens', () => {
     expect(verifyRockFormContextToken(createRockFormContextToken(value))).toEqual(value)
   })
 
+  it('encrypts sensitive Rock action state', () => {
+    const value = context({
+      allowedFields: [
+        {
+          attributeGuid: '44444444-4444-4444-8444-444444444444',
+          fieldTypeGuid: '55555555-5555-4555-8555-555555555555',
+          binaryFileTypeGuid: '66666666-6666-4666-8666-666666666666',
+          securityGrantToken: 'sensitive-upload-grant',
+          name: 'Attachment',
+        },
+      ],
+    })
+    const token = createRockFormContextToken(value)
+
+    expect(token).toMatch(/^v2\./)
+    expect(token).not.toContain('sensitive-upload-grant')
+    expect(verifyRockFormContextToken(token)).toEqual(value)
+  })
+
   it('rejects tampering', () => {
     const token = createRockFormContextToken(context())
     expect(() => verifyRockFormContextToken(`x${token.slice(1)}`)).toThrow(

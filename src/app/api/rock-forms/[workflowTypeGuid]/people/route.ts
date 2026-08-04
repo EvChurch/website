@@ -3,6 +3,12 @@ import { rockFetch } from '@/lib/rock-api'
 import { verifyRockFormContextToken } from '@/lib/rock-forms/context-token'
 import { ROCK_FIELD_TYPES } from '@/lib/rock-forms/field-types'
 import { isRockFormPublished } from '@/lib/rock-forms/published'
+import {
+  ConnectionRateLimitError,
+  enforceConnectionRateLimit,
+  trustedConnectionClientAddress,
+} from '@/lib/rock-connection-signups/rate-limit'
+import { isSameOriginRequest } from '@/lib/request-origin'
 
 type PersonSearchResult = {
   primaryAliasGuid?: string | null
@@ -17,13 +23,14 @@ export async function POST(
 ) {
   try {
     const { workflowTypeGuid } = await params
-    const origin = request.headers.get('origin')
-    if (
-      origin &&
-      new URL(origin).host !== request.nextUrl.host
-    ) {
+    if (!isSameOriginRequest(request)) {
       return NextResponse.json({ error: 'Invalid request origin' }, { status: 403 })
     }
+    const address = trustedConnectionClientAddress(request.headers)
+    await enforceConnectionRateLimit({
+      address,
+      routeClass: 'personSearch',
+    })
     const body = (await request.json()) as {
       query?: unknown
       contextToken?: unknown
@@ -72,6 +79,15 @@ export async function POST(
         })),
     })
   } catch (error) {
+    if (error instanceof ConnectionRateLimitError) {
+      return NextResponse.json(
+        { error: 'Too many person searches' },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(error.retryAfterSeconds) },
+        },
+      )
+    }
     console.error('Unable to search Rock people', error)
     return NextResponse.json(
       { error: 'Person search is temporarily unavailable' },

@@ -25,15 +25,6 @@ export function getRockConnectionApiBaseUrl(): string {
   return url.toString().replace(/\/$/, '')
 }
 
-export function getRockDiscoveryApiKey(): string {
+export function getRockApiKey(): string {
   return requireServerSecret('ROCK_API_KEY')
-}
-
-export function getRockEdgeAccessHeaders(): Record<string, string> {
-  return {
-    'CF-Access-Client-Id': requireServerSecret('ROCK_EDGE_ACCESS_CLIENT_ID'),
-    'CF-Access-Client-Secret': requireServerSecret(
-      'ROCK_EDGE_ACCESS_CLIENT_SECRET',
-    ),
-  }
 }

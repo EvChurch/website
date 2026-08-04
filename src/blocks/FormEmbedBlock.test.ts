@@ -8,7 +8,7 @@ import {
 } from './FormEmbedBlock'
 
 const workflowGuid = '00778880-81fe-4871-aa91-7c81783b8c4d'
-const blockGuid = '495cda8e-60fe-4f77-a452-932b460fb44c'
+const blockGuid = '70f9eb00-5961-42bc-b1ea-dbcb8fce6369'
 
 describe('FormEmbed source validation', () => {
   it('defaults compatibility rows to Workflow and requires only its active identifier', () => {

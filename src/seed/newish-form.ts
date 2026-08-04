@@ -1,7 +1,6 @@
 export const NEWISH_CONNECTION_BLOCK_GUID =
-  '495cda8e-60fe-4f77-a452-932b460fb44c'
-export const OLD_NEWISH_WORKFLOW_GUID =
-  '00778880-81fe-4871-aa91-7c81783b8c4d'
+  '70f9eb00-5961-42bc-b1ea-dbcb8fce6369'
+export const OLD_NEWISH_WORKFLOW_GUID = '00778880-81fe-4871-aa91-7c81783b8c4d'
 
 export type SeedLayoutBlock = {
   blockType?: unknown

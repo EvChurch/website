@@ -177,4 +177,28 @@ describe('Rock form route', () => {
     expect(response.status).toBe(403)
     expect(mocks.verifyTurnstile).not.toHaveBeenCalled()
   })
+
+  it('rejects oversized multipart requests before parsing or verification', async () => {
+    const response = await POST(
+      new NextRequest(
+        `http://localhost/api/rock-forms/${workflowTypeGuid}`,
+        {
+          method: 'POST',
+          headers: {
+            origin: 'http://localhost',
+            'content-type': 'multipart/form-data; boundary=test',
+            'content-length': String(18 * 1024 * 1024),
+          },
+          body: '--test--',
+        },
+      ),
+      routeContext,
+    )
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({
+      error: 'Form submission is too large',
+    })
+    expect(mocks.verifyTurnstile).not.toHaveBeenCalled()
+  })
 })

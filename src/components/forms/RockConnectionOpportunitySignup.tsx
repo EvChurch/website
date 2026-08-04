@@ -19,7 +19,7 @@ import { TurnstileWidget } from './TurnstileWidget'
 
 export { ROCK_CONNECTION_START_ACTION, ROCK_CONNECTION_SUBMIT_ACTION }
 
-type PublicConnectionSchema = Omit<RockConnectionSignupSchema, 'sessionGuid' | 'interactionGuid'>
+export type PublicConnectionSchema = Omit<RockConnectionSignupSchema, 'sessionGuid' | 'interactionGuid'>
 
 export type ConnectionSignupValues = {
   firstName: string
@@ -90,6 +90,28 @@ export function emptyConnectionSignupValues(schema: PublicConnectionSchema): Con
   }
 }
 
+export function preserveConnectionSignupValues(
+  schema: PublicConnectionSchema,
+  current: ConnectionSignupValues | null,
+): ConnectionSignupValues {
+  const empty = emptyConnectionSignupValues(schema)
+  if (!current) return empty
+  const campusId = schema.campuses.some(({ value }) => value === current.campusId)
+    ? current.campusId
+    : empty.campusId
+  const allowedAttributeKeys = new Set(schema.attributes.map(({ key }) => key))
+
+  return {
+    ...current,
+    campusId,
+    attributeValues: Object.fromEntries(
+      Object.entries(current.attributeValues).filter(([key]) =>
+        allowedAttributeKeys.has(key),
+      ),
+    ),
+  }
+}
+
 export function buildConnectionSubmissionValues(
   schema: Pick<PublicConnectionSchema, 'campuses'>,
   values: ConnectionSignupValues,
@@ -130,15 +152,6 @@ function PhoneField({
         value={value.number || ''}
         onChange={(event) => onChange({ ...value, number: event.target.value, countryCode: value.countryCode || '+64' })}
       />
-      <label className="flex items-start gap-3 text-sm text-dark-grey">
-        <input
-          className="mt-1 h-4 w-4 accent-rich-red"
-          type="checkbox"
-          checked={value.isMessagingEnabled === true}
-          onChange={(event) => onChange({ ...value, isMessagingEnabled: event.target.checked })}
-        />
-        I agree to receive text messages related to this request.
-      </label>
     </div>
   )
 }
@@ -162,7 +175,6 @@ export function ConnectionSignupFields({
 
   return (
     <div className="space-y-7">
-      <h3 className="text-2xl font-semibold text-brand-black">{schema.opportunityName}</h3>
       <div className="grid gap-5 sm:grid-cols-2">
         <label className={formLabelClass}>
           First name <span aria-hidden="true">*</span>
@@ -254,26 +266,61 @@ type SubmitResponse = {
   message?: string | null
   error?: string
   outcomeUnknown?: boolean
+  restartRequired?: boolean
 }
 
-export function RockConnectionOpportunitySignup({ blockGuid }: { blockGuid: string }) {
+export function RockConnectionOpportunitySignup({
+  blockGuid,
+  initialSchema = null,
+  initialContextToken = '',
+  initialSiteKey = '',
+}: {
+  blockGuid: string
+  initialSchema?: PublicConnectionSchema | null
+  initialContextToken?: string
+  initialSiteKey?: string
+}) {
   const endpoint = `/api/rock-connection-signups/${encodeURIComponent(blockGuid)}`
-  const [state, dispatch] = useReducer(connectionSignupReducer, { phase: 'start' })
-  const [loadingSiteKey, setLoadingSiteKey] = useState(true)
+  const [state, dispatch] = useReducer(connectionSignupReducer, {
+    phase: initialSchema && initialContextToken ? 'editing' : 'start',
+  })
+  const [loadingSiteKey, setLoadingSiteKey] = useState(
+    !initialSchema && !initialSiteKey,
+  )
   const [starting, setStarting] = useState(false)
-  const [siteKey, setSiteKey] = useState('')
-  const [schema, setSchema] = useState<PublicConnectionSchema | null>(null)
-  const [contextToken, setContextToken] = useState('')
-  const [values, setValues] = useState<ConnectionSignupValues | null>(null)
+  const [siteKey, setSiteKey] = useState(initialSiteKey)
+  const [schema, setSchema] = useState<PublicConnectionSchema | null>(initialSchema)
+  const [contextToken, setContextToken] = useState(initialContextToken)
+  const [values, setValues] = useState<ConnectionSignupValues | null>(
+    initialSchema ? emptyConnectionSignupValues(initialSchema) : null,
+  )
   const [turnstileToken, setTurnstileToken] = useState('')
   const [turnstileResetKey, setTurnstileResetKey] = useState(0)
   const [configurationError, setConfigurationError] = useState('')
   const startingLock = useRef(false)
   const submitting = useRef(false)
+  const startController = useRef<AbortController | null>(null)
+  const submitController = useRef<AbortController | null>(null)
   const errorRef = useRef<HTMLParagraphElement>(null)
 
   useEffect(() => {
+    if (initialSchema && initialSiteKey) {
+      setSiteKey(initialSiteKey)
+      setSchema(initialSchema)
+      setContextToken(initialContextToken)
+      setValues(emptyConnectionSignupValues(initialSchema))
+      setLoadingSiteKey(false)
+      if (initialContextToken) dispatch({ type: 'started' })
+      return
+    }
+
     const controller = new AbortController()
+    let active = true
+    let timedOut = false
+    const timeout = window.setTimeout(() => {
+      timedOut = true
+      controller.abort()
+    }, 45_000)
     setLoadingSiteKey(true)
     fetch(endpoint, { signal: controller.signal })
       .then(async (response) => {
@@ -282,13 +329,36 @@ export function RockConnectionOpportunitySignup({ blockGuid }: { blockGuid: stri
         setSiteKey(data.turnstileSiteKey)
       })
       .catch((error) => {
-        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+        if (active && timedOut) {
+          dispatch({ type: 'failed', message: 'The signup took too long to load. Please try again.' })
+        } else if (active && !(error instanceof DOMException && error.name === 'AbortError')) {
           dispatch({ type: 'failed', message: error instanceof Error ? error.message : 'Unable to load this signup' })
         }
       })
-      .finally(() => setLoadingSiteKey(false))
-    return () => controller.abort()
-  }, [endpoint])
+      .finally(() => {
+        window.clearTimeout(timeout)
+        if (active) setLoadingSiteKey(false)
+      })
+    return () => {
+      active = false
+      window.clearTimeout(timeout)
+      controller.abort()
+    }
+  }, [endpoint, initialSchema, initialContextToken, initialSiteKey])
+
+  useEffect(
+    () => () => {
+      const activeStart = startController.current
+      const activeSubmit = submitController.current
+      startController.current = null
+      submitController.current = null
+      activeStart?.abort()
+      activeSubmit?.abort()
+      startingLock.current = false
+      submitting.current = false
+    },
+    [endpoint],
+  )
 
   useEffect(() => {
     if ('error' in state && state.error) errorRef.current?.focus()
@@ -298,16 +368,29 @@ export function RockConnectionOpportunitySignup({ blockGuid }: { blockGuid: stri
     setTurnstileToken('')
     setTurnstileResetKey((key) => key + 1)
   }, [])
+  const handleTurnstileError = useCallback(
+    (message: string) => dispatch({ type: 'failed', message }),
+    [],
+  )
 
   const start = useCallback(async (token: string) => {
     if (!token || startingLock.current) return
     startingLock.current = true
     setStarting(true)
+    startController.current?.abort()
+    const controller = new AbortController()
+    startController.current = controller
+    let timedOut = false
+    const timeout = window.setTimeout(() => {
+      timedOut = true
+      controller.abort()
+    }, 45_000)
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ intent: 'start', turnstileToken: token }),
+        signal: controller.signal,
       })
       const data = (await response.json()) as StartResponse
       if (!response.ok || !data.schema || !data.contextToken) throw new Error(data.error || 'Unable to start this signup')
@@ -318,14 +401,20 @@ export function RockConnectionOpportunitySignup({ blockGuid }: { blockGuid: stri
       }
       setSchema(data.schema)
       setContextToken(data.contextToken)
-      setValues(emptyConnectionSignupValues(data.schema))
+      setValues((current) => preserveConnectionSignupValues(data.schema!, current))
       dispatch({ type: 'started' })
     } catch (error) {
-      dispatch({ type: 'failed', message: error instanceof Error ? error.message : 'Unable to start this signup' })
+      if (!controller.signal.aborted || timedOut) {
+        dispatch({ type: 'failed', message: timedOut ? 'The signup took too long to start. Please try again.' : error instanceof Error ? error.message : 'Unable to start this signup' })
+      }
     } finally {
-      startingLock.current = false
-      setStarting(false)
-      resetTurnstile()
+      window.clearTimeout(timeout)
+      if (startController.current === controller) {
+        startController.current = null
+        startingLock.current = false
+        setStarting(false)
+        resetTurnstile()
+      }
     }
   }, [endpoint, resetTurnstile])
 
@@ -335,19 +424,21 @@ export function RockConnectionOpportunitySignup({ blockGuid }: { blockGuid: stri
   }
   if (state.phase === 'success') return <ConnectionSignupTerminal kind="success" message={state.message} />
   if (state.phase === 'outcomeUnknown') return <ConnectionSignupTerminal kind="outcomeUnknown" />
-  if (!schema || !values || state.phase === 'start') {
+  if (!schema || !values) {
     return (
       <div className="space-y-3">
         <p role="status" aria-live="polite" className="text-sm text-dark-grey">{starting ? 'Preparing secure signup…' : 'Complete the security check to begin.'}</p>
         {'error' in state && state.error && <p ref={errorRef} tabIndex={-1} role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-800 outline-none">{state.error}</p>}
-        {siteKey && <TurnstileWidget siteKey={siteKey} action={ROCK_CONNECTION_START_ACTION} resetKey={turnstileResetKey} onToken={start} />}
+        {siteKey && <TurnstileWidget siteKey={siteKey} action={ROCK_CONNECTION_START_ACTION} resetKey={turnstileResetKey} onToken={start} onError={handleTurnstileError} />}
       </div>
     )
   }
 
   const isSubmitting = state.phase === 'submitting'
+  const contextReady = Boolean(contextToken)
   return (
     <form
+      aria-label={schema.opportunityName}
       className="space-y-8"
       onSubmit={async (event) => {
         event.preventDefault()
@@ -357,6 +448,14 @@ export function RockConnectionOpportunitySignup({ blockGuid }: { blockGuid: stri
         }
         if (isSubmitting || !claimConnectionSubmission(submitting)) return
         dispatch({ type: 'submitting' })
+        submitController.current?.abort()
+        const controller = new AbortController()
+        submitController.current = controller
+        let timedOut = false
+        const timeout = window.setTimeout(() => {
+          timedOut = true
+          controller.abort()
+        }, 45_000)
         try {
           const response = await fetch(endpoint, {
             method: 'POST',
@@ -367,32 +466,55 @@ export function RockConnectionOpportunitySignup({ blockGuid }: { blockGuid: stri
               contextToken,
               values: buildConnectionSubmissionValues(schema, values),
             }),
+            signal: controller.signal,
           })
           const data = (await response.json()) as SubmitResponse
           if (data.outcomeUnknown) {
             dispatch({ type: 'outcomeUnknown' })
+          } else if (data.restartRequired) {
+            setContextToken('')
+            dispatch({
+              type: 'failed',
+              message:
+                data.error ||
+                'Please complete the security check to continue.',
+            })
           } else if (!response.ok || data.status !== 'complete' || data.resultType !== 0) {
             dispatch({ type: 'failed', message: data.error || 'Unable to submit this signup right now' })
           } else {
             dispatch({ type: 'succeeded', message: data.message || 'Thanks. Your request has been received.' })
           }
         } catch {
-          dispatch({ type: 'outcomeUnknown' })
+          if (!controller.signal.aborted || timedOut) {
+            dispatch({ type: 'outcomeUnknown' })
+          }
         } finally {
-          submitting.current = false
-          resetTurnstile()
+          window.clearTimeout(timeout)
+          if (submitController.current === controller) {
+            submitController.current = null
+            submitting.current = false
+            resetTurnstile()
+          }
         }
       }}
     >
-      <ConnectionSignupFields schema={schema} values={values} onChange={setValues} />
-      <TurnstileWidget siteKey={siteKey} action={ROCK_CONNECTION_SUBMIT_ACTION} resetKey={turnstileResetKey} onToken={setTurnstileToken} />
+      <fieldset disabled={!contextReady} className="contents">
+        <ConnectionSignupFields schema={schema} values={values} onChange={setValues} />
+      </fieldset>
+      <TurnstileWidget
+        siteKey={siteKey}
+        action={contextReady ? ROCK_CONNECTION_SUBMIT_ACTION : ROCK_CONNECTION_START_ACTION}
+        resetKey={turnstileResetKey}
+        onToken={contextReady ? setTurnstileToken : start}
+        onError={handleTurnstileError}
+      />
       {'error' in state && state.error && <p ref={errorRef} tabIndex={-1} role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-800 outline-none">{state.error}</p>}
       <button
         className="rounded-full bg-rich-red px-7 py-3 font-semibold text-white transition hover:bg-rich-red/90 disabled:cursor-not-allowed disabled:opacity-60"
         type="submit"
-        disabled={isSubmitting}
+        disabled={isSubmitting || !contextReady}
       >
-        {isSubmitting ? 'Submitting…' : 'Submit'}
+        {isSubmitting ? 'Submitting…' : contextReady ? 'Submit' : 'Preparing…'}
       </button>
     </form>
   )
