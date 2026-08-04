@@ -98,6 +98,21 @@ export function selectFeaturedEvent(events: PublicEvent[]): PublicEvent | null {
   )
 }
 
+export function prepareEventsListing(
+  events: PublicEvent[],
+  campusSlug?: string,
+): { featured: PublicEvent | null; remaining: PublicEvent[] } {
+  const featured = selectFeaturedEvent(events)
+  const visibleEvents = campusSlug ? filterEventsByCampus(events, campusSlug) : events
+
+  return {
+    featured,
+    remaining: featured
+      ? visibleEvents.filter((event) => event.id !== featured.id)
+      : visibleEvents,
+  }
+}
+
 export function isPastEvent(event: PublicEvent, now = new Date()): boolean {
   const finalDate = event.endDate ?? event.startDate
   if (!finalDate) return false

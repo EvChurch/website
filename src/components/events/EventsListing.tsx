@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 import { EventCard } from '@/components/events/EventCard'
 import { EventFeature } from '@/components/events/EventFeature'
-import { getUpcomingEvents, selectFeaturedEvent } from '@/lib/events'
+import { getUpcomingEvents, prepareEventsListing } from '@/lib/events'
 
 const filters = [
   { label: 'All events', href: '/events', slug: null },
@@ -22,9 +22,8 @@ export async function EventsListing({
   heading = 'What’s happening at Ev',
   introduction = 'Find gatherings, courses, and opportunities to connect across our Auckland church community.',
 }: EventsListingProps) {
-  const events = await getUpcomingEvents(campusSlug)
-  const featured = selectFeaturedEvent(events)
-  const remaining = featured ? events.filter((event) => event.id !== featured.id) : events
+  const events = await getUpcomingEvents()
+  const { featured, remaining } = prepareEventsListing(events, campusSlug)
 
   return (
     <div className="min-h-screen bg-[#080808] text-white">
@@ -70,7 +69,7 @@ export async function EventsListing({
             </div>
           ) : featured ? (
             <p className="mt-10 border-t border-white/15 pt-8 text-white/60">
-              That’s the next event for this campus. Check back soon for more.
+              No other upcoming events just yet. Check back soon for more.
             </p>
           ) : (
             <div className="mt-10 rounded-[1.25rem] border border-white/15 px-6 py-12">

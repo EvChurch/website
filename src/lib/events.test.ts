@@ -7,6 +7,7 @@ import {
   getDisplayLocation,
   getRegistrationHref,
   isPastEvent,
+  prepareEventsListing,
   selectFeaturedEvent,
   toPlainText,
   type PublicEvent,
@@ -94,6 +95,27 @@ describe('event helpers', () => {
       central,
       allCampuses,
     ])
+  })
+
+  it('keeps the featured event global while filtering campus cards', () => {
+    const featured = {
+      ...baseEvent,
+      id: 2,
+      slug: 'explaining-christianity',
+      campus: { slug: 'unichurch', name: 'Unichurch' },
+    }
+    const north = { ...baseEvent, id: 3, campus: { slug: 'north', name: 'North' } }
+    const allCampuses = { ...baseEvent, id: 4, campus: null }
+    const events = [featured, north, allCampuses]
+
+    expect(prepareEventsListing(events, 'north')).toEqual({
+      featured,
+      remaining: [north, allCampuses],
+    })
+    expect(prepareEventsListing(events, 'central')).toEqual({
+      featured,
+      remaining: [allCampuses],
+    })
   })
 
   it('only accepts an open Rock registration URL', () => {
