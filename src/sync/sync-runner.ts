@@ -2,6 +2,8 @@ import { getPayloadClient } from '@/lib/payload'
 import { rockFetch } from '@/lib/rock-api'
 import type {
   RockCampus,
+  RockEventCalendar,
+  RockEventCalendarItem,
   RockGroupMember,
   RockEventItem,
   RockEventItemOccurrence,
@@ -9,7 +11,11 @@ import type {
 } from '@/lib/rock-api'
 import { mapRockCampus } from './mappers/campus'
 import { mapRockTeamMember, TEAM_GROUP_IDS } from './mappers/team-member'
-import { mapRockEvent, selectNextEventOccurrences } from './mappers/event'
+import {
+  getEventItemIdsForCalendar,
+  mapRockEvent,
+  selectNextEventOccurrences,
+} from './mappers/event'
 import { mapRockConnectGroup } from './mappers/connect-group'
 import { syncRockImage } from './rock-media'
 import { runSermonSync } from './sermon-sync-runner'
@@ -158,10 +164,24 @@ async function syncEvents(): Promise<SyncResult> {
         $expand: 'Photo',
       },
     })
+    const eventCalendars = await rockFetch<RockEventCalendar[]>({
+      endpoint: 'EventCalendars',
+      params: {
+        $filter: 'IsActive eq true',
+      },
+    })
+    const eventCalendarItems = await rockFetch<RockEventCalendarItem[]>({
+      endpoint: 'EventCalendarItems',
+    })
+    const publicEventItemIds = getEventItemIdsForCalendar(
+      eventCalendars,
+      eventCalendarItems,
+      'Website (Public)',
+    )
     const eventItemsById = new Map(eventItems.map((eventItem) => [eventItem.Id, eventItem]))
     for (const occ of selectNextEventOccurrences(occurrences)) {
       const eventItem = eventItemsById.get(occ.EventItemId)
-      if (!eventItem) continue
+      if (!eventItem || !publicEventItemIds.has(eventItem.Id)) continue
 
       const mapped = mapRockEvent(occ, eventItem)
       const { _campusRockId, _imageUrl, ...eventData } = mapped
@@ -206,6 +226,24 @@ async function syncEvents(): Promise<SyncResult> {
         })
         result.created++
       }
+    }
+
+    const syncedEvents = await payload.find({
+      collection: 'events',
+      depth: 0,
+      limit: 500,
+      select: {
+        rockEventId: true,
+      },
+    })
+    for (const event of syncedEvents.docs) {
+      if (publicEventItemIds.has(event.rockEventId)) continue
+
+      await payload.delete({
+        collection: 'events',
+        id: event.id,
+      })
+      result.deleted++
     }
 
     revalidateTag(CACHE_TAGS.events, 'default')

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { normalizeRockDateTime, selectNextEventOccurrences } from './event'
+import {
+  getEventItemIdsForCalendar,
+  normalizeRockDateTime,
+  selectNextEventOccurrences,
+} from './event'
 
 describe('normalizeRockDateTime', () => {
   it('interprets Rock timestamps as Auckland local time', () => {
@@ -26,5 +30,40 @@ describe('selectNextEventOccurrences', () => {
       occurrences[1],
       occurrences[3],
     ])
+  })
+})
+
+describe('getEventItemIdsForCalendar', () => {
+  it('includes only events linked to the named calendar', () => {
+    const calendars = [
+      { Id: 1, Name: 'Website (Public)', IsActive: true },
+      { Id: 2, Name: 'Internal', IsActive: true },
+      { Id: 5, Name: 'Maturity', IsActive: true },
+    ]
+    const links = [
+      { EventCalendarId: 1, EventItemId: 9 },
+      { EventCalendarId: 2, EventItemId: 1 },
+      { EventCalendarId: 5, EventItemId: 21 },
+      { EventCalendarId: 1, EventItemId: 21 },
+      { EventCalendarId: 5, EventItemId: 37 },
+    ]
+
+    expect([
+      ...getEventItemIdsForCalendar(calendars, links, 'Website (Public)'),
+    ]).toEqual([9, 21])
+  })
+
+  it('fails safely when the public calendar is unavailable', () => {
+    expect(() =>
+      getEventItemIdsForCalendar([], [], 'Website (Public)'),
+    ).toThrow('Rock calendar not found: Website (Public)')
+
+    expect(() =>
+      getEventItemIdsForCalendar(
+        [{ Id: 1, Name: 'Website (Public)', IsActive: true }],
+        [],
+        'Website (Public)',
+      ),
+    ).toThrow('Rock calendar has no events: Website (Public)')
   })
 })

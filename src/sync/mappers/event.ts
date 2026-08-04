@@ -1,4 +1,9 @@
-import type { RockEventItem, RockEventItemOccurrence } from '@/lib/rock-api'
+import type {
+  RockEventCalendar,
+  RockEventCalendarItem,
+  RockEventItem,
+  RockEventItemOccurrence,
+} from '@/lib/rock-api'
 
 function slugify(name: string): string {
   return name
@@ -63,6 +68,27 @@ export function selectNextEventOccurrences(
     selectedEventItemIds.add(occurrence.EventItemId)
     return true
   })
+}
+
+export function getEventItemIdsForCalendar(
+  calendars: RockEventCalendar[],
+  links: RockEventCalendarItem[],
+  calendarName: string,
+): Set<number> {
+  const calendar = calendars.find(
+    (candidate) => candidate.IsActive && candidate.Name === calendarName,
+  )
+  if (!calendar) throw new Error(`Rock calendar not found: ${calendarName}`)
+
+  const eventItemIds = new Set(
+    links
+      .filter((link) => link.EventCalendarId === calendar.Id)
+      .map((link) => link.EventItemId),
+  )
+  if (eventItemIds.size === 0)
+    throw new Error(`Rock calendar has no events: ${calendarName}`)
+
+  return eventItemIds
 }
 
 export function mapRockEvent(rock: RockEventItemOccurrence, eventItem: RockEventItem) {

@@ -171,6 +171,17 @@ export type RockEventItem = {
   }
 }
 
+export type RockEventCalendar = {
+  Id: number
+  Name: string
+  IsActive: boolean
+}
+
+export type RockEventCalendarItem = {
+  EventCalendarId: number
+  EventItemId: number
+}
+
 export type RockEventItemOccurrence = {
   EventItemId: number
   Schedule?: {
