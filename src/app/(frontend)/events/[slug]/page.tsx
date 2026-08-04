@@ -87,8 +87,8 @@ export default async function EventDetailPage({ params }: Props) {
       </section>
 
       <section className="px-5 py-16 lg:px-8 lg:py-24">
-        <div className="mx-auto grid max-w-[80rem] gap-14 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-20">
-          <article>
+        <div className="mx-auto grid max-w-[80rem] gap-14 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-0">
+          <article className="lg:pr-10">
             {past && (
               <div className="mb-10 border-l-4 border-rich-red bg-white px-6 py-5">
                 <h2 className="text-xl text-brand-black">This event has ended</h2>
