@@ -30,20 +30,17 @@ export async function EventsListing({
     <div className="min-h-screen bg-[#080808] text-white">
       <section className="px-5 pb-5 pt-24 lg:px-8 lg:pb-6 lg:pt-28">
         <div className="mx-auto max-w-[80rem]">
-          <div className="flex flex-wrap items-end justify-between gap-5">
-            <div className="max-w-3xl">
-              <h1 className="text-[clamp(2rem,3vw,2.75rem)] leading-tight tracking-[-0.025em] text-white">{heading}</h1>
-            </div>
-            <p className="max-w-xl text-base leading-relaxed text-white/60">{introduction}</p>
-          </div>
-
-          {featured && <div className="mt-8"><EventFeature event={featured} /></div>}
+          <h1 className="sr-only">{heading}</h1>
+          {featured && <EventFeature event={featured} />}
         </div>
       </section>
 
       <section className="px-5 pb-20 pt-5 lg:px-8 lg:pb-28 lg:pt-6">
         <div className="mx-auto max-w-[80rem]">
-          <h2 className="text-[clamp(1.75rem,3vw,2.5rem)] leading-tight tracking-[-0.02em] text-white">Happening at our church</h2>
+          <div className="max-w-3xl">
+            <h2 className="text-[clamp(1.75rem,3vw,2.5rem)] leading-tight tracking-[-0.02em] text-white">Happening at our church</h2>
+            <p className="mt-3 text-base leading-relaxed text-white/60">{introduction}</p>
+          </div>
 
           <nav className="mt-7 flex flex-wrap gap-2" aria-label="Filter events by campus">
             {filters.map((filter) => {
