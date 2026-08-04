@@ -150,9 +150,12 @@ export type RockCampus = {
 
 export type RockPerson = {
   Id: number
-  FullName: string
+  FullName?: string
+  FirstName?: string
+  NickName?: string
+  LastName?: string
   Email: string
-  PhotoUrl: string
+  PhotoUrl?: string | null
 }
 
 export type RockGroupMember = {
@@ -161,24 +164,51 @@ export type RockGroupMember = {
   GroupOrder: number
 }
 
-export type RockEventItemOccurrence = {
-  EventItem: {
-    Id: number
-    Name: string
-    Summary: string
-    PhotoUrl: string
-    IsActive: boolean
+export type RockEventItem = {
+  Id: number
+  Name: string
+  Summary: string
+  Description: string
+  IsActive: boolean
+  Photo?: {
+    Guid: string
   }
+}
+
+export type RockEventCalendar = {
+  Id: number
+  Name: string
+  IsActive: boolean
+}
+
+export type RockEventCalendarItem = {
+  EventCalendarId: number
+  EventItemId: number
+}
+
+export type RockEventItemOccurrence = {
+  Id?: number
+  EventItemId: number
   Schedule?: {
     iCalendarContent: string
     EffectiveEndDate: string
   }
-  NextStartDateTime: string
+  NextStartDateTime: string | null
   CampusId: number | null
   Location?: string
+  Note?: string
+  ContactPersonAliasId?: number | null
+  ContactEmail?: string
+  ContactPhone?: string
   ContactPersonAlias?: {
-    Person: RockPerson
+    Person?: RockPerson | null
   }
+}
+
+export type RockPersonAlias = {
+  Id: number
+  PersonId: number
+  Person?: RockPerson | null
 }
 
 export type RockContentChannelItem = {

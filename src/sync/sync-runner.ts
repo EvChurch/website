@@ -1,15 +1,26 @@
 import { getPayloadClient } from '@/lib/payload'
 import { rockFetch } from '@/lib/rock-api'
+import { convertHTMLToLexical, editorConfigFactory } from '@payloadcms/richtext-lexical'
+import { JSDOM } from 'jsdom'
 import type {
   RockCampus,
+  RockEventCalendar,
+  RockEventCalendarItem,
   RockGroupMember,
+  RockEventItem,
   RockEventItemOccurrence,
   RockGroup,
+  RockPersonAlias,
 } from '@/lib/rock-api'
 import { mapRockCampus } from './mappers/campus'
 import { mapRockTeamMember, TEAM_GROUP_IDS } from './mappers/team-member'
-import { mapRockEvent } from './mappers/event'
+import {
+  getEventItemIdsForCalendar,
+  mapRockEvent,
+  selectNextEventOccurrences,
+} from './mappers/event'
 import { mapRockConnectGroup } from './mappers/connect-group'
+import { syncRockImage } from './rock-media'
 import { runSermonSync } from './sermon-sync-runner'
 import { revalidateTag } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache-tags'
@@ -142,38 +153,121 @@ async function syncEvents(): Promise<SyncResult> {
 
   try {
     const payload = await getPayloadClient()
+    const eventEditorConfig = await editorConfigFactory.default({ config: payload.config })
     const occurrences = await rockFetch<RockEventItemOccurrence[]>({
       endpoint: 'EventItemOccurrences',
       params: {
-        $filter: 'EventItem/IsActive eq true',
-        $expand: 'EventItem,Schedule,Campus',
+        $expand: 'Schedule,Campus,ContactPersonAlias/Person',
         $orderby: 'NextStartDateTime',
       },
     })
+    const eventItems = await rockFetch<RockEventItem[]>({
+      endpoint: 'EventItems',
+      params: {
+        $filter: 'IsActive eq true',
+        $expand: 'Photo',
+      },
+    })
+    const eventCalendars = await rockFetch<RockEventCalendar[]>({
+      endpoint: 'EventCalendars',
+      params: {
+        $filter: 'IsActive eq true',
+      },
+    })
+    const eventCalendarItems = await rockFetch<RockEventCalendarItem[]>({
+      endpoint: 'EventCalendarItems',
+    })
+    const publicEventItemIds = getEventItemIdsForCalendar(
+      eventCalendars,
+      eventCalendarItems,
+      'Website (Public)',
+    )
+    const eventItemsById = new Map(eventItems.map((eventItem) => [eventItem.Id, eventItem]))
+    for (const occ of selectNextEventOccurrences(occurrences)) {
+      const eventItem = eventItemsById.get(occ.EventItemId)
+      if (!eventItem || !publicEventItemIds.has(eventItem.Id)) continue
 
-    for (const occ of occurrences) {
-      const mapped = mapRockEvent(occ)
+      const resolvedContactPerson = occ.ContactPersonAlias?.Person ?? (
+        occ.ContactPersonAliasId
+          ? (await rockFetch<RockPersonAlias>({
+              endpoint: `PersonAlias/${occ.ContactPersonAliasId}`,
+              params: { $expand: 'Person' },
+            })).Person
+          : null
+      )
+      const mapped = mapRockEvent(occ, eventItem, resolvedContactPerson)
+      const {
+        _campusRockId,
+        _descriptionHtml,
+        _imageUrl,
+        ...eventData
+      } = mapped
       const existing = await payload.find({
         collection: 'events',
-        where: { rockEventId: { equals: mapped.rockEventId } },
+        where: { rockEventId: { equals: eventData.rockEventId } },
         depth: 0,
         limit: 1,
       })
+
+      let campus: number | undefined
+      if (_campusRockId !== null) {
+        const matchingCampus = await payload.find({
+          collection: 'campuses',
+          where: { rockId: { equals: _campusRockId } },
+          depth: 0,
+          limit: 1,
+        })
+        campus = matchingCampus.docs[0]?.id
+      }
+
+      const image = _imageUrl
+        ? await syncRockImage({ payload, photoUrl: _imageUrl, alt: `${eventData.title} event` })
+        : null
+      const data = {
+        ...eventData,
+        summary: _descriptionHtml
+          ? convertHTMLToLexical({
+              editorConfig: eventEditorConfig,
+              html: _descriptionHtml,
+              JSDOM,
+            })
+          : null,
+        ...(campus !== undefined ? { campus } : {}),
+        ...(image !== null ? { image } : {}),
+      }
 
       if (existing.docs.length > 0) {
         await payload.update({
           collection: 'events',
           id: existing.docs[0].id,
-          data: mapped,
+          data,
         })
         result.updated++
       } else {
         await payload.create({
           collection: 'events',
-          data: mapped,
+          data,
         })
         result.created++
       }
+    }
+
+    const syncedEvents = await payload.find({
+      collection: 'events',
+      depth: 0,
+      limit: 500,
+      select: {
+        rockEventId: true,
+      },
+    })
+    for (const event of syncedEvents.docs) {
+      if (publicEventItemIds.has(event.rockEventId)) continue
+
+      await payload.delete({
+        collection: 'events',
+        id: event.id,
+      })
+      result.deleted++
     }
 
     revalidateTag(CACHE_TAGS.events, 'default')

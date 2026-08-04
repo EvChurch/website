@@ -44,6 +44,7 @@ const navItems: NavItem[] = [
       { label: 'Good News', href: '/good-news' },
     ],
   },
+  { label: 'Events', href: '/events' },
   { label: 'Sermons', href: '/sermons' },
 ]
 
