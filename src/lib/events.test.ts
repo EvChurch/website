@@ -6,6 +6,7 @@ import {
   getDisplayLocation,
   getRegistrationHref,
   isPastEvent,
+  selectFeaturedEvent,
   toPlainText,
   type PublicEvent,
 } from './events'
@@ -23,6 +24,7 @@ const baseEvent: PublicEvent = {
   contactPerson: null,
   registrationUrl: null,
   registrationStatus: null,
+  featured: false,
   updatedAt: '2026-08-01T00:00:00.000Z',
 }
 
@@ -40,6 +42,26 @@ describe('event helpers', () => {
 
   it('does not list undated events as upcoming', () => {
     expect(filterUpcomingEvents([{ ...baseEvent, startDate: null, endDate: null }])).toEqual([])
+  })
+
+  it('features an admin selection, otherwise Explaining Christianity', () => {
+    const explainingChristianity = {
+      ...baseEvent,
+      id: 2,
+      slug: 'explaining-christianity',
+      title: 'Explaining Christianity',
+    }
+    const adminSelection = {
+      ...baseEvent,
+      id: 3,
+      slug: 'going-deeper',
+      title: 'Going Deeper',
+      featured: true,
+    }
+
+    expect(selectFeaturedEvent([baseEvent, explainingChristianity])).toBe(explainingChristianity)
+    expect(selectFeaturedEvent([explainingChristianity, adminSelection])).toBe(adminSelection)
+    expect(selectFeaturedEvent([baseEvent])).toBeNull()
   })
 
   it('uses the end date to classify a past event', () => {

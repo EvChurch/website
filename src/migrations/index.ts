@@ -8,6 +8,7 @@ import * as migration_20260405_212901_per_video_boundaries from './20260405_2129
 import * as migration_20260407_222651_speaker_per_media from './20260407_222651_speaker_per_media';
 import * as migration_20260803_110431_rock_form_embed from './20260803_110431_rock_form_embed';
 import * as migration_20260804_rock_connection_signup from './20260804_rock_connection_signup';
+import * as migration_20260805_012700_featured_events from './20260805_012700_featured_events';
 
 export const migrations = [
   {
@@ -59,5 +60,10 @@ export const migrations = [
     up: migration_20260804_rock_connection_signup.up,
     down: migration_20260804_rock_connection_signup.down,
     name: '20260804_rock_connection_signup',
+  },
+  {
+    up: migration_20260805_012700_featured_events.up,
+    down: migration_20260805_012700_featured_events.down,
+    name: '20260805_012700_featured_events',
   },
 ];

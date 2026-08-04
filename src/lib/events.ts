@@ -19,6 +19,7 @@ export interface PublicEvent {
   } | null
   registrationUrl: string | null
   registrationStatus: RegistrationStatus
+  featured: boolean | null
   updatedAt: string
 }
 
@@ -77,6 +78,14 @@ export function filterUpcomingEvents(
   return events
     .filter((event) => Boolean(event.startDate) && !isPastEvent(event, now))
     .sort((a, b) => dateValue(a.startDate) - dateValue(b.startDate))
+}
+
+export function selectFeaturedEvent(events: PublicEvent[]): PublicEvent | null {
+  return (
+    events.find((event) => event.featured) ??
+    events.find((event) => event.slug === 'explaining-christianity') ??
+    null
+  )
 }
 
 export function isPastEvent(event: PublicEvent, now = new Date()): boolean {
