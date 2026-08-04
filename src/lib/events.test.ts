@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   filterUpcomingEvents,
+  filterEventsByCampus,
   getCampusSlug,
   getDisplayLocation,
   getRegistrationHref,
@@ -78,6 +79,21 @@ describe('event helpers', () => {
     expect(getDisplayLocation({ ...baseEvent, location: { name: 'Ev Church Central' } })).toBe('Ev Church Central')
     expect(getDisplayLocation({ ...baseEvent, location: { name: 'Central' } })).toBe('Central')
     expect(getDisplayLocation({ ...baseEvent, location: { name: 'Town Hall' } })).toBe('Central · Town Hall')
+  })
+
+  it('includes unassigned events in every campus filter', () => {
+    const central = baseEvent
+    const north = { ...baseEvent, id: 2, campus: { slug: 'north', name: 'North' } }
+    const allCampuses = { ...baseEvent, id: 3, campus: null }
+
+    expect(filterEventsByCampus([central, north, allCampuses], 'north')).toEqual([
+      north,
+      allCampuses,
+    ])
+    expect(filterEventsByCampus([central, north, allCampuses], 'central')).toEqual([
+      central,
+      allCampuses,
+    ])
   })
 
   it('only accepts an open Rock registration URL', () => {

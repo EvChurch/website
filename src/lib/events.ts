@@ -56,7 +56,7 @@ export async function getAllEvents(): Promise<PublicEvent[]> {
 export async function getUpcomingEvents(campusSlug?: string): Promise<PublicEvent[]> {
   const events = filterUpcomingEvents(await getAllEvents())
   if (!campusSlug) return events
-  return events.filter((event) => getCampusSlug(event) === campusSlug)
+  return filterEventsByCampus(events, campusSlug)
 }
 
 export async function getEventBySlug(slug: string): Promise<PublicEvent | null> {
@@ -78,6 +78,16 @@ export function filterUpcomingEvents(
   return events
     .filter((event) => Boolean(event.startDate) && !isPastEvent(event, now))
     .sort((a, b) => dateValue(a.startDate) - dateValue(b.startDate))
+}
+
+export function filterEventsByCampus(
+  events: PublicEvent[],
+  campusSlug: string,
+): PublicEvent[] {
+  return events.filter((event) => {
+    const eventCampusSlug = getCampusSlug(event)
+    return eventCampusSlug === null || eventCampusSlug === campusSlug
+  })
 }
 
 export function selectFeaturedEvent(events: PublicEvent[]): PublicEvent | null {
