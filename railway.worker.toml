@@ -1,0 +1,7 @@
+[build]
+buildCommand = "npm run generate:types"
+
+[deploy]
+startCommand = "npm run sync:rock"
+cronSchedule = "*/15 * * * *"
+restartPolicyType = "NEVER"

@@ -22,10 +22,8 @@ import { mapRockConnectGroup } from './mappers/connect-group'
 import { syncRockImage } from './rock-media'
 import { runSermonSync } from './sermon-sync-runner'
 import { fetchActiveGroupMembers } from './rock-group-members'
-import { revalidateTag } from 'next/cache'
-import { CACHE_TAGS } from '@/lib/cache-tags'
 
-type SyncResult = {
+export type SyncResult = {
   entity: string
   created: number
   updated: number
@@ -90,7 +88,6 @@ async function syncCampuses(): Promise<SyncResult> {
       }
     }
 
-    revalidateTag(CACHE_TAGS.campuses, 'default')
   } catch (error) {
     result.errors.push(String(error))
   }
@@ -137,7 +134,6 @@ export async function syncTeamMembers(): Promise<SyncResult> {
       }
     }
 
-    revalidateTag(CACHE_TAGS.teamMembers, 'default')
   } catch (error) {
     result.errors.push(String(error))
   }
@@ -267,7 +263,6 @@ async function syncEvents(): Promise<SyncResult> {
       result.deleted++
     }
 
-    revalidateTag(CACHE_TAGS.events, 'default')
   } catch (error) {
     result.errors.push(String(error))
   }
@@ -319,7 +314,6 @@ export async function syncConnectGroups(): Promise<SyncResult> {
       }
     }
 
-    revalidateTag(CACHE_TAGS.connectGroups, 'default')
   } catch (error) {
     result.errors.push(String(error))
   }
