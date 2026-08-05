@@ -160,7 +160,7 @@ Location: `src/sync/sync-runner.ts`
 4. Create or update accordingly
 5. Return a `SyncResult` with counts: `{ entity, created, updated, deleted, errors }`
 
-After each entity type sync, `revalidateTag()` is called to bust ISR caches.
+The sync runner writes directly to Payload. It does not depend on a Next.js request or cache context, so it can run inside the dedicated Railway worker.
 
 ### Webhook Endpoint
 
@@ -174,11 +174,11 @@ Receives POST requests from Rock RMS when entities change. Flow:
 4. Call `revalidateTag()` so the next page render fetches fresh data
 5. Return JSON response with revalidation status
 
-### Cron Sync Trigger
+### Scheduled Sync Worker
 
-Location: `src/app/api/sync/trigger/route.ts`
+Location: `src/workers/rock-sync.ts`
 
-An API route designed to be called by an external cron service (e.g., Railway cron or GitHub Actions) every 15 minutes. Invokes `runFullSync()` and returns aggregated results.
+A dedicated Railway cron service runs every 15 minutes. It acquires a PostgreSQL advisory lock, invokes `runFullSync()` directly, reports entity-level errors as a failed job, and exits. The reconciliation therefore does not consume the website service's request thread, CPU, memory, or database pool.
 
 ### Key Issue: revalidateTag in Next.js 16
 

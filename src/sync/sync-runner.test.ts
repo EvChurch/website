@@ -5,13 +5,11 @@ const mocks = vi.hoisted(() => ({
   fetchActiveGroupMembers: vi.fn(),
   find: vi.fn(),
   getPayloadClient: vi.fn(),
-  revalidateTag: vi.fn(),
   rockFetch: vi.fn(),
 }))
 
 vi.mock('@/lib/payload', () => ({ getPayloadClient: mocks.getPayloadClient }))
 vi.mock('@/lib/rock-api', () => ({ rockFetch: mocks.rockFetch }))
-vi.mock('next/cache', () => ({ revalidateTag: mocks.revalidateTag }))
 vi.mock('./rock-group-members', () => ({
   fetchActiveGroupMembers: mocks.fetchActiveGroupMembers,
 }))
