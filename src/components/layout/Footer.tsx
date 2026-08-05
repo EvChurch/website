@@ -35,7 +35,7 @@ const columns: FooterColumn[] = [
       { label: 'Church Online', href: 'https://live.ev.church' },
       { label: 'Resources', href: 'https://resources.aucklandev.co.nz' },
       { label: 'Contact', href: '/contact' },
-      { label: 'Give', href: 'https://give.ev.church' },
+      { label: 'Give', href: '/give' },
     ],
   },
   {
