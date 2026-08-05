@@ -28,7 +28,7 @@ export function mapRockTeamMember(
     role: member.GroupRole.Name,
     email: member.Person.Email || '',
     teamGroup: TEAM_GROUP_MAP[groupId] || 'staff',
-    order: member.GroupOrder,
+    order: member.GroupOrder ?? 0,
     // Photo URL for image sync pipeline
     _photoUrl: member.Person.PhotoUrl || null,
     lastSyncedAt: new Date().toISOString(),

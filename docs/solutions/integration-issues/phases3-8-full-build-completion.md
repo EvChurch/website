@@ -411,7 +411,7 @@ Renders `<script type="application/ld+json">` in the document head with Organiza
 
 2. **Payload CMS 3.x block `interfaceName` is essential.** Without it, generated type names are unpredictable (e.g., `Page_Layout_0` instead of `HeroBlock`). Set `interfaceName` on every block definition.
 
-3. **Rock RMS OData filters are string-sensitive.** Enum comparisons like `GroupMemberStatus eq 'Active'` require the string value in single quotes. Numeric comparisons like `ContentChannelId eq 4` do not. Mismatched quoting silently returns empty results.
+3. **Verify Rock RMS OData entity paths and enum representations against the deployed version.** In Rock v19.2, group membership is queried through `GroupMembers` with a numeric `GroupMemberStatus eq 1` filter; `Groups/{id}/Members` is not a valid OData path. Expand `Person,GroupRole` on the `GroupMembers` query instead of relying on nested member expansions from `Groups`.
 
 4. **Entity mappers should be pure functions.** Keeping Rock-to-Payload transformation logic free of side effects (no database calls, no network requests) makes them trivially testable and predictable.
 
