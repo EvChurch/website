@@ -1,103 +1,200 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { Button, ArrowRight } from '@/components/ui/Button'
-import { ScrollReveal } from '@/components/ui/ScrollReveal'
-import { CampusJsonLd } from '@/components/seo/CampusJsonLd'
-import { BreadcrumbJsonLd, buildBreadcrumbs } from '@/components/seo/BreadcrumbJsonLd'
+import { cache } from 'react'
 
-interface CampusData {
-  name: string
-  /** Full branded name, e.g. "Ev Central" or "Unichurch" */
-  brandName: string
-  tagline: string
-  time: string
-  location: string
-  address: string
-  streetAddress: string
-  addressLocality: string
-  serviceOpens: string
-  serviceCloses: string
-  description: string
-  heroImage: string
-  galleryImages: { src: string; alt: string }[]
-  mapPlaceholder: string
-  kidsProgram: boolean
+import { RenderBlocks, type RenderableBlock } from '@/components/blocks/RenderBlocks'
+import RichText from '@/components/blocks/RichTextRenderer'
+import { BreadcrumbJsonLd, buildBreadcrumbs } from '@/components/seo/BreadcrumbJsonLd'
+import { CampusJsonLd } from '@/components/seo/CampusJsonLd'
+import { ArrowRight, Button } from '@/components/ui/Button'
+import { ScrollReveal } from '@/components/ui/ScrollReveal'
+import { getPayloadClient } from '@/lib/payload'
+import type { Campus, Media } from '@/payload-types'
+
+interface CampusImage {
+  src: string
+  alt: string
 }
 
-const campusData: Record<string, CampusData> = {
-  central: {
-    name: 'Central',
-    brandName: 'Ev Central',
-    tagline: 'In the heart of the city',
-    time: 'Sunday 10:15 am',
-    location: 'Hillsborough, Auckland',
-    address: '80 Olsen Avenue, Hillsborough, Auckland',
-    streetAddress: '80 Olsen Avenue',
-    addressLocality: 'Hillsborough',
-    serviceOpens: '10:15',
-    serviceCloses: '11:30',
-    description:
-      'Ev Central meets in Hillsborough, south-central Auckland. We are a diverse, vibrant community of people from all walks of life. Whether you live nearby or are visiting, you are welcome here. Our Sunday services feature live worship, an engaging message, and genuine community.',
-    heroImage: '/images/campus-central/photo-3b4be562.jpg',
-    galleryImages: [
-      { src: '/images/campus-central/photo-9018bc8d.jpg', alt: 'Live worship at Ev Church Central campus in Hillsborough Auckland' },
-      { src: '/images/campus-central/photo-c1a8d4f7.jpg', alt: 'Community gathering at Ev Church Central Auckland' },
-      { src: '/images/campus-central/photo-e85b8b0f.jpg', alt: 'People connecting at Ev Church Central Hillsborough' },
-      { src: '/images/campus-central/photo-f38f53fe.jpg', alt: 'Sunday service gathering at Ev Church Central Auckland' },
-    ],
-    mapPlaceholder: 'https://www.google.com/maps?q=80+Olsen+Avenue+Hillsborough+Auckland',
-    kidsProgram: true,
-  },
-  unichurch: {
-    name: 'Unichurch',
-    brandName: 'Unichurch',
-    tagline: 'Faith on campus',
-    time: 'Sunday 5:15 pm',
-    location: 'University of Auckland',
-    address: 'University of Auckland, 24 Princes Street, Auckland 1010',
-    streetAddress: '24 Princes Street',
-    addressLocality: 'Auckland CBD',
-    serviceOpens: '17:15',
-    serviceCloses: '18:30',
-    description:
-      'Unichurch is our campus expression specifically for university students. Meeting on Sunday evenings, it is the perfect way to end your weekend and start your week. If you are a student at the University of Auckland or any tertiary institution in the city, this is your community. Expect relaxed vibes, real conversations, and a space to explore faith.',
-    heroImage: '/images/campus-unichurch/photo-3cb597b9.jpg',
-    galleryImages: [
-      { src: '/images/campus-unichurch/photo-4e451abd.jpg', alt: 'University students at Unichurch Auckland' },
-      { src: '/images/campus-unichurch/photo-af1c0355.jpg', alt: 'Worship at Unichurch student church Auckland' },
-      { src: '/images/campus-unichurch/photo-be476efc.jpg', alt: 'Student community at Unichurch University of Auckland' },
-      { src: '/images/campus-unichurch/photo-d912efee.jpg', alt: 'Sunday evening gathering at Unichurch Auckland' },
-    ],
-    mapPlaceholder: 'https://www.google.com/maps?q=24+Princes+Street+Auckland',
-    kidsProgram: false,
-  },
-  north: {
-    name: 'North',
-    brandName: 'Ev North',
-    tagline: 'Community on the Shore',
-    time: 'Sunday 10:15 am',
-    location: 'Rosedale, Auckland',
-    address: '9-11 Rothwell Avenue, Rosedale, Auckland',
-    streetAddress: '9-11 Rothwell Avenue',
-    addressLocality: 'Rosedale',
-    serviceOpens: '10:15',
-    serviceCloses: '11:30',
-    description:
-      'Ev North is located in Rosedale on the North Shore, serving families and individuals across the wider Shore community. We are a warm, welcoming church with a heart for people at every stage of life. Our services are relaxed and family-friendly, with excellent programs for kids of all ages.',
-    heroImage: '/images/homepage/carousel-c645786c.jpg',
-    galleryImages: [
-      { src: '/images/homepage/carousel-3c68ddf1.jpg', alt: 'Families at Ev Church North campus Rosedale Auckland' },
-      { src: '/images/homepage/carousel-168f386e.jpg', alt: 'Community at Ev Church North Shore Auckland' },
-      { src: '/images/homepage/carousel-9a8d8943.jpg', alt: 'Live worship at Ev Church North Rosedale Auckland' },
-      { src: '/images/homepage/carousel-70ac2785.jpg', alt: 'Sunday gathering at Ev Church North campus Auckland' },
-    ],
-    mapPlaceholder: 'https://www.google.com/maps?q=9-11+Rothwell+Avenue+Rosedale+Auckland',
-    kidsProgram: true,
-  },
+type CampusPageDocument = Pick<
+  Campus,
+  | 'id'
+  | 'name'
+  | 'slug'
+  | 'address'
+  | 'description'
+  | 'featuredImage'
+  | 'slideImages'
+  | 'pageContent'
+  | 'layout'
+>
+
+interface ManagedPageContent {
+  brandName: string
+  tagline: string
+  locationLabel: string
+  seoTitle?: string | null
+  seoDescription?: string | null
+  serviceDay: string
+  serviceTimeLabel: string
+  serviceOpens: string
+  serviceCloses: string
+  serviceDuration: string
+  kidsProgram: boolean
+  kidsAges?: string | null
+  heroImagePath?: string | null
+  galleryImages: CampusImage[]
+  mapUrl: string
+  parkingInfo: string
+  ctaHeading: string
+  ctaText: string
+  ctaLabel: string
+  ctaHref: string
+}
+
+interface ManagedCampusPage {
+  campus: CampusPageDocument
+  content: ManagedPageContent
 }
 
 export const dynamic = 'force-dynamic'
+
+function asRequiredText(value: string | null | undefined): string | null {
+  const text = value?.trim()
+  return text ? text : null
+}
+
+function getManagedPageContent(campus: CampusPageDocument): ManagedPageContent | null {
+  const page = campus.pageContent
+  if (!page) return null
+
+  const brandName = asRequiredText(page.brandName)
+  const tagline = asRequiredText(page.tagline)
+  const locationLabel = asRequiredText(page.locationLabel)
+  const serviceDay = asRequiredText(page.serviceDay)
+  const serviceTimeLabel = asRequiredText(page.serviceTimeLabel)
+  const serviceOpens = asRequiredText(page.serviceOpens)
+  const serviceCloses = asRequiredText(page.serviceCloses)
+  const serviceDuration = asRequiredText(page.serviceDuration)
+  const mapUrl = asRequiredText(page.mapUrl)
+  const parkingInfo = asRequiredText(page.parkingInfo)
+  const ctaHeading = asRequiredText(page.ctaHeading)
+  const ctaText = asRequiredText(page.ctaText)
+  const ctaLabel = asRequiredText(page.ctaLabel)
+  const ctaHref = asRequiredText(page.ctaHref)
+
+  if (
+    !page.enabled ||
+    !brandName ||
+    !tagline ||
+    !locationLabel ||
+    !serviceDay ||
+    !serviceTimeLabel ||
+    !serviceOpens ||
+    !serviceCloses ||
+    !serviceDuration ||
+    !mapUrl ||
+    !parkingInfo ||
+    !ctaHeading ||
+    !ctaText ||
+    !ctaLabel ||
+    !ctaHref
+  ) {
+    return null
+  }
+
+  const galleryImages =
+    page.galleryImages?.flatMap(({ src, alt }) => {
+      const imageSrc = asRequiredText(src)
+      const imageAlt = asRequiredText(alt)
+      return imageSrc && imageAlt ? [{ src: imageSrc, alt: imageAlt }] : []
+    }) ?? []
+
+  return {
+    brandName,
+    tagline,
+    locationLabel,
+    seoTitle: page.seoTitle,
+    seoDescription: page.seoDescription,
+    serviceDay,
+    serviceTimeLabel,
+    serviceOpens,
+    serviceCloses,
+    serviceDuration,
+    kidsProgram: page.kidsProgram ?? false,
+    kidsAges: page.kidsAges,
+    heroImagePath: page.heroImagePath,
+    galleryImages,
+    mapUrl,
+    parkingInfo,
+    ctaHeading,
+    ctaText,
+    ctaLabel,
+    ctaHref,
+  }
+}
+
+const getCampusBySlug = cache(async (slug: string): Promise<ManagedCampusPage | null> => {
+  const payload = await getPayloadClient()
+  const result = await payload.find({
+    collection: 'campuses',
+    where: { slug: { equals: slug } },
+    depth: 1,
+    limit: 1,
+    select: {
+      name: true,
+      slug: true,
+      address: true,
+      description: true,
+      featuredImage: true,
+      slideImages: true,
+      pageContent: true,
+      layout: true,
+    },
+  })
+
+  const campus = result.docs[0]
+  if (!campus) return null
+
+  const content = getManagedPageContent(campus)
+  return content ? { campus, content } : null
+})
+
+function getMediaImage(value: number | Media | null | undefined): CampusImage | null {
+  if (!value || typeof value !== 'object' || !value.url) return null
+  return { src: value.url, alt: value.alt }
+}
+
+function getHeroImage(
+  campus: CampusPageDocument,
+  content: ManagedPageContent,
+): CampusImage | null {
+  return (
+    getMediaImage(campus.featuredImage) ??
+    (content.heroImagePath
+      ? {
+          src: content.heroImagePath,
+          alt: `${content.brandName} campus`,
+        }
+      : null)
+  )
+}
+
+function getGalleryImages(campus: CampusPageDocument, content: ManagedPageContent): CampusImage[] {
+  const uploadedImages =
+    campus.slideImages
+      ?.map(({ image }) => getMediaImage(image))
+      .filter((image): image is CampusImage => image !== null) ?? []
+
+  if (uploadedImages.length > 0) return uploadedImages
+  return content.galleryImages
+}
+
+function getAddress(campus: CampusPageDocument): string {
+  return [campus.address?.street, campus.address?.city, campus.address?.postalCode]
+    .filter((part): part is string => Boolean(part?.trim()))
+    .join(', ')
+}
 
 export async function generateStaticParams() {
   return []
@@ -109,23 +206,22 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
   const { slug } = await params
-  const campus = campusData[slug]
-  if (!campus) return {}
+  const managedCampus = await getCampusBySlug(slug)
+  if (!managedCampus) return {}
 
-  const isUnichurch = slug === 'unichurch'
-  const title = isUnichurch
-    ? 'Unichurch | Student Church Auckland | University of Auckland'
-    : `${campus.name} Campus | Ev Church Auckland`
-  const description = isUnichurch
-    ? 'Join Unichurch at the University of Auckland. A student church for university and tertiary students in Auckland. Sunday 5:15 pm.'
-    : `Join ${campus.brandName} at ${campus.address}. Services every ${campus.time}. A welcoming community in ${campus.location}.`
+  const { campus, content } = managedCampus
+  const { brandName, locationLabel, serviceTimeLabel } = content
+  const title = asRequiredText(content.seoTitle) ?? `${campus.name} Campus | Ev Church Auckland`
+  const description =
+    asRequiredText(content.seoDescription) ??
+    `Join ${brandName} at ${getAddress(campus)}. Services every ${serviceTimeLabel}. A welcoming community in ${locationLabel}.`
 
   return {
     title: { absolute: title },
     description,
     openGraph: {
       title: `${campus.name} Campus | Ev Church`,
-      description: `Services every ${campus.time} at ${campus.location}. Everyone is welcome.`,
+      description: `Services every ${serviceTimeLabel} at ${locationLabel}. Everyone is welcome.`,
       url: `https://ev.church/campus/${slug}`,
       siteName: 'Ev Church',
       locale: 'en_NZ',
@@ -133,8 +229,8 @@ export async function generateMetadata({
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${campus.brandName}`,
-      description: `${campus.time} at ${campus.location}.`,
+      title: brandName,
+      description: `${serviceTimeLabel} at ${locationLabel}.`,
     },
     alternates: {
       canonical: `https://ev.church/campus/${slug}`,
@@ -148,34 +244,38 @@ export default async function CampusPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const campus = campusData[slug]
+  const managedCampus = await getCampusBySlug(slug)
+  if (!managedCampus) notFound()
 
-  if (!campus) {
-    notFound()
-  }
+  const { campus, content } = managedCampus
+  const heroImage = getHeroImage(campus, content)
+  const galleryImages = getGalleryImages(campus, content)
+  const address = getAddress(campus)
+  const blocks = (campus.layout ?? []) as unknown as RenderableBlock[]
 
   return (
     <>
       <CampusJsonLd
         name={campus.name}
-        brandName={campus.brandName}
+        brandName={content.brandName}
         slug={slug}
-        streetAddress={campus.streetAddress}
-        addressLocality={campus.addressLocality}
-        serviceDay="Sunday"
-        serviceOpens={campus.serviceOpens}
-        serviceCloses={campus.serviceCloses}
+        streetAddress={campus.address?.street ?? ''}
+        addressLocality={campus.address?.city ?? ''}
+        serviceDay={content.serviceDay}
+        serviceOpens={content.serviceOpens}
+        serviceCloses={content.serviceCloses}
       />
       <BreadcrumbJsonLd items={buildBreadcrumbs(`/campus/${slug}`, `${campus.name} Campus`)} />
 
-      {/* Hero */}
       <section className="relative flex min-h-[70vh] items-center overflow-hidden bg-brand-black">
         <div className="absolute inset-0">
-          <img
-            src={campus.heroImage}
-            alt={`${campus.brandName} campus`}
-            className="h-full w-full object-cover"
-          />
+          {heroImage && (
+            <img
+              src={heroImage.src}
+              alt={heroImage.alt}
+              className="h-full w-full object-cover"
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-r from-brand-black/80 via-brand-black/60 to-brand-black/30" />
           <div className="absolute inset-0 bg-gradient-to-t from-brand-black/50 to-transparent" />
         </div>
@@ -186,20 +286,19 @@ export default async function CampusPage({
               className="animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] text-light-red-2"
               style={{ animationDelay: '100ms' }}
             >
-              {campus.location}
+              {content.locationLabel}
             </p>
             <h1
               className="animate-fade-in-up mt-6 text-display leading-display text-white"
               style={{ animationDelay: '200ms' }}
             >
-              Ev{' '}
-              <span className="italic text-light-red-3">{campus.name}</span>
+              Ev <span className="italic text-light-red-3">{campus.name}</span>
             </h1>
             <p
               className="animate-fade-in-up mt-4 text-xl text-warm-grey/70"
               style={{ animationDelay: '300ms' }}
             >
-              {campus.tagline}
+              {content.tagline}
             </p>
             <div
               className="animate-fade-in-up mt-8 inline-flex items-center gap-3 rounded-lg bg-white/10 px-5 py-3 backdrop-blur-sm"
@@ -208,14 +307,12 @@ export default async function CampusPage({
               <svg className="h-5 w-5 text-light-red-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="text-sm font-semibold text-white">{campus.time}</span>
+              <span className="text-sm font-semibold text-white">{content.serviceTimeLabel}</span>
             </div>
           </div>
         </div>
-
       </section>
 
-      {/* Description + Service Info */}
       <section className="bg-warm-white px-5 py-24 lg:px-8 lg:py-32">
         <div className="mx-auto max-w-[80rem]">
           <div className="grid gap-16 lg:grid-cols-5">
@@ -225,11 +322,11 @@ export default async function CampusPage({
                   About this campus
                 </p>
                 <h2 className="mt-3 text-h2 leading-heading text-brand-black">
-                  Welcome to {campus.brandName}
+                  Welcome to {content.brandName}
                 </h2>
-                <p className="mt-6 text-lg leading-body-lg text-dark-grey">
-                  {campus.description}
-                </p>
+                <div className="mt-6 text-lg leading-body-lg text-dark-grey">
+                  <RichText data={campus.description} />
+                </div>
                 <div className="mt-8">
                   <Button href="/visit">Plan your visit</Button>
                 </div>
@@ -245,20 +342,20 @@ export default async function CampusPage({
                   <dl className="mt-6 space-y-5 text-[0.9375rem]">
                     <div>
                       <dt className="font-semibold text-brand-black">When</dt>
-                      <dd className="mt-1 text-dark-grey">{campus.time}</dd>
+                      <dd className="mt-1 text-dark-grey">{content.serviceTimeLabel}</dd>
                     </div>
                     <div>
                       <dt className="font-semibold text-brand-black">Where</dt>
-                      <dd className="mt-1 text-dark-grey">{campus.address}</dd>
+                      <dd className="mt-1 text-dark-grey">{address}</dd>
                     </div>
                     <div>
                       <dt className="font-semibold text-brand-black">Duration</dt>
-                      <dd className="mt-1 text-dark-grey">Approximately 75 minutes</dd>
+                      <dd className="mt-1 text-dark-grey">{content.serviceDuration}</dd>
                     </div>
-                    {campus.kidsProgram && (
+                    {content.kidsProgram && content.kidsAges && (
                       <div>
                         <dt className="font-semibold text-brand-black">Kids program</dt>
-                        <dd className="mt-1 text-dark-grey">Available for ages 1 to 12</dd>
+                        <dd className="mt-1 text-dark-grey">{content.kidsAges}</dd>
                       </div>
                     )}
                   </dl>
@@ -269,41 +366,40 @@ export default async function CampusPage({
         </div>
       </section>
 
-      {/* Image Gallery */}
-      <section className="bg-white px-5 py-16 lg:px-8 lg:py-24">
-        <div className="mx-auto max-w-[80rem]">
-          <ScrollReveal>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rich-red">
-              Life at {campus.brandName}
-            </p>
-            <h2 className="mt-3 text-h2 leading-heading text-brand-black">
-              See what we are about
-            </h2>
-          </ScrollReveal>
+      {galleryImages.length > 0 && (
+        <section className="bg-white px-5 py-16 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-[80rem]">
+            <ScrollReveal>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rich-red">
+                Life at {content.brandName}
+              </p>
+              <h2 className="mt-3 text-h2 leading-heading text-brand-black">
+                See what we are about
+              </h2>
+            </ScrollReveal>
 
-          <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {campus.galleryImages.map((image, i) => (
-              <ScrollReveal key={image.src} delay={i * 80}>
-                <div className="overflow-hidden rounded-lg">
-                  <img
-                    src={image.src}
-                    alt={image.alt}
-                    className="aspect-[4/3] w-full object-cover transition-transform duration-500 hover:scale-105"
-                  />
-                </div>
-              </ScrollReveal>
-            ))}
+            <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {galleryImages.map((image, index) => (
+                <ScrollReveal key={image.src} delay={index * 80}>
+                  <div className="overflow-hidden rounded-lg">
+                    <img
+                      src={image.src}
+                      alt={image.alt}
+                      className="aspect-[4/3] w-full object-cover transition-transform duration-500 hover:scale-105"
+                    />
+                  </div>
+                </ScrollReveal>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      {/* Map Placeholder + Address */}
       <section className="bg-warm-white px-5 py-24 lg:px-8 lg:py-32">
         <div className="mx-auto max-w-[80rem]">
           <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
             <ScrollReveal>
               <div className="overflow-hidden rounded-xl border border-warm-grey/60">
-                {/* Google Maps embed placeholder */}
                 <div className="flex aspect-[4/3] items-center justify-center bg-warm-grey/20">
                   <div className="text-center">
                     <svg className="mx-auto h-12 w-12 text-mid-grey" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" aria-hidden="true">
@@ -322,19 +418,12 @@ export default async function CampusPage({
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rich-red">
                 Find us
               </p>
-              <h2 className="mt-3 text-h2 leading-heading text-brand-black">
-                Getting here
-              </h2>
-              <p className="mt-6 text-lg leading-body-lg text-dark-grey">
-                {campus.address}
-              </p>
-              <p className="mt-4 text-[0.9375rem] text-mid-grey">
-                Parking is available on site. If you need any help finding us,
-                feel free to get in touch.
-              </p>
+              <h2 className="mt-3 text-h2 leading-heading text-brand-black">Getting here</h2>
+              <p className="mt-6 text-lg leading-body-lg text-dark-grey">{address}</p>
+              <p className="mt-4 text-[0.9375rem] text-mid-grey">{content.parkingInfo}</p>
               <div className="mt-8 flex flex-wrap gap-4">
                 <a
-                  href={campus.mapPlaceholder}
+                  href={content.mapUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center rounded-md bg-rich-red px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-deep-red hover:shadow-md active:scale-[0.97]"
@@ -351,25 +440,21 @@ export default async function CampusPage({
         </div>
       </section>
 
-      {/* CTA Banner */}
+      <RenderBlocks blocks={blocks} />
+
       <section className="relative overflow-hidden bg-rich-red px-5 py-20 lg:px-8 lg:py-28">
         <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'1\'/%3E%3C/svg%3E")', backgroundRepeat: 'repeat' }} />
 
         <div className="relative mx-auto max-w-2xl text-center">
           <ScrollReveal>
-            <h2 className="text-h1 leading-display text-white">
-              See you this Sunday
-            </h2>
-            <p className="mt-5 text-lg leading-body-lg text-light-red-3">
-              We would love to welcome you to {campus.brandName}.
-              Come as you are. Everyone has a place here.
-            </p>
+            <h2 className="text-h1 leading-display text-white">{content.ctaHeading}</h2>
+            <p className="mt-5 text-lg leading-body-lg text-light-red-3">{content.ctaText}</p>
             <div className="mt-10">
               <a
-                href="/visit"
+                href={content.ctaHref}
                 className="inline-flex items-center justify-center rounded-md bg-white px-8 py-3.5 text-base font-semibold text-rich-red shadow-lg transition-all duration-200 hover:bg-warm-white hover:shadow-xl active:scale-[0.97]"
               >
-                Plan your visit
+                {content.ctaLabel}
               </a>
             </div>
           </ScrollReveal>

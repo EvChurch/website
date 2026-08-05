@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { isAdmin } from '@/access/roles'
+import { UpcomingEventsBlock } from '@/blocks/UpcomingEventsBlock'
 
 export const Campuses: CollectionConfig = {
   slug: 'campuses',
@@ -123,6 +124,140 @@ export const Campuses: CollectionConfig = {
       admin: {
         position: 'sidebar',
         readOnly: true,
+      },
+    },
+    {
+      name: 'pageContent',
+      type: 'group',
+      admin: {
+        description: 'Content displayed on this campus landing page.',
+      },
+      fields: [
+        {
+          name: 'enabled',
+          type: 'checkbox',
+          defaultValue: false,
+          admin: {
+            description: 'Publish this campus at /campus/{slug}.',
+          },
+        },
+        {
+          name: 'brandName',
+          type: 'text',
+        },
+        {
+          name: 'tagline',
+          type: 'text',
+        },
+        {
+          name: 'locationLabel',
+          type: 'text',
+        },
+        {
+          name: 'seoTitle',
+          type: 'text',
+          admin: {
+            description: 'Optional browser and search title. A campus title is generated when empty.',
+          },
+        },
+        {
+          name: 'seoDescription',
+          type: 'textarea',
+          admin: {
+            description: 'Optional search description. Campus details are used when empty.',
+          },
+        },
+        {
+          name: 'serviceDay',
+          type: 'text',
+          defaultValue: 'Sunday',
+        },
+        {
+          name: 'serviceTimeLabel',
+          type: 'text',
+        },
+        {
+          name: 'serviceOpens',
+          type: 'text',
+        },
+        {
+          name: 'serviceCloses',
+          type: 'text',
+        },
+        {
+          name: 'serviceDuration',
+          type: 'text',
+          defaultValue: 'Approximately 75 minutes',
+        },
+        {
+          name: 'kidsProgram',
+          type: 'checkbox',
+          defaultValue: false,
+        },
+        {
+          name: 'kidsAges',
+          type: 'text',
+        },
+        {
+          name: 'heroImagePath',
+          type: 'text',
+          admin: {
+            description: 'Fallback public image path used when Featured Image is empty.',
+          },
+        },
+        {
+          name: 'galleryImages',
+          type: 'array',
+          maxRows: 4,
+          admin: {
+            description: 'Fallback images used when Slide Images are empty.',
+          },
+          fields: [
+            {
+              name: 'src',
+              type: 'text',
+            },
+            {
+              name: 'alt',
+              type: 'text',
+            },
+          ],
+        },
+        {
+          name: 'mapUrl',
+          type: 'text',
+        },
+        {
+          name: 'parkingInfo',
+          type: 'textarea',
+        },
+        {
+          name: 'ctaHeading',
+          type: 'text',
+          defaultValue: 'See you this Sunday',
+        },
+        {
+          name: 'ctaText',
+          type: 'textarea',
+        },
+        {
+          name: 'ctaLabel',
+          type: 'text',
+          defaultValue: 'Plan your visit',
+        },
+        {
+          name: 'ctaHref',
+          type: 'text',
+          defaultValue: '/visit',
+        },
+      ],
+    },
+    {
+      name: 'layout',
+      type: 'blocks',
+      blocks: [UpcomingEventsBlock],
+      admin: {
+        description: 'Managed sections displayed before the closing campus call to action.',
       },
     },
   ],

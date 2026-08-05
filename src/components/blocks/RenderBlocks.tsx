@@ -15,7 +15,11 @@ import { PhotoStripBlockComponent } from './PhotoStripBlockComponent'
 import { PageHeaderBlockComponent } from './PageHeaderBlockComponent'
 import { GospelStepperBlockComponent } from './GospelStepperBlockComponent'
 import { LatestSermonBlockComponent } from './LatestSermonBlockComponent'
-import type { FormEmbedBlock as PayloadFormEmbedBlock } from '@/payload-types'
+import { UpcomingEventsBlockComponent } from './UpcomingEventsBlockComponent'
+import type {
+  FormEmbedBlock as PayloadFormEmbedBlock,
+  UpcomingEventsBlock as PayloadUpcomingEventsBlock,
+} from '@/payload-types'
 
 /**
  * Union of all known block types.
@@ -236,7 +240,7 @@ interface LatestSermonBlockType extends BaseBlock {
   heading?: string | null
 }
 
-type Block =
+export type RenderableBlock =
   | HeroBlock
   | ContentBlock
   | CTABlock
@@ -254,10 +258,11 @@ type Block =
   | PageHeaderBlock
   | GospelStepperBlockType
   | LatestSermonBlockType
+  | PayloadUpcomingEventsBlock
   | BaseBlock
 
 interface RenderBlocksProps {
-  blocks: Block[]
+  blocks: RenderableBlock[]
 }
 
 export function RenderBlocks({ blocks }: RenderBlocksProps) {
@@ -478,6 +483,18 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
           case 'latestSermon': {
             const b = block as LatestSermonBlockType
             return <LatestSermonBlockComponent key={key} heading={b.heading} />
+          }
+
+          case 'upcomingEvents': {
+            const b = block as PayloadUpcomingEventsBlock
+            return (
+              <UpcomingEventsBlockComponent
+                key={key}
+                eyebrow={b.eyebrow}
+                heading={b.heading}
+                campusFilter={b.campusFilter}
+              />
+            )
           }
 
           default:
