@@ -8,6 +8,17 @@ import {
 } from './newish-form'
 import { EXPLAINING_CHRISTIANITY_CONNECTION_BLOCK_GUID } from './explaining-christianity-form'
 
+const seedSource = readFileSync(new URL('./seed-pages.ts', import.meta.url), 'utf8')
+
+function sourceSection(startMarker: string, endMarker: string): string {
+  const start = seedSource.indexOf(startMarker)
+  const end = seedSource.indexOf(endMarker, start)
+  if (start < 0 || end < 0) {
+    throw new Error(`Unable to find seed section from ${startMarker} to ${endMarker}`)
+  }
+  return seedSource.slice(start, end)
+}
+
 const closingCta = {
   blockType: 'cta',
   heading: 'We would love to meet you',
@@ -26,18 +37,14 @@ function form(overrides: Record<string, unknown> = {}) {
 
 describe('ensureNewishConnectionForm', () => {
   it('maps the live form pages to their matching Rock sources', () => {
-    const source = readFileSync(new URL('./seed-pages.ts', import.meta.url), 'utf8')
-    const visitSection = source.slice(
-      source.indexOf("await upsertPage('visit'"),
-      source.indexOf("await upsertPage('about'"),
+    const visitSection = sourceSection("await upsertPage('visit'", "await upsertPage('about'")
+    const newishSection = sourceSection(
+      "await upsertPage('newish'",
+      "await upsertPage('explaining-christianity'",
     )
-    const newishSection = source.slice(
-      source.indexOf("await upsertPage('newish'"),
-      source.indexOf("await upsertPage('explaining-christianity'"),
-    )
-    const explainingChristianitySection = source.slice(
-      source.indexOf("await upsertPage('explaining-christianity'"),
-      source.indexOf("await upsertPage('connect-groups'"),
+    const explainingChristianitySection = sourceSection(
+      "await upsertPage('explaining-christianity'",
+      "await upsertPage('connect-groups'",
     )
     expect(visitSection).toContain("rockWorkflowGuid: 'de3d06a6-7fca-41a5-8c37-a485767de970'")
     expect(newishSection).toContain('layout: ensureNewishConnectionForm([')
@@ -57,7 +64,7 @@ describe('ensureNewishConnectionForm', () => {
     expect(explainingChristianitySection).not.toContain(
       '16d675d3-00cf-459e-990d-817003cbbc88',
     )
-    expect(source.match(/sourceType: 'workflow'/g)).toHaveLength(2)
+    expect(seedSource.match(/sourceType: 'workflow'/g)).toHaveLength(2)
   })
 
   it('inserts exactly one centered form immediately before the closing CTA', () => {
@@ -129,5 +136,59 @@ describe('ensureNewishConnectionForm', () => {
     expect(() => ensureNewishConnectionForm([closingCta, closingCta])).toThrow(
       'closing CTA',
     )
+  })
+})
+
+describe('seeded page content and giving navigation', () => {
+  it('sets an honest expectation for the Plan Your Visit form', () => {
+    const visitSection = sourceSection("await upsertPage('visit'", "await upsertPage('about'")
+
+    expect(visitSection).toContain("You don't have to — you're welcome to just turn up.")
+    expect(visitSection).toContain('help with kids check-in')
+  })
+
+  it('uses consistent Ev Kids ages, availability, and safety details', () => {
+    const kidsSection = sourceSection("await upsertPage('kids'", "await upsertPage('youth'")
+    const shortCopy =
+      'Ev Kids runs every Sunday morning at North and Central for children aged 0 to 12. Careful check-in, matched pick-up, and police-vetted, trained leaders. Allow an extra ten minutes on your first visit.'
+
+    expect(kidsSection).toContain('children aged 0 to 12')
+    expect(kidsSection).toContain('matched pick-up')
+    expect(kidsSection).toContain("collection tag must match your child\\'s check-in tag")
+    expect(kidsSection).toContain('Allow an extra ten minutes on your first visit')
+    expect(seedSource.split(shortCopy)).toHaveLength(4)
+    expect(seedSource).not.toContain('ages 1 to 12')
+    expect(seedSource).not.toContain('during all services')
+  })
+
+  it('describes the Good News precisely and points to Explaining Christianity', () => {
+    const goodNewsSection = sourceSection(
+      "await upsertPage('good-news'",
+      "console.log('\\nSeed complete!",
+    )
+
+    expect(goodNewsSection).toContain("It's not a set of rules to keep, or a ladder to climb.")
+    expect(goodNewsSection).toContain("That's exactly what Explaining Christianity is for.")
+    expect(goodNewsSection).not.toContain('not a list of things to believe')
+  })
+
+  it('routes Give links through a contextual giving page', () => {
+    const givingSection = sourceSection("await upsertPage('give'", "await upsertPage('good-news'")
+    const header = readFileSync(
+      new URL('../components/layout/Header.tsx', import.meta.url),
+      'utf8',
+    )
+    const footer = readFileSync(
+      new URL('../components/layout/Footer.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(givingSection).toContain('Everything we have is given to us by God')
+    expect(givingSection).toContain('glad, planned, and free')
+    expect(givingSection).toContain("Please don't feel any obligation to give")
+    expect(givingSection).toContain("href: 'https://give.ev.church'")
+    expect(header).not.toContain('href="https://give.ev.church"')
+    expect(header.match(/href="\/give"/g)).toHaveLength(2)
+    expect(footer).toContain("{ label: 'Give', href: '/give' }")
   })
 })
