@@ -161,7 +161,7 @@ export type RockPerson = {
 export type RockGroupMember = {
   Person: RockPerson
   GroupRole: { Name: string }
-  GroupOrder: number
+  GroupOrder: number | null
 }
 
 export type RockEventItem = {
