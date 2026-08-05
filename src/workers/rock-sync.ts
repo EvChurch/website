@@ -1,4 +1,5 @@
 import { pathToFileURL } from 'node:url'
+import { setTimeout as delay } from 'node:timers/promises'
 
 import {
   withRockSyncLock,
@@ -8,6 +9,7 @@ import { destroyPayloadClient } from '@/lib/payload'
 import { runFullSync, type SyncResult } from '@/sync/sync-runner'
 
 const MAX_RUNTIME_MS = 14 * 60 * 1000
+const PAYLOAD_CLEANUP_TIMEOUT_MS = 5 * 1000
 
 type WorkerResult =
   | { status: 'completed'; results: SyncResult[] }
@@ -44,6 +46,19 @@ export async function runRockSyncWorker({
   return { status: 'completed', results: lockResult.value }
 }
 
+export async function waitForPayloadCleanup({
+  destroy = destroyPayloadClient,
+  timeoutMs = PAYLOAD_CLEANUP_TIMEOUT_MS,
+}: {
+  destroy?: () => Promise<void>
+  timeoutMs?: number
+} = {}): Promise<boolean> {
+  return Promise.race([
+    destroy().then(() => true),
+    delay(timeoutMs, false, { ref: false }),
+  ])
+}
+
 async function main() {
   const startedAt = Date.now()
   const watchdog = setTimeout(() => {
@@ -66,16 +81,34 @@ async function main() {
       ...result,
     }))
   } finally {
+    const cleanedUp = await waitForPayloadCleanup()
+    if (!cleanedUp) {
+      console.warn(JSON.stringify({
+        message: 'Payload cleanup timed out; forcing worker exit',
+        timeoutMs: PAYLOAD_CLEANUP_TIMEOUT_MS,
+      }))
+    }
     clearTimeout(watchdog)
-    await destroyPayloadClient()
+  }
+}
+
+export async function runWorkerEntrypoint({
+  run = main,
+  exit = process.exit,
+}: {
+  run?: () => Promise<void>
+  exit?: (code: number) => void
+} = {}): Promise<void> {
+  try {
+    await run()
+    exit(0)
+  } catch (error: unknown) {
+    console.error(error instanceof Error ? error.message : String(error))
+    exit(1)
   }
 }
 
 const entrypoint = process.argv[1]
 if (entrypoint && import.meta.url === pathToFileURL(entrypoint).href) {
-  main()
-    .catch((error: unknown) => {
-      console.error(error instanceof Error ? error.message : String(error))
-      process.exitCode = 1
-    })
+  void runWorkerEntrypoint()
 }
