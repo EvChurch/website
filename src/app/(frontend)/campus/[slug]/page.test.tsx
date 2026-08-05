@@ -59,7 +59,8 @@ const campus = {
         alt: 'Families at Ev Church North',
       },
     ],
-    mapUrl: 'https://www.google.com/maps?q=Rothwell+Avenue',
+    mapUrl:
+      'https://www.google.com/maps/place/?q=place_id%3AChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U',
     parkingInfo: 'Parking is available on site.',
     ctaHeading: 'See you this Sunday',
     ctaText: 'We would love to welcome you to Ev North.',
@@ -107,7 +108,7 @@ describe('Payload-managed campus page', () => {
     expect(markup).toContain('A warm community on the North Shore.')
     expect(markup).toContain('/images/homepage/carousel-c645786c.jpg')
     expect(markup).toContain(
-      'src="https://www.google.com/maps?q=Rothwell+Avenue&amp;output=embed"',
+      'src="https://www.google.com/maps/place/?q=place_id%3AChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U&amp;output=embed"',
     )
     expect(markup).toContain('title="Map showing Ev North"')
     expect(markup).not.toContain('Google Maps embed will be placed here')

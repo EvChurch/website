@@ -38,6 +38,10 @@ The public route in `src/app/(frontend)/campus/[slug]/page.tsx` should:
 
 Use an additive Payload migration for the schema and backfill. Preserve existing synchronized or editorial values with `COALESCE`, enable only known public campuses, and seed an `upcomingEvents` block whose campus relationship points back to the owning campus.
 
+For managed map links, store a canonical HTTPS Google Maps place URL and turn it into an embed URL at render time. Prefer a stable `place_id` target over a free-text address query so venues inside a larger site, such as Old Government House, resolve to the intended building. Validate the protocol, host, and `/maps` path before rendering the iframe; fall back to a URL-encoded query built from the managed campus address when the configured URL is malformed or untrusted.
+
+When correcting seed data after its migration may already have run, add a forward migration rather than rewriting the historical migration. Match the previous seeded value in the `WHERE` clause so an editor-selected location is not overwritten, and make rollback equally conditional so later edits are preserved.
+
 ## Why This Matters
 
 This boundary lets Rock remain the operational source for campus identity while content editors control the public page in Payload. It also keeps one shared page template and one reusable events component, avoiding route-level copies that drift apart.
@@ -57,5 +61,6 @@ Verify the pattern with route tests, migration integration tests, the full test 
 ## Related
 
 - `src/migrations/20260805_234700_campus_managed_pages.ts`
+- `src/migrations/20260806_103317_exact_campus_map_locations.ts`
 - `src/blocks/UpcomingEventsBlock.ts`
 - `src/components/blocks/UpcomingEventsBlockComponent.tsx`

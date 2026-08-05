@@ -12,6 +12,7 @@ import * as migration_20260805_012700_featured_events from './20260805_012700_fe
 import * as migration_20260805_185400_upcoming_events_block from './20260805_185400_upcoming_events_block';
 import * as migration_20260805_234700_campus_managed_pages from './20260805_234700_campus_managed_pages';
 import * as migration_20260806_093700_service_times_block from './20260806_093700_service_times_block';
+import * as migration_20260806_103317_exact_campus_map_locations from './20260806_103317_exact_campus_map_locations';
 
 export const migrations = [
   {
@@ -83,5 +84,10 @@ export const migrations = [
     up: migration_20260806_093700_service_times_block.up,
     down: migration_20260806_093700_service_times_block.down,
     name: '20260806_093700_service_times_block',
+  },
+  {
+    up: migration_20260806_103317_exact_campus_map_locations.up,
+    down: migration_20260806_103317_exact_campus_map_locations.down,
+    name: '20260806_103317_exact_campus_map_locations',
   },
 ];
