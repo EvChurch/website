@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runFullSync } from '@/sync/sync-runner'
+import { isCronRequestAuthorized } from '@/lib/cron-auth'
+import { withRockSyncLock } from '@/lib/rock-sync-lock'
 
 const CRON_SECRET = process.env.CRON_SECRET || ''
 
@@ -7,12 +9,11 @@ const CRON_SECRET = process.env.CRON_SECRET || ''
  * Cron sync trigger endpoint.
  * Called every 15 minutes by an external cron service or Railway cron.
  *
- * GET /api/sync/trigger?secret=...
+ * Authorization: Bearer <CRON_SECRET>
+ * Legacy query-string authentication remains supported for existing callers.
  */
 export async function GET(request: NextRequest) {
-  const secret = request.nextUrl.searchParams.get('secret')
-
-  if (!CRON_SECRET || secret !== CRON_SECRET) {
+  if (!isCronRequestAuthorized(request, CRON_SECRET)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -23,7 +24,15 @@ export async function GET(request: NextRequest) {
   const startTime = Date.now()
 
   try {
-    const results = await runFullSync({ sermonLimit })
+    const lockResult = await withRockSyncLock(() => runFullSync({ sermonLimit }))
+    if (!lockResult.acquired) {
+      return NextResponse.json(
+        { ok: false, error: 'Rock sync is already in progress' },
+        { status: 409 },
+      )
+    }
+
+    const results = lockResult.value
     const duration = Date.now() - startTime
 
     const summary = results.map((r) => ({
