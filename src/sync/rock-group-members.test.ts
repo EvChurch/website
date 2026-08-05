@@ -17,7 +17,7 @@ describe('fetchActiveGroupMembers', () => {
     expect(rockFetch).toHaveBeenCalledWith({
       endpoint: 'GroupMembers',
       params: {
-        $filter: 'GroupId eq 29482 and GroupMemberStatus eq 1 and IsArchived eq false',
+        $filter: "GroupId eq 29482 and GroupMemberStatus eq 'Active' and IsArchived eq false",
         $expand: 'Person,GroupRole',
         $orderby: 'GroupOrder',
       },
