@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import sharp from 'sharp'
 import { ensureNewishConnectionForm } from './newish-form'
 import { EXPLAINING_CHRISTIANITY_CONNECTION_BLOCK_GUID } from './explaining-christianity-form'
-import { ensureUpcomingEventsBlock } from './home-layout'
+import { ensureServiceTimesBlock, ensureUpcomingEventsBlock } from './home-layout'
 
 async function generateBlur(filePath: string): Promise<string | null> {
   try {
@@ -241,7 +241,7 @@ async function seed() {
   await upsertPage('home', {
     title: 'Home',
     _status: 'published',
-    layout: ensureUpcomingEventsBlock([
+    layout: ensureUpcomingEventsBlock(ensureServiceTimesBlock([
       {
         blockType: 'hero',
         image: img('carousel-0c59a44d'),
@@ -398,7 +398,7 @@ async function seed() {
           { label: 'Find a campus near you', href: '/visit', variant: 'primary' },
         ],
       },
-    ]),
+    ])),
     seo: {
       metaTitle: 'Church in Auckland | Ev Church | Sunday Services & Community',
       metaDescription: 'Looking for a church in Auckland? Ev Church is a community of Christ-followers meeting across Tamaki Makaurau. Join us this Sunday.',
