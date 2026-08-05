@@ -16,6 +16,7 @@ import { PageHeaderBlockComponent } from './PageHeaderBlockComponent'
 import { GospelStepperBlockComponent } from './GospelStepperBlockComponent'
 import { LatestSermonBlockComponent } from './LatestSermonBlockComponent'
 import { UpcomingEventsBlockComponent } from './UpcomingEventsBlockComponent'
+import { ServiceTimesBlockComponent } from './ServiceTimesBlockComponent'
 import type {
   FormEmbedBlock as PayloadFormEmbedBlock,
   UpcomingEventsBlock as PayloadUpcomingEventsBlock,
@@ -240,6 +241,17 @@ interface LatestSermonBlockType extends BaseBlock {
   heading?: string | null
 }
 
+interface ServiceTimesBlockType extends BaseBlock {
+  blockType: 'serviceTimes'
+  heading?: string | null
+  services: Array<{
+    campus: string
+    time: string
+    href: string
+    id?: string | null
+  }>
+}
+
 export type RenderableBlock =
   | HeroBlock
   | ContentBlock
@@ -258,6 +270,7 @@ export type RenderableBlock =
   | PageHeaderBlock
   | GospelStepperBlockType
   | LatestSermonBlockType
+  | ServiceTimesBlockType
   | PayloadUpcomingEventsBlock
   | BaseBlock
 
@@ -291,6 +304,17 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
                 overlayStyle={b.overlayStyle}
                 minHeight={b.minHeight}
                 semanticH1={b.semanticH1}
+              />
+            )
+          }
+
+          case 'serviceTimes': {
+            const b = block as ServiceTimesBlockType
+            return (
+              <ServiceTimesBlockComponent
+                key={key}
+                heading={b.heading}
+                services={b.services}
               />
             )
           }

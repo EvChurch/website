@@ -24,6 +24,21 @@ vi.mock('./UpcomingEventsBlockComponent', () => ({
   ),
 }))
 
+vi.mock('./ServiceTimesBlockComponent', () => ({
+  ServiceTimesBlockComponent: ({
+    heading,
+    services,
+  }: {
+    heading?: string | null
+    services: Array<{ campus: string; time: string; href: string }>
+  }) => (
+    <div
+      data-heading={heading}
+      data-services={services.map((service) => service.campus).join(',')}
+    />
+  ),
+}))
+
 import { RenderBlocks } from './RenderBlocks'
 
 const centralCampus: Campus = {
@@ -36,6 +51,26 @@ const centralCampus: Campus = {
 }
 
 describe('RenderBlocks', () => {
+  it('renders a service-times block with its configured services', () => {
+    const markup = renderToStaticMarkup(
+      <RenderBlocks
+        blocks={[
+          {
+            blockType: 'serviceTimes',
+            heading: 'This Sunday',
+            services: [
+              { campus: 'North', time: '10:15 am', href: '/campus/north' },
+              { campus: 'Unichurch', time: '5:15 pm', href: '/campus/unichurch' },
+            ],
+          },
+        ]}
+      />,
+    )
+
+    expect(markup).toContain('data-heading="This Sunday"')
+    expect(markup).toContain('data-services="North,Unichurch"')
+  })
+
   it('renders an upcoming-events block with its campus filter', () => {
     const markup = renderToStaticMarkup(
       <RenderBlocks
