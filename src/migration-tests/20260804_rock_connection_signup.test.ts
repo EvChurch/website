@@ -9,7 +9,7 @@ import {
   ROCK_CONNECTION_SIGNUP_UP_SQL,
   down,
   up,
-} from './20260804_rock_connection_signup'
+} from '../migrations/20260804_rock_connection_signup'
 
 function migrationArgs(execute = vi.fn().mockResolvedValue(undefined)) {
   return {
@@ -26,7 +26,7 @@ describe('Rock connection signup migration', () => {
   it('ships a snapshot containing both form schemas and security-ledger tables', () => {
     const snapshot = JSON.parse(
       readFileSync(
-        new URL('./20260804_rock_connection_signup.json', import.meta.url),
+        new URL('../migrations/20260804_rock_connection_signup.json', import.meta.url),
         'utf8',
       ),
     ) as {

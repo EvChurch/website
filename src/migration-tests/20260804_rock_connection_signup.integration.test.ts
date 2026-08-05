@@ -5,7 +5,7 @@ import { NEWISH_CONNECTION_BLOCK_GUID } from '@/seed/newish-form'
 import {
   ROCK_CONNECTION_SIGNUP_DOWN_SQL,
   ROCK_CONNECTION_SIGNUP_UP_SQL,
-} from './20260804_rock_connection_signup'
+} from '../migrations/20260804_rock_connection_signup'
 
 const databaseUrl = process.env.ROCK_MIGRATION_TEST_DATABASE_URL
 const oldWorkflowGuid = '00778880-81fe-4871-aa91-7c81783b8c4d'
