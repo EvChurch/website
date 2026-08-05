@@ -219,9 +219,18 @@ function getGoogleMapsEmbedUrl(mapUrl: string, address: string): string {
       url.hostname === 'www.google.com' ||
       url.hostname === 'maps.google.com'
 
-    if (url.protocol === 'https:' && isGoogleMapsHost && url.pathname.startsWith('/maps')) {
-      url.searchParams.set('output', 'embed')
-      return url.toString()
+    const query = url.searchParams.get('q')?.trim()
+
+    if (
+      url.protocol === 'https:' &&
+      isGoogleMapsHost &&
+      url.pathname.startsWith('/maps') &&
+      query
+    ) {
+      const embedUrl = new URL('https://www.google.com/maps')
+      embedUrl.searchParams.set('q', query)
+      embedUrl.searchParams.set('output', 'embed')
+      return embedUrl.toString()
     }
   } catch {
     // Fall back to an address query when the managed URL is malformed.

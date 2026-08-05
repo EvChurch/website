@@ -108,7 +108,7 @@ describe('Payload-managed campus page', () => {
     expect(markup).toContain('A warm community on the North Shore.')
     expect(markup).toContain('/images/homepage/carousel-c645786c.jpg')
     expect(markup).toContain(
-      'src="https://www.google.com/maps/place/?q=place_id%3AChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U&amp;output=embed"',
+      'src="https://www.google.com/maps?q=place_id%3AChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U&amp;output=embed"',
     )
     expect(markup).toContain('title="Map showing Ev North"')
     expect(markup).not.toContain('Google Maps embed will be placed here')
@@ -129,6 +129,7 @@ describe('Payload-managed campus page', () => {
     'not a URL',
     'https://example.com/maps?q=Rothwell+Avenue',
     'http://www.google.com/maps?q=Rothwell+Avenue',
+    'https://www.google.com/maps/place/Auckland',
   ])('uses an HTTPS address fallback for an unsafe managed map URL: %s', async (mapUrl) => {
     mocks.find.mockResolvedValue({
       docs: [
