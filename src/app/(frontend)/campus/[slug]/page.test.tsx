@@ -128,4 +128,24 @@ describe('Payload-managed campus page', () => {
       CampusPage({ params: Promise.resolve({ slug: 'north' }) }),
     ).rejects.toThrow()
   })
+
+  it('uses the managed brand without adding a campus-specific prefix', async () => {
+    mocks.find.mockResolvedValue({
+      docs: [
+        {
+          ...campus,
+          name: 'Unichurch',
+          slug: 'unichurch',
+          pageContent: { ...campus.pageContent, brandName: 'Unichurch' },
+        },
+      ],
+    })
+
+    const markup = renderToStaticMarkup(
+      await CampusPage({ params: Promise.resolve({ slug: 'unichurch' }) }),
+    )
+
+    expect(markup).toContain('>Unichurch</span>')
+    expect(markup).not.toContain('Ev Unichurch')
+  })
 })

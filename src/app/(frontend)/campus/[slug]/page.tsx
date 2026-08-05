@@ -57,11 +57,26 @@ interface ManagedCampusPage {
   content: ManagedPageContent
 }
 
+interface BrandHeading {
+  prefix: string | null
+  highlight: string
+}
+
 export const dynamic = 'force-dynamic'
 
 function asRequiredText(value: string | null | undefined): string | null {
   const text = value?.trim()
   return text ? text : null
+}
+
+function getBrandHeading(brandName: string): BrandHeading {
+  const lastSpace = brandName.lastIndexOf(' ')
+  if (lastSpace === -1) return { prefix: null, highlight: brandName }
+
+  return {
+    prefix: brandName.slice(0, lastSpace),
+    highlight: brandName.slice(lastSpace + 1),
+  }
 }
 
 function getManagedPageContent(campus: CampusPageDocument): ManagedPageContent | null {
@@ -252,6 +267,7 @@ export default async function CampusPage({
   const galleryImages = getGalleryImages(campus, content)
   const address = getAddress(campus)
   const blocks = (campus.layout ?? []) as unknown as RenderableBlock[]
+  const brandHeading = getBrandHeading(content.brandName)
 
   return (
     <>
@@ -292,7 +308,8 @@ export default async function CampusPage({
               className="animate-fade-in-up mt-6 text-display leading-display text-white"
               style={{ animationDelay: '200ms' }}
             >
-              Ev <span className="italic text-light-red-3">{campus.name}</span>
+              {brandHeading.prefix && `${brandHeading.prefix} `}
+              <span className="italic text-light-red-3">{brandHeading.highlight}</span>
             </h1>
             <p
               className="animate-fade-in-up mt-4 text-xl text-warm-grey/70"
@@ -328,7 +345,7 @@ export default async function CampusPage({
                   <RichText data={campus.description} />
                 </div>
                 <div className="mt-8">
-                  <Button href="/visit">Plan your visit</Button>
+                  <Button href={content.ctaHref}>{content.ctaLabel}</Button>
                 </div>
               </ScrollReveal>
             </div>
