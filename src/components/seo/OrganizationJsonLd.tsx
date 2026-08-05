@@ -1,3 +1,5 @@
+import { SOCIAL_LINKS } from '@/lib/social-links'
+
 export function OrganizationJsonLd() {
   const data = {
     '@context': 'https://schema.org',
@@ -41,11 +43,7 @@ export function OrganizationJsonLd() {
     },
     isAccessibleForFree: true,
     publicAccess: true,
-    sameAs: [
-      'https://www.facebook.com/ev.church',
-      'https://www.instagram.com/ev.church',
-      'https://www.youtube.com/@ev.church',
-    ],
+    sameAs: SOCIAL_LINKS.map(({ href }) => href),
   }
 
   return (

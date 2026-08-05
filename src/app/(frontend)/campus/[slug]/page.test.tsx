@@ -59,7 +59,8 @@ const campus = {
         alt: 'Families at Ev Church North',
       },
     ],
-    mapUrl: 'https://www.google.com/maps?q=Rothwell+Avenue',
+    mapUrl:
+      'https://www.google.com/maps/place/?q=place_id%3AChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U',
     parkingInfo: 'Parking is available on site.',
     ctaHeading: 'See you this Sunday',
     ctaText: 'We would love to welcome you to Ev North.',
@@ -106,6 +107,11 @@ describe('Payload-managed campus page', () => {
     expect(markup).toContain('Community on the Shore')
     expect(markup).toContain('A warm community on the North Shore.')
     expect(markup).toContain('/images/homepage/carousel-c645786c.jpg')
+    expect(markup).toContain(
+      'src="https://www.google.com/maps/place/?q=place_id%3AChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U&amp;output=embed"',
+    )
+    expect(markup).toContain('title="Map showing Ev North"')
+    expect(markup).not.toContain('Google Maps embed will be placed here')
     expect(mocks.renderBlocks).toHaveBeenCalledWith({ blocks: campus.layout }, undefined)
   })
 
@@ -117,6 +123,29 @@ describe('Payload-managed campus page', () => {
     expect(metadata.title).toEqual({ absolute: 'North Shore Church | Ev Church' })
     expect(metadata.description).toBe('Payload-managed North campus search description.')
     expect(metadata.alternates).toEqual({ canonical: 'https://ev.church/campus/north' })
+  })
+
+  it.each([
+    'not a URL',
+    'https://example.com/maps?q=Rothwell+Avenue',
+    'http://www.google.com/maps?q=Rothwell+Avenue',
+  ])('uses an HTTPS address fallback for an unsafe managed map URL: %s', async (mapUrl) => {
+    mocks.find.mockResolvedValue({
+      docs: [
+        {
+          ...campus,
+          pageContent: { ...campus.pageContent, mapUrl },
+        },
+      ],
+    })
+
+    const markup = renderToStaticMarkup(
+      await CampusPage({ params: Promise.resolve({ slug: 'north' }) }),
+    )
+
+    expect(markup).toContain(
+      'src="https://www.google.com/maps?q=9-11+Rothwell+Avenue%2C+Rosedale%2C+Auckland&amp;output=embed"',
+    )
   })
 
   it('does not publish a campus until its managed page is enabled', async () => {

@@ -211,6 +211,28 @@ function getAddress(campus: CampusPageDocument): string {
     .join(', ')
 }
 
+function getGoogleMapsEmbedUrl(mapUrl: string, address: string): string {
+  try {
+    const url = new URL(mapUrl)
+    const isGoogleMapsHost =
+      url.hostname === 'google.com' ||
+      url.hostname === 'www.google.com' ||
+      url.hostname === 'maps.google.com'
+
+    if (url.protocol === 'https:' && isGoogleMapsHost && url.pathname.startsWith('/maps')) {
+      url.searchParams.set('output', 'embed')
+      return url.toString()
+    }
+  } catch {
+    // Fall back to an address query when the managed URL is malformed.
+  }
+
+  const fallbackUrl = new URL('https://www.google.com/maps')
+  fallbackUrl.searchParams.set('q', address)
+  fallbackUrl.searchParams.set('output', 'embed')
+  return fallbackUrl.toString()
+}
+
 export async function generateStaticParams() {
   return []
 }
@@ -266,6 +288,7 @@ export default async function CampusPage({
   const heroImage = getHeroImage(campus, content)
   const galleryImages = getGalleryImages(campus, content)
   const address = getAddress(campus)
+  const mapEmbedUrl = getGoogleMapsEmbedUrl(content.mapUrl, address)
   const blocks = (campus.layout ?? []) as unknown as RenderableBlock[]
   const brandHeading = getBrandHeading(content.brandName)
 
@@ -417,17 +440,14 @@ export default async function CampusPage({
           <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
             <ScrollReveal>
               <div className="overflow-hidden rounded-xl border border-warm-grey/60">
-                <div className="flex aspect-[4/3] items-center justify-center bg-warm-grey/20">
-                  <div className="text-center">
-                    <svg className="mx-auto h-12 w-12 text-mid-grey" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-                    </svg>
-                    <p className="mt-3 text-sm text-mid-grey">
-                      Google Maps embed will be placed here
-                    </p>
-                  </div>
-                </div>
+                <iframe
+                  src={mapEmbedUrl}
+                  title={`Map showing ${content.brandName}`}
+                  loading="lazy"
+                  allowFullScreen
+                  referrerPolicy="no-referrer-when-downgrade"
+                  className="aspect-[4/3] w-full border-0"
+                />
               </div>
             </ScrollReveal>
 
