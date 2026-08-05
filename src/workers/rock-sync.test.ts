@@ -1,6 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { runRockSyncWorker } from './rock-sync'
+import {
+  runRockSyncWorker,
+  runWorkerEntrypoint,
+  waitForPayloadCleanup,
+} from './rock-sync'
 
 describe('runRockSyncWorker', () => {
   it('runs the reconciliation under the database lock', async () => {
@@ -42,6 +46,46 @@ describe('runRockSyncWorker', () => {
       reason: 'Rock sync is already in progress',
     })
     expect(runSync).not.toHaveBeenCalled()
+  })
+})
+
+describe('waitForPayloadCleanup', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('stops waiting when Payload cleanup does not settle', async () => {
+    vi.useFakeTimers()
+    const destroy = vi.fn(() => new Promise<void>(() => {}))
+
+    const cleanup = waitForPayloadCleanup({ destroy, timeoutMs: 100 })
+    await vi.advanceTimersByTimeAsync(100)
+
+    await expect(cleanup).resolves.toBe(false)
+    expect(destroy).toHaveBeenCalledOnce()
+  })
+})
+
+describe('runWorkerEntrypoint', () => {
+  it('exits successfully when the worker completes', async () => {
+    const run = vi.fn().mockResolvedValue(undefined)
+    const exit = vi.fn()
+
+    await runWorkerEntrypoint({ run, exit })
+
+    expect(run).toHaveBeenCalledOnce()
+    expect(exit).toHaveBeenCalledWith(0)
+  })
+
+  it('exits unsuccessfully when the worker fails', async () => {
+    const error = new Error('sync failed')
+    const run = vi.fn().mockRejectedValue(error)
+    const exit = vi.fn()
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await runWorkerEntrypoint({ run, exit })
+
+    expect(exit).toHaveBeenCalledWith(1)
+    expect(consoleError).toHaveBeenCalledWith(error.message)
+    consoleError.mockRestore()
   })
 })
 
