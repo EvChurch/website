@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "payload generate:types && next build",
     "test": "vitest run",
-    "test:migration:postgres": "vitest run src/migrations/20260804_rock_connection_signup.integration.test.ts",
+    "test:migration:postgres": "vitest run src/migration-tests/20260804_rock_connection_signup.integration.test.ts",
     "start": "next start",
     "lint": "next lint",
     "payload": "payload",
