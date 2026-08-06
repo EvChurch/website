@@ -3,10 +3,25 @@
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+const turnstileMocks = vi.hoisted(() => ({
+  onToken: null as ((token: string) => void) | null,
+  onError: null as ((message: string) => void) | null,
+}))
 
 vi.mock('./TurnstileWidget', () => ({
-  TurnstileWidget: () => <div aria-label="Security check" />,
+  TurnstileWidget: ({
+    onToken,
+    onError,
+  }: {
+    onToken: (token: string) => void
+    onError?: (message: string) => void
+  }) => {
+    turnstileMocks.onToken = onToken
+    turnstileMocks.onError = onError || null
+    return <div aria-label="Security check" />
+  },
 }))
 
 import { ROCK_FIELD_TYPES } from '@/lib/rock-forms/field-types'
@@ -72,6 +87,70 @@ function spouseSchema(): RockFormSchema {
   .IS_REACT_ACT_ENVIRONMENT = true
 
 describe('RockForm', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    turnstileMocks.onToken = null
+    turnstileMocks.onError = null
+  })
+
+  it('shows an accessible retry and contact fallback when startup returns non-JSON', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response('error code: 502', {
+          status: 502,
+          headers: { 'content-type': 'text/plain' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({ turnstileSiteKey: 'site-key' }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+
+    try {
+      await act(async () => {
+        root.render(
+          <RockForm
+            workflowTypeGuid={workflowTypeGuid}
+            fallbackAction={{
+              label: 'Message our welcome team',
+              href: '/contact?topic=visit',
+            }}
+          />,
+        )
+      })
+
+      await vi.waitFor(() => {
+        expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+          'temporarily unavailable',
+        )
+      })
+      expect(container.textContent).toContain('Try again')
+      expect(
+        container.querySelector<HTMLAnchorElement>(
+          'a[href="/contact?topic=visit"]',
+        )?.textContent,
+      ).toBe('Message our welcome team')
+      expect(container.textContent).not.toContain('error code: 502')
+
+      await act(async () => {
+        container.querySelector<HTMLButtonElement>('button')?.click()
+      })
+
+      await vi.waitFor(() => {
+        expect(container.textContent).toContain('Preparing secure form')
+      })
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    } finally {
+      await act(async () => root.unmount())
+      container.remove()
+    }
+  })
+
   it('includes initialized fields in the server-rendered HTML', () => {
     const markup = renderToStaticMarkup(
       <RockForm workflowTypeGuid={workflowTypeGuid} initialSchema={schema()} />,
@@ -84,6 +163,151 @@ describe('RockForm', () => {
     expect(markup).toContain('disabled=""')
     expect(markup).not.toContain('Loading form')
     expect(markup).not.toContain('Preparing secure form')
+  })
+
+  it('shows the retry and contact fallback when the startup security check fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(Response.json({ turnstileSiteKey: 'site-key' })),
+    )
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+
+    try {
+      await act(async () => {
+        root.render(<RockForm workflowTypeGuid={workflowTypeGuid} />)
+      })
+      await vi.waitFor(() => expect(turnstileMocks.onError).not.toBeNull())
+
+      await act(async () => {
+        turnstileMocks.onError?.('The security check could not load.')
+      })
+
+      expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+        'temporarily unavailable',
+      )
+      expect(container.textContent).toContain('Try again')
+      expect(container.textContent).toContain('Contact us another way')
+    } finally {
+      await act(async () => root.unmount())
+      container.remove()
+    }
+  })
+
+  it('keeps the form visible when Rock returns a malformed successful response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response('<html>not a form response</html>', {
+          status: 200,
+          headers: { 'content-type': 'text/html' },
+        }),
+      ),
+    )
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+
+    try {
+      await act(async () => {
+        root.render(
+          <RockForm
+            workflowTypeGuid={workflowTypeGuid}
+            initialSchema={{ ...schema(), contextToken: 'signed-context' }}
+          />,
+        )
+      })
+      await act(async () => turnstileMocks.onToken?.('valid-token'))
+      await act(async () => {
+        container.querySelector<HTMLButtonElement>('button[type="submit"]')?.click()
+      })
+
+      await vi.waitFor(() => {
+        expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+          'invalid submission response',
+        )
+      })
+      expect(container.textContent).toContain('How can we help?')
+      expect(container.textContent).not.toContain('Thanks.')
+    } finally {
+      await act(async () => root.unmount())
+      container.remove()
+    }
+  })
+
+  it.each([
+    [{ status: 'next', form: {} }, 'invalid next step'],
+    [{ redirectUrl: '/unexpected' }, 'invalid submission response'],
+    [{ status: 'complete', message: { unsafe: true } }, 'invalid submission response'],
+  ])('rejects an invalid successful JSON response %#', async (response, message) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(response)))
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+
+    try {
+      await act(async () => {
+        root.render(
+          <RockForm
+            workflowTypeGuid={workflowTypeGuid}
+            initialSchema={{ ...schema(), contextToken: 'signed-context' }}
+          />,
+        )
+      })
+      await act(async () => turnstileMocks.onToken?.('valid-token'))
+      await act(async () => {
+        container.querySelector<HTMLButtonElement>('button[type="submit"]')?.click()
+      })
+
+      await vi.waitFor(() => {
+        expect(container.querySelector('[role="alert"]')?.textContent).toContain(message)
+      })
+      expect(container.textContent).toContain('How can we help?')
+    } finally {
+      await act(async () => root.unmount())
+      container.remove()
+    }
+  })
+
+  it('rejects an incomplete schema returned during form startup', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ turnstileSiteKey: 'site-key' }))
+      .mockResolvedValueOnce(Response.json({ contextToken: 'incomplete' }))
+    vi.stubGlobal('fetch', fetchMock)
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+
+    try {
+      await act(async () => {
+        root.render(
+          <RockForm
+            workflowTypeGuid={workflowTypeGuid}
+            fallbackAction={{
+              label: 'Message the welcome team',
+              href: '/contact?topic=visit',
+            }}
+          />,
+        )
+      })
+      await vi.waitFor(() => expect(turnstileMocks.onToken).not.toBeNull())
+      await act(async () => turnstileMocks.onToken?.('valid-token'))
+
+      await vi.waitFor(() => {
+        expect(container.textContent).toContain('Rock returned an invalid form')
+      })
+      expect(container.textContent).toContain('Try again')
+      expect(container.textContent).toContain('Message the welcome team')
+      expect(container.querySelector('a')?.getAttribute('href')).toBe(
+        '/contact?topic=visit',
+      )
+      expect(container.textContent).not.toContain('Preparing secure form')
+    } finally {
+      await act(async () => root.unmount())
+      container.remove()
+    }
   })
 
   it('renders the optional spouse fields as an aligned collapsed section', () => {

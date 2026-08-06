@@ -1,11 +1,11 @@
 import Link from 'next/link'
 import { forwardRef } from 'react'
 
-type Variant = 'primary' | 'secondary' | 'text'
+export type ButtonVariant = 'primary' | 'secondary' | 'text'
 type Size = 'default' | 'large'
 
 type BaseProps = {
-  variant?: Variant
+  variant?: ButtonVariant
   size?: Size
   className?: string
   children: React.ReactNode
@@ -16,6 +16,13 @@ type ButtonAsLink = BaseProps & {
   external?: boolean
 } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, keyof BaseProps>
 
+export type ButtonLinkAction = Pick<
+  ButtonAsLink,
+  'href' | 'external' | 'variant'
+> & {
+  label: string
+}
+
 type ButtonAsButton = BaseProps & {
   href?: never
   external?: never
@@ -23,7 +30,7 @@ type ButtonAsButton = BaseProps & {
 
 export type ButtonProps = ButtonAsLink | ButtonAsButton
 
-const variantStyles: Record<Variant, string> = {
+const variantStyles: Record<ButtonVariant, string> = {
   primary:
     'bg-rich-red text-white hover:bg-deep-red shadow-sm hover:shadow-md focus-visible:ring-rich-red',
   secondary:
@@ -36,7 +43,7 @@ const sizeStyles: Record<Size, string> = {
   large: 'px-8 py-3.5 text-base',
 }
 
-function buildClassName(variant: Variant, size: Size, extra?: string) {
+function buildClassName(variant: ButtonVariant, size: Size, extra?: string) {
   const base =
     'inline-flex items-center justify-center gap-2 cursor-pointer font-semibold rounded-md transition-all duration-200 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2'
   const parts = [base, variantStyles[variant]]

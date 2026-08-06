@@ -23,6 +23,8 @@
   --color-light-red-1: #C44850;
   --color-light-red-2: #B33A42;
   --color-light-red-3: #911223;
+  --color-hero-eyebrow: #FDA091;
+  --color-hero-highlight: #FFD0C7;
 
   /* Neutrals */
   --color-brand-black: #0F0004;
@@ -220,4 +222,7 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+body:has([data-audio-player]) .mobile-action-bar {
+  bottom: 5.5rem;
 }

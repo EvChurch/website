@@ -39,6 +39,10 @@ describe('buildCampusSeedUpdate', () => {
       },
     })
     expect(update?.pageContent?.galleryImages).toHaveLength(4)
+    expect(update?.pageContent?.actions).toEqual([
+      expect.objectContaining({ label: 'Get directions' }),
+      expect.objectContaining({ href: '/campus/north/calendar.ics' }),
+    ])
     expect(update?.layout).toEqual([
       expect.objectContaining({
         blockType: 'upcomingEvents',
@@ -85,6 +89,34 @@ describe('buildCampusSeedUpdate', () => {
         pageContent: {
           ...CAMPUS_PAGE_DEFAULTS.north.pageContent,
           mapUrl: customMapUrl,
+        },
+      }),
+    )
+
+    expect(update).not.toHaveProperty('pageContent')
+  })
+
+  it('upgrades only the legacy kids ages while preserving other managed content', () => {
+    const update = buildCampusSeedUpdate(
+      campus({
+        pageContent: {
+          ...CAMPUS_PAGE_DEFAULTS.north.pageContent,
+          tagline: 'Editor tagline',
+          kidsAges: 'Available for ages 1 to 12',
+        },
+      }),
+    )
+
+    expect(update?.pageContent?.kidsAges).toBe('Available for ages 0 to 12')
+    expect(update?.pageContent?.tagline).toBe('Editor tagline')
+  })
+
+  it('preserves custom kids availability wording', () => {
+    const update = buildCampusSeedUpdate(
+      campus({
+        pageContent: {
+          ...CAMPUS_PAGE_DEFAULTS.north.pageContent,
+          kidsAges: 'Creche through Year 6',
         },
       }),
     )

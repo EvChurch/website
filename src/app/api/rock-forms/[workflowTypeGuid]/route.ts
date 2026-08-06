@@ -178,15 +178,15 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   const { workflowTypeGuid } = await context.params
 
   if (!isGuid(workflowTypeGuid)) return jsonError('Invalid form identifier', 400)
-  if (!(await isRockFormPublished(workflowTypeGuid))) {
-    return jsonError('This form is not published on the website', 404)
-  }
 
   try {
+    if (!(await isRockFormPublished(workflowTypeGuid))) {
+      return jsonError('This form is not published on the website', 404)
+    }
     return NextResponse.json({ turnstileSiteKey: getTurnstileSiteKey() })
   } catch (error) {
     console.error('Unable to start Rock form', error)
-    return jsonError('Unable to load this form from Rock', 502)
+    return jsonError('Unable to load this form right now', 502)
   }
 }
 

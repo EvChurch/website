@@ -7,8 +7,17 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/components/forms/RockForm', () => ({
-  RockForm: ({ initialSchema }: { initialSchema?: unknown }) => (
-    <p>{initialSchema ? 'Server-rendered workflow' : 'Client workflow fallback'}</p>
+  RockForm: ({
+    initialSchema,
+    fallbackAction,
+  }: {
+    initialSchema?: unknown
+    fallbackAction?: { label: string; href: string }
+  }) => (
+    <p>
+      {initialSchema ? 'Server-rendered workflow' : 'Client workflow fallback'}
+      {fallbackAction && ` ${fallbackAction.label} ${fallbackAction.href}`}
+    </p>
   ),
 }))
 vi.mock('@/components/forms/RockConnectionOpportunitySignup', () => ({
@@ -77,10 +86,14 @@ describe('FormEmbedBlockComponent protocol dispatch', () => {
     const markup = renderToStaticMarkup(
       await FormEmbedBlockComponent({
         rockWorkflowGuid: '00778880-81fe-4871-aa91-7c81783b8c4d',
+        fallbackContactLabel: 'Message our welcome team',
+        fallbackContactHref: '/contact?topic=visit',
       }),
     )
 
     expect(markup).toContain('Client workflow fallback')
+    expect(markup).toContain('Message our welcome team')
+    expect(markup).toContain('/contact?topic=visit')
   })
 
   it('falls back to client connection startup when the server preview fails', async () => {

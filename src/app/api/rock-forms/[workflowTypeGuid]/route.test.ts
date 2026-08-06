@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   isPublished: vi.fn(),
   verifyContext: vi.fn(),
   verifyTurnstile: vi.fn(),
+  getSiteKey: vi.fn(),
   startForm: vi.fn(),
   submitForm: vi.fn(),
 }))
@@ -18,7 +19,7 @@ vi.mock('@/lib/rock-forms/context-token', () => ({
 }))
 
 vi.mock('@/lib/rock-forms/config', () => ({
-  getTurnstileSiteKey: () => 'test-site-key',
+  getTurnstileSiteKey: mocks.getSiteKey,
 }))
 
 vi.mock('@/lib/rock-forms/server', () => ({
@@ -46,11 +47,13 @@ describe('Rock form route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.isPublished.mockResolvedValue(true)
+    mocks.getSiteKey.mockReturnValue('test-site-key')
     process.env.ROCK_WORKFLOW_REDIRECT_ORIGINS = 'https://ev.church'
   })
 
   afterEach(() => {
     delete process.env.ROCK_WORKFLOW_REDIRECT_ORIGINS
+    vi.restoreAllMocks()
   })
 
   it('does not start a Rock workflow until Turnstile is verified', async () => {
@@ -70,6 +73,37 @@ describe('Rock form route', () => {
     expect(response.status).toBe(200)
     expect(mocks.verifyTurnstile).toHaveBeenCalledOnce()
     expect(mocks.startForm).toHaveBeenCalledWith(workflowTypeGuid)
+  })
+
+  it.each([
+    [
+      'publication lookup',
+      () =>
+        mocks.isPublished.mockRejectedValueOnce(
+          new Error('database unavailable'),
+        ),
+    ],
+    [
+      'Turnstile configuration',
+      () =>
+        mocks.getSiteKey.mockImplementationOnce(() => {
+          throw new Error('missing site key')
+        }),
+    ],
+  ])('returns a JSON 502 when %s fails', async (_name, arrange) => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    arrange()
+
+    const response = await GET(
+      new NextRequest(`http://localhost/api/rock-forms/${workflowTypeGuid}`),
+      routeContext,
+    )
+
+    expect(response.status).toBe(502)
+    expect(response.headers.get('content-type')).toContain('application/json')
+    expect(await response.json()).toEqual({
+      error: 'Unable to load this form right now',
+    })
   })
 
   it('returns Rock completion message content and redirect targets', async () => {

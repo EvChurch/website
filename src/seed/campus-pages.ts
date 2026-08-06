@@ -73,6 +73,20 @@ export const CAMPUS_PAGE_DEFAULTS = {
         'https://www.google.com/maps/place/?q=place_id%3AChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U',
       parkingInfo:
         'Parking is available on site. If you need any help finding us, feel free to get in touch.',
+      actions: [
+        {
+          label: 'Get directions',
+          href: 'https://www.google.com/maps/place/?q=place_id%3AChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U',
+          variant: 'primary',
+          external: true,
+        },
+        {
+          label: 'Save service time',
+          href: '/campus/north/calendar.ics',
+          variant: 'secondary',
+          external: false,
+        },
+      ],
       ctaHeading: 'See you this Sunday',
       ctaText:
         'We would love to welcome you to Ev North. Come as you are. Everyone has a place here.',
@@ -126,6 +140,20 @@ export const CAMPUS_PAGE_DEFAULTS = {
         'https://www.google.com/maps/place/?q=place_id%3AChIJAYvdBVVGDW0ReTxTjSRowE8',
       parkingInfo:
         'Parking is available on site. If you need any help finding us, feel free to get in touch.',
+      actions: [
+        {
+          label: 'Get directions',
+          href: 'https://www.google.com/maps/place/?q=place_id%3AChIJAYvdBVVGDW0ReTxTjSRowE8',
+          variant: 'primary',
+          external: true,
+        },
+        {
+          label: 'Save service time',
+          href: '/campus/central/calendar.ics',
+          variant: 'secondary',
+          external: false,
+        },
+      ],
       ctaHeading: 'See you this Sunday',
       ctaText:
         'We would love to welcome you to Ev Central. Come as you are. Everyone has a place here.',
@@ -179,6 +207,20 @@ export const CAMPUS_PAGE_DEFAULTS = {
         'https://www.google.com/maps/place/?q=place_id%3AChIJVxR51PxHDW0RGv02V7ClS-o',
       parkingInfo:
         'Parking is available on site. If you need any help finding us, feel free to get in touch.',
+      actions: [
+        {
+          label: 'Get directions',
+          href: 'https://www.google.com/maps/place/?q=place_id%3AChIJVxR51PxHDW0RGv02V7ClS-o',
+          variant: 'primary',
+          external: true,
+        },
+        {
+          label: 'Save service time',
+          href: '/campus/unichurch/calendar.ics',
+          variant: 'secondary',
+          external: false,
+        },
+      ],
       ctaHeading: 'See you this Sunday',
       ctaText:
         'We would love to welcome you to Unichurch. Come as you are. Everyone has a place here.',
@@ -226,6 +268,8 @@ function hasText(value: string | null | undefined): value is string {
   return Boolean(value?.trim())
 }
 
+const LEGACY_KIDS_AGES = 'Available for ages 1 to 12'
+
 function hasManagedPageContent(pageContent: Campus['pageContent']): boolean {
   if (!pageContent) return false
   if (pageContent.enabled) return true
@@ -249,6 +293,7 @@ function hasManagedPageContent(pageContent: Campus['pageContent']): boolean {
   return (
     textFields.some(hasText) ||
     Boolean(pageContent.galleryImages?.length) ||
+    Boolean(pageContent.actions?.length) ||
     (hasText(pageContent.serviceDay) && pageContent.serviceDay !== 'Sunday') ||
     (hasText(pageContent.serviceDuration) &&
       pageContent.serviceDuration !== 'Approximately 75 minutes') ||
@@ -271,6 +316,10 @@ export function buildCampusSeedUpdate(campus: SeedCampus): CampusSeedUpdate | nu
     ? {
         ...campus.pageContent,
         mapUrl: shouldUseDefaultMap ? defaults.pageContent.mapUrl : currentMapUrl,
+        kidsAges:
+          campus.pageContent?.kidsAges === LEGACY_KIDS_AGES
+            ? defaults.pageContent.kidsAges
+            : campus.pageContent?.kidsAges,
       }
     : defaults.pageContent
 

@@ -171,6 +171,16 @@ export const Campuses: CollectionConfig = {
           name: 'serviceDay',
           type: 'text',
           defaultValue: 'Sunday',
+          admin: {
+            description: 'Full weekday name, for example Sunday.',
+          },
+          validate: (value: unknown) =>
+            !value ||
+            ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].includes(
+              String(value),
+            )
+              ? true
+              : 'Choose a weekday from Sunday through Saturday.',
         },
         {
           name: 'serviceTimeLabel',
@@ -179,10 +189,37 @@ export const Campuses: CollectionConfig = {
         {
           name: 'serviceOpens',
           type: 'text',
+          admin: {
+            description: '24-hour time in HH:mm format, for example 10:15.',
+          },
+          validate: (value: unknown) =>
+            !value || /^([01]\d|2[0-3]):([0-5]\d)$/.test(String(value))
+              ? true
+              : 'Enter a valid 24-hour time in HH:mm format.',
         },
         {
           name: 'serviceCloses',
           type: 'text',
+          admin: {
+            description: '24-hour time in HH:mm format, for example 11:30.',
+          },
+          validate: (
+            value: unknown,
+            { siblingData }: { siblingData: { serviceOpens?: unknown } },
+          ) => {
+            if (!value || !/^([01]\d|2[0-3]):([0-5]\d)$/.test(String(value))) {
+              return value ? 'Enter a valid 24-hour time in HH:mm format.' : true
+            }
+            const opens = siblingData.serviceOpens
+            if (
+              opens &&
+              /^([01]\d|2[0-3]):([0-5]\d)$/.test(String(opens)) &&
+              String(value) <= String(opens)
+            ) {
+              return 'Service end time must be after its start time.'
+            }
+            return true
+          },
         },
         {
           name: 'serviceDuration',
@@ -230,6 +267,41 @@ export const Campuses: CollectionConfig = {
         {
           name: 'parkingInfo',
           type: 'textarea',
+        },
+        {
+          name: 'actions',
+          type: 'array',
+          maxRows: 4,
+          admin: {
+            description: 'Actions shown beside the campus map, such as directions, messaging, or a calendar link.',
+          },
+          fields: [
+            {
+              name: 'label',
+              type: 'text',
+              required: true,
+            },
+            {
+              name: 'href',
+              type: 'text',
+              required: true,
+            },
+            {
+              name: 'variant',
+              type: 'select',
+              defaultValue: 'text',
+              options: [
+                { label: 'Primary', value: 'primary' },
+                { label: 'Secondary', value: 'secondary' },
+                { label: 'Text', value: 'text' },
+              ],
+            },
+            {
+              name: 'external',
+              type: 'checkbox',
+              defaultValue: false,
+            },
+          ],
         },
         {
           name: 'ctaHeading',

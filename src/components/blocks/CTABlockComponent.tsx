@@ -143,7 +143,7 @@ export function CTABlockComponent({
                       key={btn.id ?? btn.href}
                       href={btn.href}
                       variant="text"
-                      className="text-white/90 hover:text-white"
+                      className="ml-2 text-white/90 hover:text-white"
                     >
                       {btn.label}
                     </Button>

@@ -1,11 +1,20 @@
 import type { GlobalConfig } from 'payload'
+import { revalidateTag } from 'next/cache'
 import { isContentLead } from '@/access/roles'
+import { CACHE_TAGS } from '@/lib/cache-tags'
 
 export const Navigation: GlobalConfig = {
   slug: 'navigation',
   access: {
     read: () => true,
     update: isContentLead,
+  },
+  hooks: {
+    afterChange: [
+      () => {
+        revalidateTag(CACHE_TAGS.navigation, 'default')
+      },
+    ],
   },
   fields: [
     {

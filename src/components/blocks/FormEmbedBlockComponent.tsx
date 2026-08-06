@@ -9,6 +9,10 @@ import {
   getRockFormPreview,
 } from '@/lib/rock-form-previews'
 import type { FormEmbedBlock as PayloadFormEmbedBlock } from '@/payload-types'
+import {
+  DEFAULT_FORM_FALLBACK_ACTION,
+  type FormFallbackAction,
+} from '@/lib/form-fallback'
 
 type FormEmbedBlockProps = Omit<
   Pick<
@@ -16,6 +20,8 @@ type FormEmbedBlockProps = Omit<
     | 'eyebrow'
     | 'heading'
     | 'description'
+    | 'fallbackContactLabel'
+    | 'fallbackContactHref'
     | 'sourceType'
     | 'rockWorkflowGuid'
     | 'rockConnectionBlockGuid'
@@ -35,10 +41,13 @@ async function EmbeddedRockForm({
   sourceType,
   rockWorkflowGuid,
   rockConnectionBlockGuid,
+  fallbackAction,
 }: Pick<
   FormEmbedBlockProps,
-  'sourceType' | 'rockWorkflowGuid' | 'rockConnectionBlockGuid'
->) {
+  | 'sourceType'
+  | 'rockWorkflowGuid'
+  | 'rockConnectionBlockGuid'
+> & { fallbackAction: FormFallbackAction }) {
   const source = sourceType ?? 'workflow'
   switch (source) {
     case 'workflow':
@@ -53,11 +62,17 @@ async function EmbeddedRockForm({
           <RockForm
             workflowTypeGuid={rockWorkflowGuid}
             initialSchema={initialSchema}
+            fallbackAction={fallbackAction}
           />
         )
       } catch (error) {
         console.error('Unable to server-render Rock form', error)
-        return <RockForm workflowTypeGuid={rockWorkflowGuid} />
+        return (
+          <RockForm
+            workflowTypeGuid={rockWorkflowGuid}
+            fallbackAction={fallbackAction}
+          />
+        )
       }
     case 'connectionOpportunity':
       if (!rockConnectionBlockGuid) {
@@ -94,6 +109,8 @@ export async function FormEmbedBlockComponent({
   eyebrow,
   heading,
   description,
+  fallbackContactLabel,
+  fallbackContactHref,
   sourceType,
   rockWorkflowGuid,
   rockConnectionBlockGuid,
@@ -103,6 +120,10 @@ export async function FormEmbedBlockComponent({
     sourceType,
     rockWorkflowGuid,
     rockConnectionBlockGuid,
+    fallbackAction: {
+      label: fallbackContactLabel?.trim() || DEFAULT_FORM_FALLBACK_ACTION.label,
+      href: fallbackContactHref?.trim() || DEFAULT_FORM_FALLBACK_ACTION.href,
+    },
   })
 
   return (

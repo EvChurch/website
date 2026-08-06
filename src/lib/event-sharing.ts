@@ -2,7 +2,7 @@ import { getDisplayLocation, toPlainText, type PublicEvent } from '@/lib/events'
 
 const EVENT_BASE_URL = 'https://ev.church/events'
 
-function escapeCalendarText(value: string): string {
+export function escapeCalendarText(value: string): string {
   return value
     .replace(/\\/g, '\\\\')
     .replace(/\r?\n/g, '\\n')
@@ -10,7 +10,7 @@ function escapeCalendarText(value: string): string {
     .replace(/;/g, '\\;')
 }
 
-function formatCalendarDate(value: string): string {
+export function formatCalendarDate(value: string | Date): string {
   return new Date(value).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
 }
 
