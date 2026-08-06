@@ -1,6 +1,9 @@
 import { Auth0Client } from '@auth0/nextjs-auth0/server'
-import { NextResponse } from 'next/server'
 
+import {
+  memberSignInErrorUrl,
+  privateMemberRedirect,
+} from './member-auth-response'
 import { readMemberAuthConfiguration } from './member-auth0-config'
 import {
   createResolvedMemberMarker,
@@ -77,8 +80,11 @@ export function getMemberAuth0Client() {
           reason: 'invalid-callback',
         })
         const logoutUrl = new URL('/member-auth/logout', config.appBaseUrl)
-        logoutUrl.searchParams.set('returnTo', '/member-sign-in/error')
-        return privateRedirect(logoutUrl)
+        logoutUrl.searchParams.set(
+          'returnTo',
+          memberSignInErrorUrl(config.appBaseUrl),
+        )
+        return privateMemberRedirect(logoutUrl)
       }
 
       const completeUrl = new URL('/member-auth/complete', config.appBaseUrl)
@@ -86,15 +92,9 @@ export function getMemberAuth0Client() {
         'returnTo',
         safeMemberReturnTo(context.returnTo),
       )
-      return privateRedirect(completeUrl)
+      return privateMemberRedirect(completeUrl)
     },
   })
 
   return cached
-}
-
-function privateRedirect(url: URL) {
-  const response = NextResponse.redirect(url)
-  response.headers.set('Cache-Control', 'private, no-store')
-  return response
 }

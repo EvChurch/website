@@ -13,6 +13,9 @@ const state = vi.hoisted(() => ({
 vi.mock('@/auth/member-session', () => ({
   getCurrentMemberProfile: vi.fn(async () => state.profile),
 }))
+vi.mock('@/auth/member-auth0-config', () => ({
+  readMemberAuth0Config: () => ({ appBaseUrl: 'https://www.ev.church/' }),
+}))
 
 import { GET } from './route'
 
@@ -49,7 +52,7 @@ describe('member auth completion', () => {
     )
 
     expect(response.headers.get('location')).toBe(
-      'https://www.ev.church/member-auth/logout?returnTo=%2Fmember-sign-in%2Ferror',
+      'https://www.ev.church/member-auth/logout?returnTo=https%3A%2F%2Fwww.ev.church%2Fmember-sign-in%2Ferror',
     )
     expect(response.headers.get('cache-control')).toBe('private, no-store')
   })

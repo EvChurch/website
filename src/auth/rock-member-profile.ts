@@ -128,7 +128,6 @@ async function requestRock(
         ok: true,
         value: await memberRockFetch<unknown>({
           ...options,
-          retries: 0,
           timeoutMs: ROCK_REQUEST_TIMEOUT_MS,
         }),
       }

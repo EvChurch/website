@@ -104,6 +104,7 @@ async function readBoundedBody(
     declaredLength &&
     (!/^\d+$/u.test(declaredLength) || Number(declaredLength) > MAX_AVATAR_BYTES)
   ) {
+    await response.body?.cancel()
     return null
   }
   if (!response.body) return null
@@ -151,9 +152,13 @@ export async function fetchMemberRockAvatar(
     })
 
     if (response.status >= 300 && response.status < 400) {
+      await response.body?.cancel()
       return fail('upstream-redirect', response.status)
     }
-    if (!response.ok) return fail('upstream-denied', response.status)
+    if (!response.ok) {
+      await response.body?.cancel()
+      return fail('upstream-denied', response.status)
+    }
 
     const contentType = response.headers
       .get('content-type')
@@ -161,6 +166,7 @@ export async function fetchMemberRockAvatar(
       ?.trim()
       .toLowerCase()
     if (!contentType || !supportedImageTypes.has(contentType)) {
+      await response.body?.cancel()
       return fail('unsupported-content')
     }
 

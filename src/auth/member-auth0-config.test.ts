@@ -37,10 +37,9 @@ describe('member authentication configuration', () => {
     Object.assign(process.env, adminConfig, memberConfig)
 
     expect(readMemberAuth0Config()).toMatchObject({
-      appBaseUrl: 'https://www.ev.church',
+      appBaseUrl: 'https://www.ev.church/',
       clientId: 'member-client-id',
       domain: 'members.au.auth0.com',
-      issuer: 'https://members.au.auth0.com/',
       secret: 'b'.repeat(64),
     })
     expect(readMemberRockConfig()).toEqual({

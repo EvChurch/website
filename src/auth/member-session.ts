@@ -19,10 +19,6 @@ interface UnresolvedMemberMarker {
   status: 'unresolved'
 }
 
-export type MemberProfileMarker =
-  | ResolvedMemberMarker
-  | UnresolvedMemberMarker
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -40,7 +36,7 @@ function isRequiredText(value: unknown, maxLength: number): value is string {
 function isPhotoReference(value: unknown): value is string | null {
   return (
     value === null ||
-    (isRequiredText(value, MAX_PHOTO_REFERENCE_LENGTH) && value.length > 0)
+    isRequiredText(value, MAX_PHOTO_REFERENCE_LENGTH)
   )
 }
 

@@ -27,11 +27,10 @@ vi.mock('@auth0/nextjs-auth0/server', () => ({
 vi.mock('./member-auth0-config', () => ({
   readMemberAuthConfiguration: () => ({
     auth0: {
-      appBaseUrl: 'https://www.ev.church',
+      appBaseUrl: 'https://www.ev.church/',
       clientId: 'member-client',
       clientSecret: 'member-secret',
       domain: 'members.au.auth0.com',
-      issuer: 'https://members.au.auth0.com/',
       secret: 'b'.repeat(64),
     },
     rock: {
@@ -176,7 +175,7 @@ describe('member Auth0 client', () => {
     )
 
     expect(oauthFailure.headers.get('location')).toBe(
-      'https://www.ev.church/member-auth/logout?returnTo=%2Fmember-sign-in%2Ferror',
+      'https://www.ev.church/member-auth/logout?returnTo=https%3A%2F%2Fwww.ev.church%2Fmember-sign-in%2Ferror',
     )
     expect(hostileReturn.headers.get('location')).toBe(
       'https://www.ev.church/member-auth/complete?returnTo=%2F',

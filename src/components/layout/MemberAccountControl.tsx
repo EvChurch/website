@@ -212,7 +212,7 @@ export function MemberAccountControl({
             </div>
           </div>
           <a
-            href="/member-auth/logout?returnTo=%2F"
+            href="/member-auth/logout"
             className="mt-5 flex min-h-10 w-full items-center justify-center rounded-md border border-rich-red px-4 py-2 text-sm font-semibold text-rich-red transition-colors hover:bg-rich-red hover:text-white"
           >
             Log out

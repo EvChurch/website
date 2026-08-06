@@ -5,7 +5,6 @@ export interface MemberAuth0RuntimeConfig {
   clientId: string
   clientSecret: string
   domain: string
-  issuer: string
   secret: string
 }
 
@@ -49,11 +48,10 @@ export function readMemberAuth0Config(): MemberAuth0RuntimeConfig {
   }
 
   return {
-    appBaseUrl: appBaseUrl.origin,
+    appBaseUrl: appBaseUrl.toString(),
     clientId: requiredMemberSetting('MEMBER_AUTH0_CLIENT_ID'),
     clientSecret: requiredMemberSetting('MEMBER_AUTH0_CLIENT_SECRET'),
     domain,
-    issuer: `https://${domain}/`,
     secret,
   }
 }
@@ -77,5 +75,3 @@ export function isMemberAuthEnabled() {
     return false
   }
 }
-
-export const memberAuthEnabled = isMemberAuthEnabled

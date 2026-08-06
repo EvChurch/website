@@ -73,7 +73,6 @@ describe('resolveRockMemberProfile', () => {
           'Id,EntityTypeId,ForeignKey,PersonId,UserName,EntityType/Id,EntityType/Guid',
         $top: '2',
       },
-      retries: 0,
       timeoutMs: 3_000,
     })
     expect(mocks.memberRockFetch).toHaveBeenNthCalledWith(2, {
@@ -81,7 +80,6 @@ describe('resolveRockMemberProfile', () => {
       params: {
         $select: 'Id,FullName,FirstName,NickName,LastName,Email,PhotoUrl',
       },
-      retries: 0,
       timeoutMs: 3_000,
     })
   })
