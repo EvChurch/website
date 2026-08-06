@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const middleware = vi.fn()
+const memberMiddleware = vi.fn()
 const getSession = vi.fn()
 
 vi.mock('@/auth/auth0-client', () => ({
@@ -9,6 +10,9 @@ vi.mock('@/auth/auth0-client', () => ({
 }))
 vi.mock('@/auth/auth0-session', () => ({
   getAuth0SessionFromHeaders: (...args: unknown[]) => getSession(...args),
+}))
+vi.mock('@/auth/member-auth0-client', () => ({
+  getMemberAuth0Client: () => ({ middleware: memberMiddleware }),
 }))
 vi.mock('@/auth/auth0-config', () => ({
   readAuth0Config: () => ({ appBaseUrl: 'https://www.ev.church' }),
@@ -20,6 +24,7 @@ describe('admin Auth0 proxy', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     middleware.mockResolvedValue(NextResponse.next())
+    memberMiddleware.mockResolvedValue(NextResponse.next())
   })
 
   it('runs Auth0 middleware for admin API activity so rolling sessions stay active', () => {
@@ -48,6 +53,35 @@ describe('admin Auth0 proxy', () => {
     const response = await proxy(new NextRequest('https://www.ev.church/events'))
     expect(response.status).toBe(200)
     expect(getSession).not.toHaveBeenCalled()
+    expect(middleware).not.toHaveBeenCalled()
+    expect(memberMiddleware).not.toHaveBeenCalled()
+  })
+
+  it('dispatches member routes only to the member Auth0 client', async () => {
+    const response = await proxy(
+      new NextRequest('https://www.ev.church/member-auth/login?returnTo=/events'),
+    )
+    expect(response.status).toBe(200)
+    expect(memberMiddleware).toHaveBeenCalledOnce()
+    expect(middleware).not.toHaveBeenCalled()
+    expect(getSession).not.toHaveBeenCalled()
+  })
+
+  it('dispatches admin routes only to the admin Auth0 client', async () => {
+    getSession.mockResolvedValue(null)
+    await proxy(new NextRequest('https://www.ev.church/auth/login'))
+    expect(middleware).toHaveBeenCalledOnce()
+    expect(memberMiddleware).not.toHaveBeenCalled()
+  })
+
+  it('returns a private 503 when member authentication is not configured', async () => {
+    memberMiddleware.mockRejectedValue(new Error('configuration unavailable'))
+    const response = await proxy(
+      new NextRequest('https://www.ev.church/member-auth/login'),
+    )
+    expect(response.status).toBe(503)
+    expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0')
+    expect(middleware).not.toHaveBeenCalled()
   })
 
   it('returns a private 503 when an Auth0 route cannot run', async () => {
