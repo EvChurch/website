@@ -52,6 +52,8 @@ describe('MemberAccountControl', () => {
       '/auth/login?returnTo=%2Fsermons%3Fcampus%3D2',
     )
     expect(link?.className).toContain('min-h-10')
+    expect(link?.querySelector('[data-member-sign-in-icon]')).not.toBeNull()
+    expect(link?.querySelector('circle')).not.toBeNull()
     expect(container.textContent).not.toContain('Aroha')
   })
 
@@ -72,6 +74,7 @@ describe('MemberAccountControl', () => {
     await act(async () => triggers[0]?.click())
     expect(triggers[0]?.getAttribute('aria-expanded')).toBe('true')
     const dialog = container.querySelector('[role="dialog"]')
+    expect(dialog?.getAttribute('data-state')).toBe('open')
     expect(dialog?.textContent).toContain('Aroha Ngata')
     expect(dialog?.textContent).toContain('aroha@example.com')
     expect(dialog?.querySelector<HTMLAnchorElement>('a')?.getAttribute('href')).toBe(
@@ -89,11 +92,32 @@ describe('MemberAccountControl', () => {
 
     await act(async () => trigger.click())
     await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })))
-    expect(container.querySelector('[role="dialog"]')).toBeNull()
+    const closingDialog = container.querySelector<HTMLElement>('[role="dialog"]')!
+    expect(closingDialog.getAttribute('data-state')).toBe('closed')
+    expect(closingDialog.getAttribute('aria-hidden')).toBe('true')
     expect(document.activeElement).toBe(trigger)
+
+    await act(async () => closingDialog.dispatchEvent(new AnimationEvent('animationend', {
+      bubbles: true,
+    })))
+    expect(container.querySelector('[role="dialog"]')).toBeNull()
 
     await act(async () => trigger.click())
     await act(async () => document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })))
+    const outsideClosingDialog = container.querySelector<HTMLElement>('[role="dialog"]')!
+    expect(outsideClosingDialog.getAttribute('data-state')).toBe('closed')
+
+    await act(async () => trigger.click())
+    expect(outsideClosingDialog.getAttribute('data-state')).toBe('open')
+    await act(async () => outsideClosingDialog.dispatchEvent(new AnimationEvent('animationend', {
+      bubbles: true,
+    })))
+    expect(container.querySelector('[role="dialog"]')).toBe(outsideClosingDialog)
+
+    await act(async () => trigger.click())
+    await act(async () => outsideClosingDialog.dispatchEvent(new AnimationEvent('animationend', {
+      bubbles: true,
+    })))
     expect(container.querySelector('[role="dialog"]')).toBeNull()
   })
 
@@ -108,6 +132,13 @@ describe('MemberAccountControl', () => {
     await act(async () => root.render(
       <MemberAccountControl profile={member} variant="drawer" active={false} />,
     ))
+    const closingDialog = container.querySelector<HTMLElement>('[role="dialog"]')!
+    expect(closingDialog.getAttribute('aria-hidden')).toBe('true')
+    expect(closingDialog.hasAttribute('inert')).toBe(true)
+    expect(closingDialog.className).toContain('pointer-events-none')
+    await act(async () => closingDialog.dispatchEvent(new AnimationEvent('animationend', {
+      bubbles: true,
+    })))
     expect(container.querySelector('[role="dialog"]')).toBeNull()
   })
 
@@ -123,6 +154,10 @@ describe('MemberAccountControl', () => {
       <MemberAccountControl profile={member} variant="desktop" tone="dark" />,
     ))
 
+    const closingDialog = container.querySelector<HTMLElement>('[role="dialog"]')!
+    await act(async () => closingDialog.dispatchEvent(new AnimationEvent('animationend', {
+      bubbles: true,
+    })))
     expect(container.querySelector('[role="dialog"]')).toBeNull()
   })
 
@@ -133,6 +168,21 @@ describe('MemberAccountControl', () => {
     const image = container.querySelector<HTMLImageElement>('img')!
     await act(async () => image.dispatchEvent(new Event('error')))
     expect(container.textContent).toContain('AN')
+    expect(container.querySelector('[data-avatar-fallback]')).not.toBeNull()
+  })
+
+  it('uses a deterministic fallback colour for member initials', async () => {
+    await act(async () => root.render(
+      <>
+        <MemberAccountControl profile={{ ...member, avatarUrl: null }} variant="desktop" tone="dark" />
+        <MemberAccountControl profile={{ ...member, avatarUrl: null }} variant="mobile-icon" tone="dark" />
+      </>,
+    ))
+
+    const fallbacks = [...container.querySelectorAll<HTMLElement>('[data-avatar-fallback]')]
+    expect(fallbacks).toHaveLength(2)
+    expect(fallbacks[0]?.className).toBe(fallbacks[1]?.className)
+    expect(fallbacks[0]?.className).toContain('bg-connect-brown')
   })
 
   it('places account access after Give and in both mobile surfaces', async () => {
