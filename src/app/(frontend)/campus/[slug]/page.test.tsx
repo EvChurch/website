@@ -111,6 +111,8 @@ describe('Payload-managed campus page', () => {
       'src="https://www.google.com/maps?q=place_id%3AChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U&amp;output=embed"',
     )
     expect(markup).toContain('title="Map showing Ev North"')
+    expect(markup).toContain('href="#campus-map"')
+    expect(markup).toContain('id="campus-map"')
     expect(markup).not.toContain('Google Maps embed will be placed here')
     expect(mocks.renderBlocks).toHaveBeenCalledWith({ blocks: campus.layout }, undefined)
   })

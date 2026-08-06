@@ -7,6 +7,7 @@ import sharp from 'sharp'
 import { ensureNewishConnectionForm } from './newish-form'
 import { EXPLAINING_CHRISTIANITY_CONNECTION_BLOCK_GUID } from './explaining-christianity-form'
 import { ensureServiceTimesBlock, ensureUpcomingEventsBlock } from './home-layout'
+import { CAMPUS_PAGE_DEFAULTS, ensureCampusPageDefaults } from './campus-pages'
 
 async function generateBlur(filePath: string): Promise<string | null> {
   try {
@@ -862,6 +863,8 @@ async function seed() {
           {
             title: 'North',
             description: '9-11 Rothwell Avenue, Rosedale, Auckland',
+            href: CAMPUS_PAGE_DEFAULTS.north.pageContent.mapUrl,
+            linkLabel: 'Open in Google Maps',
             details: [
               { label: 'Service', value: 'Sunday 10:15 am' },
               { label: 'Email', value: 'north@ev.church' },
@@ -870,6 +873,8 @@ async function seed() {
           {
             title: 'Central',
             description: '80 Olsen Avenue, Hillsborough, Auckland',
+            href: CAMPUS_PAGE_DEFAULTS.central.pageContent.mapUrl,
+            linkLabel: 'Open in Google Maps',
             details: [
               { label: 'Service', value: 'Sunday 10:15 am' },
               { label: 'Email', value: 'central@ev.church' },
@@ -878,6 +883,8 @@ async function seed() {
           {
             title: 'Unichurch',
             description: 'University of Auckland, 24 Princes Street, Auckland 1010',
+            href: CAMPUS_PAGE_DEFAULTS.unichurch.pageContent.mapUrl,
+            linkLabel: 'Open in Google Maps',
             details: [
               { label: 'Service', value: 'Sunday 5:15 pm' },
               { label: 'Email', value: 'unichurch@ev.church' },
@@ -1838,7 +1845,9 @@ async function seed() {
     },
   })
 
-  console.log('\nSeed complete! All pages created successfully.')
+  await ensureCampusPageDefaults(payload)
+
+  console.log('\nSeed complete! All pages and campus defaults applied successfully.')
 }
 
 seed()
