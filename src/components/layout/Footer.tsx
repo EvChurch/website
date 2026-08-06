@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { SiFacebook, SiInstagram, SiYoutube, SiSpotify, SiApplepodcasts } from 'react-icons/si'
 
+import { SOCIAL_LINKS } from '@/lib/social-links'
+
 type FooterColumn = {
   title: string
   links: { label: string; href: string; meta?: string }[]
@@ -31,10 +33,11 @@ const columns: FooterColumn[] = [
   {
     title: 'Sections',
     links: [
+      { label: 'Events', href: '/events' },
       { label: 'Church Online', href: 'https://live.ev.church' },
       { label: 'Resources', href: 'https://resources.aucklandev.co.nz' },
       { label: 'Contact', href: '/contact' },
-      { label: 'Give', href: 'https://give.ev.church' },
+      { label: 'Give', href: '/give' },
     ],
   },
   {
@@ -47,13 +50,13 @@ const columns: FooterColumn[] = [
   },
 ]
 
-const socialLinks = [
-  { label: 'Facebook', href: 'https://www.facebook.com/ev.church', icon: <SiFacebook className="h-[18px] w-[18px]" aria-hidden="true" /> },
-  { label: 'Instagram', href: 'https://www.instagram.com/ev.church', icon: <SiInstagram className="h-[18px] w-[18px]" aria-hidden="true" /> },
-  { label: 'YouTube', href: 'https://www.youtube.com/@ev.church', icon: <SiYoutube className="h-[18px] w-[18px]" aria-hidden="true" /> },
-  { label: 'Spotify', href: 'https://open.spotify.com/show/ev-church', icon: <SiSpotify className="h-[18px] w-[18px]" aria-hidden="true" /> },
-  { label: 'Apple Podcasts', href: 'https://podcasts.apple.com/podcast/ev-church', icon: <SiApplepodcasts className="h-[18px] w-[18px]" aria-hidden="true" /> },
-]
+const socialIcons = {
+  facebook: <SiFacebook className="h-[18px] w-[18px]" aria-hidden="true" />,
+  instagram: <SiInstagram className="h-[18px] w-[18px]" aria-hidden="true" />,
+  youtube: <SiYoutube className="h-[18px] w-[18px]" aria-hidden="true" />,
+  spotify: <SiSpotify className="h-[18px] w-[18px]" aria-hidden="true" />,
+  'apple-podcasts': <SiApplepodcasts className="h-[18px] w-[18px]" aria-hidden="true" />,
+} satisfies Record<(typeof SOCIAL_LINKS)[number]['platform'], React.ReactNode>
 
 function FooterLink({
   href,
@@ -122,7 +125,7 @@ export function Footer() {
         <div className="mt-14 flex flex-col items-start gap-6 border-t border-warm-grey/50 pt-8 sm:flex-row sm:items-center sm:justify-between">
           {/* Social */}
           <div className="flex items-center gap-5">
-            {socialLinks.map((social) => (
+            {SOCIAL_LINKS.map((social) => (
               <a
                 key={social.label}
                 href={social.href}
@@ -131,7 +134,7 @@ export function Footer() {
                 className="text-mid-grey/70 transition-colors duration-150 hover:text-rich-red"
                 aria-label={social.label}
               >
-                {social.icon}
+                {socialIcons[social.platform]}
               </a>
             ))}
           </div>

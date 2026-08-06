@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   AUTH0_ADMIN_SSO_DOWN_SQL,
   AUTH0_ADMIN_SSO_UP_SQL,
-} from './20260806_auth0_admin_sso'
+} from '../migrations/20260806_auth0_admin_sso'
 
 const databaseUrl = process.env.AUTH0_MIGRATION_TEST_DATABASE_URL
 

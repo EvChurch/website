@@ -1,6 +1,9 @@
 import type { Metadata } from 'next'
 import { getPayloadClient } from '@/lib/payload'
-import { RenderBlocks } from '@/components/blocks/RenderBlocks'
+import {
+  RenderBlocks,
+  type RenderableBlock,
+} from '@/components/blocks/RenderBlocks'
 
 export const dynamic = 'force-dynamic'
 
@@ -81,8 +84,7 @@ export default async function HomePage() {
     )
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const blocks = (page.layout ?? []) as any[]
+  const blocks = (page.layout ?? []) as unknown as RenderableBlock[]
 
   return <RenderBlocks blocks={blocks} />
 }

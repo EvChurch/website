@@ -7,11 +7,12 @@
     "dev": "next dev",
     "build": "payload generate:types && next build",
     "test": "vitest run",
-    "test:migration:postgres": "vitest run src/migrations/20260804_rock_connection_signup.integration.test.ts",
+    "test:migration:postgres": "vitest run src/migration-tests/20260804_rock_connection_signup.integration.test.ts",
     "start": "next start",
     "lint": "next lint",
     "payload": "payload",
-    "generate:types": "payload generate:types"
+    "generate:types": "payload generate:types",
+    "sync:rock": "tsx src/workers/rock-sync.ts"
   },
   "engines": {
     "node": ">=22.0.0"
@@ -26,14 +27,17 @@
     "@tailwindcss/postcss": "4.2.2",
     "dompurify": "^3.4.12",
     "graphql": "16.13.1",
+    "jsdom": "^29.1.1",
     "next": "16.2.1",
     "payload": "3.80.0",
+    "pg": "8.16.3",
     "postcss": "8.5.8",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-icons": "5.6.0",
     "sharp": "0.34.5",
     "tailwindcss": "4.2.2",
+    "tsx": "4.21.0",
     "video.js": "8.23.7",
     "videojs-youtube": "3.0.1",
     "youtube-transcript": "1.3.0",
@@ -41,13 +45,13 @@
   },
   "devDependencies": {
     "@payloadcms/ui": "3.80.0",
+    "@types/jsdom": "^28.0.3",
     "@types/node": "25.5.0",
     "@types/pg": "8.10.2",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "dotenv": "17.4.1",
     "eslint": "10.1.0",
-    "pg": "8.16.3",
     "sass": "1.99.0",
     "typescript": "5.9.3",
     "vitest": "^4.1.10"

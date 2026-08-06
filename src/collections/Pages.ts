@@ -17,6 +17,8 @@ import { PhotoStripBlock } from '@/blocks/PhotoStripBlock'
 import { PageHeaderBlock } from '@/blocks/PageHeaderBlock'
 import { GospelStepperBlock } from '@/blocks/GospelStepperBlock'
 import { LatestSermonBlock } from '@/blocks/LatestSermonBlock'
+import { UpcomingEventsBlock } from '@/blocks/UpcomingEventsBlock'
+import { ServiceTimesBlock } from '@/blocks/ServiceTimesBlock'
 
 export const Pages: CollectionConfig = {
   slug: 'pages',
@@ -56,6 +58,7 @@ export const Pages: CollectionConfig = {
       type: 'blocks',
       blocks: [
         HeroBlock,
+        ServiceTimesBlock,
         ContentBlock,
         CTABlock,
         CardGridBlock,
@@ -72,6 +75,7 @@ export const Pages: CollectionConfig = {
         PageHeaderBlock,
         GospelStepperBlock,
         LatestSermonBlock,
+        UpcomingEventsBlock,
       ],
     },
     {

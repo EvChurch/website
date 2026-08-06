@@ -77,9 +77,7 @@ export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockP
     : null
 
   return (
-    <div className="bg-warm-white">
-    <div className="mx-auto max-w-5xl px-4 pt-8 sm:px-6 lg:px-8">
-      <section className="relative overflow-hidden rounded-2xl bg-brand-black">
+    <section className="relative overflow-hidden border-b border-white/10 bg-brand-black">
         {/* Background image (desktop only) */}
         {backgroundMedia && (
           <>
@@ -210,8 +208,6 @@ export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockP
             </div>
           </div>
         </div>
-      </section>
-    </div>
-    </div>
+    </section>
   )
 }

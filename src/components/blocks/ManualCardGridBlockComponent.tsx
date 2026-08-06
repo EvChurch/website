@@ -3,6 +3,7 @@ import { MediaImage } from '@/components/media/MediaImage'
 import Link from 'next/link'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 import { Button, ArrowRight } from '@/components/ui/Button'
+import { getGoogleMapsEmbedUrl, isGoogleMapsUrl } from '@/lib/google-maps'
 
 interface CardImage {
   url: string
@@ -69,48 +70,79 @@ function ArrowSvg() {
 }
 
 function InfoCard({ card, index }: { card: ManualCard; index: number }) {
+  const mapUrl = card.href && isGoogleMapsUrl(card.href) ? card.href : null
+  const mapEmbedUrl = mapUrl
+    ? getGoogleMapsEmbedUrl(
+        mapUrl,
+        card.address ?? card.description ?? card.title,
+      )
+    : null
+
   const content = (
-    <div className="group relative block overflow-hidden rounded-xl border border-warm-grey/60 bg-white p-8 transition-all duration-300 hover:border-rich-red/20 hover:shadow-lg hover:shadow-rich-red/5">
+    <div className="group relative block overflow-hidden rounded-xl border border-warm-grey/60 bg-white transition-all duration-300 hover:border-rich-red/20 hover:shadow-lg hover:shadow-rich-red/5">
       {/* Accent bar */}
       <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-rich-red to-light-red-1 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
-      <h3 className="font-sans text-h4 font-bold text-brand-black">{card.title}</h3>
-      {card.subtitle && (
-        <p className="mt-2 text-sm text-mid-grey">{card.subtitle}</p>
+      {mapEmbedUrl && (
+        <iframe
+          src={mapEmbedUrl}
+          title={`Map showing ${card.title} campus`}
+          loading="lazy"
+          allowFullScreen
+          referrerPolicy="no-referrer-when-downgrade"
+          className="aspect-[4/3] w-full border-0"
+        />
       )}
-      {card.description && (
-        <p className="mt-3 flex-1 text-[0.9375rem] leading-relaxed text-mid-grey">
-          {card.description}
-        </p>
-      )}
-      {card.details && card.details.length > 0 && (
-        <dl className="mt-4 space-y-2">
-          {card.details.map((row, i) => (
-            <div key={i} className="flex justify-between text-sm">
-              <dt className="font-medium text-brand-black">{row.label}</dt>
-              <dd className="text-mid-grey">
-                {row.value.includes('@') ? (
-                  <a href={`mailto:${row.value}`} className="text-rich-red hover:text-deep-red transition-colors">
-                    {row.value}
-                  </a>
-                ) : row.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      )}
-      {card.linkLabel && (
-        <span className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-rich-red transition-colors group-hover:text-deep-red">
-          {card.linkLabel}
-          <ArrowSvg />
-        </span>
-      )}
+
+      <div className="p-8">
+        <h3 className="font-sans text-h4 font-bold text-brand-black">{card.title}</h3>
+        {card.subtitle && (
+          <p className="mt-2 text-sm text-mid-grey">{card.subtitle}</p>
+        )}
+        {card.description && (
+          <p className="mt-3 flex-1 text-[0.9375rem] leading-relaxed text-mid-grey">
+            {card.description}
+          </p>
+        )}
+        {card.details && card.details.length > 0 && (
+          <dl className="mt-4 space-y-2">
+            {card.details.map((row, i) => (
+              <div key={i} className="flex justify-between text-sm">
+                <dt className="font-medium text-brand-black">{row.label}</dt>
+                <dd className="text-mid-grey">
+                  {row.value.includes('@') ? (
+                    <a href={`mailto:${row.value}`} className="text-rich-red hover:text-deep-red transition-colors">
+                      {row.value}
+                    </a>
+                  ) : row.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        {card.linkLabel && mapUrl ? (
+          <a
+            href={mapUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-rich-red transition-colors hover:text-deep-red"
+          >
+            {card.linkLabel}
+            <ArrowSvg />
+          </a>
+        ) : card.linkLabel ? (
+          <span className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-rich-red transition-colors group-hover:text-deep-red">
+            {card.linkLabel}
+            <ArrowSvg />
+          </span>
+        ) : null}
+      </div>
     </div>
   )
 
   return (
     <ScrollReveal delay={index * 100}>
-      {card.href ? <Link href={card.href} className="group relative block">{content}</Link> : content}
+      {card.href && !mapUrl ? <Link href={card.href} className="group relative block">{content}</Link> : content}
     </ScrollReveal>
   )
 }

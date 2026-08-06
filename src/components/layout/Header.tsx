@@ -44,6 +44,7 @@ const navItems: NavItem[] = [
       { label: 'Good News', href: '/good-news' },
     ],
   },
+  { label: 'Events', href: '/events' },
   { label: 'Sermons', href: '/sermons' },
 ]
 
@@ -300,15 +301,13 @@ function MobileMenu({
             >
               Plan Your Visit
             </Link>
-            <a
-              href="https://give.ev.church"
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href="/give"
               className="block w-full rounded-md border border-rich-red py-3.5 text-center text-sm font-semibold text-rich-red transition-colors hover:bg-rich-red hover:text-white"
               onClick={onClose}
             >
               Give
-            </a>
+            </Link>
           </div>
         </nav>
       </div>
@@ -444,10 +443,8 @@ export function Header() {
                 ),
               )}
             </nav>
-            <a
-              href="https://give.ev.church"
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href="/give"
               className={`ml-3 rounded-full px-5 py-2 text-[0.8125rem] font-semibold uppercase tracking-wide transition-colors duration-200 ${
                 scrolled
                   ? 'bg-rich-red text-white hover:bg-deep-red'
@@ -455,7 +452,7 @@ export function Header() {
               }`}
             >
               Give
-            </a>
+            </Link>
           </div>
 
           {/* Mobile Hamburger */}

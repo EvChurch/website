@@ -8,6 +8,11 @@ import * as migration_20260405_212901_per_video_boundaries from './20260405_2129
 import * as migration_20260407_222651_speaker_per_media from './20260407_222651_speaker_per_media';
 import * as migration_20260803_110431_rock_form_embed from './20260803_110431_rock_form_embed';
 import * as migration_20260804_rock_connection_signup from './20260804_rock_connection_signup';
+import * as migration_20260805_012700_featured_events from './20260805_012700_featured_events';
+import * as migration_20260805_185400_upcoming_events_block from './20260805_185400_upcoming_events_block';
+import * as migration_20260805_234700_campus_managed_pages from './20260805_234700_campus_managed_pages';
+import * as migration_20260806_093700_service_times_block from './20260806_093700_service_times_block';
+import * as migration_20260806_103317_exact_campus_map_locations from './20260806_103317_exact_campus_map_locations';
 import * as migration_20260806_auth0_admin_sso from './20260806_auth0_admin_sso';
 
 export const migrations = [
@@ -60,6 +65,31 @@ export const migrations = [
     up: migration_20260804_rock_connection_signup.up,
     down: migration_20260804_rock_connection_signup.down,
     name: '20260804_rock_connection_signup',
+  },
+  {
+    up: migration_20260805_012700_featured_events.up,
+    down: migration_20260805_012700_featured_events.down,
+    name: '20260805_012700_featured_events',
+  },
+  {
+    up: migration_20260805_185400_upcoming_events_block.up,
+    down: migration_20260805_185400_upcoming_events_block.down,
+    name: '20260805_185400_upcoming_events_block',
+  },
+  {
+    up: migration_20260805_234700_campus_managed_pages.up,
+    down: migration_20260805_234700_campus_managed_pages.down,
+    name: '20260805_234700_campus_managed_pages',
+  },
+  {
+    up: migration_20260806_093700_service_times_block.up,
+    down: migration_20260806_093700_service_times_block.down,
+    name: '20260806_093700_service_times_block',
+  },
+  {
+    up: migration_20260806_103317_exact_campus_map_locations.up,
+    down: migration_20260806_103317_exact_campus_map_locations.down,
+    name: '20260806_103317_exact_campus_map_locations',
   },
   {
     up: migration_20260806_auth0_admin_sso.up,

@@ -1,6 +1,4 @@
 import { getPayloadClient } from '@/lib/payload'
-import { revalidateTag } from 'next/cache'
-import { CACHE_TAGS } from '@/lib/cache-tags'
 import { fetchAllPages } from '@/lib/resources-api'
 
 type SyncResult = {
@@ -217,7 +215,6 @@ async function syncCategories(): Promise<SyncResult> {
       }
     }
 
-    revalidateTag(CACHE_TAGS.categories, 'default')
   } catch (error) {
     result.errors.push(String(error))
   }
@@ -269,7 +266,6 @@ async function syncScriptures(): Promise<SyncResult> {
       }
     }
 
-    revalidateTag(CACHE_TAGS.scriptures, 'default')
   } catch (error) {
     result.errors.push(String(error))
   }
@@ -321,7 +317,6 @@ async function syncSpeakers(): Promise<SyncResult> {
       }
     }
 
-    revalidateTag(CACHE_TAGS.speakers, 'default')
   } catch (error) {
     result.errors.push(String(error))
   }
@@ -388,7 +383,6 @@ async function syncTopics(): Promise<SyncResult> {
       }
     }
 
-    revalidateTag(CACHE_TAGS.topics, 'default')
   } catch (error) {
     result.errors.push(String(error))
   }
@@ -500,7 +494,6 @@ async function syncSermonSeries(): Promise<SyncResult> {
       }
     }
 
-    revalidateTag(CACHE_TAGS.sermonSeries, 'default')
   } catch (error) {
     result.errors.push(String(error))
   }
@@ -750,7 +743,6 @@ async function syncSermons(limit?: number): Promise<SyncResult> {
     }
     } // end soft-delete (full sync only)
 
-    revalidateTag(CACHE_TAGS.sermons, 'default')
   } catch (error) {
     result.errors.push(String(error))
   }

@@ -6,7 +6,7 @@ import {
   AUTH0_ADMIN_SSO_UP_SQL,
   down,
   up,
-} from './20260806_auth0_admin_sso'
+} from '../migrations/20260806_auth0_admin_sso'
 
 function migrationArgs(execute = vi.fn().mockResolvedValue(undefined)) {
   return {
@@ -18,7 +18,7 @@ function migrationArgs(execute = vi.fn().mockResolvedValue(undefined)) {
 describe('Auth0 admin SSO migration', () => {
   it('ships a schema snapshot without local credential storage', () => {
     const snapshot = JSON.parse(
-      readFileSync(new URL('./20260806_auth0_admin_sso.json', import.meta.url), 'utf8'),
+      readFileSync(new URL('../migrations/20260806_auth0_admin_sso.json', import.meta.url), 'utf8'),
     ) as { tables: Record<string, { columns: Record<string, unknown> }> }
     expect(snapshot.tables['public.users'].columns).toHaveProperty(
       'auth0_identity_key',

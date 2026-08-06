@@ -15,7 +15,12 @@ import { PhotoStripBlockComponent } from './PhotoStripBlockComponent'
 import { PageHeaderBlockComponent } from './PageHeaderBlockComponent'
 import { GospelStepperBlockComponent } from './GospelStepperBlockComponent'
 import { LatestSermonBlockComponent } from './LatestSermonBlockComponent'
-import type { FormEmbedBlock as PayloadFormEmbedBlock } from '@/payload-types'
+import { UpcomingEventsBlockComponent } from './UpcomingEventsBlockComponent'
+import { ServiceTimesBlockComponent } from './ServiceTimesBlockComponent'
+import type {
+  FormEmbedBlock as PayloadFormEmbedBlock,
+  UpcomingEventsBlock as PayloadUpcomingEventsBlock,
+} from '@/payload-types'
 
 /**
  * Union of all known block types.
@@ -236,7 +241,18 @@ interface LatestSermonBlockType extends BaseBlock {
   heading?: string | null
 }
 
-type Block =
+interface ServiceTimesBlockType extends BaseBlock {
+  blockType: 'serviceTimes'
+  heading?: string | null
+  services: Array<{
+    campus: string
+    time: string
+    href: string
+    id?: string | null
+  }>
+}
+
+export type RenderableBlock =
   | HeroBlock
   | ContentBlock
   | CTABlock
@@ -254,10 +270,12 @@ type Block =
   | PageHeaderBlock
   | GospelStepperBlockType
   | LatestSermonBlockType
+  | ServiceTimesBlockType
+  | PayloadUpcomingEventsBlock
   | BaseBlock
 
 interface RenderBlocksProps {
-  blocks: Block[]
+  blocks: RenderableBlock[]
 }
 
 export function RenderBlocks({ blocks }: RenderBlocksProps) {
@@ -286,6 +304,17 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
                 overlayStyle={b.overlayStyle}
                 minHeight={b.minHeight}
                 semanticH1={b.semanticH1}
+              />
+            )
+          }
+
+          case 'serviceTimes': {
+            const b = block as ServiceTimesBlockType
+            return (
+              <ServiceTimesBlockComponent
+                key={key}
+                heading={b.heading}
+                services={b.services}
               />
             )
           }
@@ -478,6 +507,18 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
           case 'latestSermon': {
             const b = block as LatestSermonBlockType
             return <LatestSermonBlockComponent key={key} heading={b.heading} />
+          }
+
+          case 'upcomingEvents': {
+            const b = block as PayloadUpcomingEventsBlock
+            return (
+              <UpcomingEventsBlockComponent
+                key={key}
+                eyebrow={b.eyebrow}
+                heading={b.heading}
+                campusFilter={b.campusFilter}
+              />
+            )
           }
 
           default:

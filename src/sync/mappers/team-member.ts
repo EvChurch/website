@@ -1,4 +1,5 @@
 import type { RockGroupMember } from '@/lib/rock-api'
+import { getRockPersonName } from './person'
 
 function slugify(name: string): string {
   return name
@@ -18,14 +19,16 @@ export function mapRockTeamMember(
   member: RockGroupMember,
   groupId: number,
 ) {
+  const fullName = getRockPersonName(member.Person)
+
   return {
-    fullName: member.Person.FullName,
-    slug: slugify(member.Person.FullName),
+    fullName,
+    slug: slugify(fullName),
     rockPersonId: member.Person.Id,
     role: member.GroupRole.Name,
     email: member.Person.Email || '',
     teamGroup: TEAM_GROUP_MAP[groupId] || 'staff',
-    order: member.GroupOrder,
+    order: member.GroupOrder ?? 0,
     // Photo URL for image sync pipeline
     _photoUrl: member.Person.PhotoUrl || null,
     lastSyncedAt: new Date().toISOString(),

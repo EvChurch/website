@@ -6,6 +6,8 @@ import { existsSync, readFileSync } from 'node:fs'
 import sharp from 'sharp'
 import { ensureNewishConnectionForm } from './newish-form'
 import { EXPLAINING_CHRISTIANITY_CONNECTION_BLOCK_GUID } from './explaining-christianity-form'
+import { ensureServiceTimesBlock, ensureUpcomingEventsBlock } from './home-layout'
+import { CAMPUS_PAGE_DEFAULTS, ensureCampusPageDefaults } from './campus-pages'
 
 async function generateBlur(filePath: string): Promise<string | null> {
   try {
@@ -240,7 +242,7 @@ async function seed() {
   await upsertPage('home', {
     title: 'Home',
     _status: 'published',
-    layout: [
+    layout: ensureUpcomingEventsBlock(ensureServiceTimesBlock([
       {
         blockType: 'hero',
         image: img('carousel-0c59a44d'),
@@ -304,7 +306,7 @@ async function seed() {
           {
             icon: 'heart',
             title: 'Great for families',
-            description: 'Ev Kids runs every Sunday for ages 0-12 at North and Central. Safe, fun, and engaging programs for every age group.',
+            description: 'Ev Kids runs every Sunday morning at North and Central for children aged 0 to 12. Careful check-in, matched pick-up, and police-vetted, trained leaders. Allow an extra ten minutes on your first visit.',
           },
           {
             icon: 'users',
@@ -397,7 +399,7 @@ async function seed() {
           { label: 'Find a campus near you', href: '/visit', variant: 'primary' },
         ],
       },
-    ],
+    ])),
     seo: {
       metaTitle: 'Church in Auckland | Ev Church | Sunday Services & Community',
       metaDescription: 'Looking for a church in Auckland? Ev Church is a community of Christ-followers meeting across Tamaki Makaurau. Join us this Sunday.',
@@ -435,7 +437,7 @@ async function seed() {
           {
             icon: 'graduation',
             title: 'Kids program',
-            description: 'Ev Kids runs during every service at North and Central for ages 1 to 12. Safe, fun, and age-appropriate. Your kids will love it.',
+            description: 'Ev Kids runs every Sunday morning at North and Central for children aged 0 to 12. Careful check-in, matched pick-up, and police-vetted, trained leaders. Allow an extra ten minutes on your first visit.',
           },
           {
             icon: 'coffee',
@@ -501,9 +503,9 @@ async function seed() {
       {
         blockType: 'formEmbed',
         eyebrow: 'Plan your first Sunday',
-        heading: "Let us know you're coming",
+        heading: "Let us know you're coming!",
         description:
-          'Fill out the form and our team will help you feel at home when you arrive.',
+          "You don't have to — you're welcome to just turn up. But if you tell us which campus and which Sunday, we'll keep an eye out for you at the door, help with kids check-in, and save you the where-do-I-sit moment.",
         sourceType: 'workflow',
         rockWorkflowGuid: 'de3d06a6-7fca-41a5-8c37-a485767de970',
         layout: 'centered',
@@ -861,6 +863,8 @@ async function seed() {
           {
             title: 'North',
             description: '9-11 Rothwell Avenue, Rosedale, Auckland',
+            href: CAMPUS_PAGE_DEFAULTS.north.pageContent.mapUrl,
+            linkLabel: 'Open in Google Maps',
             details: [
               { label: 'Service', value: 'Sunday 10:15 am' },
               { label: 'Email', value: 'north@ev.church' },
@@ -869,6 +873,8 @@ async function seed() {
           {
             title: 'Central',
             description: '80 Olsen Avenue, Hillsborough, Auckland',
+            href: CAMPUS_PAGE_DEFAULTS.central.pageContent.mapUrl,
+            linkLabel: 'Open in Google Maps',
             details: [
               { label: 'Service', value: 'Sunday 10:15 am' },
               { label: 'Email', value: 'central@ev.church' },
@@ -877,6 +883,8 @@ async function seed() {
           {
             title: 'Unichurch',
             description: 'University of Auckland, 24 Princes Street, Auckland 1010',
+            href: CAMPUS_PAGE_DEFAULTS.unichurch.pageContent.mapUrl,
+            linkLabel: 'Open in Google Maps',
             details: [
               { label: 'Service', value: 'Sunday 5:15 pm' },
               { label: 'Email', value: 'unichurch@ev.church' },
@@ -903,7 +911,7 @@ async function seed() {
         eyebrow: 'Ages 0 to 12',
         heading: 'Ev Kids',
         highlightedText: 'Kids',
-        subtitle: 'A safe, fun, and engaging place where your children can learn, play, and grow. Ev Kids runs every Sunday during all services.',
+        subtitle: 'A safe, fun, and engaging place where your children can learn, play, and grow. Ev Kids runs every Sunday morning at North and Central.',
         keyColor: '#0096C3',
         overlayStyle: 'banner',
       },
@@ -911,7 +919,7 @@ async function seed() {
         blockType: 'content',
         heading: 'Where kids discover faith, friendship, and fun',
         body: richText(
-          'Ev Kids is our dedicated children\'s ministry for ages 1 to 12, running at North and Central campuses. Every Sunday, while you enjoy the service, your children are cared for by trained, police-vetted volunteers in age-appropriate programs filled with creativity, music, and Bible-based teaching.',
+          'Ev Kids runs every Sunday morning at North and Central for children aged 0 to 12. We want kids to have a blast connecting with God\'s word every week — and we make their safety a priority. Every Ev Kids leader is police vetted and trained, check-in is careful, and the collection tag must match your child\'s check-in tag for pick-up. Allow an extra ten minutes on your first visit and one of the team will walk you and your kids through it.',
         ),
         alignment: 'center',
       },
@@ -955,12 +963,12 @@ async function seed() {
         heading: 'Frequently asked questions',
         items: [
           {
-            question: 'Is Ev Kids available at every service?',
-            answer: 'Yes. Ev Kids runs during every Sunday service at North and Central campuses.',
+            question: 'When is Ev Kids available?',
+            answer: 'Ev Kids runs during every Sunday morning service at North and Central campuses.',
           },
           {
             question: 'How do I check in my child?',
-            answer: 'When you arrive, our welcome team will direct you to the kids check-in area. You will receive a tag that matches your child for a secure pick-up after the service.',
+            answer: 'When you arrive, our welcome team will direct you to the kids check-in area. Check-in is careful, and the collection tag must match your child\'s check-in tag for pick-up. Allow an extra ten minutes on your first visit and one of the team will walk you through it.',
           },
           {
             question: 'What if my child has special needs or allergies?',
@@ -990,7 +998,7 @@ async function seed() {
     ],
     seo: {
       metaTitle: 'Kids Church Program Auckland | Ev Kids | Ages 0-12',
-      metaDescription: 'Ev Kids is a safe, fun program for children aged 0-12, running every Sunday at Ev Church Auckland. Creche, Explorers, and Adventurers.',
+      metaDescription: 'Ev Kids is a safe Sunday morning program for children aged 0-12 at Ev Church North and Central. Careful check-in, matched pick-up, and vetted leaders.',
     },
   })
 
@@ -1483,7 +1491,7 @@ async function seed() {
           {
             image: img('gn-hero'),
             title: 'The Good News',
-            description: 'There is a message at the centre of Christianity that has changed millions of lives. It is not a set of rules or a list of things to believe. It is an invitation to discover something that changes everything.',
+            description: "There is a message at the centre of Christianity that has changed millions of lives. It is not a set of rules to keep, or a ladder to climb. It is an announcement — and an invitation with your name on it.",
             href: '/good-news',
             linkLabel: 'Discover the Good News',
           },
@@ -1511,7 +1519,7 @@ async function seed() {
           {
             image: img('ev-kids-banner'),
             title: 'Ev Kids',
-            description: 'A safe, fun, and engaging environment for children aged 0 to 12 every Sunday. Three age-appropriate programs filled with creativity, music, and Bible-based teaching.',
+            description: 'Ev Kids runs every Sunday morning at North and Central for children aged 0 to 12. Careful check-in, matched pick-up, and police-vetted, trained leaders. Allow an extra ten minutes on your first visit.',
             href: '/kids',
             linkLabel: 'Learn more about Kids',
           },
@@ -1639,7 +1647,7 @@ async function seed() {
           },
           {
             question: 'Is Ev Church family-friendly? What about kids?',
-            answer: 'Absolutely. Ev Kids runs every Sunday during our North and Central services for children aged 0 to 12. We have three age groups: Creche (0-2 years), Explorers (3-5 years), and Adventurers (6-12 years). All our volunteers are police vetted and we maintain strict sign-in and sign-out procedures.',
+            answer: 'Absolutely. Ev Kids runs every Sunday morning at North and Central for children aged 0 to 12. We have three age groups: Creche (0-2 years), Explorers (3-5 years), and Adventurers (6-12 years). Every leader is police vetted and trained, check-in is careful, and the collection tag must match your child\'s check-in tag for pick-up.',
           },
           {
             question: 'What denomination is Ev Church?',
@@ -1688,6 +1696,44 @@ async function seed() {
     },
   })
 
+  /* ─────────────────────── GIVING PAGE ─────────────────────── */
+  await upsertPage('give', {
+    title: 'Giving',
+    _status: 'published',
+    layout: [
+      {
+        blockType: 'pageHeader',
+        eyebrow: 'Giving',
+        heading: 'Everything we have is given to us by God',
+        description: 'Giving at Ev is an act of worship for our church family — glad, planned, and free. Nobody is chased, and nobody is watched.',
+        theme: 'light',
+      },
+      {
+        blockType: 'content',
+        heading: 'Where the money goes',
+        body: richText([
+          'Everything given goes to gospel work: Sundays across three campuses, kids and youth, training the next generation of gospel workers, and planting churches across Auckland and New Zealand toward our 2030 vision.',
+          'The wisest investment anyone can make — the one with the longest return — is an investment in the kingdom of God.',
+        ]),
+        alignment: 'center',
+      },
+      {
+        blockType: 'cta',
+        heading: 'Visiting Ev?',
+        text: "Please don't feel any obligation to give. The service — and the morning tea — are on us.",
+        colorPreset: 'primary-red',
+        buttons: [
+          { label: 'Give online', href: 'https://give.ev.church', variant: 'primary' },
+          { label: 'Our 2030 vision', href: '/vision', variant: 'secondary' },
+        ],
+      },
+    ],
+    seo: {
+      metaTitle: 'Giving | Ev Church Auckland',
+      metaDescription: 'Learn why the Ev Church family gives, where the money goes, and how giving supports gospel work across Auckland and New Zealand.',
+    },
+  })
+
   /* ─────────────────────── GOOD NEWS PAGE ─────────────────────── */
   await upsertPage('good-news', {
     title: 'The Good News',
@@ -1699,7 +1745,7 @@ async function seed() {
         eyebrow: 'The heart of what we believe',
         heading: 'The Good News',
         highlightedText: 'Good News',
-        subtitle: 'There is a message at the centre of Christianity that has changed millions of lives. It is not a set of rules. It is not a list of things to believe. It is an invitation.',
+        subtitle: "There is a message at the centre of Christianity that has changed millions of lives. It's not a set of rules to keep, or a ladder to climb. It's an announcement — the best news you'll ever hear — and an invitation with your name on it.",
         keyColor: '#D4940A',
         overlayStyle: 'cinematic',
         minHeight: '70vh',
@@ -1753,6 +1799,15 @@ async function seed() {
       },
       {
         blockType: 'cta',
+        heading: 'Want to dig into this?',
+        text: "Want to dig into this with other people asking the same questions? That's exactly what Explaining Christianity is for.",
+        colorPreset: 'light',
+        buttons: [
+          { label: 'Explore Christianity', href: '/explaining-christianity', variant: 'primary' },
+        ],
+      },
+      {
+        blockType: 'cta',
         heading: 'Everything changed',
         text: 'Three days after Jesus died, something happened that changed the course of history. He rose from the dead. The resurrection is not a metaphor. It is the moment when death and brokenness lost their power. Because Jesus is alive, there is real hope. Not just hope that things might get a bit better, but hope that everything sad and broken will one day be made right. His resurrection is proof that God keeps His promises, and that the life He offers is real and lasting.',
         colorPreset: 'dark',
@@ -1790,7 +1845,9 @@ async function seed() {
     },
   })
 
-  console.log('\nSeed complete! All pages created successfully.')
+  await ensureCampusPageDefaults(payload)
+
+  console.log('\nSeed complete! All pages and campus defaults applied successfully.')
 }
 
 seed()
