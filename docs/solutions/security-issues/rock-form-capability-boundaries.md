@@ -45,6 +45,8 @@ Apply the existing PostgreSQL-backed trusted-address limiter to person search. T
 
 Validate production browser origins against the deployment's public hostname, not `request.nextUrl`. Cloudflare terminates the public request before Railway forwards it to Next.js, so `request.nextUrl` can contain Railway's internal `0.0.0.0:3000` origin. `src/lib/request-origin.ts` derives the exact HTTPS origin from `RAILWAY_PUBLIC_DOMAIN`, and both Turnstile-protected form routes use the same variable as their expected token hostname. A missing or malformed production value fails the Origin check before request processing.
 
+Treat Rock's interactive-action `url` as a workflow permalink, not a post-submit redirect. It commonly points back to Rock's Workflow Entry page (for example, `/page/1108?WorkflowId=...`), which does not exist on the website. Navigate only when `actionData.message` explicitly has the `Redirect` type, then pass that destination through the existing redirect validator. Otherwise show the workflow completion message in place.
+
 Return `restartRequired: true` when a Connection Signup context is invalid, its configuration changed, its nonce is gone, or Rock definitively rejected the request. The client clears only the spent context, obtains a fresh Turnstile-protected context, and preserves entered values that still exist in the refreshed schema. Ambiguous upstream outcomes remain terminal and must never offer automatic retry.
 
 ## Why This Works
@@ -57,6 +59,7 @@ AES-GCM provides confidentiality and integrity, so the browser cannot extract th
 - Bound request bytes before parsers materialize multipart bodies.
 - Give public lookup endpoints strict Origin and durable per-client abuse limits.
 - Behind a reverse proxy, derive Origin and Turnstile hostname checks from one trusted public-domain setting; do not trust the application's internal request URL.
+- Do not infer navigation from Rock's workflow permalink; require an explicit Redirect action.
 - Model one-use capability failures explicitly as reusable, restart-required, or outcome-unknown.
 - Exercise migration up, refusal, down, and re-apply against real PostgreSQL when a migration owns security ledgers.
 
