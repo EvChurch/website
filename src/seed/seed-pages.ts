@@ -8,14 +8,7 @@ import { ensureNewishConnectionForm } from './newish-form'
 import { EXPLAINING_CHRISTIANITY_CONNECTION_BLOCK_GUID } from './explaining-christianity-form'
 import { ensureServiceTimesBlock, ensureUpcomingEventsBlock } from './home-layout'
 import { CAMPUS_PAGE_DEFAULTS, ensureCampusPageDefaults } from './campus-pages'
-import {
-  upgradeLegacyAboutPage,
-  upgradeLegacyBeliefsPage,
-  upgradeLegacyConnectGroupsPage,
-  upgradeLegacyHomePage,
-  upgradeLegacyVisitPage,
-  type PageUpgrade,
-} from './page-upgrades'
+import { createPageUpserter } from './page-upsert'
 
 async function generateBlur(filePath: string): Promise<string | null> {
   try {
@@ -220,35 +213,7 @@ async function seed() {
 
   /* ======================== Seed pages ============================ */
 
-  /** Create missing pages and apply narrowly targeted legacy-content upgrades. */
-  async function upsertPage(
-    slug: string,
-    data: Record<string, unknown>,
-    options?: { upgradeExisting?: PageUpgrade },
-  ) {
-    const existing = await payload.find({
-      collection: 'pages',
-      where: { slug: { equals: slug } },
-      limit: 1,
-      depth: 0,
-    })
-
-    const document = existing.docs[0] as unknown as Record<string, unknown> | undefined
-    if (document) {
-      const upgrade = options?.upgradeExisting?.(document, data)
-      if (!upgrade) {
-        console.log(`  Preserving editor-managed page: ${slug}`)
-        return
-      }
-
-      console.log(`  Upgrading legacy page: ${slug}`)
-      await payload.update({ collection: 'pages', id: String(document.id), data: upgrade })
-      return
-    }
-
-    console.log(`  Creating page: ${slug}`)
-    await payload.create({ collection: 'pages', data: { slug, ...data } })
-  }
+  const upsertPage = createPageUpserter(payload)
 
   /* ─────────────────────── HOME PAGE ─────────────────────── */
   console.log('\nSeeding pages...')
@@ -417,8 +382,6 @@ async function seed() {
       metaTitle: 'Church in Auckland | Ev Church | Sundays 10:15am & 5:15pm',
       metaDescription: 'Looking for a church in Auckland? Ev Church is a community of Christ-followers meeting across Tamaki Makaurau. Join us this Sunday.',
     },
-  }, {
-    upgradeExisting: upgradeLegacyHomePage,
   })
 
   /* ─────────────────────── VISIT PAGE ─────────────────────── */
@@ -553,8 +516,6 @@ async function seed() {
       metaTitle: 'Visit Ev Church Auckland | Plan Your First Sunday',
       metaDescription: 'Planning your first visit to Ev Church? Find service times, locations, parking info, and what to expect at our Auckland campuses.',
     },
-  }, {
-    upgradeExisting: upgradeLegacyVisitPage,
   })
 
   /* ─────────────────────── ABOUT PAGE ─────────────────────── */
@@ -709,8 +670,6 @@ async function seed() {
       metaTitle: 'About Ev Church | Christian Community in Auckland',
       metaDescription: 'Meet the Ev Church team and learn about our story. A Christ-centred community across Auckland, Tamaki Makaurau since 2012.',
     },
-  }, {
-    upgradeExisting: upgradeLegacyAboutPage,
   })
 
   /* ─────────────────────── VISION PAGE ─────────────────────── */
@@ -1458,8 +1417,6 @@ async function seed() {
       metaTitle: 'Connect Groups Auckland | Small Groups at Ev Church',
       metaDescription: 'Join a Connect Group at Ev Church Auckland. Young adults, couples, women, men, and families meeting weekly across the city.',
     },
-  }, {
-    upgradeExisting: upgradeLegacyConnectGroupsPage,
   })
 
   /* ─────────────────────── NEXT STEPS PAGE (NEW) ─────────────────────── */
@@ -1612,8 +1569,6 @@ async function seed() {
       metaTitle: 'What We Believe | Ev Church Auckland | Core Beliefs',
       metaDescription: 'Explore the core beliefs of Ev Church Auckland. What we believe about God, Jesus, the Bible, salvation, and the church. An evangelical Christian community in Tamaki Makaurau.',
     },
-  }, {
-    upgradeExisting: upgradeLegacyBeliefsPage,
   })
 
   /* ─────────────────────── FAQ PAGE ─────────────────────── */

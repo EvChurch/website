@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 
 import {
@@ -7,6 +7,7 @@ import {
   ensureNewishConnectionForm,
 } from './newish-form'
 import { EXPLAINING_CHRISTIANITY_CONNECTION_BLOCK_GUID } from './explaining-christianity-form'
+import { createPageUpserter, type PageSeedClient } from './page-upsert'
 
 const seedSource = readFileSync(new URL('./seed-pages.ts', import.meta.url), 'utf8')
 
@@ -144,11 +145,67 @@ describe('seeded page content and giving navigation', () => {
     expect(seedSource).not.toContain('—')
   })
 
-  it('preserves editor-managed pages and limits upgrades to known legacy copy', () => {
-    expect(seedSource).toContain('Preserving editor-managed page: ${slug}')
-    expect(seedSource.match(/upgradeExisting: upgradeLegacy/g)).toHaveLength(5)
-    expect(seedSource).toContain('data: upgrade')
-    expect(seedSource).not.toContain('data: { ...document, ...data }')
+  it('replaces every managed field on existing pages from the authoritative seed', async () => {
+    const find = vi.fn().mockResolvedValue({ docs: [{ id: 42 }] })
+    const update = vi.fn().mockResolvedValue({})
+    const create = vi.fn()
+    const upsertPage = createPageUpserter({ find, update, create } as unknown as PageSeedClient)
+
+    await upsertPage('visit', {
+      title: 'Visit',
+      layout: [{ blockType: 'content' }],
+      seo: { metaTitle: 'Visit us' },
+      _status: 'published',
+    })
+
+    expect(update).toHaveBeenCalledWith({
+      collection: 'pages',
+      id: '42',
+      data: {
+        title: 'Visit',
+        slug: 'visit',
+        layout: [{ blockType: 'content' }],
+        template: 'standard',
+        seo: {
+          metaTitle: 'Visit us',
+          metaDescription: null,
+          ogImage: null,
+        },
+        _status: 'published',
+      },
+    })
+    expect(create).not.toHaveBeenCalled()
+  })
+
+  it('creates missing pages from the same canonical seed payload', async () => {
+    const find = vi.fn().mockResolvedValue({ docs: [] })
+    const update = vi.fn()
+    const create = vi.fn().mockResolvedValue({})
+    const upsertPage = createPageUpserter({ find, update, create } as unknown as PageSeedClient)
+
+    await upsertPage('kids', {
+      title: 'Kids',
+      layout: [],
+      template: 'ministry',
+      _status: 'published',
+    })
+
+    expect(create).toHaveBeenCalledWith({
+      collection: 'pages',
+      data: {
+        title: 'Kids',
+        slug: 'kids',
+        layout: [],
+        template: 'ministry',
+        seo: {
+          metaTitle: null,
+          metaDescription: null,
+          ogImage: null,
+        },
+        _status: 'published',
+      },
+    })
+    expect(update).not.toHaveBeenCalled()
   })
 
   it('passes the homepage ten-second test without using the SEO eyebrow as the H1', () => {
