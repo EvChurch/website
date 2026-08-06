@@ -24,10 +24,12 @@ import { Scriptures } from '@/collections/Scriptures'
 import { SermonAudio } from '@/collections/SermonAudio'
 import { ConnectGroups } from '@/collections/ConnectGroups'
 import { Registrations } from '@/collections/Registrations'
+import { ServiceGuideItems } from '@/collections/ServiceGuideItems'
 
 // Globals
 import { Navigation } from '@/globals/Navigation'
 import { SiteSettings } from '@/globals/SiteSettings'
+import { ServiceGuideSyncState } from '@/globals/ServiceGuideSyncState'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -80,6 +82,7 @@ export default buildConfig({
     Events,
     ConnectGroups,
     Registrations,
+    ServiceGuideItems,
     // Synced from resources.ev.church GraphQL API
     SermonSeries,
     Sermons,
@@ -90,7 +93,7 @@ export default buildConfig({
     SermonAudio,
   ],
 
-  globals: [Navigation, SiteSettings],
+  globals: [Navigation, SiteSettings, ServiceGuideSyncState],
 
   plugins: [
     ...(process.env.S3_BUCKET

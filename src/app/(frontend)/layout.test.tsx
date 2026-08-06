@@ -4,6 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   enabled: false,
   getCurrentMemberProfileState: vi.fn(),
+  loadLauncherData: vi.fn().mockResolvedValue({
+    available: false,
+    campuses: [],
+    items: [],
+  }),
   header: vi.fn((_props: {
     memberProfile?: {
       name: string
@@ -18,6 +23,12 @@ vi.mock('@/auth/member-auth0-config', () => ({
 }))
 vi.mock('@/auth/member-session', () => ({
   getCurrentMemberProfileState: mocks.getCurrentMemberProfileState,
+}))
+vi.mock('@/lib/launcher/service-guide', () => ({
+  loadLauncherData: mocks.loadLauncherData,
+}))
+vi.mock('@/components/launcher/NextStepsLauncher', () => ({
+  NextStepsLauncher: () => null,
 }))
 vi.mock('@/components/layout/Header', () => ({ Header: mocks.header }))
 vi.mock('@/components/layout/Footer', () => ({ Footer: () => null }))

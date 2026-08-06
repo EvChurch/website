@@ -1,0 +1,330 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { getPayloadClient } from '@/lib/payload'
+import {
+  isCurrentlyEligible,
+  isPublishedLauncherConnection,
+  isPublishedLauncherWorkflow,
+  loadLauncherData,
+  resolveLauncherAction,
+} from './service-guide'
+
+vi.mock('@/lib/payload', () => ({ getPayloadClient: vi.fn() }))
+
+const workflowGuid = '11111111-1111-1111-1111-111111111111'
+const connectionGuid = '22222222-2222-2222-2222-222222222222'
+const bannerImageGuid = '88888888-8888-8888-8888-888888888888'
+
+function record(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'payload-1',
+    rockId: 10,
+    title: 'Join a group',
+    content: '<p>Find <strong>community</strong></p>',
+    promotionalBlurb: 'Meet people',
+    bannerImageGuid: null,
+    status: 1,
+    startDateTime: null,
+    expireDateTime: null,
+    priority: 3,
+    sourceOrder: 1,
+    campusGuids: [{ guid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }],
+    campuses: [{ slug: 'north', name: 'North' }],
+    directLink: null,
+    workflowGuid: null,
+    connectionBlockGuid: null,
+    event: null,
+    ...overrides,
+  }
+}
+
+describe('Service Guide launcher data', () => {
+  const find = vi.fn()
+  const findGlobal = vi.fn()
+
+  beforeEach(() => {
+    vi.mocked(getPayloadClient).mockResolvedValue({ find, findGlobal } as never)
+    find.mockReset()
+    findGlobal.mockReset()
+    findGlobal.mockResolvedValue({
+      lastSuccessfulSyncAt: '2026-08-07T00:00:00.000Z',
+    })
+  })
+
+  it('uses inclusive starts and exclusive expiry timestamps', () => {
+    const now = new Date('2026-08-07T12:00:00.000Z')
+    expect(
+      isCurrentlyEligible(
+        record({ startDateTime: now.toISOString(), expireDateTime: null }),
+        now,
+      ),
+    ).toBe(true)
+    expect(
+      isCurrentlyEligible(
+        record({ expireDateTime: now.toISOString() }),
+        now,
+      ),
+    ).toBe(false)
+    expect(isCurrentlyEligible(record({ status: 0 }), now)).toBe(false)
+    expect(
+      isCurrentlyEligible(record({ startDateTime: 'not-a-date' }), now),
+    ).toBe(false)
+  })
+
+  it('resolves the compatibility precedence and rejects unsafe direct links', () => {
+    expect(
+      resolveLauncherAction(
+        record({
+          directLink: 'https://example.test/path',
+          connectionBlockGuid: connectionGuid,
+          workflowGuid,
+          event: { slug: 'event' },
+        }),
+      ),
+    ).toEqual({ type: 'directLink', href: 'https://example.test/path' })
+    expect(
+      resolveLauncherAction(
+        record({
+          directLink: 'javascript:alert(1)',
+          connectionBlockGuid: connectionGuid,
+          workflowGuid,
+        }),
+      ),
+    ).toEqual({ type: 'connection', blockGuid: connectionGuid })
+    expect(
+      resolveLauncherAction(record({ workflowGuid, event: { slug: 'event' } })),
+    ).toEqual({ type: 'workflow', workflowTypeGuid: workflowGuid })
+    expect(resolveLauncherAction(record({ event: { slug: 'one night' } }))).toEqual({
+      type: 'event',
+      href: '/events/one%20night',
+    })
+
+    expect(
+      resolveLauncherAction(
+        record({ directLink: 'https://www.ev.church/kids?campus=north#join' }),
+      ),
+    ).toEqual({ type: 'directLink', href: '/kids?campus=north#join' })
+    expect(
+      resolveLauncherAction(
+        record({ directLink: 'https://resources.ev.church/series/romans' }),
+      ),
+    ).toEqual({ type: 'directLink', href: '/sermons' })
+    expect(
+      resolveLauncherAction(
+        record({ directLink: 'https://www.ev.church.evil.test/kids' }),
+      ),
+    ).toEqual({
+      type: 'directLink',
+      href: 'https://www.ev.church.evil.test/kids',
+    })
+
+    for (const directLink of [
+      '//evil.test',
+      'http://ev.church/give',
+      'https://user:pass@ev.church/give',
+      'javascript:alert(1)',
+      'https://ev.church/\nheader',
+    ]) {
+      expect(
+        resolveLauncherAction(record({ directLink, content: null })),
+      ).toBeNull()
+    }
+  })
+
+  it('sanitizes custom content before exposing it', () => {
+    expect(
+      resolveLauncherAction(
+        record({
+          content:
+            '<script>steal()</script><p style="color:red">Hello <a href="javascript:bad()">there</a></p>',
+        }),
+      ),
+    ).toEqual({ type: 'content', html: '<p>Hello <a>there</a></p>' })
+  })
+
+  it('exposes the 16:9 banner for forms rendered in the launcher', () => {
+    const imageUrl = `https://rock.ev.church/GetImage.ashx?Guid=${bannerImageGuid}&w=1200`
+
+    expect(
+      resolveLauncherAction(record({ workflowGuid, bannerImageGuid })),
+    ).toEqual({ type: 'workflow', workflowTypeGuid: workflowGuid, imageUrl })
+    expect(
+      resolveLauncherAction(
+        record({ connectionBlockGuid: connectionGuid, bannerImageGuid }),
+      ),
+    ).toEqual({ type: 'connection', blockGuid: connectionGuid, imageUrl })
+  })
+
+  it('removes a repeated leading title and exposes the 16:9 banner', () => {
+    expect(
+      resolveLauncherAction(
+        record({
+          title: 'Dwell',
+          content: '<h2>Dwell</h2><p>Listen to Scripture every day.</p>',
+          bannerImageGuid,
+        }),
+      ),
+    ).toEqual({
+      type: 'content',
+      html: '<p>Listen to Scripture every day.</p>',
+      imageUrl: `https://rock.ev.church/GetImage.ashx?Guid=${bannerImageGuid}&w=1200`,
+    })
+  })
+
+  it('loads active records in priority, source-order, and Rock-ID order', async () => {
+    find.mockImplementation(async (args: { collection: string }) => {
+      if (args.collection === 'campuses') {
+        return { docs: [{ slug: 'north', name: 'North' }] }
+      }
+      return {
+        docs: [
+          record({ rockId: 30, priority: 1, sourceOrder: 0, directLink: '/third' }),
+          record({ rockId: 20, priority: 2, sourceOrder: 2, directLink: '/second' }),
+          record({ rockId: 10, priority: 2, sourceOrder: 1, directLink: '/first' }),
+          record({ rockId: 5, status: 0, directLink: '/hidden' }),
+        ],
+      }
+    })
+
+    await expect(loadLauncherData(new Date('2026-08-07T12:00:00Z'))).resolves.toMatchObject({
+      available: true,
+      campuses: [{ slug: 'north', name: 'North' }],
+      items: [
+        { id: '10', action: { type: 'directLink', href: '/first' } },
+        { id: '20', action: { type: 'directLink', href: '/second' } },
+        { id: '30', action: { type: 'directLink', href: '/third' } },
+      ],
+    })
+  })
+
+  it('removes campus markers from catalogue and detail titles', async () => {
+    find.mockImplementation(async (args: { collection: string }) => {
+      if (args.collection === 'campuses') {
+        return { docs: [{ slug: 'north', name: 'North' }] }
+      }
+      return {
+        docs: [
+          record({
+            title: 'Newish (NS) Connect (UC) (CT)',
+            content: '<h2>Newish (NS) Connect (UC) (CT)</h2><p>Welcome.</p>',
+          }),
+        ],
+      }
+    })
+
+    await expect(loadLauncherData()).resolves.toMatchObject({
+      items: [
+        {
+          title: 'Newish Connect',
+          action: { type: 'content', html: '<p>Welcome.</p>' },
+        },
+      ],
+    })
+  })
+
+  it('reports an unavailable catalogue when no successful snapshot exists', async () => {
+    find.mockResolvedValue({ docs: [] })
+    findGlobal.mockResolvedValue({ lastSuccessfulSyncAt: null })
+    await expect(loadLauncherData()).resolves.toEqual({
+      available: false,
+      campuses: [],
+      items: [],
+    })
+  })
+
+  it('omits items and capabilities with incomplete campus resolution', async () => {
+    find.mockImplementation(async (args: { collection: string }) => {
+      if (args.collection === 'campuses') {
+        return { docs: [{ slug: 'north', name: 'North' }] }
+      }
+      return {
+        docs: [
+          record({
+            workflowGuid,
+            campuses: [],
+          }),
+        ],
+      }
+    })
+
+    await expect(loadLauncherData()).resolves.toMatchObject({ items: [] })
+    await expect(isPublishedLauncherWorkflow(workflowGuid)).resolves.toBe(false)
+  })
+
+  it('allows the known Online campus alongside resolved website campuses', async () => {
+    find.mockImplementation(async (args: { collection: string }) => {
+      if (args.collection === 'campuses') {
+        return { docs: [{ slug: 'north', name: 'North' }] }
+      }
+      return {
+        docs: [
+          record({
+            title: 'PrayerMate',
+            directLink: '/prayermate',
+            campusGuids: [
+              { guid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' },
+              { guid: '94d77e80-8a6d-4cc0-95e5-e25fbf47062f' },
+            ],
+          }),
+        ],
+      }
+    })
+
+    await expect(loadLauncherData()).resolves.toMatchObject({
+      items: [{ title: 'PrayerMate', campusSlugs: ['north'] }],
+    })
+  })
+
+  it('omits records assigned only to Rock non-website campuses', async () => {
+    find.mockImplementation(async (args: { collection: string }) => {
+      if (args.collection === 'campuses') {
+        return { docs: [{ slug: 'north', name: 'North' }] }
+      }
+      return {
+        docs: [
+          record({
+            title: 'Online only',
+            workflowGuid,
+            campuses: [],
+            campusGuids: [
+              { guid: '94d77e80-8a6d-4cc0-95e5-e25fbf47062f' },
+            ],
+          }),
+        ],
+      }
+    })
+
+    await expect(loadLauncherData()).resolves.toMatchObject({ items: [] })
+    await expect(isPublishedLauncherWorkflow(workflowGuid)).resolves.toBe(false)
+  })
+
+  it('keeps the fixed launcher available when Payload cannot initialize', async () => {
+    vi.mocked(getPayloadClient).mockRejectedValueOnce(new Error('database unavailable'))
+    await expect(loadLauncherData()).resolves.toEqual({
+      available: false,
+      campuses: [],
+      items: [],
+    })
+  })
+
+  it('publishes only exact winning form actions from an eligible snapshot', async () => {
+    find.mockResolvedValue({
+      docs: [
+        record({ workflowGuid, connectionBlockGuid: connectionGuid }),
+        record({
+          workflowGuid: '33333333-3333-3333-3333-333333333333',
+          directLink: '/wins',
+        }),
+      ],
+    })
+
+    await expect(isPublishedLauncherConnection(connectionGuid)).resolves.toBe(true)
+    await expect(isPublishedLauncherWorkflow(workflowGuid)).resolves.toBe(false)
+    await expect(
+      isPublishedLauncherWorkflow('33333333-3333-3333-3333-333333333333'),
+    ).resolves.toBe(false)
+    await expect(
+      isPublishedLauncherWorkflow('44444444-4444-4444-4444-444444444444'),
+    ).resolves.toBe(false)
+  })
+})

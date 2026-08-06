@@ -1,6 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from 'react'
 import { SafeRockHtml } from './SafeRockHtml'
 import { TurnstileWidget } from './TurnstileWidget'
 import { formInputClass as inputClass, formLabelClass as labelClass } from './form-styles'
@@ -511,10 +519,12 @@ export function RockForm({
   workflowTypeGuid,
   initialSchema = null,
   fallbackAction = DEFAULT_FORM_FALLBACK_ACTION,
+  scrollContainerRef,
 }: {
   workflowTypeGuid: string
   initialSchema?: RockFormSchema | null
   fallbackAction?: FormFallbackAction
+  scrollContainerRef?: RefObject<HTMLElement | null>
 }) {
   const [schema, setSchema] = useState<RockFormSchema | null>(initialSchema)
   const [startupSiteKey, setStartupSiteKey] = useState(
@@ -808,7 +818,12 @@ export function RockForm({
               throw new Error('Rock returned an invalid next step')
             }
             applySchema(result.form)
-            window.scrollTo({ top: 0, behavior: 'smooth' })
+            const scrollTarget = scrollContainerRef?.current
+            if (scrollTarget) {
+              scrollTarget.scrollTo({ top: 0, behavior: 'smooth' })
+            } else {
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }
           } else if (isCompleteResponse(result)) {
             if (result.redirectUrl) window.location.assign(result.redirectUrl)
             else {

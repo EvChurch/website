@@ -270,6 +270,54 @@ describe('RockForm', () => {
     }
   })
 
+  it('scrolls its host container after advancing to the next step', async () => {
+    const nextSchema = {
+      ...schema(),
+      contextToken: 'next-context',
+      headerHtml: '<p>Step two</p>',
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        Response.json({ status: 'next', form: nextSchema }),
+      ),
+    )
+    const windowScroll = vi.fn()
+    vi.stubGlobal('scrollTo', windowScroll)
+    const host = document.createElement('div')
+    const hostScroll = vi.fn()
+    host.scrollTo = hostScroll
+    const container = document.createElement('div')
+    host.appendChild(container)
+    document.body.appendChild(host)
+    const root = createRoot(container)
+
+    try {
+      await act(async () => {
+        root.render(
+          <RockForm
+            workflowTypeGuid={workflowTypeGuid}
+            initialSchema={{ ...schema(), contextToken: 'signed-context' }}
+            scrollContainerRef={{ current: host }}
+          />,
+        )
+      })
+      await act(async () => turnstileMocks.onToken?.('valid-token'))
+      await act(async () => {
+        container.querySelector<HTMLButtonElement>('button[type="submit"]')?.click()
+      })
+
+      await vi.waitFor(() => expect(hostScroll).toHaveBeenCalledWith({
+        top: 0,
+        behavior: 'smooth',
+      }))
+      expect(windowScroll).not.toHaveBeenCalled()
+    } finally {
+      await act(async () => root.unmount())
+      host.remove()
+    }
+  })
+
   it('rejects an incomplete schema returned during form startup', async () => {
     const fetchMock = vi
       .fn()

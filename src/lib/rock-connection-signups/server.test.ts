@@ -118,6 +118,7 @@ describe('Rock connection signup server adapter', () => {
     await expect(listEligibleRockConnectionSignups()).resolves.toEqual([
       {
         blockGuid,
+        opportunityGuid,
         label: 'Newish — EV Newish proxy — Newish signup proxy',
       },
     ])
@@ -139,6 +140,7 @@ describe('Rock connection signup server adapter', () => {
     await expect(listEligibleRockConnectionSignups()).resolves.toEqual([
       {
         blockGuid: rockGuid,
+        opportunityGuid,
         label: 'Newish — EV Newish proxy — Newish signup proxy',
       },
     ])

@@ -22,6 +22,7 @@ import { mapRockConnectGroup } from './mappers/connect-group'
 import { syncRockImage } from './rock-media'
 import { runSermonSync } from './sermon-sync-runner'
 import { fetchActiveGroupMembers } from './rock-group-members'
+import { syncServiceGuideItems } from './service-guide-items'
 
 export type SyncResult = {
   entity: string
@@ -41,6 +42,7 @@ export async function runFullSync(options?: { sermonLimit?: number }): Promise<S
   results.push(await syncCampuses())
   results.push(await syncTeamMembers())
   results.push(await syncEvents())
+  results.push(await syncServiceGuideItems())
   results.push(await syncConnectGroups())
 
   // Sermon data from resources.ev.church GraphQL API
