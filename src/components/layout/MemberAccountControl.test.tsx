@@ -205,4 +205,16 @@ describe('MemberAccountControl', () => {
       drawerAccount.compareDocumentPosition(planVisit) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0)
   })
+
+  it('keeps Next Steps as a navigation group without linking to a removed page', async () => {
+    await act(async () => root.render(<Header />))
+
+    expect(container.querySelector('a[href="/next-steps"]')).toBeNull()
+    expect(
+      [...container.querySelectorAll('button')].some(
+        (button) => button.textContent?.trim() === 'Next Steps',
+      ),
+    ).toBe(true)
+    expect(container.querySelector('a[href="/explaining-christianity"]')).not.toBeNull()
+  })
 })

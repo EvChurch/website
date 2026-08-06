@@ -141,6 +141,10 @@ describe('ensureNewishConnectionForm', () => {
 })
 
 describe('seeded page content and giving navigation', () => {
+  it('does not recreate the retired Next Steps landing page', () => {
+    expect(seedSource).not.toContain("upsertPage('next-steps'")
+  })
+
   it('does not use em dashes in seeded page copy', () => {
     expect(seedSource).not.toContain('—')
   })
@@ -291,7 +295,7 @@ describe('seeded page content and giving navigation', () => {
     expect(kidsSection).toContain('matched pick-up')
     expect(kidsSection).toContain("collection tag must match your child\\'s check-in tag")
     expect(kidsSection).toContain('Allow an extra ten minutes on your first visit')
-    expect(seedSource.split(shortCopy)).toHaveLength(4)
+    expect(seedSource.split(shortCopy)).toHaveLength(3)
     expect(seedSource).not.toContain('ages 1 to 12')
     expect(seedSource).not.toContain('during all services')
   })

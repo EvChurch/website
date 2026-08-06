@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getPayloadClient } from '@/lib/payload'
+import { isRetiredPageSlug } from '@/lib/public-pages'
 import { RenderBlocks } from '@/components/blocks/RenderBlocks'
 import { BreadcrumbJsonLd, buildBreadcrumbs } from '@/components/seo/BreadcrumbJsonLd'
 
@@ -29,6 +30,8 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
   const { slug } = await params
+  if (isRetiredPageSlug(slug)) return {}
+
   const page = await getPageBySlug(slug)
 
   if (!page) return {}
@@ -83,6 +86,8 @@ export default async function DynamicPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
+  if (isRetiredPageSlug(slug)) notFound()
+
   const page = await getPageBySlug(slug)
 
   if (!page) notFound()

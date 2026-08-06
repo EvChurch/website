@@ -24,27 +24,22 @@ const navHierarchy: Record<string, BreadcrumbItem[]> = {
   ],
   '/explaining-christianity': [
     { name: 'Home', url: SITE_URL },
-    { name: 'Next Steps', url: `${SITE_URL}/next-steps` },
     { name: 'Explaining Christianity', url: `${SITE_URL}/explaining-christianity` },
   ],
   '/newish': [
     { name: 'Home', url: SITE_URL },
-    { name: 'Next Steps', url: `${SITE_URL}/next-steps` },
     { name: 'Newish Connect', url: `${SITE_URL}/newish` },
   ],
   '/connect-groups': [
     { name: 'Home', url: SITE_URL },
-    { name: 'Next Steps', url: `${SITE_URL}/next-steps` },
     { name: 'Connect Groups', url: `${SITE_URL}/connect-groups` },
   ],
   '/kids': [
     { name: 'Home', url: SITE_URL },
-    { name: 'Next Steps', url: `${SITE_URL}/next-steps` },
     { name: 'Ev Kids', url: `${SITE_URL}/kids` },
   ],
   '/youth': [
     { name: 'Home', url: SITE_URL },
-    { name: 'Next Steps', url: `${SITE_URL}/next-steps` },
     { name: 'Ev Youth', url: `${SITE_URL}/youth` },
   ],
 }

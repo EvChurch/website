@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { getPayloadClient } from '@/lib/payload'
+import { isRetiredPageSlug } from '@/lib/public-pages'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,12 +18,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     where: { _status: { equals: 'published' } },
   })
 
-  const pageRoutes: MetadataRoute.Sitemap = pages.docs.map((page) => ({
-    url: page.slug === 'home' ? SITE_URL : `${SITE_URL}/${page.slug}`,
-    lastModified: page.updatedAt ? new Date(page.updatedAt) : new Date(),
-    changeFrequency: 'monthly' as const,
-    priority: page.slug === 'home' ? 1 : 0.7,
-  }))
+  const pageRoutes: MetadataRoute.Sitemap = pages.docs
+    .filter((page) => !isRetiredPageSlug(page.slug))
+    .map((page) => ({
+      url: page.slug === 'home' ? SITE_URL : `${SITE_URL}/${page.slug}`,
+      lastModified: page.updatedAt ? new Date(page.updatedAt) : new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: page.slug === 'home' ? 1 : 0.7,
+    }))
 
   // Hardcoded pages (not CMS-managed)
   const hardcodedRoutes: MetadataRoute.Sitemap = [

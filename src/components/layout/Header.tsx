@@ -9,11 +9,10 @@ import {
   type MemberDisplayProfile,
 } from './MemberAccountControl'
 
-type NavItem = {
-  label: string
-  href: string
-  children?: { label: string; href: string }[]
-}
+type NavItem = { label: string } & (
+  | { href: string; children?: never }
+  | { href?: string; children: { label: string; href: string }[] }
+)
 
 const navItems: NavItem[] = [
   {
@@ -38,7 +37,6 @@ const navItems: NavItem[] = [
   },
   {
     label: 'Next Steps',
-    href: '/next-steps',
     children: [
       { label: 'Explaining Christianity', href: '/explaining-christianity' },
       { label: 'Newish Connect', href: '/newish' },
@@ -123,7 +121,7 @@ function DesktopDropdown({ item, scrolled, pathname }: { item: NavItem; scrolled
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
     >
-      {canHover ? (
+      {canHover && item.href ? (
         <Link
           href={item.href}
           className={classes}
