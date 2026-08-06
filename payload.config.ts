@@ -32,13 +32,27 @@ import { SiteSettings } from '@/globals/SiteSettings'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
+const payloadSecret = process.env.PAYLOAD_SECRET?.trim()
+if (
+  process.env.NODE_ENV === 'production' &&
+  (!payloadSecret || /change-me|replace-me|generate-with/i.test(payloadSecret))
+) {
+  throw new Error('PAYLOAD_SECRET must be configured with a non-placeholder value')
+}
+
 export default buildConfig({
-  secret: process.env.PAYLOAD_SECRET || 'CHANGE-ME-IN-ENV',
+  secret: payloadSecret || 'development-only-payload-secret-not-for-production',
 
   admin: {
     user: Users.slug,
     importMap: {
       baseDir: path.resolve(dirname),
+    },
+    components: {
+      beforeLogin: ['@/components/admin/Auth0BeforeLogin'],
+      logout: {
+        Button: '@/components/admin/Auth0LogoutButton',
+      },
     },
   },
 
