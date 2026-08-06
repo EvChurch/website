@@ -316,10 +316,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const isRedirectAction =
       completionMessage?.type === 4 ||
       completionMessage?.type === 'Redirect'
-    const requestedRedirect =
-      isRedirectAction
-        ? completionMessage?.content || null
-        : result.url || null
+    const requestedRedirect = isRedirectAction
+      ? completionMessage?.content || null
+      : null
     const requestOrigin =
       request.headers.get('origin') || request.nextUrl.origin
     const redirectUrl = safeRockWorkflowRedirect(

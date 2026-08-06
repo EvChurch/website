@@ -167,7 +167,7 @@ describe('Rock form route', () => {
     })
   })
 
-  it('normalizes relative Workflow redirects against the verified request origin', async () => {
+  it('does not redirect to Rock workflow-entry permalinks after completion', async () => {
     mocks.verifyContext.mockReturnValue({
       workflowTypeGuid,
       initialFieldValues: {},
@@ -176,7 +176,40 @@ describe('Rock form route', () => {
     })
     mocks.submitForm.mockResolvedValue({
       workflow: { guid: workflowTypeGuid, name: 'Contact Us' },
-      action: { url: '/thanks?source=workflow' },
+      action: {
+        url: `/page/1108?WorkflowTypeGuid=${workflowTypeGuid}&WorkflowId=32764`,
+      },
+    })
+    const body = new FormData()
+    body.set('contextToken', 'signed-context')
+    body.set('turnstileToken', 'verified-token')
+    body.set('fieldValues', '{}')
+    body.set('personEntryValues', 'null')
+    body.set('button', 'Submit')
+
+    const response = await POST(postRequest(body), routeContext)
+    expect(await response.json()).toMatchObject({
+      status: 'complete',
+      message: 'Thanks. Your form has been submitted.',
+      redirectUrl: null,
+    })
+    expect(mocks.submitForm).toHaveBeenCalledOnce()
+  })
+
+  it('normalizes explicit relative Redirect actions against the verified request origin', async () => {
+    mocks.verifyContext.mockReturnValue({
+      workflowTypeGuid,
+      initialFieldValues: {},
+      allowedFields: [],
+      buttonTitles: ['Submit'],
+    })
+    mocks.submitForm.mockResolvedValue({
+      workflow: { guid: workflowTypeGuid, name: 'Contact Us' },
+      action: {
+        actionData: {
+          message: { type: 'Redirect', content: '/thanks?source=workflow' },
+        },
+      },
     })
     const body = new FormData()
     body.set('contextToken', 'signed-context')
@@ -190,7 +223,6 @@ describe('Rock form route', () => {
       status: 'complete',
       redirectUrl: 'http://localhost/thanks?source=workflow',
     })
-    expect(mocks.submitForm).toHaveBeenCalledOnce()
   })
 
   it('removes an unsafe Workflow redirect after submission', async () => {
