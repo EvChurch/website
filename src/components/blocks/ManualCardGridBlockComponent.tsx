@@ -24,6 +24,7 @@ interface ManualCard {
   subtitle?: string | null
   description?: string | null
   image?: CardImage | string | null
+  mapUrl?: string | null
   href?: string | null
   linkLabel?: string | null
   address?: string | null
@@ -70,16 +71,19 @@ function ArrowSvg() {
 }
 
 function InfoCard({ card, index }: { card: ManualCard; index: number }) {
-  const mapUrl = card.href && isGoogleMapsUrl(card.href) ? card.href : null
+  const mapLinkUrl = card.href && isGoogleMapsUrl(card.href) ? card.href : null
+  const mapUrl =
+    card.mapUrl && isGoogleMapsUrl(card.mapUrl) ? card.mapUrl : mapLinkUrl
   const mapEmbedUrl = mapUrl
     ? getGoogleMapsEmbedUrl(
         mapUrl,
         card.address ?? card.description ?? card.title,
+        process.env.GOOGLE_MAPS_API_KEY,
       )
     : null
 
   const content = (
-    <div className="group relative block overflow-hidden rounded-xl border border-warm-grey/60 bg-white transition-all duration-300 hover:border-rich-red/20 hover:shadow-lg hover:shadow-rich-red/5">
+    <div className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-warm-grey/60 bg-white transition-all duration-300 hover:border-rich-red/20 hover:shadow-lg hover:shadow-rich-red/5">
       {/* Accent bar */}
       <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-rich-red to-light-red-1 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
@@ -94,7 +98,7 @@ function InfoCard({ card, index }: { card: ManualCard; index: number }) {
         />
       )}
 
-      <div className="p-8">
+      <div className="flex flex-1 flex-col p-8">
         <h3 className="font-sans text-h4 font-bold text-brand-black">{card.title}</h3>
         {card.subtitle && (
           <p className="mt-2 text-sm text-mid-grey">{card.subtitle}</p>
@@ -120,18 +124,26 @@ function InfoCard({ card, index }: { card: ManualCard; index: number }) {
             ))}
           </dl>
         )}
-        {card.linkLabel && mapUrl ? (
+        {card.linkLabel && mapLinkUrl ? (
           <a
-            href={mapUrl}
+            href={mapLinkUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-rich-red transition-colors hover:text-deep-red"
+            className="mt-auto inline-flex items-center gap-1.5 pt-6 text-sm font-semibold text-rich-red transition-colors hover:text-deep-red"
           >
             {card.linkLabel}
             <ArrowSvg />
           </a>
+        ) : card.linkLabel && card.href ? (
+          <Link
+            href={card.href}
+            className="mt-auto inline-flex items-center gap-1.5 pt-6 text-sm font-semibold text-rich-red transition-colors hover:text-deep-red"
+          >
+            {card.linkLabel}
+            <ArrowSvg />
+          </Link>
         ) : card.linkLabel ? (
-          <span className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-rich-red transition-colors group-hover:text-deep-red">
+          <span className="mt-auto inline-flex items-center gap-1.5 pt-6 text-sm font-semibold text-rich-red transition-colors group-hover:text-deep-red">
             {card.linkLabel}
             <ArrowSvg />
           </span>
@@ -141,8 +153,12 @@ function InfoCard({ card, index }: { card: ManualCard; index: number }) {
   )
 
   return (
-    <ScrollReveal delay={index * 100}>
-      {card.href && !mapUrl ? <Link href={card.href} className="group relative block">{content}</Link> : content}
+    <ScrollReveal delay={index * 100} className="h-full">
+      {card.href && !mapUrl && !card.linkLabel ? (
+        <Link href={card.href} className="group relative block h-full">
+          {content}
+        </Link>
+      ) : content}
     </ScrollReveal>
   )
 }
@@ -167,7 +183,7 @@ function ImageOverlayCard({ card, index, priority }: { card: ManualCard; index: 
       {/* Content anchored to bottom */}
       <div className="relative flex h-full flex-col justify-end p-7">
         {card.eyebrow && (
-          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-light-red-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-hero-eyebrow">
             {card.eyebrow}
           </p>
         )}
@@ -179,7 +195,7 @@ function ImageOverlayCard({ card, index, priority }: { card: ManualCard; index: 
           <p className="mt-1 text-xs text-warm-white/50">{card.address}</p>
         )}
         {card.linkLabel && (
-          <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-light-red-2 transition-colors group-hover:text-white">
+          <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-hero-eyebrow transition-colors group-hover:text-white">
             {card.linkLabel}
             <ArrowSvg />
           </span>

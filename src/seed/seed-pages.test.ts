@@ -140,11 +140,79 @@ describe('ensureNewishConnectionForm', () => {
 })
 
 describe('seeded page content and giving navigation', () => {
+  it('does not use em dashes in seeded page copy', () => {
+    expect(seedSource).not.toContain('—')
+  })
+
+  it('preserves editor-managed pages and limits upgrades to known legacy copy', () => {
+    expect(seedSource).toContain('Preserving editor-managed page: ${slug}')
+    expect(seedSource.match(/upgradeExisting: upgradeLegacy/g)).toHaveLength(4)
+    expect(seedSource).toContain('data: upgrade')
+    expect(seedSource).not.toContain('data: { ...document, ...data }')
+  })
+
+  it('passes the homepage ten-second test without using the SEO eyebrow as the H1', () => {
+    const homeSection = sourceSection("await upsertPage('home'", "await upsertPage('visit'")
+
+    expect(homeSection).toContain("eyebrow: 'Welcome to Ev Church'")
+    expect(homeSection).toContain("heading: 'A place to belong'")
+    expect(homeSection).toContain('one church family across three Auckland campuses')
+    expect(homeSection).not.toContain('campuses — people')
+    expect(homeSection).toContain('semanticH1: false')
+    expect(homeSection).toContain("minHeight: '50vh'")
+    expect(homeSection).toContain("{ label: \"What we're about\", href: '/about', variant: 'text' }")
+    expect(homeSection).toContain(
+      "metaTitle: 'Church in Auckland | Ev Church | Sundays 10:15am & 5:15pm'",
+    )
+  })
+
   it('sets an honest expectation for the Plan Your Visit form', () => {
     const visitSection = sourceSection("await upsertPage('visit'", "await upsertPage('about'")
 
-    expect(visitSection).toContain("You don't have to — you're welcome to just turn up.")
+    expect(visitSection).toContain("You don't have to. You're welcome to just turn up.")
     expect(visitSection).toContain('help with kids check-in')
+  })
+
+  it('links Contact page campus cards to their campus pages while retaining maps', () => {
+    const contactSection = sourceSection("await upsertPage('contact'", "await upsertPage('kids'")
+
+    expect(contactSection).toContain("mapUrl: CAMPUS_PAGE_DEFAULTS.north.pageContent.mapUrl")
+    expect(contactSection).toContain("href: '/campus/north'")
+    expect(contactSection).toContain("href: '/campus/central'")
+    expect(contactSection).toContain("href: '/campus/unichurch'")
+    expect(contactSection).not.toContain("linkLabel: 'Open in Google Maps'")
+  })
+
+  it('walks visitors through the service and answers the awkward questions directly', () => {
+    const visitSection = sourceSection("await upsertPage('visit'", "await upsertPage('about'")
+
+    expect(visitSection).toContain("heading: 'What actually happens in a service?'")
+    expect(visitSection).toContain("title: '1. We sing.'")
+    expect(visitSection).toContain("title: \"2. We hear what's on.\"")
+    expect(visitSection).toContain("title: '3. We open the Bible.'")
+    expect(visitSection).toContain("title: '4. We sing again, and we eat.'")
+    expect(visitSection).toContain(
+      "heading: 'Will I be asked to stand up, say anything, or give money?'",
+    )
+    expect(visitSection).toContain('No, no, and no.')
+    expect(visitSection).not.toContain("You're our guest —")
+    expect(visitSection).toContain('Nobody will single you out')
+  })
+
+  it('gives outsiders a clear beliefs on-ramp and makes the team approachable', () => {
+    const aboutSection = sourceSection("await upsertPage('about'", "await upsertPage('vision'")
+    const beliefsSection = sourceSection(
+      "await upsertPage('what-we-believe'",
+      "await upsertPage('faq'",
+    )
+
+    expect(beliefsSection).toContain('The short version is a person.')
+    expect(beliefsSection).toContain('Everything we believe centres on Jesus')
+    expect(beliefsSection).toContain('the best place to start is The Good News')
+    expect(beliefsSection).toContain('final consummation of our hope with the return of Christ')
+    expect(beliefsSection).toContain('Not every gift of the Spirit is given to the church')
+    expect(beliefsSection).toContain('roles of men and women are not interchangeable')
+    expect(aboutSection).toContain('Every email below is real and read. Got a question? Ask it.')
   })
 
   it('uses consistent Ev Kids ages, availability, and safety details', () => {

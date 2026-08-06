@@ -8,6 +8,13 @@ import { ensureNewishConnectionForm } from './newish-form'
 import { EXPLAINING_CHRISTIANITY_CONNECTION_BLOCK_GUID } from './explaining-christianity-form'
 import { ensureServiceTimesBlock, ensureUpcomingEventsBlock } from './home-layout'
 import { CAMPUS_PAGE_DEFAULTS, ensureCampusPageDefaults } from './campus-pages'
+import {
+  upgradeLegacyAboutPage,
+  upgradeLegacyBeliefsPage,
+  upgradeLegacyHomePage,
+  upgradeLegacyVisitPage,
+  type PageUpgrade,
+} from './page-upgrades'
 
 async function generateBlur(filePath: string): Promise<string | null> {
   try {
@@ -212,8 +219,12 @@ async function seed() {
 
   /* ======================== Seed pages ============================ */
 
-  /** Upsert helper: find by slug, update or create. */
-  async function upsertPage(slug: string, data: Record<string, unknown>) {
+  /** Create missing pages and apply narrowly targeted legacy-content upgrades. */
+  async function upsertPage(
+    slug: string,
+    data: Record<string, unknown>,
+    options?: { upgradeExisting?: PageUpgrade },
+  ) {
     const existing = await payload.find({
       collection: 'pages',
       where: { slug: { equals: slug } },
@@ -221,20 +232,21 @@ async function seed() {
       depth: 0,
     })
 
-    if (existing.docs.length > 0) {
-      console.log(`  Updating page: ${slug}`)
-      await payload.update({
-        collection: 'pages',
-        id: existing.docs[0].id,
-        data,
-      })
-    } else {
-      console.log(`  Creating page: ${slug}`)
-      await payload.create({
-        collection: 'pages',
-        data: { slug, ...data },
-      })
+    const document = existing.docs[0] as unknown as Record<string, unknown> | undefined
+    if (document) {
+      const upgrade = options?.upgradeExisting?.(document, data)
+      if (!upgrade) {
+        console.log(`  Preserving editor-managed page: ${slug}`)
+        return
+      }
+
+      console.log(`  Upgrading legacy page: ${slug}`)
+      await payload.update({ collection: 'pages', id: String(document.id), data: upgrade })
+      return
     }
+
+    console.log(`  Creating page: ${slug}`)
+    await payload.create({ collection: 'pages', data: { slug, ...data } })
   }
 
   /* ─────────────────────── HOME PAGE ─────────────────────── */
@@ -246,17 +258,17 @@ async function seed() {
       {
         blockType: 'hero',
         image: img('carousel-0c59a44d'),
-        eyebrow: 'A Christian Evangelical Church in Auckland',
+        eyebrow: 'Welcome to Ev Church',
         heading: 'A place to belong',
-        semanticH1: true,
+        semanticH1: false,
         highlightedText: 'belong',
-        subtitle: 'Ev Church is a community of Christ-followers across Auckland. Whether you are exploring faith for the first time or have been part of a church for years, you are welcome here.',
+        subtitle: "We're one church family across three Auckland campuses, people captivated by Jesus, grounded in the gospel, and growing in maturity and number. Wherever you're at with God, there's a seat here for you.",
         supportingText: 'Ev Church is a Christian church in Tāmaki Makaurau (Auckland), New Zealand. We meet across multiple campuses each Sunday, helping people follow Jesus, grow in faith, and become part of a welcoming community.',
         overlayStyle: 'leftToRight',
-        minHeight: '85vh',
+        minHeight: '50vh',
         buttons: [
-          { label: 'Plan Your Visit', href: '/visit', variant: 'primary' },
-          { label: 'Learn about us', href: '/about', variant: 'text' },
+          { label: 'Plan your visit', href: '/visit', variant: 'primary' },
+          { label: "What we're about", href: '/about', variant: 'text' },
         ],
       },
       {
@@ -401,9 +413,11 @@ async function seed() {
       },
     ])),
     seo: {
-      metaTitle: 'Church in Auckland | Ev Church | Sunday Services & Community',
+      metaTitle: 'Church in Auckland | Ev Church | Sundays 10:15am & 5:15pm',
       metaDescription: 'Looking for a church in Auckland? Ev Church is a community of Christ-followers meeting across Tamaki Makaurau. Join us this Sunday.',
     },
+  }, {
+    upgradeExisting: upgradeLegacyHomePage,
   })
 
   /* ─────────────────────── VISIT PAGE ─────────────────────── */
@@ -425,31 +439,42 @@ async function seed() {
       {
         blockType: 'featureGrid',
         eyebrow: 'What to expect',
-        heading: 'Your first Sunday at Ev',
-        description: 'We want you to feel comfortable from the moment you walk in. Here is what you can expect when visiting Ev Church on a Sunday in Auckland.',
+        heading: 'What actually happens in a service?',
+        description: "Here's the whole thing, start to finish. No surprises.",
         style: 'iconLeft',
         items: [
           {
-            icon: 'smile',
-            title: 'Relaxed services',
-            description: 'No dress code. No pressure. Our services run about 75 minutes with live music, a practical message, and time to connect.',
-          },
-          {
-            icon: 'graduation',
-            title: 'Kids program',
-            description: 'Ev Kids runs every Sunday morning at North and Central for children aged 0 to 12. Careful check-in, matched pick-up, and police-vetted, trained leaders. Allow an extra ten minutes on your first visit.',
-          },
-          {
-            icon: 'coffee',
-            title: 'Great coffee',
-            description: 'Arrive a few minutes early and grab a complimentary coffee. Our cafe is a great place to meet people before the service.',
+            icon: 'music',
+            title: '1. We sing.',
+            description: 'The Ev band leads us in songs of praise, with the words up on screen. Sing along, or just take it in. Whatever is comfortable.',
           },
           {
             icon: 'users',
-            title: 'Friendly community',
-            description: 'Our welcome team will help you find a seat, point you to kids check-in, and answer any questions. You will feel at home.',
+            title: "2. We hear what's on.",
+            description: 'The MC shares what is happening in the life of the church. At morning church, a Kids leader gives a short talk for the kids before they head out to Ev Kids.',
+          },
+          {
+            icon: 'book',
+            title: '3. We open the Bible.',
+            description: "We pray and read a passage of the Bible together. Then one of our pastors preaches an encouraging, hope-filled message about Jesus from that passage. This is the heart of the service. We're convinced God speaks through his word, so we give it our best attention.",
+          },
+          {
+            icon: 'coffee',
+            title: '4. We sing again, and we eat.',
+            description: 'A final song, the MC closes, and then we share food together, with morning tea or dinner depending on the service. All up, allow about 75 minutes, plus time to chat.',
+          },
+          {
+            icon: 'heart',
+            title: 'Bringing kids?',
+            description: 'Ev Kids runs every Sunday morning at North and Central for children aged 0 to 12. Careful check-in, matched pick-up, and police-vetted, trained leaders. Allow an extra ten minutes on your first visit.',
           },
         ],
+      },
+      {
+        blockType: 'cta',
+        heading: 'Will I be asked to stand up, say anything, or give money?',
+        text: "No, no, and no. You're our guest. Nobody will single you out, and the offering is for our church family, not for visitors. Come, watch, and weigh it up for yourself.",
+        colorPreset: 'light',
       },
       {
         blockType: 'photoStrip',
@@ -505,9 +530,11 @@ async function seed() {
         eyebrow: 'Plan your first Sunday',
         heading: "Let us know you're coming!",
         description:
-          "You don't have to — you're welcome to just turn up. But if you tell us which campus and which Sunday, we'll keep an eye out for you at the door, help with kids check-in, and save you the where-do-I-sit moment.",
+          "You don't have to. You're welcome to just turn up. But if you tell us which campus and which Sunday, we'll keep an eye out for you at the door, help with kids check-in, and save you the where-do-I-sit moment.",
         sourceType: 'workflow',
         rockWorkflowGuid: 'de3d06a6-7fca-41a5-8c37-a485767de970',
+        fallbackContactLabel: 'Message our welcome team',
+        fallbackContactHref: '/contact',
         layout: 'centered',
       },
       {
@@ -525,6 +552,8 @@ async function seed() {
       metaTitle: 'Visit Ev Church Auckland | Plan Your First Sunday',
       metaDescription: 'Planning your first visit to Ev Church? Find service times, locations, parking info, and what to expect at our Auckland campuses.',
     },
+  }, {
+    upgradeExisting: upgradeLegacyVisitPage,
   })
 
   /* ─────────────────────── ABOUT PAGE ─────────────────────── */
@@ -570,6 +599,7 @@ async function seed() {
           "At Ev Church, the ministry team is never just the paid pastors and staff. We believe that God has given every Christian the gifts and opportunities to serve their fellow Christians and the community around them. You could even say that we are all gifts to our fellow brothers and sisters in Christ here at church.",
           "The phrase we use is \"every member ministry\". We want to see everyone at Ev Church, week-in and week-out, use who God has made them to be to love one another, pray for one another, serve, provide, train, and teach. Ev Church is a church where everyone is part of the ministry team.",
           "While every member of Ev Church is called to serve, God has also set apart a team to lead, equip, and support the church family. These are the people who give their working week to shepherding, teaching, and building the life of the church so that every member can flourish in their gifts.",
+          'Every email below is real and read. Got a question? Ask it.',
         ]),
         alignment: 'center',
       },
@@ -678,6 +708,8 @@ async function seed() {
       metaTitle: 'About Ev Church | Christian Community in Auckland',
       metaDescription: 'Meet the Ev Church team and learn about our story. A Christ-centred community across Auckland, Tamaki Makaurau since 2012.',
     },
+  }, {
+    upgradeExisting: upgradeLegacyAboutPage,
   })
 
   /* ─────────────────────── VISION PAGE ─────────────────────── */
@@ -863,8 +895,9 @@ async function seed() {
           {
             title: 'North',
             description: '9-11 Rothwell Avenue, Rosedale, Auckland',
-            href: CAMPUS_PAGE_DEFAULTS.north.pageContent.mapUrl,
-            linkLabel: 'Open in Google Maps',
+            mapUrl: CAMPUS_PAGE_DEFAULTS.north.pageContent.mapUrl,
+            href: '/campus/north',
+            linkLabel: 'Learn more about North Campus',
             details: [
               { label: 'Service', value: 'Sunday 10:15 am' },
               { label: 'Email', value: 'north@ev.church' },
@@ -873,8 +906,9 @@ async function seed() {
           {
             title: 'Central',
             description: '80 Olsen Avenue, Hillsborough, Auckland',
-            href: CAMPUS_PAGE_DEFAULTS.central.pageContent.mapUrl,
-            linkLabel: 'Open in Google Maps',
+            mapUrl: CAMPUS_PAGE_DEFAULTS.central.pageContent.mapUrl,
+            href: '/campus/central',
+            linkLabel: 'Learn more about Central Campus',
             details: [
               { label: 'Service', value: 'Sunday 10:15 am' },
               { label: 'Email', value: 'central@ev.church' },
@@ -883,8 +917,9 @@ async function seed() {
           {
             title: 'Unichurch',
             description: 'University of Auckland, 24 Princes Street, Auckland 1010',
-            href: CAMPUS_PAGE_DEFAULTS.unichurch.pageContent.mapUrl,
-            linkLabel: 'Open in Google Maps',
+            mapUrl: CAMPUS_PAGE_DEFAULTS.unichurch.pageContent.mapUrl,
+            href: '/campus/unichurch',
+            linkLabel: 'Learn more about Unichurch',
             details: [
               { label: 'Service', value: 'Sunday 5:15 pm' },
               { label: 'Email', value: 'unichurch@ev.church' },
@@ -919,7 +954,7 @@ async function seed() {
         blockType: 'content',
         heading: 'Where kids discover faith, friendship, and fun',
         body: richText(
-          'Ev Kids runs every Sunday morning at North and Central for children aged 0 to 12. We want kids to have a blast connecting with God\'s word every week — and we make their safety a priority. Every Ev Kids leader is police vetted and trained, check-in is careful, and the collection tag must match your child\'s check-in tag for pick-up. Allow an extra ten minutes on your first visit and one of the team will walk you and your kids through it.',
+          'Ev Kids runs every Sunday morning at North and Central for children aged 0 to 12. We want kids to have a blast connecting with God\'s word every week, and we make their safety a priority. Every Ev Kids leader is police vetted and trained, check-in is careful, and the collection tag must match your child\'s check-in tag for pick-up. Allow an extra ten minutes on your first visit and one of the team will walk you and your kids through it.',
         ),
         alignment: 'center',
       },
@@ -1491,7 +1526,7 @@ async function seed() {
           {
             image: img('gn-hero'),
             title: 'The Good News',
-            description: "There is a message at the centre of Christianity that has changed millions of lives. It is not a set of rules to keep, or a ladder to climb. It is an announcement — and an invitation with your name on it.",
+            description: "There is a message at the centre of Christianity that has changed millions of lives. It is not a set of rules to keep, or a ladder to climb. It is an announcement and an invitation with your name on it.",
             href: '/good-news',
             linkLabel: 'Discover the Good News',
           },
@@ -1558,15 +1593,16 @@ async function seed() {
         blockType: 'pageHeader',
         eyebrow: 'Our beliefs',
         heading: 'What we believe',
-        description: 'Ev Church is an evangelical church that is independent in governance but united with Christians around the world and throughout history in upholding the gospel of Jesus Christ. We hold the Bible to be the supreme authority in all matters of faith and conduct and weigh all our teaching against its standard.',
+        description: "The short version is a person. Everything we believe centres on Jesus: who he is, what he's done, and what that means for you. Below is the longer version: the faith Christians have confessed for two thousand years. If some of the words are new to you, don't worry. We'd love to talk any of it through, and the best place to start is The Good News.",
         theme: 'dark',
       },
       {
         blockType: 'content',
         heading: 'Our foundational convictions',
-        body: richText(
+        body: richText([
+          'Ev Church is an evangelical church that is independent in governance but united with Christians around the world and throughout history in upholding the gospel of Jesus Christ. We hold the Bible to be the supreme authority in all matters of faith and conduct and weigh all our teaching against its standard.',
           "We believe the teachings outlined in the historic church creeds (known commonly as The Apostles' Creed, The Nicene Creed and The Athanasian Creed) are faithful expressions of the teaching of the Christian Scriptures. We hold to the Reformation teaching that God's rescue comes by grace alone, through faith alone, in the Person and work of Christ alone as revealed in the Scripture alone, to the glory of God alone.",
-        ),
+        ]),
         alignment: 'center',
       },
       {
@@ -1591,15 +1627,15 @@ async function seed() {
           },
           {
             question: 'About Salvation',
-            answer: "There is only one name under heaven by which we can be brought into relationship with God: the name \u2018Jesus Christ\u2019. It is only through the sacrificial death of Jesus Christ, as our representative and substitute, that the guilt, penalty and power of sin can be removed. In that death, God demonstrates His love to us most perfectly and establishes His victory over Satan and all His foes. The work of the Holy Spirit is necessary to make the death of Jesus effective in an individual's life. The Spirit enables the sinner to repent and put their faith in Jesus Christ, so that salvation is entirely of God's grace, through faith alone, and not of human merit or works.",
+            answer: "There is only one name under heaven by which we can be brought into relationship with God: the name \u2018Jesus Christ\u2019. It is only through the sacrificial death of Jesus Christ, as our representative and substitute, that the guilt, penalty and power of sin can be removed. In that death, God demonstrates His love to us most perfectly and establishes His victory over Satan and all His foes. The work of the Holy Spirit is necessary to make the death of Jesus effective in an individual's life. The Spirit enables the sinner to repent and put their faith in Jesus Christ, so that salvation is entirely of God's grace, through faith alone, and not of human merit or works. Although we enjoy now the blessing of union with Christ and secure relationship with God, we await the final consummation of our hope with the return of Christ, the resurrection of our bodies and life with Him eternally.",
           },
           {
             question: 'About the Holy Spirit',
-            answer: "The Holy Spirit is co-equal with the Father and the Son, and indwells all true believers. His role is to bring glory to Jesus Christ, thus making Jesus Christ central in all things. The Spirit works to illuminate believers' minds to grasp the truth of the Bible, producing in them His fruit, granting them His gifts and empowering them for service. He grants His gifts for the purpose of service, not self-indulgence.",
+            answer: "The Holy Spirit is co-equal with the Father and the Son, and indwells all true believers. His role is to bring glory to Jesus Christ, thus making Jesus Christ central in all things. The Spirit works to illuminate believers' minds to grasp the truth of the Bible, producing in them His fruit, granting them His gifts and empowering them for service. He grants His gifts for the purpose of service, not self-indulgence. Their use is determined \u2013 not by personal desire for fulfilment, or satisfaction \u2013 but by the principle of building the church. Not every gift of the Spirit is given to the church at every moment of its life, only those necessary for building Christ's body.",
           },
           {
             question: 'About the Church',
-            answer: "The visible church is the gathering of believers around Christ in His word. It is a community of people intended by God to bear witness to Him and actively seek the extension of His rule. Within its community, both men and women are to seek proper expression of their gifts as they work to build the church in love.",
+            answer: "The visible church is the gathering of believers around Christ in His word. It is a community of people intended by God to bear witness to Him and actively seek the extension of His rule. Within its community, both men and women are to seek proper expression of their gifts as they work to build the church in love. The Bible makes it clear that in church leadership, as in marriage, the roles of men and women are not interchangeable. We are committed to expressing the differences within relationships of mutual dependence.",
           },
         ],
       },
@@ -1618,6 +1654,8 @@ async function seed() {
       metaTitle: 'What We Believe | Ev Church Auckland | Core Beliefs',
       metaDescription: 'Explore the core beliefs of Ev Church Auckland. What we believe about God, Jesus, the Bible, salvation, and the church. An evangelical Christian community in Tamaki Makaurau.',
     },
+  }, {
+    upgradeExisting: upgradeLegacyBeliefsPage,
   })
 
   /* ─────────────────────── FAQ PAGE ─────────────────────── */
@@ -1705,7 +1743,7 @@ async function seed() {
         blockType: 'pageHeader',
         eyebrow: 'Giving',
         heading: 'Everything we have is given to us by God',
-        description: 'Giving at Ev is an act of worship for our church family — glad, planned, and free. Nobody is chased, and nobody is watched.',
+        description: 'Giving at Ev is an act of worship for our church family: glad, planned, and free. Nobody is chased, and nobody is watched.',
         theme: 'light',
       },
       {
@@ -1713,14 +1751,14 @@ async function seed() {
         heading: 'Where the money goes',
         body: richText([
           'Everything given goes to gospel work: Sundays across three campuses, kids and youth, training the next generation of gospel workers, and planting churches across Auckland and New Zealand toward our 2030 vision.',
-          'The wisest investment anyone can make — the one with the longest return — is an investment in the kingdom of God.',
+          'The wisest investment anyone can make is in the kingdom of God, because it has the longest return.',
         ]),
         alignment: 'center',
       },
       {
         blockType: 'cta',
         heading: 'Visiting Ev?',
-        text: "Please don't feel any obligation to give. The service — and the morning tea — are on us.",
+        text: "Please don't feel any obligation to give. The service and the morning tea are on us.",
         colorPreset: 'primary-red',
         buttons: [
           { label: 'Give online', href: 'https://give.ev.church', variant: 'primary' },
@@ -1745,7 +1783,7 @@ async function seed() {
         eyebrow: 'The heart of what we believe',
         heading: 'The Good News',
         highlightedText: 'Good News',
-        subtitle: "There is a message at the centre of Christianity that has changed millions of lives. It's not a set of rules to keep, or a ladder to climb. It's an announcement — the best news you'll ever hear — and an invitation with your name on it.",
+        subtitle: "There is a message at the centre of Christianity that has changed millions of lives. It's not a set of rules to keep, or a ladder to climb. It's the best news you'll ever hear, and an invitation with your name on it.",
         keyColor: '#D4940A',
         overlayStyle: 'cinematic',
         minHeight: '70vh',

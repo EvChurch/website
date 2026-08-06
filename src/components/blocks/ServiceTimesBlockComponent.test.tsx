@@ -18,6 +18,7 @@ describe('ServiceTimesBlockComponent', () => {
 
     expect(markup).toContain('Join us this Sunday')
     expect(markup).toContain('aria-label="Sunday service times"')
+    expect(markup).toContain('grid-cols-1 sm:grid-cols-3')
     expect(markup).toContain('href="/campus/north"')
     expect(markup).toContain('North')
     expect(markup).toContain('Sunday · 10:15 am')
@@ -27,5 +28,21 @@ describe('ServiceTimesBlockComponent', () => {
 
   it('renders nothing when no services are configured', () => {
     expect(renderToStaticMarkup(<ServiceTimesBlockComponent services={[]} />)).toBe('')
+  })
+
+  it.each([
+    [1, 'grid-cols-1'],
+    [2, 'grid-cols-1 sm:grid-cols-2'],
+  ] as const)('uses %i managed service columns without empty slots', (count, className) => {
+    const markup = renderToStaticMarkup(
+      <ServiceTimesBlockComponent
+        services={[
+          { campus: 'North', time: '10:15 am', href: '/campus/north' },
+          { campus: 'Central', time: '10:15 am', href: '/campus/central' },
+        ].slice(0, count)}
+      />,
+    )
+
+    expect(markup).toContain(className)
   })
 })

@@ -1,6 +1,7 @@
 import type { Block } from 'payload'
 import { isEligibleRockConnectionSignup } from '@/lib/rock-connection-signups/server'
 import { isGuid } from '@/lib/rock-forms/constants'
+import { DEFAULT_FORM_FALLBACK_ACTION } from '@/lib/form-fallback'
 
 type FormEmbedSiblingData = { sourceType?: unknown }
 
@@ -70,6 +71,22 @@ export const FormEmbedBlock: Block = {
     {
       name: 'description',
       type: 'textarea',
+    },
+    {
+      name: 'fallbackContactLabel',
+      type: 'text',
+      defaultValue: DEFAULT_FORM_FALLBACK_ACTION.label,
+      admin: {
+        description: 'Shown when the Rock form is temporarily unavailable.',
+      },
+    },
+    {
+      name: 'fallbackContactHref',
+      type: 'text',
+      defaultValue: DEFAULT_FORM_FALLBACK_ACTION.href,
+      admin: {
+        description: 'Fallback contact link shown when the Rock form cannot load.',
+      },
     },
     {
       name: 'sourceType',

@@ -6,7 +6,7 @@ import { RenderBlocks, type RenderableBlock } from '@/components/blocks/RenderBl
 import RichText from '@/components/blocks/RichTextRenderer'
 import { BreadcrumbJsonLd, buildBreadcrumbs } from '@/components/seo/BreadcrumbJsonLd'
 import { CampusJsonLd } from '@/components/seo/CampusJsonLd'
-import { ArrowRight, Button } from '@/components/ui/Button'
+import { Button, type ButtonLinkAction } from '@/components/ui/Button'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 import { getGoogleMapsEmbedUrl } from '@/lib/google-maps'
 import { getPayloadClient } from '@/lib/payload'
@@ -47,6 +47,7 @@ interface ManagedPageContent {
   galleryImages: CampusImage[]
   mapUrl: string
   parkingInfo: string
+  actions: ButtonLinkAction[]
   ctaHeading: string
   ctaText: string
   ctaLabel: string
@@ -125,6 +126,21 @@ function getManagedPageContent(campus: CampusPageDocument): ManagedPageContent |
       const imageAlt = asRequiredText(alt)
       return imageSrc && imageAlt ? [{ src: imageSrc, alt: imageAlt }] : []
     }) ?? []
+  const actions =
+    page.actions?.flatMap(({ label, href, variant, external }) => {
+      const actionLabel = asRequiredText(label)
+      const actionHref = asRequiredText(href)
+      return actionLabel && actionHref
+        ? [
+            {
+              label: actionLabel,
+              href: actionHref,
+              variant: variant ?? undefined,
+              external: external ?? undefined,
+            },
+          ]
+        : []
+    }) ?? []
 
   return {
     brandName,
@@ -143,6 +159,7 @@ function getManagedPageContent(campus: CampusPageDocument): ManagedPageContent |
     galleryImages,
     mapUrl,
     parkingInfo,
+    actions,
     ctaHeading,
     ctaText,
     ctaLabel,
@@ -227,10 +244,11 @@ export async function generateMetadata({
 
   const { campus, content } = managedCampus
   const { brandName, locationLabel, serviceTimeLabel } = content
+  const address = getAddress(campus) || locationLabel
   const title = asRequiredText(content.seoTitle) ?? `${campus.name} Campus | Ev Church Auckland`
   const description =
     asRequiredText(content.seoDescription) ??
-    `Join ${brandName} at ${getAddress(campus)}. Services every ${serviceTimeLabel}. A welcoming community in ${locationLabel}.`
+    `Join ${brandName} at ${address}. Services every ${serviceTimeLabel}. A welcoming community in ${locationLabel}.`
 
   return {
     title: { absolute: title },
@@ -267,7 +285,11 @@ export default async function CampusPage({
   const heroImage = getHeroImage(campus, content)
   const galleryImages = getGalleryImages(campus, content)
   const address = getAddress(campus) || content.locationLabel
-  const mapEmbedUrl = getGoogleMapsEmbedUrl(content.mapUrl, address)
+  const mapEmbedUrl = getGoogleMapsEmbedUrl(
+    content.mapUrl,
+    address,
+    process.env.GOOGLE_MAPS_API_KEY,
+  )
   const blocks = (campus.layout ?? []) as unknown as RenderableBlock[]
   const brandHeading = getBrandHeading(content.brandName)
 
@@ -444,20 +466,20 @@ export default async function CampusPage({
               <h2 className="mt-3 text-h2 leading-heading text-brand-black">Getting here</h2>
               <p className="mt-6 text-lg leading-body-lg text-dark-grey">{address}</p>
               <p className="mt-4 text-[0.9375rem] text-mid-grey">{content.parkingInfo}</p>
-              <div className="mt-8 flex flex-wrap gap-4">
-                <a
-                  href={content.mapUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center rounded-md bg-rich-red px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-deep-red hover:shadow-md active:scale-[0.97]"
-                >
-                  Get directions
-                </a>
-                <Button href="/contact" variant="text">
-                  Contact us
-                  <ArrowRight />
-                </Button>
-              </div>
+              {content.actions.length > 0 && (
+                <div className="mt-8 flex flex-wrap gap-4">
+                  {content.actions.map((action) => (
+                    <Button
+                      key={`${action.label}-${action.href}`}
+                      href={action.href}
+                      external={action.external ?? false}
+                      variant={action.variant ?? 'text'}
+                    >
+                      {action.label}
+                    </Button>
+                  ))}
+                </div>
+              )}
             </ScrollReveal>
           </div>
         </div>
@@ -471,7 +493,7 @@ export default async function CampusPage({
         <div className="relative mx-auto max-w-2xl text-center">
           <ScrollReveal>
             <h2 className="text-h1 leading-display text-white">{content.ctaHeading}</h2>
-            <p className="mt-5 text-lg leading-body-lg text-light-red-3">{content.ctaText}</p>
+            <p className="mt-5 text-lg leading-body-lg text-white">{content.ctaText}</p>
             <div className="mt-10">
               <a
                 href={content.ctaHref}

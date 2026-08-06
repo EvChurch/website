@@ -25,4 +25,25 @@ describe('Google Maps URLs', () => {
       'https://www.google.com/maps?q=9+Rothwell+Avenue&output=embed',
     )
   })
+
+  it('uses the official Embed API for a Place ID when an API key is configured', () => {
+    expect(
+      getGoogleMapsEmbedUrl(
+        'https://www.google.com/maps/place/?q=place_id%3AChIJNorth',
+        '9 Rothwell Avenue',
+        'test-api-key',
+      ),
+    ).toBe(
+      'https://www.google.com/maps/embed/v1/place?key=test-api-key&q=place_id%3AChIJNorth',
+    )
+  })
+
+  it('falls back to the address embed when a Place ID has no API key', () => {
+    expect(
+      getGoogleMapsEmbedUrl(
+        'https://www.google.com/maps/place/?q=place_id%3AChIJNorth',
+        '9 Rothwell Avenue',
+      ),
+    ).toBe('https://www.google.com/maps?q=9+Rothwell+Avenue&output=embed')
+  })
 })

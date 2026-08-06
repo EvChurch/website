@@ -13,7 +13,19 @@ import {
   ROCK_FORM_SUBMIT_ACTION,
 } from '@/lib/rock-forms/constants'
 import { parseJson } from '@/lib/rock-forms/schema'
+import {
+  isCompleteResponse,
+  isRockFormSchema,
+  readJsonResponse,
+  type FormStartResponse,
+  type FormSubmitResponse,
+} from '@/lib/rock-forms/response'
 import { isRockRuleVisible } from '@/lib/rock-forms/visibility'
+import { Button } from '@/components/ui/Button'
+import {
+  DEFAULT_FORM_FALLBACK_ACTION,
+  type FormFallbackAction,
+} from '@/lib/form-fallback'
 import type {
   RockFormField,
   RockFormSchema,
@@ -23,18 +35,7 @@ import type {
   RockPersonEntryValues,
 } from '@/lib/rock-forms/types'
 
-type FormStartResponse = Partial<RockFormSchema> & {
-  turnstileSiteKey?: string
-  error?: string
-}
-
-type FormSubmitResponse = {
-  status?: 'next' | 'complete'
-  form?: RockFormSchema
-  message?: string
-  redirectUrl?: string | null
-  error?: string
-}
+const FORM_STARTUP_ERROR = 'This form is temporarily unavailable.'
 
 function PersonFields({
   prefix,
@@ -509,9 +510,11 @@ function PersonSearchField({
 export function RockForm({
   workflowTypeGuid,
   initialSchema = null,
+  fallbackAction = DEFAULT_FORM_FALLBACK_ACTION,
 }: {
   workflowTypeGuid: string
   initialSchema?: RockFormSchema | null
+  fallbackAction?: FormFallbackAction
 }) {
   const [schema, setSchema] = useState<RockFormSchema | null>(initialSchema)
   const [startupSiteKey, setStartupSiteKey] = useState(
@@ -527,6 +530,7 @@ export function RockForm({
   const [files, setFiles] = useState<Record<string, File>>({})
   const [turnstileToken, setTurnstileToken] = useState('')
   const [turnstileResetKey, setTurnstileResetKey] = useState(0)
+  const [startupRetryKey, setStartupRetryKey] = useState(0)
   const [loading, setLoading] = useState(!initialSchema)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -574,12 +578,19 @@ export function RockForm({
     setLoading(true)
     fetch(`/api/rock-forms/${workflowTypeGuid}`, { signal: controller.signal })
       .then(async (response) => {
-        const data = (await response.json()) as FormStartResponse
-        if (!response.ok) throw new Error(data.error || 'Unable to load form')
-        if (active) setStartupSiteKey(data.turnstileSiteKey || '')
+        const data = await readJsonResponse<FormStartResponse>(response)
+        if (!response.ok) throw new Error(data.error || FORM_STARTUP_ERROR)
+        if (!data.turnstileSiteKey) throw new Error(FORM_STARTUP_ERROR)
+        if (active) setStartupSiteKey(data.turnstileSiteKey)
       })
       .catch((caught) => {
-        if (active && caught.name !== 'AbortError') setError(caught.message)
+        if (
+          active &&
+          caught instanceof Error &&
+          caught.name !== 'AbortError'
+        ) {
+          setError(caught instanceof TypeError ? FORM_STARTUP_ERROR : caught.message)
+        }
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -591,7 +602,7 @@ export function RockForm({
       startController.current?.abort()
       submitController.current?.abort()
     }
-  }, [workflowTypeGuid, initialSchema])
+  }, [workflowTypeGuid, initialSchema, startupRetryKey])
 
   const startForm = useCallback(
     async (token: string) => {
@@ -610,11 +621,11 @@ export function RockForm({
           body,
           signal: controller.signal,
         })
-        const data = (await response.json()) as FormStartResponse
-        if (!response.ok) throw new Error(data.error || 'Unable to load form')
-        if (!data.contextToken) throw new Error('Rock returned an invalid form')
+        const data = await readJsonResponse<FormStartResponse>(response)
+        if (!response.ok) throw new Error(data.error || FORM_STARTUP_ERROR)
+        if (!isRockFormSchema(data)) throw new Error('Rock returned an invalid form')
         if (!controller.signal.aborted && mounted.current) {
-          applySchema(data as RockFormSchema)
+          applySchema(data)
         }
       } catch (caught) {
         if (
@@ -622,6 +633,7 @@ export function RockForm({
           mounted.current &&
           caught instanceof Error
         ) {
+          setStartupSiteKey('')
           setError(caught.message)
           setTurnstileResetKey((key) => key + 1)
         }
@@ -659,7 +671,27 @@ export function RockForm({
     )
   }
   if (!schema) {
-    if (!startupSiteKey) return null
+    if (!startupSiteKey) {
+      return error ? (
+        <div className="space-y-4 rounded-lg bg-red-50 p-5 text-red-900">
+          <p role="alert">{error}</p>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              type="button"
+              onClick={() => setStartupRetryKey((key) => key + 1)}
+            >
+              Try again
+            </Button>
+            <Button
+              href={fallbackAction.href}
+              variant="secondary"
+            >
+              {fallbackAction.label}
+            </Button>
+          </div>
+        </div>
+      ) : null
+    }
     return (
       <div className="space-y-3">
         <p className="text-sm text-dark-grey">Preparing secure form…</p>
@@ -669,6 +701,10 @@ export function RockForm({
           action={ROCK_FORM_START_ACTION}
           resetKey={turnstileResetKey}
           onToken={startForm}
+          onError={() => {
+            setStartupSiteKey('')
+            setError(FORM_STARTUP_ERROR)
+          }}
         />
       </div>
     )
@@ -763,20 +799,25 @@ export function RockForm({
             body,
             signal: controller.signal,
           })
-          const result = (await response.json()) as FormSubmitResponse
+          const result = await readJsonResponse<FormSubmitResponse>(response)
           if (!response.ok) throw new Error(result.error || 'Unable to submit form')
           if (controller.signal.aborted || !mounted.current) return
 
           if (result.status === 'next') {
-            if (!result.form) throw new Error('Rock returned an invalid next step')
+            if (!isRockFormSchema(result.form)) {
+              throw new Error('Rock returned an invalid next step')
+            }
             applySchema(result.form)
             window.scrollTo({ top: 0, behavior: 'smooth' })
-          } else if (result.redirectUrl) {
-            window.location.assign(result.redirectUrl)
+          } else if (isCompleteResponse(result)) {
+            if (result.redirectUrl) window.location.assign(result.redirectUrl)
+            else {
+              setCompleteMessage(
+                result.message || 'Thanks. Your form has been submitted.',
+              )
+            }
           } else {
-            setCompleteMessage(
-              result.message || 'Thanks. Your form has been submitted.',
-            )
+            throw new Error('Rock returned an invalid submission response')
           }
         } catch (caught) {
           if (caught instanceof DOMException && caught.name === 'AbortError') return
@@ -791,8 +832,8 @@ export function RockForm({
       <fieldset disabled={!contextReady} className="contents">
         <SafeRockHtml value={schema.headerHtml} />
 
-      {schema.personEntry && personEntryValues && (
-        <section className="space-y-5">
+        {schema.personEntry && personEntryValues && (
+          <section className="space-y-5">
           <SafeRockHtml value={schema.personEntry.preHtml} />
           {schema.personEntry.title && (
             <h3 className="text-2xl font-semibold text-brand-black">
@@ -897,23 +938,25 @@ export function RockForm({
             </label>
           )}
           <SafeRockHtml value={schema.personEntry.postHtml} />
-        </section>
-      )}
-
-      {schema.sections.map((section) =>
-        isRockRuleVisible(section.visibilityRule, fieldValues) ? (
-          <section key={section.id} className="space-y-5">
-            {section.title && (
-              <h3 className="text-2xl font-semibold text-brand-black">
-                {section.title}
-              </h3>
-            )}
-            {section.description && <p className="text-dark-grey">{section.description}</p>}
-            {renderFields(fieldsBySection.get(section.id) || [])}
           </section>
-        ) : null,
-      )}
-      {renderFields(fieldsBySection.get('') || [])}
+        )}
+
+        {schema.sections.map((section) =>
+          isRockRuleVisible(section.visibilityRule, fieldValues) ? (
+            <section key={section.id} className="space-y-5">
+              {section.title && (
+                <h3 className="text-2xl font-semibold text-brand-black">
+                  {section.title}
+                </h3>
+              )}
+              {section.description && (
+                <p className="text-dark-grey">{section.description}</p>
+              )}
+              {renderFields(fieldsBySection.get(section.id) || [])}
+            </section>
+          ) : null,
+        )}
+        {renderFields(fieldsBySection.get('') || [])}
 
         <SafeRockHtml value={schema.footerHtml} />
       </fieldset>

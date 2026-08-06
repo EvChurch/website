@@ -39,7 +39,7 @@ The public route in `src/app/(frontend)/campus/[slug]/page.tsx` should:
 
 Use an additive Payload migration for the schema and backfill. Preserve existing synchronized or editorial values with `COALESCE`, enable only known public campuses, and seed an `upcomingEvents` block whose campus relationship points back to the owning campus.
 
-For managed map links, store a canonical HTTPS Google Maps place URL and turn it into an embed URL at render time. Prefer a stable `place_id` target over a free-text address query so venues inside a larger site, such as Old Government House, resolve to the intended building. Do not iframe the normal `/maps/place/` page because Google serves it with `X-Frame-Options: SAMEORIGIN`; extract its `q` value and rebuild the iframe source as `/maps?q=...&output=embed`, which redirects to Google's embeddable endpoint. Validate the protocol, host, and `/maps` path before rendering the iframe; fall back to a URL-encoded query built from the managed campus address when the configured URL is malformed or untrusted.
+For managed map links, store a canonical HTTPS Google Maps place URL and turn it into an embed URL at render time. Prefer a stable `place_id` target over a free-text address query so venues inside a larger site, such as Old Government House, resolve to the intended building. Do not iframe the normal `/maps/place/` page because Google serves it with `X-Frame-Options: SAMEORIGIN`. When `GOOGLE_MAPS_API_KEY` is configured, extract the trusted `place_id` query and use Google's official `/maps/embed/v1/place` endpoint. The legacy `/maps?q=place_id:...&output=embed` form can render an unpinned world map, so without a key fall back to a URL-encoded query built from the managed campus address. Validate the protocol, host, and `/maps` path before deriving either iframe URL.
 
 Use migrations for schema changes and one-time production data transitions. When a deployment re-applies the canonical seed, fold durable content defaults and corrections back into an idempotent seed helper instead of adding another content-only migration. Query only the owned fields, skip unchanged records, and treat Payload's nested field defaults as uninitialized state. Preserve populated editorial groups even when `pageContent.enabled` is deliberately false. Replace a historical seeded value only when it matches that campus's exact legacy value, so a later editor-selected location is not overwritten.
 
@@ -64,5 +64,6 @@ Verify the pattern with route tests, migration integration tests, the full test 
 - `src/migrations/20260805_234700_campus_managed_pages.ts`
 - `src/migrations/20260806_103317_exact_campus_map_locations.ts`
 - `src/seed/campus-pages.ts`
+- `src/lib/google-maps.ts`
 - `src/blocks/UpcomingEventsBlock.ts`
 - `src/components/blocks/UpcomingEventsBlockComponent.tsx`

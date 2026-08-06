@@ -39,6 +39,21 @@ vi.mock('./ServiceTimesBlockComponent', () => ({
   ),
 }))
 
+vi.mock('./FormEmbedBlockComponent', () => ({
+  FormEmbedBlockComponent: ({
+    fallbackContactLabel,
+    fallbackContactHref,
+  }: {
+    fallbackContactLabel?: string | null
+    fallbackContactHref?: string | null
+  }) => (
+    <div
+      data-fallback-label={fallbackContactLabel}
+      data-fallback-href={fallbackContactHref}
+    />
+  ),
+}))
+
 import { RenderBlocks } from './RenderBlocks'
 
 const centralCampus: Campus = {
@@ -51,6 +66,25 @@ const centralCampus: Campus = {
 }
 
 describe('RenderBlocks', () => {
+  it('passes editor-managed fallback actions to form blocks', () => {
+    const markup = renderToStaticMarkup(
+      <RenderBlocks
+        blocks={[
+          {
+            blockType: 'formEmbed',
+            sourceType: 'workflow',
+            rockWorkflowGuid: 'de3d06a6-7fca-41a5-8c37-a485767de970',
+            fallbackContactLabel: 'Message our welcome team',
+            fallbackContactHref: '/contact',
+          },
+        ]}
+      />,
+    )
+
+    expect(markup).toContain('data-fallback-label="Message our welcome team"')
+    expect(markup).toContain('data-fallback-href="/contact"')
+  })
+
   it('renders a service-times block with its configured services', () => {
     const markup = renderToStaticMarkup(
       <RenderBlocks

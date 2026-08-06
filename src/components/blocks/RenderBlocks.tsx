@@ -443,6 +443,8 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
                 eyebrow={b.eyebrow}
                 heading={b.heading}
                 description={b.description}
+                fallbackContactLabel={b.fallbackContactLabel}
+                fallbackContactHref={b.fallbackContactHref}
                 sourceType={b.sourceType}
                 rockWorkflowGuid={b.rockWorkflowGuid}
                 rockConnectionBlockGuid={b.rockConnectionBlockGuid}

@@ -51,7 +51,7 @@ function renderHeading(heading: string, highlightedText?: string | null, keyColo
     <>
       {parts[0]}
       <span
-        className={`italic ${keyColor ? '' : 'text-light-red-3'}`}
+        className={`font-serif italic drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)] ${keyColor ? '' : 'text-hero-highlight'}`}
         style={keyColor ? { color: keyColor } : undefined}
       >
         {highlightedText}
@@ -108,21 +108,21 @@ function HeroContent({
   HeroBlockProps,
   'eyebrow' | 'heading' | 'highlightedText' | 'subtitle' | 'supportingText' | 'buttons' | 'keyColor' | 'semanticH1'
 >) {
-  const eyebrowColorClass = keyColor ? '' : 'text-light-red-2'
+  const eyebrowColorClass = keyColor ? '' : 'text-hero-eyebrow'
   const eyebrowColorStyle = keyColor ? { color: keyColor } : undefined
 
   return (
     <>
       {eyebrow && semanticH1 ? (
         <h1
-          className={`animate-fade-in-up m-0 font-sans text-xs font-semibold uppercase tracking-[0.2em] ${eyebrowColorClass}`}
+          className={`animate-fade-in-up m-0 font-sans text-xs font-semibold uppercase tracking-[0.2em] drop-shadow-[0_1px_4px_rgba(0,0,0,0.95)] ${eyebrowColorClass}`}
           style={{ animationDelay: '100ms', ...eyebrowColorStyle }}
         >
           {eyebrow}
         </h1>
       ) : eyebrow ? (
         <p
-          className={`animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] ${eyebrowColorClass}`}
+          className={`animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] drop-shadow-[0_1px_4px_rgba(0,0,0,0.95)] ${eyebrowColorClass}`}
           style={{ animationDelay: '100ms', ...eyebrowColorStyle }}
         >
           {eyebrow}
@@ -165,7 +165,7 @@ function HeroContent({
               href={btn.href}
               variant={btn.variant ?? 'primary'}
               size="large"
-              {...(btn.variant === 'text' ? { className: 'text-warm-white/90 hover:text-white' } : {})}
+              {...(btn.variant === 'text' ? { className: 'ml-2 text-warm-white/90 hover:text-white' } : {})}
             >
               {btn.label}
               {btn.variant === 'text' && <ArrowRight />}
@@ -269,7 +269,7 @@ export function HeroBlockComponent({
       )}
 
       {/* Content */}
-      <div className="relative mx-auto max-w-[80rem] px-5 py-32 lg:px-8 lg:py-40">
+      <div className="relative mx-auto max-w-[80rem] px-5 py-20 sm:py-24 lg:px-8 lg:py-40">
         <div className="max-w-2xl">
           <HeroContent
             eyebrow={eyebrow}
