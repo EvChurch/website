@@ -186,6 +186,74 @@ function HeroContent({
   )
 }
 
+function SplitHeroContent({
+  eyebrow,
+  heading,
+  highlightedText,
+  subtitle,
+  supportingText,
+  buttons,
+  keyColor,
+  semanticH1,
+}: Pick<
+  HeroBlockProps,
+  'eyebrow' | 'heading' | 'highlightedText' | 'subtitle' | 'supportingText' | 'buttons' | 'keyColor' | 'semanticH1'
+>) {
+  const eyebrowStyle = keyColor ? { color: keyColor } : undefined
+  const headingContent = renderHeading(heading, highlightedText, keyColor)
+  const headingClassName =
+    'mt-[1.125rem] text-[clamp(3.375rem,15vw,4.5rem)] leading-[0.86] tracking-[-0.055em] text-white sm:text-[clamp(4rem,9vw,5.25rem)] lg:text-[clamp(4rem,6.2vw,5.25rem)]'
+
+  return (
+    <>
+      {eyebrow && semanticH1 ? (
+        <h1 className="m-0 text-xs font-bold uppercase tracking-[0.24em] text-light-red-2" style={eyebrowStyle}>
+          {eyebrow}
+        </h1>
+      ) : eyebrow ? (
+        <p className="text-xs font-bold uppercase tracking-[0.24em] text-light-red-2" style={eyebrowStyle}>
+          {eyebrow}
+        </p>
+      ) : null}
+
+      {semanticH1 ? (
+        <h2 className={headingClassName}>{headingContent}</h2>
+      ) : (
+        <h1 className={headingClassName}>{headingContent}</h1>
+      )}
+
+      {subtitle && (
+        <p className="mt-6 max-w-xl text-base leading-relaxed text-white/80 sm:text-lg">
+          {subtitle}
+        </p>
+      )}
+
+      {buttons && buttons.length > 0 && (
+        <div className="mt-8 flex flex-wrap items-center gap-4">
+          {buttons.map((btn) => (
+            <Button
+              key={btn.id ?? btn.href}
+              href={btn.href}
+              variant={btn.variant ?? 'primary'}
+              size="large"
+              {...(btn.variant === 'text' ? { className: 'ml-2 text-warm-white/90 hover:text-white' } : {})}
+            >
+              {btn.label}
+              {btn.variant === 'text' && <ArrowRight />}
+            </Button>
+          ))}
+        </div>
+      )}
+
+      {supportingText && (
+        <p className="mt-7 hidden max-w-xl text-sm leading-relaxed text-white/60 md:block">
+          {supportingText}
+        </p>
+      )}
+    </>
+  )
+}
+
 export function HeroBlockComponent({
   image,
   eyebrow,
@@ -203,49 +271,34 @@ export function HeroBlockComponent({
   const height = minHeight ?? '70vh'
   const overlay = overlayStyle ?? 'default'
 
-  // Banner variant: contained image on blurred background, solid color content area
+  // Banner variant: event-detail-style split header with text beside the artwork.
   if (overlay === 'banner') {
-    const blurBg =
-      typeof image !== 'string' && image.blurDataURL
-        ? { backgroundImage: `url(${image.blurDataURL})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-        : undefined
-
     return (
-      <section className="overflow-hidden bg-brand-black">
-        {/* Blurhash background with contained banner */}
-        {imageUrl && (
-          <div style={blurBg}>
-            <div className="mx-auto max-w-[80rem]">
-              <MediaImage
-                media={typeof image === 'string' ? image : image}
-                width={typeof image !== 'string' ? (image.width ?? 1920) : 1920}
-                height={typeof image !== 'string' ? (image.height ?? 640) : 640}
-                priority
-                sizes="(max-width: 1280px) 100vw, 1280px"
-                className="animate-fade-in-up h-auto w-full"
-              />
-            </div>
+      <section className="overflow-hidden bg-[linear-gradient(90deg,#0b0003,#18070b_50%,#0b0003)] text-white">
+        <div className="mx-auto flex max-w-[80rem] flex-col pb-12 pt-20 sm:pb-16 lg:grid lg:min-h-[37.5rem] lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-center lg:gap-14 lg:px-8 lg:py-[4.5rem]">
+          <div className="min-w-0 px-5 pt-10 sm:px-8 sm:pt-12 lg:px-0 lg:pt-0">
+            <SplitHeroContent
+              eyebrow={eyebrow}
+              heading={heading}
+              highlightedText={highlightedText}
+              subtitle={subtitle}
+              supportingText={supportingText}
+              buttons={buttons}
+              keyColor={keyColor}
+              semanticH1={semanticH1}
+            />
           </div>
-        )}
 
-        {/* Content on solid background */}
-        <div
-          className="px-5 pb-12 pt-10 lg:px-8 lg:pb-16 lg:pt-14"
-          style={keyColor ? { backgroundColor: keyColor } : undefined}
-        >
-          <div className="mx-auto max-w-[80rem]">
-            <div className="max-w-2xl">
-              <HeroContent
-                eyebrow={eyebrow}
-                heading={heading}
-                highlightedText={highlightedText}
-                subtitle={subtitle}
-                supportingText={supportingText}
-                buttons={buttons}
-                keyColor={keyColor ? '#FEFAF4' : undefined}
-                semanticH1={semanticH1}
+          <div className="relative order-first aspect-video w-full overflow-hidden shadow-[0_28px_70px_rgba(0,0,0,0.53)] lg:order-none">
+            {imageUrl && (
+              <MediaImage
+                media={image}
+                fill
+                priority
+                sizes="(max-width: 1023px) 100vw, (max-width: 1280px) 60vw, 720px"
+                className="h-full w-full object-cover"
               />
-            </div>
+            )}
           </div>
         </div>
       </section>
