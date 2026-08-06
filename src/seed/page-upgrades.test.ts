@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   upgradeLegacyAboutPage,
   upgradeLegacyBeliefsPage,
+  upgradeLegacyConnectGroupsPage,
   upgradeLegacyHomePage,
   upgradeLegacyVisitPage,
 } from './page-upgrades'
@@ -19,6 +20,41 @@ function body(...paragraphs: string[]) {
 }
 
 describe('targeted page upgrades', () => {
+  it('removes only the legacy season-of-life grid from Connect Groups', () => {
+    const upgrade = upgradeLegacyConnectGroupsPage(
+      {
+        layout: [
+          { id: 'intro-id', blockType: 'content', heading: 'What are Connect Groups?' },
+          {
+            id: 'legacy-grid-id',
+            blockType: 'manualCardGrid',
+            heading: 'Groups for every season of life',
+          },
+          { id: 'photos-id', blockType: 'photoStrip' },
+        ],
+      },
+      {},
+    )
+
+    expect(upgrade?.layout).toEqual([
+      { id: 'intro-id', blockType: 'content', heading: 'What are Connect Groups?' },
+      { id: 'photos-id', blockType: 'photoStrip' },
+    ])
+    expect(
+      upgradeLegacyConnectGroupsPage(
+        {
+          layout: [
+            {
+              blockType: 'manualCardGrid',
+              heading: 'Editor-created groups',
+            },
+          ],
+        },
+        {},
+      ),
+    ).toBeNull()
+  })
+
   it('updates only legacy homepage hero fields and preserves editorial state', () => {
     const document = {
       _status: 'draft',

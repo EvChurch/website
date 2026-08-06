@@ -146,7 +146,7 @@ describe('seeded page content and giving navigation', () => {
 
   it('preserves editor-managed pages and limits upgrades to known legacy copy', () => {
     expect(seedSource).toContain('Preserving editor-managed page: ${slug}')
-    expect(seedSource.match(/upgradeExisting: upgradeLegacy/g)).toHaveLength(4)
+    expect(seedSource.match(/upgradeExisting: upgradeLegacy/g)).toHaveLength(5)
     expect(seedSource).toContain('data: upgrade')
     expect(seedSource).not.toContain('data: { ...document, ...data }')
   })
@@ -171,6 +171,16 @@ describe('seeded page content and giving navigation', () => {
 
     expect(visitSection).toContain("You don't have to. You're welcome to just turn up.")
     expect(visitSection).toContain('help with kids check-in')
+  })
+
+  it('omits the season-of-life card grid from Connect Groups', () => {
+    const connectGroupsSection = sourceSection(
+      "await upsertPage('connect-groups'",
+      "await upsertPage('give'",
+    )
+
+    expect(connectGroupsSection).not.toContain('Groups for every season of life')
+    expect(connectGroupsSection).not.toContain("title: 'Young Adults'")
   })
 
   it('links Contact page campus cards to their campus pages while retaining maps', () => {

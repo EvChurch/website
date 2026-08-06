@@ -208,6 +208,19 @@ export const upgradeLegacyAboutPage: PageUpgrade = (document, desired) => {
   return { layout }
 }
 
+export const upgradeLegacyConnectGroupsPage: PageUpgrade = (document) => {
+  const layout = blocks(document)
+  const nextLayout = layout.filter(
+    (block) =>
+      !(
+        block.blockType === 'manualCardGrid' &&
+        block.heading === 'Groups for every season of life'
+      ),
+  )
+
+  return nextLayout.length === layout.length ? null : { layout: nextLayout }
+}
+
 export const upgradeLegacyBeliefsPage: PageUpgrade = (document, desired) => {
   const layout = blocks(document)
   const desiredLayout = blocks(desired)

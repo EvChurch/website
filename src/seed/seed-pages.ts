@@ -11,6 +11,7 @@ import { CAMPUS_PAGE_DEFAULTS, ensureCampusPageDefaults } from './campus-pages'
 import {
   upgradeLegacyAboutPage,
   upgradeLegacyBeliefsPage,
+  upgradeLegacyConnectGroupsPage,
   upgradeLegacyHomePage,
   upgradeLegacyVisitPage,
   type PageUpgrade,
@@ -1433,51 +1434,6 @@ async function seed() {
         alignment: 'center',
       },
       {
-        blockType: 'manualCardGrid',
-        eyebrow: 'Find a group',
-        heading: 'Groups for every season of life',
-        cardStyle: 'info',
-        columns: '3',
-        cards: [
-          {
-            title: 'Young Adults',
-            subtitle: 'Wednesday evenings',
-            description: 'For people in their 20s and early 30s navigating work, relationships, and faith.',
-            details: [{ label: 'Location', value: 'Various locations' }],
-          },
-          {
-            title: 'Couples',
-            subtitle: 'Thursday evenings',
-            description: 'For couples at any stage. Build friendships with others doing life together.',
-            details: [{ label: 'Location', value: 'Various homes' }],
-          },
-          {
-            title: 'Women',
-            subtitle: 'Tuesday mornings',
-            description: 'A supportive space for women to connect, share, and grow in faith.',
-            details: [{ label: 'Location', value: 'Various locations' }],
-          },
-          {
-            title: 'Men',
-            subtitle: 'Wednesday evenings',
-            description: 'Authentic conversations and genuine friendships for men of all ages.',
-            details: [{ label: 'Location', value: 'Various locations' }],
-          },
-          {
-            title: 'Families',
-            subtitle: 'Fortnightly Sundays',
-            description: 'For families with kids. Faith, food, and fun for the whole household.',
-            details: [{ label: 'Location', value: 'Various homes' }],
-          },
-          {
-            title: 'Mixed',
-            subtitle: 'Various evenings',
-            description: 'Open to anyone. A diverse group of people doing life and faith together.',
-            details: [{ label: 'Location', value: 'Various homes' }],
-          },
-        ],
-      },
-      {
         blockType: 'photoStrip',
         layout: 'horizontalScroll',
         images: [
@@ -1502,6 +1458,8 @@ async function seed() {
       metaTitle: 'Connect Groups Auckland | Small Groups at Ev Church',
       metaDescription: 'Join a Connect Group at Ev Church Auckland. Young adults, couples, women, men, and families meeting weekly across the city.',
     },
+  }, {
+    upgradeExisting: upgradeLegacyConnectGroupsPage,
   })
 
   /* ─────────────────────── NEXT STEPS PAGE (NEW) ─────────────────────── */
