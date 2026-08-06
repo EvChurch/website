@@ -230,6 +230,16 @@ describe('seeded page content and giving navigation', () => {
     expect(visitSection).toContain('help with kids check-in')
   })
 
+  it('omits the season-of-life card grid from Connect Groups', () => {
+    const connectGroupsSection = sourceSection(
+      "await upsertPage('connect-groups'",
+      "await upsertPage('give'",
+    )
+
+    expect(connectGroupsSection).not.toContain('Groups for every season of life')
+    expect(connectGroupsSection).not.toContain("title: 'Young Adults'")
+  })
+
   it('links Contact page campus cards to their campus pages while retaining maps', () => {
     const contactSection = sourceSection("await upsertPage('contact'", "await upsertPage('kids'")
 
