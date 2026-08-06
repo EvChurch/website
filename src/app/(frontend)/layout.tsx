@@ -10,7 +10,7 @@ import { VideoContainer } from '@/components/media/VideoContainer'
 import { AudioPlayerBar } from '@/components/audio/AudioPlayerBar'
 import { AudioPlayerSpacer } from '@/components/audio/AudioPlayerSpacer'
 import { isMemberAuthEnabled } from '@/auth/member-auth0-config'
-import { getCurrentMemberProfile } from '@/auth/member-session'
+import { getCurrentMemberProfileState } from '@/auth/member-session'
 import '@/styles/globals.css'
 
 export const metadata: Metadata = {
@@ -69,17 +69,20 @@ export const viewport: Viewport = {
 }
 
 export default async function FrontendLayout({ children }: { children: ReactNode }) {
-  const rockProfile = isMemberAuthEnabled()
-    ? await getCurrentMemberProfile()
+  const rockProfileState = isMemberAuthEnabled()
+    ? await getCurrentMemberProfileState()
     : undefined
-  const memberProfile = rockProfile === undefined
+  const memberProfile = rockProfileState === undefined
     ? undefined
-    : rockProfile === null
+    : rockProfileState === null
       ? null
       : {
-          name: rockProfile.name,
-          email: rockProfile.email,
-          avatarUrl: rockProfile.photoUrl ? '/member-avatar' : null,
+          name: rockProfileState.profile.name,
+          email: rockProfileState.profile.email,
+          avatarUrl:
+            rockProfileState.profile.photoUrl || rockProfileState.needsRefresh
+              ? '/member-avatar'
+              : null,
         }
 
   return (

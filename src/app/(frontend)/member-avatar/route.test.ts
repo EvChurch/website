@@ -9,9 +9,12 @@ const state = vi.hoisted(() => ({
   },
 }))
 const fetchMemberRockAvatar = vi.hoisted(() => vi.fn())
+const getCurrentMemberProfile = vi.hoisted(() =>
+  vi.fn(async () => state.profile),
+)
 
 vi.mock('@/auth/member-session', () => ({
-  getCurrentMemberProfile: vi.fn(async () => state.profile),
+  getCurrentMemberProfile,
 }))
 vi.mock('@/auth/member-rock-avatar', () => ({ fetchMemberRockAvatar }))
 
@@ -63,6 +66,9 @@ describe('member avatar route', () => {
     expect(fetchMemberRockAvatar).toHaveBeenCalledWith(
       '/GetImage.ashx?id=42',
     )
+    expect(getCurrentMemberProfile).toHaveBeenCalledWith({
+      persistLegacyProfile: true,
+    })
   })
 
   it('fails safely without ending the member session when the image is unusable', async () => {

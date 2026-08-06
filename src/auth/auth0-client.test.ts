@@ -83,7 +83,7 @@ describe('Auth0 callback', () => {
     const result = await state.options!.beforeSessionSaved(verifiedSession)
 
     expect(result.rockProfile).toEqual({
-      version: 1,
+      version: 2,
       status: 'resolved',
       profile: state.resolution.profile,
     })
@@ -99,7 +99,7 @@ describe('Auth0 callback', () => {
 
     const result = await state.options!.beforeSessionSaved(verifiedSession)
 
-    expect(result.rockProfile).toEqual({ version: 1, status: 'unresolved' })
+    expect(result.rockProfile).toEqual({ version: 2, status: 'unresolved' })
   })
 
   it('completes public sign-in without provisioning Payload access', async () => {

@@ -41,8 +41,6 @@ const person = {
   LastName: 'Lovelace',
   Email: 'ada@example.com',
   PhotoId: 42,
-  PhotoUrl:
-    '/GetAvatar.ashx?PhotoId=42&AgeClassification=Adult&Gender=Female&RecordTypeId=1&Text=AL',
 }
 
 describe('resolveRockMemberProfile', () => {
@@ -62,8 +60,7 @@ describe('resolveRockMemberProfile', () => {
         personId: 42,
         name: 'Ada Lovelace',
         email: 'ada@example.com',
-        photoUrl:
-          '/GetAvatar.ashx?PhotoId=42&AgeClassification=Adult&Gender=Female&RecordTypeId=1&Text=AL',
+        photoUrl: '/GetAvatar.ashx?PhotoId=42&Size=400',
       },
     })
     expect(mocks.memberRockFetch).toHaveBeenNthCalledWith(1, {
@@ -82,7 +79,7 @@ describe('resolveRockMemberProfile', () => {
       endpoint: 'People/42',
       params: {
         $select:
-          'Id,FullName,FirstName,NickName,LastName,Email,PhotoId,PhotoUrl',
+          'Id,FullName,FirstName,NickName,LastName,Email,PhotoId',
       },
       timeoutMs: 3_000,
     })
@@ -110,7 +107,7 @@ describe('resolveRockMemberProfile', () => {
       .mockResolvedValueOnce({
         ...person,
         FullName: null,
-        PhotoUrl: '   ',
+        PhotoId: null,
       })
 
     await expect(resolveRockMemberProfile(subject)).resolves.toEqual({
