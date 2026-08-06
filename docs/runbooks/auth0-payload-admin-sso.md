@@ -1,19 +1,19 @@
 # Auth0 Payload Admin SSO Runbook
 
-This runbook configures the dedicated EV Church Auth0 admin application, removes disposable local-login users, and promotes the first trusted Auth0 identity. Never run the database steps until the target is confirmed disposable or an approved snapshot exists.
+This runbook configures Payload admin access through EV Church's single website Auth0 application, removes disposable local-login users, and promotes the first trusted Auth0 identity. Never run the database steps until the target is confirmed disposable or an approved snapshot exists.
 
 ## Auth0 application
 
-Create a separate Regular Web Application in the existing EV Church Auth0 tenant. Do not reuse a Rock or future member client.
+Use the existing Rock-connected Regular Web Application for the replacement website. Do not create a separate Payload-admin or public-member application.
 
 - Allowed callback URL: `<APP_BASE_URL>/auth/callback`
 - Allowed logout URL: `<APP_BASE_URL>/`
 - Allowed web origin: `<APP_BASE_URL>`
 - Scopes: `openid profile email`
 - Do not request a Rock audience, refresh token, or `offline_access`.
-- Enable only the approved EV Church staff connections. Require MFA or the tenant's equivalent strong assurance for privileged staff, plus brute-force and breached-credential protections.
+- Enable the connections needed by the public website. Require MFA or the tenant's equivalent strong assurance for privileged staff, plus brute-force and breached-credential protections. Payload roles—not Auth0 connection membership—remain the admin authorization gate.
 
-Store `AUTH0_CLIENT_SECRET`, `AUTH0_SECRET`, and `PAYLOAD_SECRET` as distinct per-environment secrets in the deployment secret store. `AUTH0_SECRET` is 32 random bytes encoded as 64 hexadecimal characters. Limit secret access to deployment operators. Rotation of `AUTH0_SECRET` deliberately invalidates every existing admin application cookie.
+Store `AUTH0_CLIENT_SECRET`, `AUTH0_SECRET`, and `PAYLOAD_SECRET` as distinct per-environment secrets in the deployment secret store. `AUTH0_SECRET` is 32 random bytes encoded as 64 hexadecimal characters. Limit secret access to deployment operators. Rotating it invalidates the shared website Auth0 session.
 
 Before database work, deploy the application configuration and confirm `/admin` fails closed when any required value is missing. Do not print secret values in logs or deployment evidence.
 

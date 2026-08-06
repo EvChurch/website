@@ -4,12 +4,22 @@ import { NextResponse } from 'next/server'
 import { hasPayloadAdminRole } from '@/access/roles'
 import { identityFromSessionUser } from './auth0-identity'
 import { readAuth0Config } from './auth0-config'
+import {
+  createResolvedMemberMarker,
+  createUnresolvedMemberMarker,
+} from './member-session'
+import { resolveRockMemberProfile } from './rock-member-profile'
 import { safeAdminReturnTo } from './safe-admin-return'
+import { safeMemberReturnTo } from './safe-member-return'
 
 let cached: Auth0Client | undefined
 
 function logCallbackFailure(reason: 'invalid_callback' | 'provisioning_failed') {
   console.error({ event: 'auth0_admin_callback_failed', reason })
+}
+
+function isPublicMemberReturnTo(value: unknown) {
+  return typeof value === 'string' && safeMemberReturnTo(value) === value
 }
 
 export function getAuth0Client() {
@@ -38,7 +48,43 @@ export function getAuth0Client() {
         secure,
       },
     },
+    beforeSessionSaved: async (session) => {
+      try {
+        const resolution = await resolveRockMemberProfile(session.user.sub)
+        return {
+          ...session,
+          rockProfile: resolution.ok
+            ? createResolvedMemberMarker(resolution.profile)
+            : createUnresolvedMemberMarker(),
+        }
+      } catch {
+        console.warn('Member profile resolution did not complete', {
+          reason: 'unexpected-resolution-error',
+        })
+        return {
+          ...session,
+          rockProfile: createUnresolvedMemberMarker(),
+        }
+      }
+    },
     onCallback: async (error, context, session) => {
+      const adminCallback = !isPublicMemberReturnTo(context.returnTo)
+
+      if (!adminCallback) {
+        if (error || !session) {
+          return NextResponse.redirect(
+            new URL('/member-sign-in/error', config.appBaseUrl),
+          )
+        }
+
+        const completeUrl = new URL('/member-auth/complete', config.appBaseUrl)
+        completeUrl.searchParams.set(
+          'returnTo',
+          safeMemberReturnTo(context.returnTo),
+        )
+        return NextResponse.redirect(completeUrl)
+      }
+
       const errorUrl = new URL('/auth/error', config.appBaseUrl)
       if (error || !session) {
         logCallbackFailure('invalid_callback')

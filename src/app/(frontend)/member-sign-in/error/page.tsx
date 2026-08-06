@@ -17,7 +17,7 @@ export default function MemberSignInErrorPage() {
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <a
             className="inline-flex min-h-12 items-center justify-center rounded-full bg-rich-red px-6 py-3 font-semibold text-white transition hover:bg-brand-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rich-red"
-            href="/member-auth/login?returnTo=%2F"
+            href="/auth/login?returnTo=%2F"
           >
             Try signing in again
           </a>

@@ -13,8 +13,8 @@ const state = vi.hoisted(() => ({
 vi.mock('@/auth/member-session', () => ({
   getCurrentMemberProfile: vi.fn(async () => state.profile),
 }))
-vi.mock('@/auth/member-auth0-config', () => ({
-  readMemberAuth0Config: () => ({ appBaseUrl: 'https://www.ev.church/' }),
+vi.mock('@/auth/auth0-config', () => ({
+  readAuth0Config: () => ({ appBaseUrl: 'https://www.ev.church' }),
 }))
 
 import { GET } from './route'
@@ -44,7 +44,7 @@ describe('member auth completion', () => {
     expect(response.headers.get('cache-control')).toBe('private, no-store')
   })
 
-  it('sends an unresolved member through member logout before retry', async () => {
+  it('reports an unresolved member without destroying the shared Auth0 session', async () => {
     const response = await GET(
       new NextRequest(
         'https://www.ev.church/member-auth/complete?returnTo=%2Fadmin',
@@ -52,7 +52,7 @@ describe('member auth completion', () => {
     )
 
     expect(response.headers.get('location')).toBe(
-      'https://www.ev.church/member-auth/logout?returnTo=https%3A%2F%2Fwww.ev.church%2Fmember-sign-in%2Ferror',
+      'https://www.ev.church/member-sign-in/error',
     )
     expect(response.headers.get('cache-control')).toBe('private, no-store')
   })

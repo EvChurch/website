@@ -4,13 +4,9 @@ import { NextResponse } from 'next/server'
 import { getAuth0Client } from '@/auth/auth0-client'
 import { getAuth0SessionFromHeaders } from '@/auth/auth0-session'
 import { readAuth0Config } from '@/auth/auth0-config'
-import { getMemberAuth0Client } from '@/auth/member-auth0-client'
 import { safeAdminReturnTo } from '@/auth/safe-admin-return'
 
 export async function proxy(request: NextRequest) {
-  const isMemberAuthRoute =
-    request.nextUrl.pathname === '/member-auth' ||
-    request.nextUrl.pathname.startsWith('/member-auth/')
   const isAdminAuthRoute =
     request.nextUrl.pathname === '/auth' ||
     request.nextUrl.pathname.startsWith('/auth/')
@@ -18,7 +14,6 @@ export async function proxy(request: NextRequest) {
   const isAdminApiRoute = request.nextUrl.pathname.startsWith('/api')
 
   if (
-    !isMemberAuthRoute &&
     !isAdminAuthRoute &&
     !isAdminRoute &&
     !isAdminApiRoute
@@ -28,11 +23,9 @@ export async function proxy(request: NextRequest) {
 
   let response: NextResponse
   try {
-    response = isMemberAuthRoute
-      ? await getMemberAuth0Client().middleware(request)
-      : await getAuth0Client().middleware(request)
+    response = await getAuth0Client().middleware(request)
   } catch {
-    if (isMemberAuthRoute || isAdminRoute || isAdminAuthRoute) {
+    if (isAdminRoute || isAdminAuthRoute) {
       return new NextResponse('Authentication is temporarily unavailable.', {
         status: 503,
         headers: { 'Cache-Control': 'private, no-store, max-age=0' },
@@ -57,7 +50,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/member-auth/:path*',
     '/auth/:path*',
     '/admin/:path*',
     '/api/:path*',

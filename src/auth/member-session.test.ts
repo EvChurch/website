@@ -7,8 +7,8 @@ const state = vi.hoisted(() => ({
   sessionReadFails: false,
 }))
 
-vi.mock('./member-auth0-client', () => ({
-  getMemberAuth0Client: () => ({
+vi.mock('./auth0-client', () => ({
+  getAuth0Client: () => ({
     getSession: vi.fn(async () => {
       if (state.sessionReadFails) throw new Error('Invalid encrypted cookie')
       return state.currentSession

@@ -4,48 +4,48 @@ This runbook enables the Rock-backed public member sign-in. It does not grant Pa
 
 ## Security boundaries
 
-- Use a dedicated Auth0 Regular Web Application for public members. Never reuse the Payload admin application, its client secret, its session secret, or its cookie.
-- Use a dedicated Rock service credential for member identity, profile, and photo reads. Never copy `ROCK_API_KEY` into `MEMBER_ROCK_API_KEY`.
+- Use the website's single Auth0 application for both public-member and Payload-admin sign-in. Do not create a member-specific application.
+- Use the website's existing Rock API configuration for member identity, profile, and photo reads.
 - The website resolves only the case-sensitive OIDC `sub` stored by Rock. Email is a display field, never an identity key or fallback.
 - The website does not create or link Rock people. The existing Auth0-to-Rock connection owns that behavior.
 - Treat Auth0 subjects, Rock person IDs, cookies, and profile data as private. Do not place them in logs, screenshots, tickets, or deployment evidence.
 
-## Auth0 application
+## Single website Auth0 application
 
-For each environment, configure the dedicated member application with:
+Use the existing Rock-connected Auth0 application as the replacement website's only Auth0 application. Add both the public-member and Payload-admin URLs to that application's allowlists:
 
 - Application type: Regular Web Application
-- Allowed callback URL: `<MEMBER_AUTH0_APP_BASE_URL>/member-auth/callback`
-- Allowed logout URLs: `<MEMBER_AUTH0_APP_BASE_URL>/` and `<MEMBER_AUTH0_APP_BASE_URL>/member-sign-in/error`
-- Allowed web origin: `<MEMBER_AUTH0_APP_BASE_URL>`
+- Allowed callback URL: `<APP_BASE_URL>/auth/callback` (existing)
+- Allowed logout URLs: `<APP_BASE_URL>/` and `<APP_BASE_URL>/member-sign-in/error`
+- Allowed web origin: `<APP_BASE_URL>`
 - Scopes: `openid profile email`
 - No Rock API audience, refresh token, or `offline_access`
 
 Sign-in preserves the current safe public path. Normal logout returns to the fixed site root, while an incomplete sign-in returns to the fixed error page; these fixed destinations keep OIDC post-logout redirect registration exact. Never allow an external origin.
 
-Set these deployment secrets independently for each environment:
+Both application flows use the same Auth0 settings:
 
 | Setting | Purpose |
 |---|---|
-| `MEMBER_AUTH0_APP_BASE_URL` | Exact website origin, with no path or trailing credentials |
-| `MEMBER_AUTH0_DOMAIN` | Auth0 tenant domain without a path |
-| `MEMBER_AUTH0_CLIENT_ID` | Dedicated public-member application client ID |
-| `MEMBER_AUTH0_CLIENT_SECRET` | Dedicated public-member application client secret |
-| `MEMBER_AUTH0_SECRET` | Independent 32-byte session secret encoded as 64 hex characters |
-| `MEMBER_ROCK_API_URL` | Rock REST base, such as `https://rock.example.church/api` |
-| `MEMBER_ROCK_API_KEY` | Dedicated least-privilege Rock credential |
+| `APP_BASE_URL` | Exact website origin, with no path or trailing credentials |
+| `AUTH0_DOMAIN` | Existing Auth0 tenant/custom domain without a path |
+| `AUTH0_SECRET` | Existing 32-byte website session secret encoded as 64 hex characters |
+| `AUTH0_CLIENT_ID` | Client ID of the single Rock-connected website application |
+| `AUTH0_CLIENT_SECRET` | Client secret of the single Rock-connected website application |
+| `ROCK_API_URL` | Existing Rock REST base, such as `https://rock.example.church/api` |
+| `ROCK_API_KEY` | Existing website Rock API credential |
 
-Generate the member session secret with `openssl rand -hex 32`. Store all secrets in the deployment secret store, restrict operator access, and never print their values. The member application uses separate `ev_member_session` and `ev_member_txn_` cookie namespaces from Payload admin.
+Store secrets in the deployment secret store, restrict operator access, and never print their values. Public-member and Payload-admin sign-in use the existing `/auth/*` routes and encrypted Auth0 session. Payload roles remain the sole admin authorization gate; a member session without a recognized Payload role cannot access `/admin`.
 
-## Rock least-privilege access
+## Rock access
 
-Create a dedicated Rock service account/API key that can only:
+Confirm the existing website Rock API credential can:
 
 - read `UserLogin` fields required to validate the Auth0 authentication entity, exact `ForeignKey`, `AUTH0_<sub>` username, and linked `PersonId`;
 - read the linked `Person` name, email, and `PhotoUrl` fields; and
 - fetch that person's `/GetImage.ashx` image.
 
-It must not edit people, user logins, groups, workflows, attributes, or content. Deny unrelated REST controllers. Confirm the key can be revoked and rotated independently from website forms, sync workers, and Payload admin.
+Do not expand the existing credential beyond what these reads require. Because the credential is shared with other website integrations, test those integrations whenever it is changed or rotated.
 
 The avatar proxy accepts only the session-stored Rock photo reference, the configured Rock origin, and the documented `/GetImage.ashx` path with one `id` or `guid`. It does not accept a URL from the browser, follow redirects, proxy SVG, or reuse the shared `ROCK_API_KEY`.
 
@@ -54,7 +54,7 @@ The avatar proxy accepts only the session-stored Rock photo reference, the confi
 Perform this proof in a non-production environment first.
 
 1. Select one controlled Auth0 identity and record only an operator-owned evidence reference, not its raw `sub`.
-2. Authenticate through the public-member Auth0 application and inspect the Auth0 event securely to obtain that application's exact case-sensitive OIDC `sub`.
+2. Authenticate through the existing public Auth0 application and inspect the Auth0 event securely to obtain its exact case-sensitive OIDC `sub`.
 3. In Rock, confirm exactly one Auth0 `UserLogin` has that value in `ForeignKey`, the expected Auth0 authentication entity, username `AUTH0_<sub>`, and one linked person.
 4. Sign in through the website. Confirm the displayed name, email, and photo/fallback belong to that same person.
 5. Change the person's email in the controlled environment and sign in again. Confirm the same person resolves, proving email is not used for matching.
@@ -75,7 +75,7 @@ Duplicate creation, delayed linking beyond the callback budget, or a mismatched 
 
 ## Disabled configuration behavior
 
-Member auth is enabled only when every `MEMBER_AUTH0_*` and `MEMBER_ROCK_*` setting validates. With any setting absent, partial, or placeholder:
+Member auth is enabled only when the existing Auth0 and Rock settings validate. With any required setting absent, partial, or placeholder:
 
 - public pages continue anonymously without member account controls;
 - public pages do not attempt to read a member session;
@@ -95,15 +95,15 @@ After configuring a non-production environment, record pass/fail and timestamp f
 4. Reload and a nested public-page navigation retain the resolved member session.
 5. Keyboard and touch open and close the popover; Escape closes it and restores focus.
 6. Log out from a nested public page. The browser returns to the site root, all account controls return to signed-out state, and replaying the prior member cookie does not restore the profile.
-7. Hold valid admin and member sessions at the same time. Member login/logout must not delete or overwrite the admin local or transaction cookies, create a Payload user, or grant `/admin` access.
-8. Remove or invalidate one member setting. Anonymous pages remain healthy, member auth returns the private 503, and admin auth still works.
+7. Confirm a normal member session creates no Payload user and cannot access `/admin`. Confirm an authorized staff identity still reaches `/admin` through the same Auth0 session and the Payload role check.
+8. Remove or invalidate one shared Rock setting. Anonymous pages remain healthy and member auth returns the private 503. Invalidating a shared setting also affects the website's other Rock integrations.
 
-Member logout uses Auth0's supported OIDC logout. It clears only the member application's local cookie, but it can also end the shared Auth0 tenant SSO session. An existing Payload admin local cookie remains separate and usable until its own expiry; the next admin reauthentication may prompt. Confirm this tenant-wide effect is acceptable before production.
+Member logout uses the website's existing Auth0 OIDC logout and clears the shared website session. An administrator who logs out from the public account menu must authenticate again before returning to `/admin`.
 
 ## Rollout
 
 1. Deploy the code with member configuration absent so the feature remains disabled.
-2. Configure and verify the dedicated Auth0 application and least-privilege Rock credential in non-production.
+2. Confirm the existing Auth0 callback and the existing Auth0 and Rock website credentials in non-production. No callback URL change is required.
 3. Complete the exact-sub and controlled first-user proofs, then all smoke tests.
 4. Add the complete member configuration to production during an owned release window.
 5. Repeat the exact-sub proof with one approved real member and repeat the simultaneous admin/member isolation test.
@@ -113,14 +113,14 @@ Any identity ambiguity, unexpected Payload record, cookie collision, repeated ca
 
 ## Rollback
 
-Remove or invalidate the member-only configuration and redeploy. This hides the account controls, makes `/member-auth/*` unavailable, and prevents new member Rock calls without changing Payload admin auth or deleting upstream identities. Existing encrypted member cookies become unusable when the member session secret is removed or changed.
+Disable the member account controls in code and redeploy. Do not remove shared Auth0 or Rock settings as a member-only rollback because the rest of the website also uses them.
 
 Rollback does not delete Auth0 users, Rock people, or Rock user logins. Investigate and remediate any upstream duplicate through its owning system; do not add a website-side email fallback.
 
 ## Secret rotation
 
-- Rotate `MEMBER_AUTH0_CLIENT_SECRET` in Auth0 and the deployment secret store, deploy, then revoke the old value.
-- Rotate `MEMBER_AUTH0_SECRET` by generating a new 32-byte hex secret and deploying it. This intentionally invalidates all existing member sessions but not Payload admin sessions.
-- Rotate `MEMBER_ROCK_API_KEY` by creating a new least-privilege credential, proving its exact read scope and avatar access, deploying it, then revoking the old credential.
+- Rotate `AUTH0_CLIENT_SECRET` on the single website Auth0 application and in the deployment secret store, deploy, then revoke the old value. Coordinate this across both sign-in flows.
+- Rotate `AUTH0_SECRET` during a coordinated session reset; rotation invalidates the shared website session.
+- Rotate `ROCK_API_KEY` through the website's existing Rock credential procedure and retest all Rock-backed features, including member profile and avatar reads.
 
 Rotate one boundary at a time and repeat sign-in, profile, avatar, logout, and admin-isolation smoke tests after each change. Record only secret version identifiers and timestamps, never secret values.

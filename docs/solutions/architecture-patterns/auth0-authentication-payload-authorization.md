@@ -41,13 +41,13 @@ Auth0 login -> local user lookup/provisioning -> Payload role check
                                             -> no role: access-pending page
 ```
 
-Use a dedicated Auth0 application for admin SSO. The deployment runbook explicitly keeps it separate from Rock and future member clients (`docs/runbooks/auth0-payload-admin-sso.md:5`).
+One Auth0 application, callback, and encrypted session can serve both public-member and Payload-admin sign-in. The callback branches by safe return path: public sign-in resolves Rock and never provisions Payload access, while `/admin` sign-in retains Payload provisioning and the Payload role gate.
 
 ## Why This Matters
 
 Automatically assigning a default editor role would turn possession of any accepted Auth0 account into CMS access. Creating a roleless local record instead preserves identity continuity and gives administrators an auditable place to grant or remove Payload permissions without coupling authorization to Auth0 connection membership.
 
-This boundary also leaves room for future `/members` authentication: member sign-in can share the tenant while using a separate client, callback, session, and authorization policy.
+This boundary also supports public-member authentication through the existing Auth0 flow while keeping member identity resolution separate from Payload authorization.
 
 ## When to Apply
 
