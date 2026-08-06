@@ -1,0 +1,82 @@
+import { renderToStaticMarkup } from 'react-dom/server'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const mocks = vi.hoisted(() => ({
+  enabled: false,
+  getCurrentMemberProfile: vi.fn(),
+  header: vi.fn((_props: {
+    memberProfile?: {
+      name: string
+      email: string
+      avatarUrl: string | null
+    } | null
+  }) => null),
+}))
+
+vi.mock('@/auth/member-auth0-config', () => ({
+  isMemberAuthEnabled: () => mocks.enabled,
+}))
+vi.mock('@/auth/member-session', () => ({
+  getCurrentMemberProfile: mocks.getCurrentMemberProfile,
+}))
+vi.mock('@/components/layout/Header', () => ({ Header: mocks.header }))
+vi.mock('@/components/layout/Footer', () => ({ Footer: () => null }))
+vi.mock('@/components/layout/AnnouncementBanner', () => ({
+  AnnouncementBanner: () => null,
+}))
+vi.mock('@/components/seo/OrganizationJsonLd', () => ({
+  OrganizationJsonLd: () => null,
+}))
+vi.mock('@/components/seo/GoogleAnalytics', () => ({
+  GoogleAnalytics: () => null,
+}))
+vi.mock('@/components/media/MediaPlayerProvider', () => ({
+  MediaPlayerProvider: ({ children }: { children: React.ReactNode }) => children,
+}))
+vi.mock('@/components/media/VideoContainer', () => ({ VideoContainer: () => null }))
+vi.mock('@/components/audio/AudioPlayerBar', () => ({ AudioPlayerBar: () => null }))
+vi.mock('@/components/audio/AudioPlayerSpacer', () => ({ AudioPlayerSpacer: () => null }))
+
+import FrontendLayout from './layout'
+
+describe('FrontendLayout member account state', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.enabled = false
+  })
+
+  it('does not read a member session or show account controls when disabled', async () => {
+    renderToStaticMarkup(await FrontendLayout({ children: <main>Page</main> }))
+
+    expect(mocks.getCurrentMemberProfile).not.toHaveBeenCalled()
+    expect(mocks.header).toHaveBeenCalledWith(
+      { memberProfile: undefined },
+      undefined,
+    )
+  })
+
+  it('passes only display-safe member fields into the header', async () => {
+    mocks.enabled = true
+    mocks.getCurrentMemberProfile.mockResolvedValue({
+      personId: 42,
+      name: 'Aroha Ngata',
+      email: 'aroha@example.com',
+      photoUrl: '/GetImage.ashx?id=abc',
+    })
+
+    renderToStaticMarkup(await FrontendLayout({ children: <main>Page</main> }))
+
+    expect(mocks.header).toHaveBeenCalledWith(
+      {
+        memberProfile: {
+          name: 'Aroha Ngata',
+          email: 'aroha@example.com',
+          avatarUrl: '/member-avatar',
+        },
+      },
+      undefined,
+    )
+    const headerProps = mocks.header.mock.calls[0]?.[0]
+    expect(headerProps).not.toHaveProperty('personId')
+  })
+})

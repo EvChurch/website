@@ -9,6 +9,8 @@ import { MediaPlayerProvider } from '@/components/media/MediaPlayerProvider'
 import { VideoContainer } from '@/components/media/VideoContainer'
 import { AudioPlayerBar } from '@/components/audio/AudioPlayerBar'
 import { AudioPlayerSpacer } from '@/components/audio/AudioPlayerSpacer'
+import { isMemberAuthEnabled } from '@/auth/member-auth0-config'
+import { getCurrentMemberProfile } from '@/auth/member-session'
 import '@/styles/globals.css'
 
 export const metadata: Metadata = {
@@ -66,7 +68,20 @@ export const viewport: Viewport = {
   initialScale: 1,
 }
 
-export default function FrontendLayout({ children }: { children: ReactNode }) {
+export default async function FrontendLayout({ children }: { children: ReactNode }) {
+  const rockProfile = isMemberAuthEnabled()
+    ? await getCurrentMemberProfile()
+    : undefined
+  const memberProfile = rockProfile === undefined
+    ? undefined
+    : rockProfile === null
+      ? null
+      : {
+          name: rockProfile.name,
+          email: rockProfile.email,
+          avatarUrl: rockProfile.photoUrl ? '/member-avatar' : null,
+        }
+
   return (
     <html lang="en">
       <head>
@@ -79,7 +94,7 @@ export default function FrontendLayout({ children }: { children: ReactNode }) {
         <MediaPlayerProvider>
           <GoogleAnalytics />
           <AnnouncementBanner />
-          <Header />
+          <Header memberProfile={memberProfile} />
           <main>{children}</main>
           <Footer />
           <AudioPlayerSpacer />

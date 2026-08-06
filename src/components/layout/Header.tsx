@@ -4,6 +4,10 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useRef, useState, useCallback } from 'react'
+import {
+  MemberAccountControl,
+  type MemberDisplayProfile,
+} from './MemberAccountControl'
 
 type NavItem = {
   label: string
@@ -189,9 +193,11 @@ function ChevronDown({ className }: { className?: string }) {
 function MobileMenu({
   open,
   onClose,
+  memberProfile,
 }: {
   open: boolean
   onClose: () => void
+  memberProfile?: MemberDisplayProfile | null
 }) {
   const [expandedItem, setExpandedItem] = useState<string | null>(null)
 
@@ -292,6 +298,16 @@ function MobileMenu({
             </div>
           ))}
 
+          {memberProfile !== undefined && (
+            <div className="mt-6 border-b border-cool-grey/60 pb-6">
+              <MemberAccountControl
+                profile={memberProfile}
+                variant="drawer"
+                active={open}
+              />
+            </div>
+          )}
+
           {/* Mobile CTAs */}
           <div className="mt-8 space-y-3">
             <Link
@@ -316,7 +332,11 @@ function MobileMenu({
 }
 
 /* ─────────────── Header ─────────────── */
-export function Header() {
+export function Header({
+  memberProfile,
+}: {
+  memberProfile?: MemberDisplayProfile | null
+}) {
   const pathname = usePathname()
   const [scrolled, setScrolled] = useState(false)
   const [hidden, setHidden] = useState(false)
@@ -453,36 +473,58 @@ export function Header() {
             >
               Give
             </Link>
+            {memberProfile !== undefined && (
+              <MemberAccountControl
+                profile={memberProfile}
+                variant="desktop"
+                tone={scrolled ? 'dark' : 'light'}
+              />
+            )}
           </div>
 
-          {/* Mobile Hamburger */}
-          <button
-            className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors lg:hidden ${
-              scrolled ? 'text-brand-black hover:bg-warm-white' : 'text-white hover:bg-white/10'
-            }`}
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-expanded={mobileOpen}
-            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-          >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              stroke="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+          <div className="flex items-center gap-1 lg:hidden">
+            {memberProfile !== undefined && (
+              <MemberAccountControl
+                profile={memberProfile}
+                variant="mobile-icon"
+                tone={scrolled ? 'dark' : 'light'}
+                active={!mobileOpen}
               />
-            </svg>
-          </button>
+            )}
+
+            {/* Mobile Hamburger */}
+            <button
+              className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+                scrolled ? 'text-brand-black hover:bg-warm-white' : 'text-white hover:bg-white/10'
+              }`}
+              onClick={() => setMobileOpen(!mobileOpen)}
+              aria-expanded={mobileOpen}
+              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
       </header>
 
-      <MobileMenu open={mobileOpen} onClose={() => setMobileOpen(false)} />
+      <MobileMenu
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        memberProfile={memberProfile}
+      />
     </>
   )
 }
