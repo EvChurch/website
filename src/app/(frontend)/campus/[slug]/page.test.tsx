@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   find: vi.fn(),
@@ -80,7 +80,12 @@ const campus = {
 describe('Payload-managed campus page', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubEnv('GOOGLE_MAPS_API_KEY', 'test-api-key')
     mocks.find.mockResolvedValue({ docs: [campus] })
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   it('loads the campus by slug and renders its managed content and blocks', async () => {
@@ -108,7 +113,7 @@ describe('Payload-managed campus page', () => {
     expect(markup).toContain('A warm community on the North Shore.')
     expect(markup).toContain('/images/homepage/carousel-c645786c.jpg')
     expect(markup).toContain(
-      'src="https://www.google.com/maps?q=place_id%3AChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U&amp;output=embed"',
+      'src="https://www.google.com/maps/embed/v1/place?key=test-api-key&amp;q=place_id%3AChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U"',
     )
     expect(markup).toContain('title="Map showing Ev North"')
     expect(markup).toContain('href="#campus-map"')

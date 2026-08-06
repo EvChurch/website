@@ -267,7 +267,11 @@ export default async function CampusPage({
   const heroImage = getHeroImage(campus, content)
   const galleryImages = getGalleryImages(campus, content)
   const address = getAddress(campus) || content.locationLabel
-  const mapEmbedUrl = getGoogleMapsEmbedUrl(content.mapUrl, address)
+  const mapEmbedUrl = getGoogleMapsEmbedUrl(
+    content.mapUrl,
+    address,
+    process.env.GOOGLE_MAPS_API_KEY,
+  )
   const blocks = (campus.layout ?? []) as unknown as RenderableBlock[]
   const brandHeading = getBrandHeading(content.brandName)
 

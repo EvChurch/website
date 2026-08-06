@@ -75,6 +75,7 @@ function InfoCard({ card, index }: { card: ManualCard; index: number }) {
     ? getGoogleMapsEmbedUrl(
         mapUrl,
         card.address ?? card.description ?? card.title,
+        process.env.GOOGLE_MAPS_API_KEY,
       )
     : null
 
