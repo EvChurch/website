@@ -75,7 +75,7 @@ describe('MemberAccountControl', () => {
     expect(dialog?.textContent).toContain('Aroha Ngata')
     expect(dialog?.textContent).toContain('aroha@example.com')
     expect(dialog?.querySelector<HTMLAnchorElement>('a')?.getAttribute('href')).toBe(
-      '/member-auth/logout?returnTo=%2Fsermons%3Fcampus%3D2',
+      '/member-auth/logout?returnTo=%2F',
     )
     expect(dialog?.textContent).not.toContain('personId')
     expect(dialog?.textContent).not.toContain('Auth0')
