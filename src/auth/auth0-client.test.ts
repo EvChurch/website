@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const state = vi.hoisted(() => ({
   options: undefined as
     | {
+        beforeSessionSaved(
+          session: { user: Record<string, unknown> },
+        ): Promise<Record<string, unknown>>
         onCallback(
           error: Error | null,
           context: { returnTo?: string },
@@ -10,6 +13,16 @@ const state = vi.hoisted(() => ({
         ): Promise<Response>
       }
     | undefined,
+  resolution: {
+    ok: true,
+    profile: {
+      personId: 42,
+      name: 'Alex Member',
+      email: 'alex@example.com',
+      photoUrl: null,
+    },
+  },
+  rejectResolution: false,
 }))
 const provisionAuth0User = vi.hoisted(() => vi.fn())
 
@@ -34,6 +47,12 @@ vi.mock('./auth0-config', () => ({
 }))
 vi.mock('@/lib/payload', () => ({ getPayloadClient: () => ({}) }))
 vi.mock('./provision-auth0-user', () => ({ provisionAuth0User }))
+vi.mock('./rock-member-profile', () => ({
+  resolveRockMemberProfile: vi.fn(async () => {
+    if (state.rejectResolution) throw new Error('Rock unavailable')
+    return state.resolution
+  }),
+}))
 
 import { getAuth0Client } from './auth0-client'
 
@@ -55,6 +74,57 @@ function callback() {
 describe('Auth0 callback', () => {
   beforeEach(() => {
     provisionAuth0User.mockReset()
+    state.resolution.ok = true
+    state.rejectResolution = false
+  })
+
+  it('stores the resolved Rock profile in the shared Auth0 session', async () => {
+    getAuth0Client()
+    const result = await state.options!.beforeSessionSaved(verifiedSession)
+
+    expect(result.rockProfile).toEqual({
+      version: 1,
+      status: 'resolved',
+      profile: state.resolution.profile,
+    })
+  })
+
+  it.each([
+    ['an unresolved Rock identity', false],
+    ['a Rock resolution failure', true],
+  ])('keeps the shared session fail-closed for %s', async (_label, rejects) => {
+    getAuth0Client()
+    state.resolution.ok = false
+    state.rejectResolution = rejects
+
+    const result = await state.options!.beforeSessionSaved(verifiedSession)
+
+    expect(result.rockProfile).toEqual({ version: 1, status: 'unresolved' })
+  })
+
+  it('completes public sign-in without provisioning Payload access', async () => {
+    const response = await callback()(
+      null,
+      { returnTo: '/events?campus=2' },
+      verifiedSession,
+    )
+
+    expect(provisionAuth0User).not.toHaveBeenCalled()
+    expect(response.headers.get('location')).toBe(
+      'https://www.ev.church/member-auth/complete?returnTo=%2Fevents%3Fcampus%3D2',
+    )
+  })
+
+  it.each([
+    ['an SDK error', new Error('callback failed'), verifiedSession],
+    ['a missing session', null, null],
+  ])('fails public sign-in closed for %s', async (_label, error, session) => {
+    const response = await callback()(error, { returnTo: '/events' }, session)
+
+    expect(provisionAuth0User).not.toHaveBeenCalled()
+    expect(response.headers.get('location')).toBe(
+      'https://www.ev.church/member-sign-in/error',
+    )
   })
 
   it.each([

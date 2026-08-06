@@ -158,7 +158,7 @@ export function MemberAccountControl({
   if (!profile) {
     return (
       <a
-        href={`/member-auth/login?returnTo=${returnTo}`}
+        href={`/auth/login?returnTo=${returnTo}`}
         aria-label="Sign in"
         className={isDrawer
           ? 'flex min-h-12 w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold text-brand-black transition-colors hover:bg-warm-white'
@@ -212,7 +212,7 @@ export function MemberAccountControl({
             </div>
           </div>
           <a
-            href="/member-auth/logout"
+            href="/auth/logout"
             className="mt-5 flex min-h-10 w-full items-center justify-center rounded-md border border-rich-red px-4 py-2 text-sm font-semibold text-rich-red transition-colors hover:bg-rich-red hover:text-white"
           >
             Log out

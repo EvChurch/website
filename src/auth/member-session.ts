@@ -97,9 +97,8 @@ export function getMemberProfileFromSession(
 
 export async function getCurrentMemberProfile(): Promise<RockMemberProfile | null> {
   try {
-    const { getMemberAuth0Client } = await import('./member-auth0-client')
-    const session: SessionData | null =
-      await getMemberAuth0Client().getSession()
+    const { getAuth0Client } = await import('./auth0-client')
+    const session: SessionData | null = await getAuth0Client().getSession()
     return getMemberProfileFromSession(session)
   } catch {
     return null

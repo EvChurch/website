@@ -16,7 +16,7 @@ describe('safe member return destinations', () => {
     '/admin/pages',
     '/api/users',
     '/auth/login',
-    '/member-auth/callback',
+    '/member-auth/complete',
     '/events/%2f%2fevil.example',
   ])('rejects %s', (value) => {
     expect(safeMemberReturnTo(value)).toBe('/')

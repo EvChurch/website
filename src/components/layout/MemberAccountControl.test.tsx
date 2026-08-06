@@ -49,7 +49,7 @@ describe('MemberAccountControl', () => {
 
     const link = container.querySelector<HTMLAnchorElement>('a[aria-label="Sign in"]')
     expect(link?.getAttribute('href')).toBe(
-      '/member-auth/login?returnTo=%2Fsermons%3Fcampus%3D2',
+      '/auth/login?returnTo=%2Fsermons%3Fcampus%3D2',
     )
     expect(link?.className).toContain('min-h-10')
     expect(container.textContent).not.toContain('Aroha')
@@ -75,7 +75,7 @@ describe('MemberAccountControl', () => {
     expect(dialog?.textContent).toContain('Aroha Ngata')
     expect(dialog?.textContent).toContain('aroha@example.com')
     expect(dialog?.querySelector<HTMLAnchorElement>('a')?.getAttribute('href')).toBe(
-      '/member-auth/logout',
+      '/auth/logout',
     )
     expect(dialog?.textContent).not.toContain('personId')
     expect(dialog?.textContent).not.toContain('Auth0')

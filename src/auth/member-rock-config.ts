@@ -5,7 +5,7 @@ export interface MemberRockRuntimeConfig {
 
 const placeholder = /change-me|replace-me|generate-with/i
 
-function requiredMemberRockSetting(name: string) {
+function requiredRockSetting(name: string) {
   const value = process.env[name]?.trim()
   if (!value || placeholder.test(value)) {
     throw new Error(`Missing or placeholder ${name}`)
@@ -14,19 +14,19 @@ function requiredMemberRockSetting(name: string) {
 }
 
 export function readMemberRockConfig(): MemberRockRuntimeConfig {
-  const url = new URL(requiredMemberRockSetting('MEMBER_ROCK_API_URL'))
+  const url = new URL(requiredRockSetting('ROCK_API_URL'))
   if (url.search || url.hash || url.username || url.password) {
-    throw new Error('MEMBER_ROCK_API_URL must not contain credentials, query, or hash')
+    throw new Error('ROCK_API_URL must not contain credentials, query, or hash')
   }
   if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') {
-    throw new Error('MEMBER_ROCK_API_URL must use HTTPS in production')
+    throw new Error('ROCK_API_URL must use HTTPS in production')
   }
   if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-    throw new Error('MEMBER_ROCK_API_URL must use HTTP or HTTPS')
+    throw new Error('ROCK_API_URL must use HTTP or HTTPS')
   }
 
   return {
-    apiKey: requiredMemberRockSetting('MEMBER_ROCK_API_KEY'),
+    apiKey: requiredRockSetting('ROCK_API_KEY'),
     apiUrl: url.toString().replace(/\/$/, ''),
   }
 }
