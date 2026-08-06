@@ -40,7 +40,9 @@ const person = {
   NickName: 'Ada',
   LastName: 'Lovelace',
   Email: 'ada@example.com',
-  PhotoUrl: '/GetImage.ashx?id=42',
+  PhotoId: 42,
+  PhotoUrl:
+    '/GetAvatar.ashx?PhotoId=42&AgeClassification=Adult&Gender=Female&RecordTypeId=1&Text=AL',
 }
 
 describe('resolveRockMemberProfile', () => {
@@ -60,7 +62,8 @@ describe('resolveRockMemberProfile', () => {
         personId: 42,
         name: 'Ada Lovelace',
         email: 'ada@example.com',
-        photoUrl: '/GetImage.ashx?id=42',
+        photoUrl:
+          '/GetAvatar.ashx?PhotoId=42&AgeClassification=Adult&Gender=Female&RecordTypeId=1&Text=AL',
       },
     })
     expect(mocks.memberRockFetch).toHaveBeenNthCalledWith(1, {
@@ -78,7 +81,8 @@ describe('resolveRockMemberProfile', () => {
     expect(mocks.memberRockFetch).toHaveBeenNthCalledWith(2, {
       endpoint: 'People/42',
       params: {
-        $select: 'Id,FullName,FirstName,NickName,LastName,Email,PhotoUrl',
+        $select:
+          'Id,FullName,FirstName,NickName,LastName,Email,PhotoId,PhotoUrl',
       },
       timeoutMs: 3_000,
     })
@@ -117,6 +121,33 @@ describe('resolveRockMemberProfile', () => {
         email: 'ada@example.com',
         photoUrl: null,
       },
+    })
+  })
+
+  it('uses the local initials fallback when Rock has no profile photo', async () => {
+    mocks.memberRockFetch
+      .mockResolvedValueOnce([login])
+      .mockResolvedValueOnce({
+        ...person,
+        PhotoId: null,
+        PhotoUrl:
+          '/GetAvatar.ashx?AgeClassification=Adult&Gender=Female&RecordTypeId=1&Text=AL',
+      })
+
+    await expect(resolveRockMemberProfile(subject)).resolves.toMatchObject({
+      ok: true,
+      profile: { photoUrl: null },
+    })
+  })
+
+  it('uses the local initials fallback when Rock omits PhotoId', async () => {
+    mocks.memberRockFetch
+      .mockResolvedValueOnce([login])
+      .mockResolvedValueOnce({ ...person, PhotoId: undefined })
+
+    await expect(resolveRockMemberProfile(subject)).resolves.toMatchObject({
+      ok: true,
+      profile: { photoUrl: null },
     })
   })
 
@@ -202,6 +233,10 @@ describe('resolveRockMemberProfile', () => {
     ],
     ['missing email', { ...person, Email: '   ' }],
     ['wrong person', { ...person, Id: 99 }],
+    ['zero photo id', { ...person, PhotoId: 0 }],
+    ['negative photo id', { ...person, PhotoId: -1 }],
+    ['fractional photo id', { ...person, PhotoId: 1.5 }],
+    ['string photo id', { ...person, PhotoId: '42' }],
   ])('rejects a person response with %s', async (_label, invalidPerson) => {
     mocks.memberRockFetch
       .mockResolvedValueOnce([login])

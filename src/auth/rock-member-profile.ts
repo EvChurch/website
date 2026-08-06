@@ -33,6 +33,7 @@ interface RockPersonResponse {
   NickName?: string | null
   LastName?: string | null
   Email?: string | null
+  PhotoId?: number | null
   PhotoUrl?: string | null
 }
 
@@ -200,6 +201,11 @@ function parsePerson(value: unknown, personId: number): RockPersonResponse | nul
     !optionalTextIsValid(value.NickName) ||
     !optionalTextIsValid(value.LastName) ||
     !optionalTextIsValid(value.Email) ||
+    !(
+      value.PhotoId === undefined ||
+      value.PhotoId === null ||
+      isPositiveInteger(value.PhotoId)
+    ) ||
     !optionalTextIsValid(value.PhotoUrl)
   ) {
     return null
@@ -212,6 +218,7 @@ function parsePerson(value: unknown, personId: number): RockPersonResponse | nul
     NickName: value.NickName as string | null | undefined,
     LastName: value.LastName as string | null | undefined,
     Email: value.Email as string | null | undefined,
+    PhotoId: value.PhotoId as number | null | undefined,
     PhotoUrl: value.PhotoUrl as string | null | undefined,
   }
 }
@@ -242,7 +249,9 @@ function toProfile(person: RockPersonResponse): RockMemberProfile | null {
   }
 
   const photoUrl =
-    typeof person.PhotoUrl === 'string' && person.PhotoUrl.trim()
+    isPositiveInteger(person.PhotoId) &&
+    typeof person.PhotoUrl === 'string' &&
+    person.PhotoUrl.trim()
       ? person.PhotoUrl.trim()
       : null
 
@@ -281,7 +290,8 @@ export async function resolveRockMemberProfile(
   const personResponse = await requestRock({
     endpoint: `People/${login.PersonId}`,
     params: {
-      $select: 'Id,FullName,FirstName,NickName,LastName,Email,PhotoUrl',
+      $select:
+        'Id,FullName,FirstName,NickName,LastName,Email,PhotoId,PhotoUrl',
     },
   })
   if (!personResponse.ok) {

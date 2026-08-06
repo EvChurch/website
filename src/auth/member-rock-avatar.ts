@@ -1,6 +1,7 @@
 import { readMemberRockConfig } from './member-rock-config'
 
 const ROCK_IMAGE_PATH = '/GetImage.ashx'
+const ROCK_AVATAR_PATH = '/GetAvatar.ashx'
 const AVATAR_TIMEOUT_MS = 3_000
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 const MAX_IMAGE_DIMENSION = 2_048
@@ -48,6 +49,93 @@ function isGuid(value: string) {
   )
 }
 
+function hasControlCharacters(value: string) {
+  return /[\u0000-\u001f\u007f]/u.test(value)
+}
+
+function readUniqueParameters(
+  photoUrl: URL,
+  allowedNames: ReadonlySet<string>,
+) {
+  const parameters = new Map<string, string>()
+  for (const [rawName, value] of photoUrl.searchParams) {
+    const name = rawName.toLowerCase()
+    if (!allowedNames.has(name) || parameters.has(name)) return null
+    parameters.set(name, value)
+  }
+  return parameters
+}
+
+function isAllowedImageUrl(photoUrl: URL) {
+  const parameters = readUniqueParameters(
+    photoUrl,
+    new Set(['id', 'guid', 'w', 'h']),
+  )
+  if (!parameters) return false
+
+  const id = parameters.get('id')
+  const guid = parameters.get('guid')
+  if ((id ? 1 : 0) + (guid ? 1 : 0) !== 1) return false
+  if (id && !isPositiveInteger(id, Number.MAX_SAFE_INTEGER)) return false
+  if (guid && !isGuid(guid)) return false
+
+  for (const dimension of ['w', 'h']) {
+    const value = parameters.get(dimension)
+    if (value && !isPositiveInteger(value, MAX_IMAGE_DIMENSION)) return false
+  }
+
+  return true
+}
+
+function isAllowedAvatarUrl(photoUrl: URL) {
+  const parameters = readUniqueParameters(
+    photoUrl,
+    new Set([
+      'photoid',
+      'fileidkey',
+      'ageclassification',
+      'gender',
+      'recordtypeid',
+      'text',
+      'style',
+      'size',
+    ]),
+  )
+  if (!parameters) return false
+
+  const photoId = parameters.get('photoid')
+  const fileIdKey = parameters.get('fileidkey')
+  if ((photoId ? 1 : 0) + (fileIdKey ? 1 : 0) !== 1) return false
+  if (photoId && !isPositiveInteger(photoId, Number.MAX_SAFE_INTEGER)) {
+    return false
+  }
+  if (fileIdKey && !/^[a-z0-9_-]{1,128}$/iu.test(fileIdKey)) return false
+
+  for (const name of ['ageclassification', 'gender']) {
+    const value = parameters.get(name)
+    if (value && !/^[a-z][a-z0-9]{0,31}$/iu.test(value)) return false
+  }
+
+  const recordTypeId = parameters.get('recordtypeid')
+  if (
+    recordTypeId &&
+    !isPositiveInteger(recordTypeId, Number.MAX_SAFE_INTEGER)
+  ) {
+    return false
+  }
+
+  const text = parameters.get('text')
+  if (text && (text.length > 16 || hasControlCharacters(text))) return false
+
+  const style = parameters.get('style')
+  if (style && style.toLowerCase() !== 'icon') return false
+
+  const size = parameters.get('size')
+  if (size && !isPositiveInteger(size, MAX_IMAGE_DIMENSION)) return false
+
+  return true
+}
+
 function resolveAllowedPhotoUrl(
   photoReference: string,
   apiUrl: string,
@@ -64,34 +152,15 @@ function resolveAllowedPhotoUrl(
     photoUrl.origin !== rockOrigin ||
     photoUrl.username ||
     photoUrl.password ||
-    photoUrl.hash ||
-    photoUrl.pathname !== ROCK_IMAGE_PATH
+    photoUrl.hash
   ) {
     return null
   }
 
-  const parameters = new Map<string, string>()
-  for (const [rawName, value] of photoUrl.searchParams) {
-    const name = rawName.toLowerCase()
-    if (
-      !['id', 'guid', 'w', 'h'].includes(name) ||
-      parameters.has(name)
-    ) {
-      return null
-    }
-    parameters.set(name, value)
-  }
-
-  const id = parameters.get('id')
-  const guid = parameters.get('guid')
-  if ((id ? 1 : 0) + (guid ? 1 : 0) !== 1) return null
-  if (id && !isPositiveInteger(id, Number.MAX_SAFE_INTEGER)) return null
-  if (guid && !isGuid(guid)) return null
-
-  for (const dimension of ['w', 'h']) {
-    const value = parameters.get(dimension)
-    if (value && !isPositiveInteger(value, MAX_IMAGE_DIMENSION)) return null
-  }
+  const allowed =
+    (photoUrl.pathname === ROCK_IMAGE_PATH && isAllowedImageUrl(photoUrl)) ||
+    (photoUrl.pathname === ROCK_AVATAR_PATH && isAllowedAvatarUrl(photoUrl))
+  if (!allowed) return null
 
   return photoUrl
 }

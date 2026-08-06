@@ -51,11 +51,93 @@ describe('member Rock avatar client', () => {
   })
 
   it.each([
+    [
+      'numeric photo id',
+      '/GetAvatar.ashx?PhotoId=42&AgeClassification=Adult&Gender=Male&RecordTypeId=1&Text=AM',
+    ],
+    [
+      'hashed photo id',
+      '/GetAvatar.ashx?fileIdKey=AbC123_xYz&AgeClassification=Adult&Gender=Male&RecordTypeId=1&Text=AM&Style=Icon&Size=128',
+    ],
+  ])('fetches a Rock avatar using a %s', async (_label, photoReference) => {
+    const fetchMock = vi.fn(async () =>
+      new Response(bytes(3), {
+        headers: { 'content-type': 'image/jpeg', 'content-length': '3' },
+      }),
+    )
+    global.fetch = fetchMock
+
+    await expect(fetchMemberRockAvatar(photoReference)).resolves.toEqual({
+      body: bytes(3),
+      contentType: 'image/jpeg',
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL(`https://rock.example.test${photoReference}`),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'Authorization-Token': 'member-only-key',
+        }),
+        redirect: 'manual',
+      }),
+    )
+  })
+
+  it.each([
     ['arbitrary host', 'https://attacker.example/GetImage.ashx?id=42'],
     ['arbitrary path', '/api/People/42'],
     ['path smuggling', '/GetImage.ashx/../People?id=42'],
     ['unsupported query', '/GetImage.ashx?url=https://attacker.example'],
     ['missing image identity', '/GetImage.ashx?w=200'],
+    ['avatar without a photo identity', '/GetAvatar.ashx?Text=AM'],
+    [
+      'avatar with an unsupported query',
+      '/GetAvatar.ashx?PhotoId=42&url=https://attacker.example',
+    ],
+    [
+      'avatar with duplicate identity parameters',
+      '/GetAvatar.ashx?PhotoId=42&fileIdKey=AbC123',
+    ],
+    ['avatar with an invalid photo id', '/GetAvatar.ashx?PhotoId=0'],
+    ['avatar with an invalid file key', '/GetAvatar.ashx?fileIdKey=bad.key'],
+    [
+      'avatar with malformed age classification',
+      '/GetAvatar.ashx?PhotoId=42&AgeClassification=Adult%20User',
+    ],
+    [
+      'avatar with malformed gender',
+      '/GetAvatar.ashx?PhotoId=42&Gender=Not%2FAValue',
+    ],
+    [
+      'avatar with an invalid record type',
+      '/GetAvatar.ashx?PhotoId=42&RecordTypeId=0',
+    ],
+    [
+      'avatar with overlong text',
+      `/GetAvatar.ashx?PhotoId=42&Text=${'A'.repeat(17)}`,
+    ],
+    [
+      'avatar with control-character text',
+      '/GetAvatar.ashx?PhotoId=42&Text=AM%0A',
+    ],
+    [
+      'avatar with unsupported style',
+      '/GetAvatar.ashx?PhotoId=42&Style=Square',
+    ],
+    ['avatar with zero size', '/GetAvatar.ashx?PhotoId=42&Size=0'],
+    ['avatar with oversized size', '/GetAvatar.ashx?PhotoId=42&Size=2049'],
+    [
+      'avatar with case-variant duplicate parameters',
+      '/GetAvatar.ashx?PhotoId=42&PHOTOID=43',
+    ],
+    [
+      'avatar with a fragment',
+      '/GetAvatar.ashx?PhotoId=42#unexpected',
+    ],
+    [
+      'avatar with embedded credentials',
+      'https://user:password@rock.example.test/GetAvatar.ashx?PhotoId=42',
+    ],
   ])('rejects an %s before contacting Rock', async (_label, photoReference) => {
     const fetchMock = vi.fn()
     global.fetch = fetchMock
