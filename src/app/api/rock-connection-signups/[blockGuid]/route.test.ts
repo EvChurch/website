@@ -88,8 +88,12 @@ function signedContext(overrides: Partial<RockConnectionContext> = {}): RockConn
   }
 }
 
-function request(body: Record<string, unknown>, headers: Record<string, string> = {}) {
-  return new NextRequest(`https://www.ev.church/api/rock-connection-signups/${blockGuid}`, {
+function request(
+  body: Record<string, unknown>,
+  headers: Record<string, string> = {},
+  url = `https://www.ev.church/api/rock-connection-signups/${blockGuid}`,
+) {
+  return new NextRequest(url, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -110,7 +114,8 @@ describe('public Rock Connection signup route', () => {
     vi.stubEnv('ROCK_CONNECTION_CONTEXT_KEYS', `current:${Buffer.alloc(32, 7).toString('base64')}`)
     vi.stubEnv('ROCK_CONNECTION_RATE_LIMIT_SECRET', 'a'.repeat(32))
     vi.stubEnv('ROCK_CONNECTION_TRUST_CF_CONNECTING_IP', 'true')
-    vi.stubEnv('TURNSTILE_EXPECTED_HOSTNAME', 'www.ev.church')
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'www.ev.church')
     verifyTurnstileToken.mockResolvedValue(undefined)
     isRockConnectionSignupPublished.mockResolvedValue(true)
     initializeRockConnectionSignup.mockResolvedValue(schema())
@@ -139,6 +144,24 @@ describe('public Rock Connection signup route', () => {
     expect(result.schema).not.toHaveProperty('sessionGuid')
     expect(result.schema).not.toHaveProperty('interactionGuid')
     expect(result.contextToken).toEqual(expect.any(String))
+  })
+
+  it('uses the Railway public hostname for Turnstile behind the production proxy', async () => {
+    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'new.ev.church')
+    const response = await handlePost(
+      request(
+        { intent: 'start', turnstileToken: 'fresh-start' },
+        { origin: 'https://new.ev.church' },
+        `https://0.0.0.0:3000/api/rock-connection-signups/${blockGuid}`,
+      ),
+      context(),
+      { nonceStore: createMemoryNonceStore(), rateLimitStore: createMemoryRateLimitStore() },
+    )
+
+    expect(response.status).toBe(200)
+    expect(verifyTurnstileToken).toHaveBeenCalledWith(
+      expect.objectContaining({ expectedHostname: 'new.ev.church' }),
+    )
   })
 
   it('rejects cross-origin and invalid Turnstile requests before Rock', async () => {

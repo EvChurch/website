@@ -46,6 +46,7 @@ describe('Rock workflow person search route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'ev.church')
     mocks.verifyContext.mockReturnValue({
       workflowTypeGuid,
       allowedFields: [{ fieldTypeGuid: ROCK_FIELD_TYPES.person }],
