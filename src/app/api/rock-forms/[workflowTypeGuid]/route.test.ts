@@ -35,8 +35,12 @@ import { GET, POST } from './route'
 const workflowTypeGuid = '874418b5-a477-4382-94dc-38060b005bfa'
 const routeContext = { params: Promise.resolve({ workflowTypeGuid }) }
 
-function postRequest(body: FormData, origin = 'http://localhost') {
-  return new NextRequest(`http://localhost/api/rock-forms/${workflowTypeGuid}`, {
+function postRequest(
+  body: FormData,
+  origin = 'http://localhost',
+  url = `http://localhost/api/rock-forms/${workflowTypeGuid}`,
+) {
+  return new NextRequest(url, {
     method: 'POST',
     headers: { origin },
     body,
@@ -53,6 +57,7 @@ describe('Rock form route', () => {
 
   afterEach(() => {
     delete process.env.ROCK_WORKFLOW_REDIRECT_ORIGINS
+    vi.unstubAllEnvs()
     vi.restoreAllMocks()
   })
 
@@ -73,6 +78,29 @@ describe('Rock form route', () => {
     expect(response.status).toBe(200)
     expect(mocks.verifyTurnstile).toHaveBeenCalledOnce()
     expect(mocks.startForm).toHaveBeenCalledWith(workflowTypeGuid)
+  })
+
+  it('uses the Railway public hostname for Turnstile behind the production proxy', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'new.ev.church')
+    const body = new FormData()
+    body.set('intent', 'start')
+    body.set('turnstileToken', 'verified-token')
+    mocks.startForm.mockResolvedValue({ workflowName: 'Contact Us' })
+
+    const response = await POST(
+      postRequest(
+        body,
+        'https://new.ev.church',
+        `https://0.0.0.0:3000/api/rock-forms/${workflowTypeGuid}`,
+      ),
+      routeContext,
+    )
+
+    expect(response.status).toBe(200)
+    expect(mocks.verifyTurnstile).toHaveBeenCalledWith(
+      expect.objectContaining({ expectedHostname: 'new.ev.church' }),
+    )
   })
 
   it.each([

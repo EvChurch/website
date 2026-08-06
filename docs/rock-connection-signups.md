@@ -88,7 +88,7 @@ All values except the Turnstile site key are server-only. Keep them out of
 | `ROCK_API_KEY`                           | Least-privilege Rock credential for discovery, eligibility revalidation, initialization, and Signup.                                                    |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`         | Public Turnstile widget site key.                                                                                                                       |
 | `TURNSTILE_SECRET_KEY`                   | Server-side Turnstile verification secret.                                                                                                              |
-| `TURNSTILE_EXPECTED_HOSTNAME`            | Exact public hostname expected in Turnstile verification.                                                                                               |
+| `RAILWAY_PUBLIC_DOMAIN`                  | Railway-provided public hostname used for production Origin and Turnstile hostname verification.                                                        |
 | `ROCK_CONNECTION_CONTEXT_KEYS`           | Ordered `kid:base64-secret` key ring. First signs; current plus one previous may verify. Each decoded secret is at least 32 bytes.                      |
 | `ROCK_CONNECTION_RATE_LIMIT_SECRET`      | Separate secret of at least 32 bytes used to HMAC trusted client addresses.                                                                             |
 | `ROCK_CONNECTION_TRUST_CF_CONNECTING_IP` | Must be exactly `true` only after the Railway origin is locked to Cloudflare.                                                                           |

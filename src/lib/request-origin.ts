@@ -8,7 +8,14 @@ export function isSameOriginRequest(request: OriginRequest): boolean {
   if (!origin) return process.env.NODE_ENV !== 'production'
 
   try {
-    return new URL(origin).origin === request.nextUrl.origin
+    const expectedOrigin =
+      process.env.NODE_ENV === 'production'
+        ? process.env.RAILWAY_PUBLIC_DOMAIN
+          ? new URL(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`).origin
+          : null
+        : request.nextUrl.origin
+
+    return expectedOrigin !== null && new URL(origin).origin === expectedOrigin
   } catch {
     return false
   }

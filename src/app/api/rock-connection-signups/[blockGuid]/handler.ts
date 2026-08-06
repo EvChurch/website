@@ -97,9 +97,10 @@ function schemasMatchContext(schema: RockConnectionSignupSchema, context: RockCo
   )
 }
 
-function expectedHostname(request: NextRequest): string | null {
-  return process.env.TURNSTILE_EXPECTED_HOSTNAME ||
-    (process.env.NODE_ENV === 'production' ? request.nextUrl.hostname : null)
+function expectedHostname(): string | null {
+  return process.env.NODE_ENV === 'production'
+    ? process.env.RAILWAY_PUBLIC_DOMAIN || null
+    : null
 }
 
 function logFailure(correlationId: string, operation: string, failure: string, startedAt: number) {
@@ -122,7 +123,7 @@ async function protectRequest(
   await verifyTurnstileToken({
     token: typeof body.turnstileToken === 'string' ? body.turnstileToken : '',
     remoteIp: address,
-    expectedHostname: expectedHostname(request),
+    expectedHostname: expectedHostname(),
     expectedAction: routeClass === 'start' ? ROCK_CONNECTION_START_ACTION : ROCK_CONNECTION_SUBMIT_ACTION,
   })
 }

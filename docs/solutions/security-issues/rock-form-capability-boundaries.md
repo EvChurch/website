@@ -1,6 +1,7 @@
 ---
 title: Keep public Rock form capabilities confidential and recoverable
 date: 2026-08-04
+last_updated: 2026-08-06
 category: security-issues
 module: Rock RMS website forms
 problem_type: security_issue
@@ -42,6 +43,8 @@ Bound multipart input before calling `formData()`. `src/app/api/rock-forms/[work
 
 Apply the existing PostgreSQL-backed trusted-address limiter to person search. The route class `personSearch` has a maximum of 30 requests per ten-minute window and uses the same fail-closed Cloudflare address contract as Connection Signup requests.
 
+Validate production browser origins against the deployment's public hostname, not `request.nextUrl`. Cloudflare terminates the public request before Railway forwards it to Next.js, so `request.nextUrl` can contain Railway's internal `0.0.0.0:3000` origin. `src/lib/request-origin.ts` derives the exact HTTPS origin from `RAILWAY_PUBLIC_DOMAIN`, and both Turnstile-protected form routes use the same variable as their expected token hostname. A missing or malformed production value fails the Origin check before request processing.
+
 Return `restartRequired: true` when a Connection Signup context is invalid, its configuration changed, its nonce is gone, or Rock definitively rejected the request. The client clears only the spent context, obtains a fresh Turnstile-protected context, and preserves entered values that still exist in the refreshed schema. Ambiguous upstream outcomes remain terminal and must never offer automatic retry.
 
 ## Why This Works
@@ -53,6 +56,7 @@ AES-GCM provides confidentiality and integrity, so the browser cannot extract th
 - Treat every client-returned signed payload as readable unless it is encrypted.
 - Bound request bytes before parsers materialize multipart bodies.
 - Give public lookup endpoints strict Origin and durable per-client abuse limits.
+- Behind a reverse proxy, derive Origin and Turnstile hostname checks from one trusted public-domain setting; do not trust the application's internal request URL.
 - Model one-use capability failures explicitly as reusable, restart-required, or outcome-unknown.
 - Exercise migration up, refusal, down, and re-apply against real PostgreSQL when a migration owns security ledgers.
 

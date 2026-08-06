@@ -208,8 +208,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
       token: String(body.get('turnstileToken') || ''),
       remoteIp: request.headers.get('cf-connecting-ip'),
       expectedHostname:
-        process.env.TURNSTILE_EXPECTED_HOSTNAME ||
-        (process.env.NODE_ENV === 'production' ? request.nextUrl.hostname : null),
+        process.env.NODE_ENV === 'production'
+          ? process.env.RAILWAY_PUBLIC_DOMAIN || null
+          : null,
       expectedAction:
         process.env.NODE_ENV === 'production'
           ? isStart
