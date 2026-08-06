@@ -1,0 +1,566 @@
+// @vitest-environment happy-dom
+
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("next/navigation", () => ({ usePathname: () => "/about" }));
+vi.mock("@/components/forms/RockForm", () => ({
+  RockForm: ({ workflowTypeGuid }: { workflowTypeGuid: string }) => (
+    <label>
+      Form draft
+      <input aria-label={`Workflow ${workflowTypeGuid}`} />
+    </label>
+  ),
+}));
+vi.mock("@/components/forms/RockConnectionOpportunitySignup", () => ({
+  RockConnectionOpportunitySignup: ({ blockGuid }: { blockGuid: string }) => (
+    <div data-connection-guid={blockGuid}>Connection signup</div>
+  ),
+}));
+vi.mock("@/components/forms/SafeRockHtml", () => ({
+  SafeRockHtml: ({ value }: { value: string }) => (
+    <div data-safe-html={value} />
+  ),
+}));
+
+import { NextStepsLauncher } from "./NextStepsLauncher";
+import {
+  CONNECT_CARD_WORKFLOW_GUID,
+  LAUNCHER_CAMPUS_STORAGE_KEY,
+  PLAN_A_VISIT_WORKFLOW_GUID,
+} from "@/lib/launcher/constants";
+import type { LauncherItem } from "@/lib/launcher/types";
+(
+  globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
+const campuses = [
+  { slug: "north", name: "North" },
+  { slug: "central", name: "Central" },
+  { slug: "unichurch", name: "UniChurch" },
+];
+
+const items: LauncherItem[] = [
+  {
+    id: "1",
+    title: "Join a Group",
+    promotionalBlurb: "Find community",
+    searchText: "Meet during the week",
+    campusSlugs: ["north"],
+    action: { type: "content", html: "<p>Groups</p>" },
+  },
+  {
+    id: "2",
+    title: "Central Kids",
+    promotionalBlurb: "For families",
+    campusSlugs: ["central"],
+    action: { type: "directLink", href: "https://example.com/kids" },
+  },
+];
+
+function button(container: HTMLElement, name: string) {
+  return Array.from(
+    container.querySelectorAll<HTMLButtonElement>("button"),
+  ).find(
+    (candidate) =>
+      candidate.textContent?.includes(name) ||
+      candidate.getAttribute("aria-label") === name,
+  );
+}
+
+function setInputValue(input: HTMLInputElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(
+    window.HTMLInputElement.prototype,
+    "value",
+  )?.set;
+  setter?.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function hasImageSource(container: HTMLElement, source: string) {
+  return Array.from(container.querySelectorAll<HTMLImageElement>("img")).some(
+    (image) =>
+      decodeURIComponent(image.getAttribute("src") || "").includes(source),
+  );
+}
+
+function mockMobileViewport(matches: boolean) {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => ({
+      matches,
+      media: "(max-width: 639px)",
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  );
+}
+
+describe("NextStepsLauncher", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    mockMobileViewport(false);
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    container.remove();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("uses one icon-only control to open and close the launcher", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "requestAnimationFrame",
+      (callback: FrameRequestCallback) =>
+        window.setTimeout(() => callback(16), 16),
+    );
+    vi.stubGlobal("cancelAnimationFrame", (id: number) =>
+      window.clearTimeout(id),
+    );
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+
+    const toggle = button(container, "Open next steps")!;
+    expect(toggle.textContent?.trim()).toBe("");
+
+    await act(async () => toggle.click());
+
+    expect(toggle.isConnected).toBe(true);
+    expect(toggle.getAttribute("aria-label")).toBe("Close next steps");
+    expect(
+      container.querySelector('[aria-label="Next steps launcher"]')?.className,
+    ).toContain("transition-[translate,opacity]");
+    expect(
+      container
+        .querySelector('[aria-label="Next steps launcher"]')
+        ?.querySelector('[aria-label="Close next steps"]'),
+    ).toBeNull();
+
+    await act(async () => toggle.click());
+
+    expect(toggle.isConnected).toBe(true);
+    expect(toggle.getAttribute("aria-label")).toBe("Open next steps");
+    expect(
+      container.querySelector('[aria-label="Next steps launcher"]'),
+    ).not.toBeNull();
+    expect(
+      container
+        .querySelector('[aria-label="Next steps launcher"]')
+        ?.getAttribute("data-state"),
+    ).toBe("closing");
+    expect(
+      container.querySelector('[aria-label="Next steps launcher"]')?.className,
+    ).toContain("translate-y-0");
+
+    await act(async () => vi.advanceTimersByTime(16));
+
+    expect(
+      container.querySelector('[aria-label="Next steps launcher"]')?.className,
+    ).toContain("translate-y-3");
+
+    await act(async () => vi.advanceTimersByTime(200));
+
+    const closingPanel = container.querySelector(
+      '[aria-label="Next steps launcher"]',
+    )!;
+    expect(closingPanel).not.toBeNull();
+
+    const transitionEnd = new Event("transitionend", { bubbles: true });
+    Object.defineProperty(transitionEnd, "propertyName", {
+      value: "opacity",
+    });
+    await act(async () => closingPanel.dispatchEvent(transitionEnd));
+
+    expect(
+      container.querySelector('[aria-label="Next steps launcher"]'),
+    ).toBeNull();
+  });
+
+  it("opens fullscreen by default and removes the fullscreen control on mobile", async () => {
+    mockMobileViewport(true);
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+
+    await act(async () => button(container, "Open next steps")?.click());
+
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(button(container, "Open full screen")).toBeUndefined();
+    expect(button(container, "Exit full screen")).toBeUndefined();
+  });
+
+  it("shows the four primary actions in order and opens the exact workflows", async () => {
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+    await act(async () => button(container, "Open next steps")?.click());
+
+    const panelText =
+      container.querySelector('[aria-label="Next steps launcher"]')
+        ?.textContent || "";
+    const actionNames = [
+      "Plan a Visit",
+      "Give Now",
+      "Connect Card",
+      "See more next steps",
+    ];
+    expect(panelText).toContain("Take your next step here");
+    expect(panelText).not.toContain("Your next step");
+    expect(container.querySelector('img[alt="Ev Church"]')).not.toBeNull();
+    expect(button(container, "Open full screen")?.className).toContain(
+      "rounded-full",
+    );
+    expect(
+      button(container, "Open full screen")?.parentElement?.className,
+    ).toContain("right-4");
+    expect(panelText.indexOf("Plan a Visit")).toBeLessThan(
+      panelText.indexOf("Give Now"),
+    );
+    expect(panelText.indexOf("Give Now")).toBeLessThan(
+      panelText.indexOf("Connect Card"),
+    );
+    expect(panelText.indexOf("Connect Card")).toBeLessThan(
+      panelText.indexOf("See more next steps"),
+    );
+    expect(panelText).not.toContain("Choose a campus and let us know");
+    expect(panelText).not.toContain(
+      "Give securely through the EV Church website",
+    );
+    expect(panelText).not.toContain(
+      "Introduce yourself or ask us to get in touch",
+    );
+    expect(panelText).not.toContain(
+      "Explore everything available at your campus",
+    );
+    expect(container.querySelector('a[href="/give"]')).not.toBeNull();
+    expect(button(container, "Plan a Visit")?.className).toContain("py-6");
+    expect(container.querySelector('a[href="/give"]')?.className).not.toContain(
+      "py-6",
+    );
+
+    await act(async () => button(container, "Plan a Visit")?.click());
+    expect(
+      container.querySelector(
+        `input[aria-label="Workflow ${PLAN_A_VISIT_WORKFLOW_GUID}"]`,
+      ),
+    ).not.toBeNull();
+    expect(button(container, "Back")?.parentElement?.className).toContain(
+      "left-4",
+    );
+    expect(
+      button(container, "Open full screen")?.parentElement?.className,
+    ).toContain("right-4");
+    await act(async () => button(container, "Back")?.click());
+    await act(async () => button(container, "Connect Card")?.click());
+    expect(
+      container.querySelector(
+        `input[aria-label="Workflow ${CONNECT_CARD_WORKFLOW_GUID}"]`,
+      ),
+    ).not.toBeNull();
+  });
+
+  it("preserves an active form through full screen and clears it on close", async () => {
+    vi.useFakeTimers();
+    await act(async () => {
+      root.render(
+        <>
+          <main data-page-content>Page</main>
+          <NextStepsLauncher campuses={campuses} items={items} />
+        </>,
+      );
+    });
+    const trigger = button(container, "Open next steps")!;
+    await act(async () => trigger.click());
+    await act(async () => button(container, "Plan a Visit")?.click());
+    const field = container.querySelector<HTMLInputElement>(
+      `input[aria-label="Workflow ${PLAN_A_VISIT_WORKFLOW_GUID}"]`,
+    )!;
+    field.value = "We are coming";
+
+    await act(async () => button(container, "Open full screen")?.click());
+    expect(
+      container.querySelector('[role="dialog"]')?.getAttribute("aria-modal"),
+    ).toBe("true");
+    expect(
+      container.querySelector<HTMLElement>("[data-page-content]")?.inert,
+    ).toBe(true);
+    expect(
+      container.querySelector<HTMLInputElement>(
+        `input[aria-label="Workflow ${PLAN_A_VISIT_WORKFLOW_GUID}"]`,
+      ),
+    ).toBe(field);
+    expect(field.value).toBe("We are coming");
+
+    const fullscreenCloseTrigger = button(container, "Close next steps")!;
+    fullscreenCloseTrigger.focus();
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Tab", bubbles: true }),
+    );
+    expect(document.activeElement).toBe(button(container, "Back"));
+
+    button(container, "Back")?.focus();
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Tab",
+        shiftKey: true,
+        bubbles: true,
+      }),
+    );
+    expect(document.activeElement).toBe(fullscreenCloseTrigger);
+
+    await act(async () => button(container, "Close next steps")?.click());
+    expect(
+      container.querySelector(
+        `input[aria-label="Workflow ${PLAN_A_VISIT_WORKFLOW_GUID}"]`,
+      ),
+    ).toBe(field);
+    await act(async () => vi.runAllTimers());
+    const restoredTrigger = button(container, "Open next steps")!;
+    expect(document.activeElement).toBe(restoredTrigger);
+    await act(async () => restoredTrigger.click());
+    expect(container.textContent).toContain("Plan a Visit");
+    expect(
+      container.querySelector(
+        `input[aria-label="Workflow ${PLAN_A_VISIT_WORKFLOW_GUID}"]`,
+      ),
+    ).toBeNull();
+  });
+
+  it("shows the relevant 16:9 image above workflow and connection forms", async () => {
+    const formItems: LauncherItem[] = [
+      {
+        id: "connect-card",
+        title: "Connect",
+        campusSlugs: [],
+        action: {
+          type: "workflow",
+          workflowTypeGuid: CONNECT_CARD_WORKFLOW_GUID,
+          imageUrl: "https://rock.ev.church/GetImage.ashx?Guid=connect&w=1200",
+        },
+      },
+      {
+        id: "connection",
+        title: "Newish Connect",
+        campusSlugs: ["north"],
+        action: {
+          type: "connection",
+          blockGuid: "connection-block-guid",
+          imageUrl: "https://rock.ev.church/GetImage.ashx?Guid=newish&w=1200",
+        },
+      },
+    ];
+
+    await act(async () => {
+      root.render(
+        <NextStepsLauncher
+          campuses={campuses}
+          items={formItems}
+          initialPathname="/campus/north"
+        />,
+      );
+    });
+    await act(async () => button(container, "Open next steps")?.click());
+    await act(async () => button(container, "Plan a Visit")?.click());
+    expect(
+      hasImageSource(container, "/images/homepage/carousel-146c7f7e.jpg"),
+    ).toBe(true);
+    expect(
+      container.querySelector('img[alt=""]')?.parentElement?.className,
+    ).toContain("aspect-video");
+    expect(
+      container.querySelector('img[alt=""]')?.parentElement?.parentElement
+        ?.className,
+    ).toContain("sm:-mx-6");
+    expect(
+      container.querySelector('img[alt=""]')?.closest(".overflow-y-auto")
+        ?.className,
+    ).not.toContain("pt-2");
+
+    await act(async () => button(container, "Back")?.click());
+    await act(async () => button(container, "Connect Card")?.click());
+    expect(hasImageSource(container, "Guid=connect")).toBe(true);
+
+    await act(async () => button(container, "Back")?.click());
+    await act(async () => button(container, "See more next steps")?.click());
+    await act(async () => button(container, "Newish Connect")?.click());
+    expect(hasImageSource(container, "Guid=newish")).toBe(true);
+  });
+
+  it("infers campus, filters and searches in source order, and only stores campus changes", async () => {
+    await act(async () => {
+      root.render(
+        <NextStepsLauncher
+          campuses={campuses}
+          items={items}
+          initialPathname="/campus/north"
+        />,
+      );
+    });
+    await act(async () => button(container, "Open next steps")?.click());
+    await act(async () => button(container, "See more next steps")?.click());
+
+    const select = container.querySelector<HTMLSelectElement>("select")!;
+    expect(select.value).toBe("north");
+    expect(container.textContent).toContain("Join a Group");
+    expect(container.textContent).not.toContain("Find community");
+    expect(container.textContent).not.toContain("Central Kids");
+    expect(window.localStorage.length).toBe(0);
+
+    const search = container.querySelector<HTMLInputElement>(
+      'input[type="search"]',
+    )!;
+    await act(async () => {
+      setInputValue(search, "DURING");
+    });
+    expect(container.textContent).toContain("Join a Group");
+
+    await act(async () => {
+      select.value = "central";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(window.localStorage.getItem(LAUNCHER_CAMPUS_STORAGE_KEY)).toBe(
+      "central",
+    );
+    expect(window.localStorage.length).toBe(1);
+    expect(container.textContent).toContain("No next steps match your search");
+
+    await act(async () => {
+      setInputValue(search, "");
+    });
+    const direct = container.querySelector<HTMLAnchorElement>(
+      'a[href="https://example.com/kids"]',
+    );
+    expect(direct?.target).toBe("_blank");
+    expect(direct?.rel).toBe("noopener noreferrer");
+  });
+
+  it("asks for a campus before exposing an unfiltered catalogue", async () => {
+    await act(async () => {
+      root.render(
+        <NextStepsLauncher
+          campuses={campuses}
+          items={items}
+          initialPathname="/about"
+        />,
+      );
+    });
+    await act(async () => button(container, "Open next steps")?.click());
+    await act(async () => button(container, "See more next steps")?.click());
+
+    expect(container.textContent).toContain("Choose your campus");
+    expect(container.textContent).not.toContain("Join a Group");
+    expect(container.textContent).not.toContain("Central Kids");
+    expect(
+      container.querySelector<HTMLInputElement>('input[type="search"]')
+        ?.disabled,
+    ).toBe(true);
+  });
+
+  it("distinguishes a campus with no items from a search with no matches", async () => {
+    await act(async () => {
+      root.render(
+        <NextStepsLauncher
+          campuses={campuses}
+          items={items}
+          initialPathname="/campus/unichurch"
+        />,
+      );
+    });
+    await act(async () => button(container, "Open next steps")?.click());
+    await act(async () => button(container, "See more next steps")?.click());
+
+    expect(container.textContent).toContain(
+      "There are no next steps available for this campus right now.",
+    );
+    expect(container.textContent).not.toContain(
+      "No next steps match your search",
+    );
+  });
+
+  it("renders resolved connection and custom actions inside and events on the main site", async () => {
+    const actionItems: LauncherItem[] = [
+      {
+        id: "connection",
+        title: "Get connected",
+        campusSlugs: ["north"],
+        action: { type: "connection", blockGuid: "connection-block-guid" },
+      },
+      {
+        id: "content",
+        title: "Learn more",
+        campusSlugs: ["north"],
+        action: {
+          type: "content",
+          html: "<p>Safe details</p>",
+          imageUrl: "https://rock.ev.church/GetImage.ashx?Guid=detail&w=1200",
+        },
+      },
+      {
+        id: "event",
+        title: "Upcoming event",
+        campusSlugs: ["north"],
+        action: { type: "event", href: "/events/upcoming-event" },
+      },
+      {
+        id: "internal",
+        title: "Kids",
+        campusSlugs: ["north"],
+        action: { type: "directLink", href: "/kids" },
+      },
+    ];
+    await act(async () => {
+      root.render(
+        <NextStepsLauncher
+          campuses={campuses}
+          items={actionItems}
+          initialPathname="/campus/north"
+        />,
+      );
+    });
+    await act(async () => button(container, "Open next steps")?.click());
+    await act(async () => button(container, "See more next steps")?.click());
+
+    expect(
+      container.querySelector('a[href="/events/upcoming-event"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('a[href="/kids"]')?.getAttribute("target"),
+    ).toBeNull();
+    await act(async () => button(container, "Get connected")?.click());
+    expect(
+      container.querySelector('[data-connection-guid="connection-block-guid"]'),
+    ).not.toBeNull();
+    await act(async () => button(container, "Back")?.click());
+    await act(async () => button(container, "Learn more")?.click());
+    expect(
+      container.querySelector('[data-safe-html="<p>Safe details</p>"]'),
+    ).not.toBeNull();
+    expect(container.querySelector('img[alt=""]')?.className).toContain(
+      "w-full",
+    );
+    await act(async () => button(container, "Open full screen")?.click());
+    expect(
+      container.querySelector('img[alt=""]')?.parentElement?.parentElement
+        ?.className,
+    ).toContain("max-w-2xl");
+    expect(container.textContent?.match(/Learn more/g)).toHaveLength(1);
+  });
+});

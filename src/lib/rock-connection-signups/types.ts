@@ -66,6 +66,7 @@ export type RockConnectionSignupResult = {
 
 export type RockConnectionSignupOption = {
   blockGuid: string
+  opportunityGuid: string
   label: string
 }
 

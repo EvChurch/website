@@ -11,6 +11,8 @@ import { AudioPlayerBar } from '@/components/audio/AudioPlayerBar'
 import { AudioPlayerSpacer } from '@/components/audio/AudioPlayerSpacer'
 import { isMemberAuthEnabled } from '@/auth/member-auth0-config'
 import { getCurrentMemberProfileState } from '@/auth/member-session'
+import { NextStepsLauncher } from '@/components/launcher/NextStepsLauncher'
+import { loadLauncherData } from '@/lib/launcher/service-guide'
 import '@/styles/globals.css'
 
 export const metadata: Metadata = {
@@ -69,9 +71,10 @@ export const viewport: Viewport = {
 }
 
 export default async function FrontendLayout({ children }: { children: ReactNode }) {
-  const rockProfileState = isMemberAuthEnabled()
-    ? await getCurrentMemberProfileState()
-    : undefined
+  const [launcher, rockProfileState] = await Promise.all([
+    loadLauncherData(),
+    isMemberAuthEnabled() ? getCurrentMemberProfileState() : undefined,
+  ])
   const memberProfile = rockProfileState === undefined
     ? undefined
     : rockProfileState === null
@@ -103,6 +106,10 @@ export default async function FrontendLayout({ children }: { children: ReactNode
           <AudioPlayerSpacer />
           <AudioPlayerBar />
           <VideoContainer />
+          <NextStepsLauncher
+            campuses={launcher.campuses}
+            items={launcher.available ? launcher.items : null}
+          />
         </MediaPlayerProvider>
       </body>
     </html>

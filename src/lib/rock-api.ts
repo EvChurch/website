@@ -87,6 +87,55 @@ export async function rockFetch<T>({
   throw new Error('Unreachable')
 }
 
+/** Fetches an OData collection without relying on Rock's server-side page size. */
+export async function rockFetchAll<T>({
+  endpoint,
+  params,
+  pageSize = 100,
+  getKey,
+}: {
+  endpoint: string
+  params?: Record<string, string>
+  pageSize?: number
+  getKey?: (record: T) => string | number
+}): Promise<T[]> {
+  const records: T[] = []
+  const seenKeys = new Set<string | number>()
+  let previousFullPage: string | null = null
+
+  for (let skip = 0; ; skip += pageSize) {
+    const page = await rockFetch<T[]>({
+      endpoint,
+      params: {
+        ...params,
+        $top: String(pageSize),
+        $skip: String(skip),
+      },
+    })
+
+    if (getKey) {
+      for (const record of page) {
+        const key = getKey(record)
+        if (seenKeys.has(key)) {
+          throw new Error(`Rock pagination did not advance for ${endpoint}`)
+        }
+        seenKeys.add(key)
+      }
+    } else if (page.length === pageSize) {
+      // Even callers without an identity selector must not loop forever when an
+      // endpoint silently ignores $skip.
+      const pageFingerprint = JSON.stringify(page)
+      if (pageFingerprint === previousFullPage) {
+        throw new Error(`Rock pagination did not advance for ${endpoint}`)
+      }
+      previousFullPage = pageFingerprint
+    }
+
+    records.push(...page)
+    if (page.length < pageSize) return records
+  }
+}
+
 /**
  * Download an image from Rock RMS by its GUID.
  * Returns the image as a Buffer with its content type.
@@ -133,6 +182,7 @@ export type RockWebhookPayload = {
 // Rock API response types
 export type RockCampus = {
   Id: number
+  Guid?: string
   Name: string
   Description: string
   IsActive: boolean
@@ -166,6 +216,7 @@ export type RockGroupMember = {
 
 export type RockEventItem = {
   Id: number
+  Guid?: string
   Name: string
   Summary: string
   Description: string
@@ -213,10 +264,14 @@ export type RockPersonAlias = {
 
 export type RockContentChannelItem = {
   Id: number
+  Guid?: string
   Title: string
-  Content: string
+  Content: string | null
   Status: number
-  StartDateTime: string
+  StartDateTime: string | null
+  ExpireDateTime?: string | null
+  Priority?: number | null
+  Order?: number | null
   AttributeValues?: Record<string, { Value: string }>
 }
 

@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { getPayloadClient } from '@/lib/payload'
+import { isPublishedLauncherConnection } from '@/lib/launcher/service-guide'
 import { isRockConnectionSignupPublished } from './published'
 
 vi.mock('@/lib/payload', () => ({
   getPayloadClient: vi.fn(),
+}))
+vi.mock('@/lib/launcher/service-guide', () => ({
+  isPublishedLauncherConnection: vi.fn(),
 }))
 
 const blockGuid = '70f9eb00-5961-42bc-b1ea-dbcb8fce6369'
@@ -14,6 +18,8 @@ describe('published Rock connection signups', () => {
   beforeEach(() => {
     vi.mocked(getPayloadClient).mockResolvedValue({ find } as never)
     find.mockReset()
+    vi.mocked(isPublishedLauncherConnection).mockReset()
+    vi.mocked(isPublishedLauncherConnection).mockResolvedValue(false)
   })
 
   it('uses one layout relation filter and validates the matching block after loading', async () => {
@@ -95,5 +101,17 @@ describe('published Rock connection signups', () => {
     })
 
     await expect(isRockConnectionSignupPublished(blockGuid)).resolves.toBe(true)
+  })
+
+  it('accepts an eligible launcher action and denies a shadowed or arbitrary block', async () => {
+    find.mockResolvedValue({ docs: [] })
+    vi.mocked(isPublishedLauncherConnection).mockResolvedValueOnce(true)
+
+    await expect(isRockConnectionSignupPublished(blockGuid)).resolves.toBe(true)
+    expect(isPublishedLauncherConnection).toHaveBeenCalledWith(blockGuid)
+
+    await expect(
+      isRockConnectionSignupPublished('not-a-guid'),
+    ).resolves.toBe(false)
   })
 })

@@ -1,5 +1,14 @@
 import { getPayloadClient } from '@/lib/payload'
+import { isPublishedLauncherConnection } from '@/lib/launcher/service-guide'
 import { isGuid } from '@/lib/rock-forms/constants'
+
+interface PublishedPage {
+  layout?: Array<{
+    blockType?: string | null
+    sourceType?: string | null
+    rockConnectionBlockGuid?: string | null
+  }> | null
+}
 
 export async function isRockConnectionSignupPublished(
   blockGuid: string,
@@ -21,7 +30,8 @@ export async function isRockConnectionSignupPublished(
       ],
     },
   })
-  return result.docs.some((page) =>
+  const pages = result.docs as unknown as PublishedPage[]
+  const publishedOnPage = pages.some((page) =>
     page.layout?.some(
       (block) =>
         block.blockType === 'formEmbed' &&
@@ -30,4 +40,11 @@ export async function isRockConnectionSignupPublished(
           blockGuid.toLowerCase(),
     ),
   )
+  if (publishedOnPage) return true
+
+  try {
+    return await isPublishedLauncherConnection(blockGuid)
+  } catch {
+    return false
+  }
 }

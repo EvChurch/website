@@ -15,6 +15,7 @@ import * as migration_20260806_093700_service_times_block from './20260806_09370
 import * as migration_20260806_103317_exact_campus_map_locations from './20260806_103317_exact_campus_map_locations';
 import * as migration_20260806_130100_path_to_five_flexible_content from './20260806_130100_path_to_five_flexible_content';
 import * as migration_20260806_auth0_admin_sso from './20260806_auth0_admin_sso';
+import * as migration_20260807_service_guide_items from './20260807_service_guide_items';
 
 export const migrations = [
   {
@@ -101,5 +102,10 @@ export const migrations = [
     up: migration_20260806_auth0_admin_sso.up,
     down: migration_20260806_auth0_admin_sso.down,
     name: '20260806_auth0_admin_sso',
+  },
+  {
+    up: migration_20260807_service_guide_items.up,
+    down: migration_20260807_service_guide_items.down,
+    name: '20260807_service_guide_items',
   },
 ];

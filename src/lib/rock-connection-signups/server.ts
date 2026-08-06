@@ -610,13 +610,16 @@ export async function listEligibleRockConnectionSignups(): Promise<
         }
         options.push({
           blockGuid: candidate.blockGuid,
+          opportunityGuid: candidate.opportunityGuid,
           label: `${candidate.opportunityName} — ${candidate.pageName} — ${candidate.blockName}`,
         })
       }
     }),
   )
 
-  return options.sort((a, b) => a.label.localeCompare(b.label))
+  return options.sort(
+    (a, b) => a.label.localeCompare(b.label) || a.blockGuid.localeCompare(b.blockGuid),
+  )
 }
 
 export async function sendRockConnectionSignup({
