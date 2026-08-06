@@ -34,7 +34,7 @@ describe('member auth completion', () => {
 
     const response = await GET(
       new NextRequest(
-        'https://www.ev.church/member-auth/complete?returnTo=%2Fevents%3Fcampus%3D2',
+        'http://0.0.0.0:3000/member-auth/complete?returnTo=%2Fevents%3Fcampus%3D2',
       ),
     )
 
@@ -44,10 +44,31 @@ describe('member auth completion', () => {
     expect(response.headers.get('cache-control')).toBe('private, no-store')
   })
 
+  it.each(['//evil.example/path', '/admin'])(
+    'falls back to the public home page for unsafe returnTo %s',
+    async (returnTo) => {
+      state.profile = {
+        personId: 42,
+        name: 'Alex Member',
+        email: 'alex@example.com',
+        photoUrl: null,
+      }
+
+      const response = await GET(
+        new NextRequest(
+          `http://0.0.0.0:3000/member-auth/complete?returnTo=${encodeURIComponent(returnTo)}`,
+        ),
+      )
+
+      expect(response.headers.get('location')).toBe('https://www.ev.church/')
+      expect(response.headers.get('cache-control')).toBe('private, no-store')
+    },
+  )
+
   it('reports an unresolved member without destroying the shared Auth0 session', async () => {
     const response = await GET(
       new NextRequest(
-        'https://www.ev.church/member-auth/complete?returnTo=%2Fadmin',
+        'http://0.0.0.0:3000/member-auth/complete?returnTo=%2Fadmin',
       ),
     )
 
