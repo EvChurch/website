@@ -8,6 +8,7 @@ import { BreadcrumbJsonLd, buildBreadcrumbs } from '@/components/seo/BreadcrumbJ
 import { CampusJsonLd } from '@/components/seo/CampusJsonLd'
 import { ArrowRight, Button } from '@/components/ui/Button'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
+import { getGoogleMapsEmbedUrl } from '@/lib/google-maps'
 import { getPayloadClient } from '@/lib/payload'
 import type { Campus, Media } from '@/payload-types'
 
@@ -211,37 +212,6 @@ function getAddress(campus: CampusPageDocument): string {
     .join(', ')
 }
 
-function getGoogleMapsEmbedUrl(mapUrl: string, address: string): string {
-  try {
-    const url = new URL(mapUrl)
-    const isGoogleMapsHost =
-      url.hostname === 'google.com' ||
-      url.hostname === 'www.google.com' ||
-      url.hostname === 'maps.google.com'
-
-    const query = url.searchParams.get('q')?.trim()
-
-    if (
-      url.protocol === 'https:' &&
-      isGoogleMapsHost &&
-      url.pathname.startsWith('/maps') &&
-      query
-    ) {
-      const embedUrl = new URL('https://www.google.com/maps')
-      embedUrl.searchParams.set('q', query)
-      embedUrl.searchParams.set('output', 'embed')
-      return embedUrl.toString()
-    }
-  } catch {
-    // Fall back to an address query when the managed URL is malformed.
-  }
-
-  const fallbackUrl = new URL('https://www.google.com/maps')
-  fallbackUrl.searchParams.set('q', address)
-  fallbackUrl.searchParams.set('output', 'embed')
-  return fallbackUrl.toString()
-}
-
 export async function generateStaticParams() {
   return []
 }
@@ -296,7 +266,7 @@ export default async function CampusPage({
   const { campus, content } = managedCampus
   const heroImage = getHeroImage(campus, content)
   const galleryImages = getGalleryImages(campus, content)
-  const address = getAddress(campus)
+  const address = getAddress(campus) || content.locationLabel
   const mapEmbedUrl = getGoogleMapsEmbedUrl(content.mapUrl, address)
   const blocks = (campus.layout ?? []) as unknown as RenderableBlock[]
   const brandHeading = getBrandHeading(content.brandName)
@@ -395,7 +365,14 @@ export default async function CampusPage({
                     </div>
                     <div>
                       <dt className="font-semibold text-brand-black">Where</dt>
-                      <dd className="mt-1 text-dark-grey">{address}</dd>
+                      <dd className="mt-1">
+                        <a
+                          href="#campus-map"
+                          className="font-medium text-rich-red underline decoration-rich-red/35 underline-offset-4 transition-colors hover:text-deep-red"
+                        >
+                          {address}
+                        </a>
+                      </dd>
                     </div>
                     <div>
                       <dt className="font-semibold text-brand-black">Duration</dt>
@@ -444,7 +421,7 @@ export default async function CampusPage({
         </section>
       )}
 
-      <section className="bg-warm-white px-5 py-24 lg:px-8 lg:py-32">
+      <section id="campus-map" className="scroll-mt-24 bg-warm-white px-5 py-24 lg:px-8 lg:py-32">
         <div className="mx-auto max-w-[80rem]">
           <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
             <ScrollReveal>
