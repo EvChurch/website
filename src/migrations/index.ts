@@ -14,6 +14,7 @@ import * as migration_20260805_234700_campus_managed_pages from './20260805_2347
 import * as migration_20260806_093700_service_times_block from './20260806_093700_service_times_block';
 import * as migration_20260806_103317_exact_campus_map_locations from './20260806_103317_exact_campus_map_locations';
 import * as migration_20260806_130100_path_to_five_flexible_content from './20260806_130100_path_to_five_flexible_content';
+import * as migration_20260806_auth0_admin_sso from './20260806_auth0_admin_sso';
 
 export const migrations = [
   {
@@ -95,5 +96,10 @@ export const migrations = [
     up: migration_20260806_130100_path_to_five_flexible_content.up,
     down: migration_20260806_130100_path_to_five_flexible_content.down,
     name: '20260806_130100_path_to_five_flexible_content',
+  },
+  {
+    up: migration_20260806_auth0_admin_sso.up,
+    down: migration_20260806_auth0_admin_sso.down,
+    name: '20260806_auth0_admin_sso',
   },
 ];
