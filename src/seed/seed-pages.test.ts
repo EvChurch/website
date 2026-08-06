@@ -140,6 +140,10 @@ describe('ensureNewishConnectionForm', () => {
 })
 
 describe('seeded page content and giving navigation', () => {
+  it('does not use em dashes in seeded page copy', () => {
+    expect(seedSource).not.toContain('—')
+  })
+
   it('preserves editor-managed pages and limits upgrades to known legacy copy', () => {
     expect(seedSource).toContain('Preserving editor-managed page: ${slug}')
     expect(seedSource.match(/upgradeExisting: upgradeLegacy/g)).toHaveLength(4)
@@ -165,7 +169,7 @@ describe('seeded page content and giving navigation', () => {
   it('sets an honest expectation for the Plan Your Visit form', () => {
     const visitSection = sourceSection("await upsertPage('visit'", "await upsertPage('about'")
 
-    expect(visitSection).toContain("You don't have to — you're welcome to just turn up.")
+    expect(visitSection).toContain("You don't have to. You're welcome to just turn up.")
     expect(visitSection).toContain('help with kids check-in')
   })
 

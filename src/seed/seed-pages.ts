@@ -440,13 +440,13 @@ async function seed() {
         blockType: 'featureGrid',
         eyebrow: 'What to expect',
         heading: 'What actually happens in a service?',
-        description: "Here's the whole thing, start to finish — no surprises.",
+        description: "Here's the whole thing, start to finish. No surprises.",
         style: 'iconLeft',
         items: [
           {
             icon: 'music',
             title: '1. We sing.',
-            description: 'The Ev band leads us in songs of praise, with the words up on screen. Sing along, or just take it in — whatever is comfortable.',
+            description: 'The Ev band leads us in songs of praise, with the words up on screen. Sing along, or just take it in. Whatever is comfortable.',
           },
           {
             icon: 'users',
@@ -456,12 +456,12 @@ async function seed() {
           {
             icon: 'book',
             title: '3. We open the Bible.',
-            description: "We pray and read a passage of the Bible together. Then one of our pastors preaches an encouraging, hope-filled message about Jesus from that passage. This is the heart of the service — we're convinced God speaks through his word, so we give it our best attention.",
+            description: "We pray and read a passage of the Bible together. Then one of our pastors preaches an encouraging, hope-filled message about Jesus from that passage. This is the heart of the service. We're convinced God speaks through his word, so we give it our best attention.",
           },
           {
             icon: 'coffee',
             title: '4. We sing again, and we eat.',
-            description: 'A final song, the MC closes, and then we share food together — morning tea or dinner depending on the service. All up, allow about 75 minutes, plus time to chat.',
+            description: 'A final song, the MC closes, and then we share food together, with morning tea or dinner depending on the service. All up, allow about 75 minutes, plus time to chat.',
           },
           {
             icon: 'heart',
@@ -530,7 +530,7 @@ async function seed() {
         eyebrow: 'Plan your first Sunday',
         heading: "Let us know you're coming!",
         description:
-          "You don't have to — you're welcome to just turn up. But if you tell us which campus and which Sunday, we'll keep an eye out for you at the door, help with kids check-in, and save you the where-do-I-sit moment.",
+          "You don't have to. You're welcome to just turn up. But if you tell us which campus and which Sunday, we'll keep an eye out for you at the door, help with kids check-in, and save you the where-do-I-sit moment.",
         sourceType: 'workflow',
         rockWorkflowGuid: 'de3d06a6-7fca-41a5-8c37-a485767de970',
         fallbackContactLabel: 'Message our welcome team',
@@ -954,7 +954,7 @@ async function seed() {
         blockType: 'content',
         heading: 'Where kids discover faith, friendship, and fun',
         body: richText(
-          'Ev Kids runs every Sunday morning at North and Central for children aged 0 to 12. We want kids to have a blast connecting with God\'s word every week — and we make their safety a priority. Every Ev Kids leader is police vetted and trained, check-in is careful, and the collection tag must match your child\'s check-in tag for pick-up. Allow an extra ten minutes on your first visit and one of the team will walk you and your kids through it.',
+          'Ev Kids runs every Sunday morning at North and Central for children aged 0 to 12. We want kids to have a blast connecting with God\'s word every week, and we make their safety a priority. Every Ev Kids leader is police vetted and trained, check-in is careful, and the collection tag must match your child\'s check-in tag for pick-up. Allow an extra ten minutes on your first visit and one of the team will walk you and your kids through it.',
         ),
         alignment: 'center',
       },
@@ -1526,7 +1526,7 @@ async function seed() {
           {
             image: img('gn-hero'),
             title: 'The Good News',
-            description: "There is a message at the centre of Christianity that has changed millions of lives. It is not a set of rules to keep, or a ladder to climb. It is an announcement — and an invitation with your name on it.",
+            description: "There is a message at the centre of Christianity that has changed millions of lives. It is not a set of rules to keep, or a ladder to climb. It is an announcement and an invitation with your name on it.",
             href: '/good-news',
             linkLabel: 'Discover the Good News',
           },
@@ -1593,7 +1593,7 @@ async function seed() {
         blockType: 'pageHeader',
         eyebrow: 'Our beliefs',
         heading: 'What we believe',
-        description: "The short version is a person. Everything we believe centres on Jesus — who he is, what he's done, and what that means for you. Below is the longer version: the faith Christians have confessed for two thousand years. If some of the words are new to you, don't worry — we'd love to talk any of it through, and the best place to start is The Good News.",
+        description: "The short version is a person. Everything we believe centres on Jesus: who he is, what he's done, and what that means for you. Below is the longer version: the faith Christians have confessed for two thousand years. If some of the words are new to you, don't worry. We'd love to talk any of it through, and the best place to start is The Good News.",
         theme: 'dark',
       },
       {
@@ -1743,7 +1743,7 @@ async function seed() {
         blockType: 'pageHeader',
         eyebrow: 'Giving',
         heading: 'Everything we have is given to us by God',
-        description: 'Giving at Ev is an act of worship for our church family — glad, planned, and free. Nobody is chased, and nobody is watched.',
+        description: 'Giving at Ev is an act of worship for our church family: glad, planned, and free. Nobody is chased, and nobody is watched.',
         theme: 'light',
       },
       {
@@ -1751,14 +1751,14 @@ async function seed() {
         heading: 'Where the money goes',
         body: richText([
           'Everything given goes to gospel work: Sundays across three campuses, kids and youth, training the next generation of gospel workers, and planting churches across Auckland and New Zealand toward our 2030 vision.',
-          'The wisest investment anyone can make — the one with the longest return — is an investment in the kingdom of God.',
+          'The wisest investment anyone can make is in the kingdom of God, because it has the longest return.',
         ]),
         alignment: 'center',
       },
       {
         blockType: 'cta',
         heading: 'Visiting Ev?',
-        text: "Please don't feel any obligation to give. The service — and the morning tea — are on us.",
+        text: "Please don't feel any obligation to give. The service and the morning tea are on us.",
         colorPreset: 'primary-red',
         buttons: [
           { label: 'Give online', href: 'https://give.ev.church', variant: 'primary' },
@@ -1783,7 +1783,7 @@ async function seed() {
         eyebrow: 'The heart of what we believe',
         heading: 'The Good News',
         highlightedText: 'Good News',
-        subtitle: "There is a message at the centre of Christianity that has changed millions of lives. It's not a set of rules to keep, or a ladder to climb. It's an announcement — the best news you'll ever hear — and an invitation with your name on it.",
+        subtitle: "There is a message at the centre of Christianity that has changed millions of lives. It's not a set of rules to keep, or a ladder to climb. It's the best news you'll ever hear, and an invitation with your name on it.",
         keyColor: '#D4940A',
         overlayStyle: 'cinematic',
         minHeight: '70vh',
