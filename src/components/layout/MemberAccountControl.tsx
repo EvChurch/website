@@ -25,24 +25,37 @@ interface MemberAccountControlProps {
   active?: boolean
 }
 
-function PersonIcon({ className = 'h-5 w-5' }: { className?: string }) {
+function PersonIcon({ className = 'h-8 w-8' }: { className?: string }) {
   return (
     <svg
       aria-hidden="true"
+      data-member-sign-in-icon
       className={className}
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor"
       strokeWidth={1.8}
     >
+      <circle cx="12" cy="12" r="10" />
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
-        d="M15.75 6.75a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.1a7.5 7.5 0 0115 0A17.9 17.9 0 0112 21.75a17.9 17.9 0 01-7.5-1.65z"
+        d="M15 9a3 3 0 11-6 0 3 3 0 016 0zM6.75 18.25a5.25 5.25 0 0110.5 0"
       />
     </svg>
   )
 }
+
+const avatarColourClasses = [
+  'bg-deep-red',
+  'bg-ev-blue',
+  'bg-ev-purple',
+  'bg-newish-green',
+  'bg-connect-brown',
+  'bg-dark-brown',
+  'bg-ec-blue',
+  'bg-light-red-2',
+] as const
 
 function initialsFor(name: string) {
   return name
@@ -51,6 +64,17 @@ function initialsFor(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toLocaleUpperCase())
     .join('') || '?'
+}
+
+function avatarColourFor(profile: MemberDisplayProfile) {
+  const seed = `${profile.name.trim().toLowerCase()}|${profile.email.trim().toLowerCase()}`
+  let hash = 0
+
+  for (const character of seed) {
+    hash = (hash * 31 + (character.codePointAt(0) ?? 0)) >>> 0
+  }
+
+  return avatarColourClasses[hash % avatarColourClasses.length] ?? 'bg-deep-red'
 }
 
 function MemberAvatar({
@@ -83,9 +107,10 @@ function MemberAvatar({
 
   return (
     <span
+      data-avatar-fallback
       aria-hidden={!descriptive}
       aria-label={descriptive ? `${profile.name}'s profile` : undefined}
-      className={`${sizeClasses} flex shrink-0 items-center justify-center rounded-full bg-rich-red font-semibold text-white`}
+      className={`${sizeClasses} ${avatarColourFor(profile)} flex shrink-0 items-center justify-center rounded-full font-semibold text-white`}
     >
       {initialsFor(profile.name)}
     </span>
@@ -101,6 +126,7 @@ export function MemberAccountControl({
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [open, setOpen] = useState(false)
+  const [popoverMounted, setPopoverMounted] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const popoverId = `member-account-${useId().replace(/:/gu, '')}`
@@ -114,6 +140,16 @@ export function MemberAccountControl({
       window.requestAnimationFrame(() => triggerRef.current?.focus())
     }
   }, [])
+
+  const togglePopover = useCallback(() => {
+    if (open) {
+      close(false)
+      return
+    }
+
+    setPopoverMounted(true)
+    setOpen(true)
+  }, [close, open])
 
   useEffect(() => {
     if (!active) close(false)
@@ -179,7 +215,7 @@ export function MemberAccountControl({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={popoverId}
-        onClick={() => setOpen((current) => !current)}
+        onClick={togglePopover}
         className={isDrawer
           ? 'flex min-h-12 w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-warm-white'
           : `flex min-h-10 min-w-10 items-center justify-center rounded-full transition-colors ${iconTone}`}
@@ -195,12 +231,22 @@ export function MemberAccountControl({
         )}
       </button>
 
-      {open && (
+      {popoverMounted && (
         <div
           id={popoverId}
           role="dialog"
           aria-label="Account details"
-          className={`absolute z-[70] w-72 rounded-lg border border-warm-grey/60 bg-white p-5 text-brand-black shadow-xl shadow-brand-black/10 ${
+          aria-hidden={!open}
+          inert={!open}
+          data-state={open ? 'open' : 'closed'}
+          onAnimationEnd={(event) => {
+            if (event.target === event.currentTarget && !open) {
+              setPopoverMounted(false)
+            }
+          }}
+          className={`member-account-popover absolute z-[70] w-72 rounded-lg border border-warm-grey/60 bg-white p-5 text-brand-black shadow-xl shadow-brand-black/10 ${
+            open ? '' : 'pointer-events-none'
+          } ${
             isDrawer ? 'left-0 top-full mt-2' : 'right-0 top-full mt-3'
           }`}
         >
