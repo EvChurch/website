@@ -11,7 +11,7 @@ function noAvatarResponse() {
 }
 
 export async function GET() {
-  const profile = await getCurrentMemberProfile()
+  const profile = await getCurrentMemberProfile({ persistLegacyProfile: true })
   if (!profile?.photoUrl) return noAvatarResponse()
 
   const avatar = await fetchMemberRockAvatar(profile.photoUrl)

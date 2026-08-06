@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   enabled: false,
-  getCurrentMemberProfile: vi.fn(),
+  getCurrentMemberProfileState: vi.fn(),
   header: vi.fn((_props: {
     memberProfile?: {
       name: string
@@ -17,7 +17,7 @@ vi.mock('@/auth/member-auth0-config', () => ({
   isMemberAuthEnabled: () => mocks.enabled,
 }))
 vi.mock('@/auth/member-session', () => ({
-  getCurrentMemberProfile: mocks.getCurrentMemberProfile,
+  getCurrentMemberProfileState: mocks.getCurrentMemberProfileState,
 }))
 vi.mock('@/components/layout/Header', () => ({ Header: mocks.header }))
 vi.mock('@/components/layout/Footer', () => ({ Footer: () => null }))
@@ -48,7 +48,7 @@ describe('FrontendLayout member account state', () => {
   it('does not read a member session or show account controls when disabled', async () => {
     renderToStaticMarkup(await FrontendLayout({ children: <main>Page</main> }))
 
-    expect(mocks.getCurrentMemberProfile).not.toHaveBeenCalled()
+    expect(mocks.getCurrentMemberProfileState).not.toHaveBeenCalled()
     expect(mocks.header).toHaveBeenCalledWith(
       { memberProfile: undefined },
       undefined,
@@ -57,11 +57,14 @@ describe('FrontendLayout member account state', () => {
 
   it('passes only display-safe member fields into the header', async () => {
     mocks.enabled = true
-    mocks.getCurrentMemberProfile.mockResolvedValue({
-      personId: 42,
-      name: 'Aroha Ngata',
-      email: 'aroha@example.com',
-      photoUrl: '/GetImage.ashx?id=abc',
+    mocks.getCurrentMemberProfileState.mockResolvedValue({
+      needsRefresh: false,
+      profile: {
+        personId: 42,
+        name: 'Aroha Ngata',
+        email: 'aroha@example.com',
+        photoUrl: '/GetImage.ashx?id=abc',
+      },
     })
 
     renderToStaticMarkup(await FrontendLayout({ children: <main>Page</main> }))
@@ -78,5 +81,31 @@ describe('FrontendLayout member account state', () => {
     )
     const headerProps = mocks.header.mock.calls[0]?.[0]
     expect(headerProps).not.toHaveProperty('personId')
+  })
+
+  it('requests the avatar route once to upgrade a legacy session', async () => {
+    mocks.enabled = true
+    mocks.getCurrentMemberProfileState.mockResolvedValue({
+      needsRefresh: true,
+      profile: {
+        personId: 42,
+        name: 'Aroha Ngata',
+        email: 'aroha@example.com',
+        photoUrl: null,
+      },
+    })
+
+    renderToStaticMarkup(await FrontendLayout({ children: <main>Page</main> }))
+
+    expect(mocks.header).toHaveBeenCalledWith(
+      {
+        memberProfile: {
+          name: 'Aroha Ngata',
+          email: 'aroha@example.com',
+          avatarUrl: '/member-avatar',
+        },
+      },
+      undefined,
+    )
   })
 })

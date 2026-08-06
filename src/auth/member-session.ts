@@ -2,7 +2,8 @@ import type { SessionData } from '@auth0/nextjs-auth0/types'
 
 import type { RockMemberProfile } from './rock-member-profile'
 
-const MEMBER_PROFILE_MARKER_VERSION = 1 as const
+const LEGACY_MEMBER_PROFILE_MARKER_VERSION = 1 as const
+const MEMBER_PROFILE_MARKER_VERSION = 2 as const
 const MAX_NAME_LENGTH = 300
 const MAX_EMAIL_LENGTH = 320
 const MAX_PHOTO_REFERENCE_LENGTH = 2_048
@@ -17,6 +18,11 @@ interface ResolvedMemberMarker {
 interface UnresolvedMemberMarker {
   version: typeof MEMBER_PROFILE_MARKER_VERSION
   status: 'unresolved'
+}
+
+export interface CurrentMemberProfileState {
+  profile: RockMemberProfile
+  needsRefresh: boolean
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -75,12 +81,24 @@ export function createUnresolvedMemberMarker(): UnresolvedMemberMarker {
 export function getMemberProfileFromSession(
   session: unknown,
 ): RockMemberProfile | null {
+  return getMemberProfileFromSessionVersion(
+    session,
+    MEMBER_PROFILE_MARKER_VERSION,
+  )
+}
+
+function getMemberProfileFromSessionVersion(
+  session: unknown,
+  version:
+    | typeof LEGACY_MEMBER_PROFILE_MARKER_VERSION
+    | typeof MEMBER_PROFILE_MARKER_VERSION,
+): RockMemberProfile | null {
   if (!isRecord(session)) return null
 
   const marker = session.rockProfile
   if (
     !isRecord(marker) ||
-    marker.version !== MEMBER_PROFILE_MARKER_VERSION ||
+    marker.version !== version ||
     marker.status !== 'resolved' ||
     !isRockMemberProfile(marker.profile)
   ) {
@@ -95,11 +113,67 @@ export function getMemberProfileFromSession(
   }
 }
 
-export async function getCurrentMemberProfile(): Promise<RockMemberProfile | null> {
+async function readCurrentMemberSession() {
+  const { getAuth0Client } = await import('./auth0-client')
+  const auth0 = getAuth0Client()
+  const session: SessionData | null = await auth0.getSession()
+  const currentProfile = getMemberProfileFromSession(session)
+  if (currentProfile && session) {
+    return { auth0, session, profile: currentProfile, needsRefresh: false }
+  }
+
+  const legacyProfile = getMemberProfileFromSessionVersion(
+    session,
+    LEGACY_MEMBER_PROFILE_MARKER_VERSION,
+  )
+  if (!legacyProfile || !session || !session.user.sub) return null
+
+  return { auth0, session, profile: legacyProfile, needsRefresh: true }
+}
+
+export async function getCurrentMemberProfileState(): Promise<CurrentMemberProfileState | null> {
   try {
-    const { getAuth0Client } = await import('./auth0-client')
-    const session: SessionData | null = await getAuth0Client().getSession()
-    return getMemberProfileFromSession(session)
+    const current = await readCurrentMemberSession()
+    return current
+      ? { profile: current.profile, needsRefresh: current.needsRefresh }
+      : null
+  } catch {
+    return null
+  }
+}
+
+export async function getCurrentMemberProfile(
+  options: { persistLegacyProfile?: boolean } = {},
+): Promise<RockMemberProfile | null> {
+  try {
+    const current = await readCurrentMemberSession()
+    if (!current || !current.needsRefresh || !options.persistLegacyProfile) {
+      return current?.profile ?? null
+    }
+
+    const { resolveRockMemberProfile } = await import('./rock-member-profile')
+    const resolution = await resolveRockMemberProfile(current.session.user.sub)
+    if (!resolution.ok) {
+      return ['malformed-response', 'upstream-unavailable'].includes(
+        resolution.reason,
+      )
+        ? current.profile
+        : null
+    }
+    if (resolution.profile.personId !== current.profile.personId) return null
+
+    try {
+      await current.auth0.updateSession({
+        ...current.session,
+        rockProfile: createResolvedMemberMarker(resolution.profile),
+      })
+    } catch {
+      console.warn('Member profile session upgrade failed', {
+        reason: 'session-update-failed',
+      })
+    }
+
+    return resolution.profile
   } catch {
     return null
   }
