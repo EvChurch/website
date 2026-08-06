@@ -7,5 +7,5 @@ export function privateMemberRedirect(url: URL) {
 }
 
 export function memberSignInErrorUrl(appBaseUrl: string) {
-  return new URL('/member-sign-in/error', appBaseUrl).toString()
+  return new URL('/member-sign-in/error', appBaseUrl)
 }
