@@ -51,7 +51,7 @@ const campus = {
     serviceCloses: '11:30',
     serviceDuration: 'Approximately 75 minutes',
     kidsProgram: true,
-    kidsAges: 'Available for ages 1 to 12',
+    kidsAges: 'Available for ages 0 to 12',
     heroImagePath: '/images/homepage/carousel-c645786c.jpg',
     galleryImages: [
       {
@@ -62,6 +62,21 @@ const campus = {
     mapUrl:
       'https://www.google.com/maps/place/?q=place_id%3AChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U',
     parkingInfo: 'Parking is available on site.',
+    actions: [
+      {
+        label: 'Get directions',
+        href:
+          'https://www.google.com/maps/place/?q=place_id%3AChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U',
+        variant: 'primary',
+        external: true,
+      },
+      {
+        label: 'Save service time',
+        href: '/campus/north/calendar.ics',
+        variant: 'secondary',
+        external: false,
+      },
+    ],
     ctaHeading: 'See you this Sunday',
     ctaText: 'We would love to welcome you to Ev North.',
     ctaLabel: 'Plan your visit',
@@ -119,6 +134,11 @@ describe('Payload-managed campus page', () => {
     expect(markup).toContain('href="#campus-map"')
     expect(markup).toContain('id="campus-map"')
     expect(markup).not.toContain('Google Maps embed will be placed here')
+    expect(markup).toContain('Available for ages 0 to 12')
+    expect(markup).toContain('Get directions')
+    expect(markup).not.toContain('Message us')
+    expect(markup).toContain('Save service time')
+    expect(markup).toContain('/campus/north/calendar.ics')
     expect(mocks.renderBlocks).toHaveBeenCalledWith({ blocks: campus.layout }, undefined)
   })
 

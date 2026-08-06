@@ -139,7 +139,7 @@ export function AudioPlayerBar() {
   }
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[62] flex justify-center px-4 pb-4 sm:px-6 sm:pb-5">
+    <div data-audio-player className="pointer-events-none fixed inset-x-0 bottom-0 z-[62] flex justify-center px-4 pb-4 sm:px-6 sm:pb-5">
       <div
         ref={barRef}
         onTouchStart={handleTouchStart}

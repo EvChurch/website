@@ -72,9 +72,14 @@ export const ManualCardGridBlock: Block = {
           admin: { description: 'Street address shown below time' },
         },
         {
+          name: 'mapUrl',
+          type: 'text',
+          admin: { description: 'Google Maps URL used for the embedded map' },
+        },
+        {
           name: 'href',
           type: 'text',
-          admin: { description: 'Link URL (makes card clickable)' },
+          admin: { description: 'Destination for the card action' },
         },
         {
           name: 'linkLabel',
