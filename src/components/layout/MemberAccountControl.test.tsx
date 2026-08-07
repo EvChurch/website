@@ -57,7 +57,7 @@ describe('MemberAccountControl', () => {
     expect(container.textContent).not.toContain('Aroha')
   })
 
-  it('opens only the minimal profile details and uses unique relationships', async () => {
+  it('opens profile details with members access and uses unique relationships', async () => {
     await act(async () => root.render(
       <>
         <MemberAccountControl profile={member} variant="desktop" tone="dark" />
@@ -77,9 +77,9 @@ describe('MemberAccountControl', () => {
     expect(dialog?.getAttribute('data-state')).toBe('open')
     expect(dialog?.textContent).toContain('Aroha Ngata')
     expect(dialog?.textContent).toContain('aroha@example.com')
-    expect(dialog?.querySelector<HTMLAnchorElement>('a')?.getAttribute('href')).toBe(
-      '/auth/logout',
-    )
+    const links = [...(dialog?.querySelectorAll<HTMLAnchorElement>('a') ?? [])]
+      .map((link) => link.getAttribute('href'))
+    expect(links).toEqual(['/members', '/auth/logout'])
     expect(dialog?.textContent).not.toContain('personId')
     expect(dialog?.textContent).not.toContain('Auth0')
   })

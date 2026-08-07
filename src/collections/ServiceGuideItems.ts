@@ -1,8 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { isEditor } from '@/access/roles'
-
-const denyExternalMutation = () => false
+import { denyExternalMutation, isEditor } from '@/access/roles'
 
 /**
  * A read-only mirror of Rock's Service Guide content channel.

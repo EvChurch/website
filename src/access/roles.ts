@@ -20,6 +20,9 @@ export const isEditor: Access = ({ req: { user } }) => {
   return hasPayloadAdminRole(user as User | null)
 }
 
+/** Prevent request-scoped writes to collections mirrored from an external source of truth. */
+export const denyExternalMutation: Access = () => false
+
 export const publishedOnly: Access = ({ req: { user } }) => {
   if (hasPayloadAdminRole(user as User | null)) return true
   return { _status: { equals: 'published' } }
