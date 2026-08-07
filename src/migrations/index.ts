@@ -16,6 +16,7 @@ import * as migration_20260806_103317_exact_campus_map_locations from './2026080
 import * as migration_20260806_130100_path_to_five_flexible_content from './20260806_130100_path_to_five_flexible_content';
 import * as migration_20260806_auth0_admin_sso from './20260806_auth0_admin_sso';
 import * as migration_20260807_service_guide_items from './20260807_service_guide_items';
+import * as migration_20260808_members_rock_sync from './20260808_members_rock_sync';
 
 export const migrations = [
   {
@@ -107,5 +108,10 @@ export const migrations = [
     up: migration_20260807_service_guide_items.up,
     down: migration_20260807_service_guide_items.down,
     name: '20260807_service_guide_items',
+  },
+  {
+    up: migration_20260808_members_rock_sync.up,
+    down: migration_20260808_members_rock_sync.down,
+    name: '20260808_members_rock_sync',
   },
 ];

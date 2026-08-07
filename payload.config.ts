@@ -25,6 +25,8 @@ import { SermonAudio } from '@/collections/SermonAudio'
 import { ConnectGroups } from '@/collections/ConnectGroups'
 import { Registrations } from '@/collections/Registrations'
 import { ServiceGuideItems } from '@/collections/ServiceGuideItems'
+import { ConnectGroupParticipants } from '@/collections/ConnectGroupParticipants'
+import { ConnectGroupLeaderResources } from '@/collections/ConnectGroupLeaderResources'
 
 // Globals
 import { Navigation } from '@/globals/Navigation'
@@ -81,6 +83,8 @@ export default buildConfig({
     TeamMembers,
     Events,
     ConnectGroups,
+    ConnectGroupParticipants,
+    ConnectGroupLeaderResources,
     Registrations,
     ServiceGuideItems,
     // Synced from resources.ev.church GraphQL API

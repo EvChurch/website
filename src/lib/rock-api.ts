@@ -205,12 +205,23 @@ export type RockPerson = {
   NickName?: string
   LastName?: string
   Email: string
+  PhotoId?: number | null
   PhotoUrl?: string | null
+  PhoneNumbers?: Array<{
+    Number?: string | null
+    NumberFormatted?: string | null
+    NumberTypeValueId?: number | null
+    IsMessagingEnabled?: boolean
+    IsUnlisted?: boolean
+  }>
 }
 
 export type RockGroupMember = {
+  Id?: number
+  GroupId?: number
+  GroupRoleId?: number
   Person: RockPerson
-  GroupRole: { Name: string }
+  GroupRole: { Id?: number; Name: string; IsLeader?: boolean }
   GroupOrder: number | null
 }
 
@@ -262,6 +273,12 @@ export type RockPersonAlias = {
   Person?: RockPerson | null
 }
 
+export type RockAttributeValue = {
+  Value: string
+  ValueFormatted?: string | null
+  PersistedTextValue?: string | null
+}
+
 export type RockContentChannelItem = {
   Id: number
   Guid?: string
@@ -272,7 +289,7 @@ export type RockContentChannelItem = {
   ExpireDateTime?: string | null
   Priority?: number | null
   Order?: number | null
-  AttributeValues?: Record<string, { Value: string }>
+  AttributeValues?: Record<string, RockAttributeValue>
 }
 
 export type RockGroup = {

@@ -1,4 +1,5 @@
 import type { RockGroup } from '@/lib/rock-api'
+import { getRockPersonName } from './person'
 
 function slugify(name: string): string {
   return name
@@ -9,9 +10,9 @@ function slugify(name: string): string {
 
 export function mapRockConnectGroup(rock: RockGroup) {
   const leaders = rock.Members.filter(
-    (m) => m.GroupRole.Name === 'Leader',
+    (m) => m.GroupRole.IsLeader === true,
   ).map((m) => ({
-    name: m.Person.FullName,
+    name: getRockPersonName(m.Person),
     email: m.Person.Email || '',
   }))
 
@@ -29,6 +30,5 @@ export function mapRockConnectGroup(rock: RockGroup) {
     capacity: rock.GroupCapacity,
     isActive: rock.IsActive,
     _campusRockId: rock.CampusId,
-    lastSyncedAt: new Date().toISOString(),
   }
 }

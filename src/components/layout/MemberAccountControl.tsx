@@ -258,8 +258,14 @@ export function MemberAccountControl({
             </div>
           </div>
           <a
+            href="/members"
+            className="mt-5 flex min-h-10 w-full items-center justify-center rounded-md bg-brand-black px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-rich-red"
+          >
+            Open members
+          </a>
+          <a
             href="/auth/logout"
-            className="mt-5 flex min-h-10 w-full items-center justify-center rounded-md border border-rich-red px-4 py-2 text-sm font-semibold text-rich-red transition-colors hover:bg-rich-red hover:text-white"
+            className="mt-2 flex min-h-10 w-full items-center justify-center rounded-md border border-rich-red px-4 py-2 text-sm font-semibold text-rich-red transition-colors hover:bg-rich-red hover:text-white"
           >
             Log out
           </a>

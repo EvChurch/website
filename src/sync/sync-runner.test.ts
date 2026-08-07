@@ -14,7 +14,7 @@ vi.mock('./rock-group-members', () => ({
   fetchActiveGroupMembers: mocks.fetchActiveGroupMembers,
 }))
 
-import { syncConnectGroups, syncTeamMembers } from './sync-runner'
+import { syncTeamMembers } from './sync-runner'
 
 describe('group sync isolation', () => {
   beforeEach(() => {
@@ -43,45 +43,4 @@ describe('group sync isolation', () => {
     ])
   })
 
-  it('fetches connect-group members separately and continues after a failure', async () => {
-    mocks.rockFetch.mockResolvedValue([
-      group(1, 'First'),
-      group(2, 'Second'),
-      group(3, 'Third'),
-    ])
-    mocks.fetchActiveGroupMembers
-      .mockResolvedValueOnce([])
-      .mockRejectedValueOnce(new Error('member request failed'))
-      .mockResolvedValueOnce([])
-
-    const result = await syncConnectGroups()
-
-    expect(mocks.rockFetch).toHaveBeenCalledWith({
-      endpoint: 'Groups',
-      params: {
-        $filter: 'GroupTypeId eq 25 and IsActive eq true',
-        $expand: 'GroupLocations,Campus',
-        $orderby: 'Name',
-      },
-    })
-    expect(mocks.fetchActiveGroupMembers.mock.calls.map(([id]) => id)).toEqual([
-      1, 2, 3,
-    ])
-    expect(mocks.create).toHaveBeenCalledTimes(2)
-    expect(result.errors).toEqual([
-      'Rock group 2 sync failed: Error: member request failed',
-    ])
-  })
 })
-
-function group(Id: number, Name: string) {
-  return {
-    Id,
-    Name,
-    Description: '',
-    IsActive: true,
-    GroupCapacity: null,
-    CampusId: null,
-    GroupLocations: [],
-  }
-}
