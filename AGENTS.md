@@ -26,19 +26,19 @@ reveals a product decision that the plan did not settle, pause and resolve it.
 - Storage: S3-compatible storage via `@payloadcms/storage-s3`
 - Styling: Tailwind CSS 4
 - Language: TypeScript in strict mode
-- Package manager: npm with `package-lock.json`
+- Package manager: pnpm with `pnpm-lock.yaml`
 - Runtime: Node.js 22 or newer
 
 ## Common Commands
 
 ```bash
-npm install
-npm run dev
-npm run build
-npm run generate:types
+pnpm install
+pnpm run dev
+pnpm run build
+pnpm run generate:types
 ```
 
-Use `npm run build` as the primary repository verification because it regenerates
+Use `pnpm build` as the primary repository verification because it regenerates
 Payload types before building Next.js. Run narrower checks while iterating when
 they are sufficient, then run the build for changes that can affect production.
 
