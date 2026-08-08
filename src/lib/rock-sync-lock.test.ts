@@ -1,20 +1,25 @@
 import { describe, expect, it, vi } from 'vitest'
 import { withRockSyncLock } from './rock-sync-lock'
 
-function lockClient(acquired: boolean) {
-  return {
-    connect: vi.fn(async () => undefined),
-    query: vi.fn(async (text: string) => ({
-      rows: text.includes('pg_try_advisory_lock') ? [{ acquired }] : [],
-    })),
-    end: vi.fn(async () => undefined),
+
+function makeMockClient(acquired: boolean): any {
+  const mock: Record<string, unknown> = {
+    connect: vi.fn().mockResolvedValue(undefined),
+    query: vi.fn().mockImplementation(async (text: string) => {
+      if (text.includes('pg_try_advisory_lock')) {
+        return { rows: [{ acquired }] };
+      }
+      return { rows: [] };
+    }),
+    end: vi.fn().mockResolvedValue(undefined),
   }
+  return mock
 }
 
 describe('withRockSyncLock', () => {
   it('runs the operation while holding the advisory lock', async () => {
-    const client = lockClient(true)
-    const operation = vi.fn(async () => 'done')
+    const client = makeMockClient(true)
+    const operation = vi.fn().mockResolvedValue('done')
 
     await expect(
       withRockSyncLock(operation, {
@@ -32,8 +37,8 @@ describe('withRockSyncLock', () => {
   })
 
   it('does not run when another process holds the lock', async () => {
-    const client = lockClient(false)
-    const operation = vi.fn(async () => 'done')
+    const client = makeMockClient(false)
+    const operation = vi.fn().mockResolvedValue('done')
 
     await expect(
       withRockSyncLock(operation, {
@@ -47,7 +52,7 @@ describe('withRockSyncLock', () => {
   })
 
   it('releases the lock when the operation fails', async () => {
-    const client = lockClient(true)
+    const client = makeMockClient(true)
 
     await expect(
       withRockSyncLock(

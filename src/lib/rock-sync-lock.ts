@@ -2,8 +2,8 @@ import { Client } from 'pg'
 
 const ROCK_SYNC_LOCK_KEY = '4996835786959475528'
 
-type AdvisoryLockClient = {
-  connect(): Promise<void>
+export type AdvisoryLockClient = {
+  connect(): Promise<AdvisoryLockClient>
   query<T extends Record<string, unknown> = Record<string, unknown>>(
     text: string,
     values?: unknown[],

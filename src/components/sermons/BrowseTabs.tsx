@@ -136,7 +136,7 @@ export function BrowseTabs({ seriesItems, scriptureItems, speakerItems }: Browse
     const hash = window.location.hash
     const initial = hashToMode[hash]
     if (initial && initial !== mode) setMode(initial)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   const scriptureGroups = buildScriptureGroups(scriptureItems)
 

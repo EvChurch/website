@@ -325,7 +325,7 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
               <ContentBlockComponent
                 key={key}
                 heading={b.heading}
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
                 body={b.body as any}
                 image={b.image}
                 alignment={b.alignment}

@@ -22,10 +22,9 @@ describe('member Rock API client', () => {
   })
 
   it('sends an encoded no-store JSON request with the member credential', async () => {
-    const fetchMock = vi.fn(async () =>
-      Response.json([{ Id: 42 }]),
-    )
-    global.fetch = fetchMock
+    const response = Response.json([{ Id: 42 }])
+    const fetchMock = vi.fn().mockResolvedValue(response)
+    global.fetch = fetchMock as unknown as typeof fetch
 
     await expect(
       memberRockFetch<{ Id: number }[]>({
@@ -35,7 +34,8 @@ describe('member Rock API client', () => {
       }),
     ).resolves.toEqual([{ Id: 42 }])
 
-    const [url, options] = fetchMock.mock.calls[0]!
+    const call = fetchMock.mock.calls[0] as [URL | string, RequestInit?]
+    const [url, options] = call!
     expect(url).toBeInstanceOf(URL)
     expect((url as URL).toString()).toBe(
       'https://rock.example.test/api/UserLogins?%24filter=ForeignKey+eq+%27auth0%7Cmember%27',
@@ -53,7 +53,7 @@ describe('member Rock API client', () => {
   it('preserves an upstream status and cancels the rejected body', async () => {
     const cancel = vi.fn()
     const body = new ReadableStream({ cancel })
-    global.fetch = vi.fn(async () => new Response(body, { status: 503 }))
+    global.fetch = vi.fn().mockResolvedValue(new Response(body, { status: 503 }))
 
     const request = memberRockFetch({ endpoint: 'People/42' })
 
