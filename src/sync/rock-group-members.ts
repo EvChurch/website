@@ -15,7 +15,7 @@ export function fetchActiveGroupMembers(groupId: number) {
     },
     params: {
       $filter: `GroupId eq ${groupId} and GroupMemberStatus eq 'Active' and IsArchived eq false`,
-      $expand: 'Person($expand=PhoneNumbers),GroupRole',
+      $expand: 'Person/PhoneNumbers,GroupRole',
       $orderby: 'GroupOrder,Id',
     },
   })

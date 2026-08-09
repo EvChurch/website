@@ -19,7 +19,7 @@ describe('fetchActiveGroupMembers', () => {
       getKey: expect.any(Function),
       params: {
         $filter: "GroupId eq 29482 and GroupMemberStatus eq 'Active' and IsArchived eq false",
-        $expand: 'Person($expand=PhoneNumbers),GroupRole',
+        $expand: 'Person/PhoneNumbers,GroupRole',
         $orderby: 'GroupOrder,Id',
       },
     })
