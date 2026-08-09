@@ -79,7 +79,7 @@ export function mapRockConnectGroupParticipant(
         (
           membership,
         ): membership is RockGroupMember & { Id: number; GroupId: number; GroupRoleId: number } =>
-          membership.Person.Id === person.Id && isCompleteMembership(membership),
+          membership.Person.Id === person.Id && isCompleteMembership(membership) && !!membership.GroupRole,
       )
       .map((membership) => {
         const roleName = membership.GroupRole.Name.trim()
