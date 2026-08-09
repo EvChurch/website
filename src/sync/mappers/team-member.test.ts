@@ -15,6 +15,7 @@ describe('mapRockTeamMember', () => {
       GroupOrder: null,
     }
 
-    expect(mapRockTeamMember(member, 29482).order).toBe(0)
+    const result = mapRockTeamMember(member, 29482)
+    expect(result?.order).toBe(0)
   })
 })

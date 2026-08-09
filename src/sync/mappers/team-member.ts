@@ -19,7 +19,10 @@ export function mapRockTeamMember(
   member: RockGroupMember,
   groupId: number,
 ) {
+  if (!member.Person || !member.GroupRole) return null
+
   const fullName = getRockPersonName(member.Person)
+
 
   return {
     fullName,

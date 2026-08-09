@@ -79,16 +79,17 @@ export function mapRockConnectGroupParticipant(
         (
           membership,
         ): membership is RockGroupMember & { Id: number; GroupId: number; GroupRoleId: number } =>
-          membership.Person.Id === person.Id && isCompleteMembership(membership) && !!membership.GroupRole,
+          membership.Person?.Id === person.Id && isCompleteMembership(membership) && !!membership.GroupRole,
       )
       .map((membership) => {
-        const roleName = membership.GroupRole.Name.trim()
+        const role = membership.GroupRole
+        const roleName = role.Name.trim()
         return {
           rockGroupId: membership.GroupId,
           rockMembershipId: membership.Id,
           rockRoleId: membership.GroupRoleId,
           roleName,
-          isLeader: membership.GroupRole.IsLeader === true,
+          isLeader: role.IsLeader === true,
         }
       }),
   }

@@ -112,6 +112,7 @@ export async function syncTeamMembers(): Promise<SyncResult> {
 
         for (const member of members) {
           const mapped = mapRockTeamMember(member, groupId)
+          if (!mapped) continue
           const existing = await payload.find({
             collection: 'team-members',
             where: { rockPersonId: { equals: mapped.rockPersonId } },

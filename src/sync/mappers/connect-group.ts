@@ -10,11 +10,12 @@ function slugify(name: string): string {
 
 export function mapRockConnectGroup(rock: RockGroup) {
   const leaders = rock.Members.filter(
-    (m) => m.GroupRole.IsLeader === true,
-  ).map((m) => ({
-    name: getRockPersonName(m.Person),
-    email: m.Person.Email || '',
-  }))
+    (m) => m.GroupRole && m.Person && m.GroupRole.IsLeader === true,
+  )
+    .map((m) => ({
+      name: getRockPersonName(m.Person),
+      email: m.Person.Email || '',
+    }))
 
   const location = rock.GroupLocations[0]?.Location
 
