@@ -4,8 +4,8 @@ import { denyExternalMutation, isAdmin } from '@/access/roles'
 
 function resourceFileFields(): Field[] {
   return [
-    { name: 'guid', type: 'text', required: true },
-    { name: 'name', type: 'text', required: true },
+    { name: 'guid', type: 'text' },
+    { name: 'name', type: 'text' },
   ]
 }
 

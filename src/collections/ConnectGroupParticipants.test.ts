@@ -61,7 +61,7 @@ describe('ConnectGroupParticipants collection', () => {
     ).toEqual(expect.arrayContaining(['number', 'typeValueId', 'isMessagingEnabled']))
 
     const memberships = fields.get('memberships')
-    expect(memberships).toMatchObject({ type: 'array', required: true })
+    expect(memberships).toMatchObject({ type: 'array' })
     if (!memberships || !('fields' in memberships)) throw new Error('memberships must be an array')
     const membershipFields = memberships.fields
       .filter((field) => 'name' in field)

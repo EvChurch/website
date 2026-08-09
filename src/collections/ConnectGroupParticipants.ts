@@ -41,7 +41,6 @@ export const ConnectGroupParticipants: CollectionConfig = {
     {
       name: 'memberships',
       type: 'array',
-      required: true,
       admin: { readOnly: true },
       fields: [
         { name: 'rockGroupId', type: 'number', required: true, index: true },

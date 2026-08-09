@@ -19,7 +19,7 @@ interface RelationRecord {
   slug?: string | null
 }
 
-type ParticipantMembershipRecord = ConnectGroupParticipant['memberships'][number]
+type ParticipantMembershipRecord = NonNullable<ConnectGroupParticipant["memberships"]>[number]
 type ParticipantRecord = Partial<ConnectGroupParticipant>
 type ConnectGroupRecord = Partial<ConnectGroup>
 type ResourceFileRecord = Partial<ConnectGroupLeaderResource['leaderNotesFile']>
