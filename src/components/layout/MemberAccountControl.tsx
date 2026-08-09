@@ -95,7 +95,7 @@ function MemberAvatar({
   if (profile.avatarUrl && !imageFailed) {
     return (
       // The source is the authenticated same-origin member-avatar route.
-      // eslint-disable-next-line @next/next/no-img-element
+      
       <img
         src={profile.avatarUrl}
         alt={descriptive ? `${profile.name}'s profile` : ''}

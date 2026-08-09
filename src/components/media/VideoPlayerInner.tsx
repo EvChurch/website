@@ -175,7 +175,7 @@ export default function VideoPlayerInner({ video, onReady }: VideoPlayerInnerPro
       player.dispose()
     }
     // Only run on mount/unmount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [])
 
   const handlePlayPause = useCallback(() => {

@@ -49,7 +49,7 @@ export function MemberAvatar({
   if (src && !failed) {
     return (
       // Sources are authenticated same-origin member media routes.
-      // eslint-disable-next-line @next/next/no-img-element
+      
       <img
         src={src}
         alt={`${name}'s profile`}

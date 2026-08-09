@@ -75,7 +75,7 @@ export function VideoContainer() {
       const timer = setTimeout(() => setShouldRender(false), 350)
       return () => clearTimeout(timer)
     }
-  }, [isVideoVisible]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isVideoVisible])
 
   // Track positions for both states
   const [thumbRect, setThumbRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null)
@@ -151,7 +151,7 @@ export function VideoContainer() {
     if (isVideoExpanded) {
       minimizeVideo()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [pathname])
 
   // Initialize or switch video when activeVideo changes
@@ -281,7 +281,7 @@ export function VideoContainer() {
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [activeVideo?.youtubeVideoId, isVideoVisible, shouldRender])
 
   // Clean up player after fade-out completes

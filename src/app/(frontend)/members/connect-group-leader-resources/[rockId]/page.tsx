@@ -64,7 +64,7 @@ export default async function LeaderResourceDetailPage({
           ) : resource.promotionalImageUrl ? (
             <div className="aspect-video overflow-hidden rounded-2xl bg-brand-black">
               {/* Protected, same-origin image route. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {/* Protected, same-origin image route. */}
               <img src={resource.promotionalImageUrl} alt="" className="h-full w-full object-cover" />
             </div>
           ) : null}
@@ -78,7 +78,7 @@ export default async function LeaderResourceDetailPage({
           {resource.promotionalImageUrl && embedUrl && (
             <div className="overflow-hidden rounded-2xl bg-brand-black">
               {/* Protected, same-origin image route. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {/* Protected, same-origin image route. */}
               <img src={resource.promotionalImageUrl} alt="" className="h-auto w-full" />
             </div>
           )}

@@ -33,7 +33,7 @@ export function LeaderResourceCard({
       <div className={`relative overflow-hidden bg-[linear-gradient(135deg,#21080d,#0f0004)] ${featured ? 'min-h-72' : 'aspect-[16/9]'}`}>
         {resource.promotionalImageUrl ? (
           // Protected, same-origin image route.
-          // eslint-disable-next-line @next/next/no-img-element
+          
           <img
             src={resource.promotionalImageUrl}
             alt=""

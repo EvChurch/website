@@ -1080,175 +1080,183 @@ async function seed() {
     },
   })
 
-  /* ─────────────────────── NEWISH CONNECT PAGE ─────────────────────── */
-  await upsertPage('newish', {
-    title: 'Newish Connect',
-    _status: 'published',
-    layout: ensureNewishConnectionForm([
-      {
-        blockType: 'hero',
-        image: img('newish-connect-banner'),
-        eyebrow: 'New to Ev?',
-        heading: 'Newish Connect',
-        highlightedText: 'Connect',
-        subtitle: 'Whether you have been coming for a few weeks or a few months, Newish Connect is the perfect way to get to know Ev Church and find where you belong.',
-        keyColor: '#2D6A4F',
-        overlayStyle: 'banner',
+  /* NEWISH CONNECT PAGE */
+  try {
+    await upsertPage('newish', {
+      title: 'Newish Connect',
+      _status: 'published',
+      layout: ensureNewishConnectionForm([
+        {
+          blockType: 'hero',
+          image: img('newish-connect-banner'),
+          eyebrow: 'New to Ev?',
+          heading: 'Newish Connect',
+          highlightedText: 'Connect',
+          subtitle: 'Whether you have been coming for a few weeks or a few months, Newish Connect is the perfect way to get to know Ev Church and find where you belong.',
+          keyColor: '#2D6A4F',
+          overlayStyle: 'banner',
+        },
+        {
+          blockType: 'content',
+          heading: 'Your next step at Ev',
+          body: richText([
+            'Newish Connect is a casual, fun gathering designed for anyone who is new or relatively new to Ev Church. It is your chance to meet the pastors, learn about the church\'s vision, and connect with other people who are finding their place.',
+            'There is no commitment and no pressure. Just good conversation, good food, and a chance to take your next step. Whether that is joining a connect group, volunteering on a team, or simply getting to know more people, Newish Connect will help you find your way.',
+          ]),
+          alignment: 'left',
+        },
+        {
+          blockType: 'featureGrid',
+          eyebrow: 'What happens',
+          heading: 'A simple, welcoming experience',
+          layout: 'fourColumn',
+          style: 'iconTop',
+          items: [
+            {
+              icon: 'coffee',
+              title: 'Grab a coffee',
+              description: 'Arrive and settle in with a great coffee and some food. It is relaxed, warm, and welcoming.',
+            },
+            {
+              icon: 'book',
+              title: 'Hear the story',
+              description: 'Our pastors share the heart and vision of Ev Church. Where we have come from, where we are going, and why it matters.',
+            },
+            {
+              icon: 'users',
+              title: 'Meet your people',
+              description: 'Connect with other newcomers and leaders in a casual setting. Ask questions, share your story, and start building friendships.',
+            },
+            {
+              icon: 'heart',
+              title: 'Find your place',
+              description: 'Discover the many ways you can get involved. From serving teams to connect groups, there is a place for everyone.',
+            },
+          ],
+        },
+        {
+          blockType: 'photoStrip',
+          layout: 'horizontalScroll',
+          images: [
+            { image: img('carousel-3c68ddf1') },
+            { image: img('carousel-89a3395d') },
+            { image: img('carousel-8aae1142') },
+            { image: img('carousel-c842f7b4') },
+          ],
+        },
+        {
+          blockType: 'cta',
+          heading: 'We would love to meet you',
+          text: 'Newish Connect is the easiest way to take your next step at Ev. Come along and see what it is all about.',
+          colorPreset: 'primary-red',
+          buttons: [
+            { label: 'Plan your visit', href: '/visit', variant: 'primary' },
+            { label: 'Get in touch', href: '/contact', variant: 'secondary' },
+          ],
+        },
+      ]),
+      seo: {
+        metaTitle: 'New to Ev Church Auckland? | Newish Connect',
+        metaDescription: 'Just started coming to Ev Church? Newish Connect is the perfect way to meet people and find where you belong.',
       },
-      {
-        blockType: 'content',
-        heading: 'Your next step at Ev',
-        body: richText([
-          'Newish Connect is a casual, fun gathering designed for anyone who is new or relatively new to Ev Church. It is your chance to meet the pastors, learn about the church\'s vision, and connect with other people who are finding their place.',
-          'There is no commitment and no pressure. Just good conversation, good food, and a chance to take your next step. Whether that is joining a connect group, volunteering on a team, or simply getting to know more people, Newish Connect will help you find your way.',
-        ]),
-        alignment: 'left',
-      },
-      {
-        blockType: 'featureGrid',
-        eyebrow: 'What happens',
-        heading: 'A simple, welcoming experience',
-        layout: 'fourColumn',
-        style: 'iconTop',
-        items: [
-          {
-            icon: 'coffee',
-            title: 'Grab a coffee',
-            description: 'Arrive and settle in with a great coffee and some food. It is relaxed, warm, and welcoming.',
-          },
-          {
-            icon: 'book',
-            title: 'Hear the story',
-            description: 'Our pastors share the heart and vision of Ev Church. Where we have come from, where we are going, and why it matters.',
-          },
-          {
-            icon: 'users',
-            title: 'Meet your people',
-            description: 'Connect with other newcomers and leaders in a casual setting. Ask questions, share your story, and start building friendships.',
-          },
-          {
-            icon: 'heart',
-            title: 'Find your place',
-            description: 'Discover the many ways you can get involved. From serving teams to connect groups, there is a place for everyone.',
-          },
-        ],
-      },
-      {
-        blockType: 'photoStrip',
-        layout: 'horizontalScroll',
-        images: [
-          { image: img('carousel-3c68ddf1') },
-          { image: img('carousel-89a3395d') },
-          { image: img('carousel-8aae1142') },
-          { image: img('carousel-c842f7b4') },
-        ],
-      },
-      {
-        blockType: 'cta',
-        heading: 'We would love to meet you',
-        text: 'Newish Connect is the easiest way to take your next step at Ev. Come along and see what it is all about.',
-        colorPreset: 'primary-red',
-        buttons: [
-          { label: 'Plan your visit', href: '/visit', variant: 'primary' },
-          { label: 'Get in touch', href: '/contact', variant: 'secondary' },
-        ],
-      },
-    ]),
-    seo: {
-      metaTitle: 'New to Ev Church Auckland? | Newish Connect',
-      metaDescription: 'Just started coming to Ev Church? Newish Connect is the perfect way to meet people and find where you belong.',
-    },
-  })
+    });
+  } catch (err) {
+    console.error('Failed to seed newish (likely Rock Connection Signup unavailable):', err.message);
+  }
 
   /* ─────────────────────── EXPLAINING CHRISTIANITY PAGE ─────────────────────── */
-  await upsertPage('explaining-christianity', {
-    title: 'Explaining Christianity',
-    _status: 'published',
-    layout: [
-      {
-        blockType: 'hero',
-        image: img('ec-banner'),
-        eyebrow: 'Explore the faith',
-        heading: 'Explaining Christianity',
-        highlightedText: 'Christianity',
-        subtitle: 'A relaxed, no-pressure course for anyone curious about the Christian faith. Ask your questions. Hear real stories. Decide for yourself.',
-        keyColor: '#2E7EB5',
-        overlayStyle: 'banner',
+  try {
+    await upsertPage('explaining-christianity', {
+      title: 'Explaining Christianity',
+      _status: 'published',
+      layout: [
+        {
+          blockType: 'hero',
+          image: img('ec-banner'),
+          eyebrow: 'Explore the faith',
+          heading: 'Explaining Christianity',
+          highlightedText: 'Christianity',
+          subtitle: 'A relaxed, no-pressure course for anyone curious about the Christian faith. Ask your questions. Hear real stories. Decide for yourself.',
+          keyColor: '#2E7EB5',
+          overlayStyle: 'banner',
+        },
+        {
+          blockType: 'content',
+          heading: 'What is Explaining Christianity?',
+          body: richText([
+            'Explaining Christianity is a short course designed for people who want to explore the Christian faith in an honest, open environment. Whether you have never been to church, you grew up going but drifted away, or you are simply curious, this course is for you.',
+            'Over several weeks, we look at the big questions of life and what the Bible has to say about them. Each session includes a short talk, a chance to discuss in small groups, and plenty of time for your questions.',
+            'There is no pressure to believe anything, sign anything, or come back the following week. This is simply a space for honest exploration.',
+          ]),
+          alignment: 'left',
+        },
+        {
+          blockType: 'featureGrid',
+          eyebrow: 'What to expect',
+          heading: 'No pressure, just good conversation',
+          layout: 'fourColumn',
+          style: 'iconTop',
+          items: [
+            {
+              icon: 'smile',
+              title: 'Relaxed atmosphere',
+              description: 'No awkward moments, no pressure. Just honest conversations over good food and coffee.',
+            },
+            {
+              icon: 'chat',
+              title: 'Real questions welcome',
+              description: 'There are no silly questions. This is a space to ask anything you have ever wondered about faith.',
+            },
+            {
+              icon: 'clock',
+              title: 'Short and flexible',
+              description: 'The course runs over several weeks with short sessions. No commitment to keep coming if it is not for you.',
+            },
+            {
+              icon: 'users',
+              title: 'Bring a friend',
+              description: 'Everything is better with a mate. You are welcome to bring someone along for the journey.',
+            },
+          ],
+        },
+        {
+          blockType: 'photoStrip',
+          layout: 'horizontalScroll',
+          images: [
+            { image: img('carousel-c645786c') },
+            { image: img('carousel-9a8d8943') },
+            { image: img('carousel-c645786c') },
+            { image: img('carousel-db9ac570') },
+          ],
+        },
+        {
+          blockType: 'formEmbed',
+          eyebrow: 'Register your interest',
+          heading: 'Sign up for the next course',
+          description: 'The next Explaining Christianity course will be announced soon. Register your interest and we will let you know when dates are confirmed.',
+          sourceType: 'connectionOpportunity',
+          rockConnectionBlockGuid:
+            EXPLAINING_CHRISTIANITY_CONNECTION_BLOCK_GUID,
+          layout: 'centered',
+        },
+        {
+          blockType: 'cta',
+          heading: 'Curious? That is a great start.',
+          text: 'You do not need to have all the answers. You just need to be willing to ask the questions. We would love to explore them with you.',
+          colorPreset: 'primary-red',
+          buttons: [
+            { label: 'Ask us anything', href: '/contact', variant: 'primary' },
+          ],
+        },
+      ],
+      seo: {
+        metaTitle: 'Christianity Course Auckland | Explore Faith at Ev Church',
+        metaDescription: 'Curious about the Christian faith? Join Explaining Christianity at Ev Church Auckland. Relaxed, no-pressure, all questions welcome.',
       },
-      {
-        blockType: 'content',
-        heading: 'What is Explaining Christianity?',
-        body: richText([
-          'Explaining Christianity is a short course designed for people who want to explore the Christian faith in an honest, open environment. Whether you have never been to church, you grew up going but drifted away, or you are simply curious, this course is for you.',
-          'Over several weeks, we look at the big questions of life and what the Bible has to say about them. Each session includes a short talk, a chance to discuss in small groups, and plenty of time for your questions.',
-          'There is no pressure to believe anything, sign anything, or come back the following week. This is simply a space for honest exploration.',
-        ]),
-        alignment: 'left',
-      },
-      {
-        blockType: 'featureGrid',
-        eyebrow: 'What to expect',
-        heading: 'No pressure, just good conversation',
-        layout: 'fourColumn',
-        style: 'iconTop',
-        items: [
-          {
-            icon: 'smile',
-            title: 'Relaxed atmosphere',
-            description: 'No awkward moments, no pressure. Just honest conversations over good food and coffee.',
-          },
-          {
-            icon: 'chat',
-            title: 'Real questions welcome',
-            description: 'There are no silly questions. This is a space to ask anything you have ever wondered about faith.',
-          },
-          {
-            icon: 'clock',
-            title: 'Short and flexible',
-            description: 'The course runs over several weeks with short sessions. No commitment to keep coming if it is not for you.',
-          },
-          {
-            icon: 'users',
-            title: 'Bring a friend',
-            description: 'Everything is better with a mate. You are welcome to bring someone along for the journey.',
-          },
-        ],
-      },
-      {
-        blockType: 'photoStrip',
-        layout: 'horizontalScroll',
-        images: [
-          { image: img('carousel-c645786c') },
-          { image: img('carousel-9a8d8943') },
-          { image: img('carousel-c645786c') },
-          { image: img('carousel-db9ac570') },
-        ],
-      },
-      {
-        blockType: 'formEmbed',
-        eyebrow: 'Register your interest',
-        heading: 'Sign up for the next course',
-        description: 'The next Explaining Christianity course will be announced soon. Register your interest and we will let you know when dates are confirmed.',
-        sourceType: 'connectionOpportunity',
-        rockConnectionBlockGuid:
-          EXPLAINING_CHRISTIANITY_CONNECTION_BLOCK_GUID,
-        layout: 'centered',
-      },
-      {
-        blockType: 'cta',
-        heading: 'Curious? That is a great start.',
-        text: 'You do not need to have all the answers. You just need to be willing to ask the questions. We would love to explore them with you.',
-        colorPreset: 'primary-red',
-        buttons: [
-          { label: 'Ask us anything', href: '/contact', variant: 'primary' },
-        ],
-      },
-    ],
-    seo: {
-      metaTitle: 'Christianity Course Auckland | Explore Faith at Ev Church',
-      metaDescription: 'Curious about the Christian faith? Join Explaining Christianity at Ev Church Auckland. Relaxed, no-pressure, all questions welcome.',
-    },
-  })
+    });
+  } catch (err) {
+    console.error('Failed to seed explaining-christianity (likely Rock Connection Signup unavailable):', err.message);
+  }
 
   /* ─────────────────────── EASTER PAGE ─────────────────────── */
   await upsertPage('easter', {

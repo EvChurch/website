@@ -92,7 +92,7 @@ export default async function DynamicPage({
 
   if (!page) notFound()
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   const blocks = (page.layout ?? []) as any[]
   const breadcrumbs = buildBreadcrumbs(`/${slug}`, page.title)
 
