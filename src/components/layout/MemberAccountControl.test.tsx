@@ -57,7 +57,7 @@ describe('MemberAccountControl', () => {
     expect(container.textContent).not.toContain('Aroha')
   })
 
-  it('opens profile details with members access and uses unique relationships', async () => {
+  it('renders a hover menu for desktop and mobile-icon variants', async () => {
     await act(async () => root.render(
       <>
         <MemberAccountControl profile={member} variant="desktop" tone="dark" />
@@ -65,100 +65,207 @@ describe('MemberAccountControl', () => {
       </>,
     ))
 
-    const triggers = [...container.querySelectorAll<HTMLButtonElement>('button[aria-haspopup="dialog"]')]
-    expect(triggers).toHaveLength(2)
-    expect(triggers[0]?.getAttribute('aria-controls')).not.toBe(
-      triggers[1]?.getAttribute('aria-controls'),
+    // hover-trigger variants use aria-haspopup="true" (drawer uses "dialog")
+    const hoverTriggers = [...container.querySelectorAll<HTMLButtonElement>('button')]
+      .filter((btn) => btn.getAttribute('aria-label')?.includes('Open account for'))
+      .filter((btn) => btn.getAttribute('aria-haspopup') === 'true')
+    expect(hoverTriggers).toHaveLength(2)
+    expect(hoverTriggers[0]?.getAttribute('aria-controls')).not.toBe(
+      hoverTriggers[1]?.getAttribute('aria-controls'),
     )
 
-    await act(async () => triggers[0]?.click())
-    expect(triggers[0]?.getAttribute('aria-expanded')).toBe('true')
-    const dialog = container.querySelector('[role="dialog"]')
-    expect(dialog?.getAttribute('data-state')).toBe('open')
-    expect(dialog?.textContent).toContain('Aroha Ngata')
-    expect(dialog?.textContent).toContain('aroha@example.com')
-    const links = [...(dialog?.querySelectorAll<HTMLAnchorElement>('a') ?? [])]
+    await act(async () => hoverTriggers[0]?.parentElement?.dispatchEvent(
+      new MouseEvent('mouseover', { bubbles: true }),
+    ))
+
+    const menu = container.querySelector('[role="menu"]')
+    expect(menu).not.toBeNull()
+    expect(menu?.getAttribute('data-state')).toBe('open')
+    expect(menu?.textContent).toContain('Aroha Ngata')
+    expect(menu?.textContent).toContain('aroha@example.com')
+    expect(menu?.querySelector('img')).not.toBeNull()
+    expect(menu?.textContent).toContain('Overview')
+    expect(menu?.textContent).toContain('Connect Group')
+    expect(menu?.textContent).toContain('Log out')
+    expect(menu?.textContent).not.toContain('personId')
+    expect(menu?.textContent).not.toContain('Auth0')
+    expect(menu?.textContent).not.toContain('Open members')
+
+    const links = [...(menu?.querySelectorAll<HTMLAnchorElement>('a') ?? [])]
       .map((link) => link.getAttribute('href'))
-    expect(links).toEqual(['/members', '/auth/logout'])
-    expect(dialog?.textContent).not.toContain('personId')
-    expect(dialog?.textContent).not.toContain('Auth0')
+    expect(links).toContain('/members')
+    expect(links).toContain('/members/connect-groups')
+    expect(links.some(l => l?.startsWith('/auth/logout'))).toBe(true)
   })
 
-  it('closes on Escape and outside press, restoring trigger focus', async () => {
+  it('closes hover menu on Escape key', async () => {
     await act(async () => root.render(
       <MemberAccountControl profile={member} variant="desktop" tone="dark" />,
     ))
-    const trigger = container.querySelector<HTMLButtonElement>('button[aria-haspopup="dialog"]')!
+    const trigger = [...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find((btn) => btn.getAttribute('aria-label')?.includes('Open account for'))!
 
+    // Click opens
     await act(async () => trigger.click())
+    expect(container.querySelector('[role="menu"]')).not.toBeNull()
+
+    // Escape closes and restores focus
     await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })))
-    const closingDialog = container.querySelector<HTMLElement>('[role="dialog"]')!
-    expect(closingDialog.getAttribute('data-state')).toBe('closed')
-    expect(closingDialog.getAttribute('aria-hidden')).toBe('true')
+    expect(container.querySelector('[role="menu"]')).toBeNull()
     expect(document.activeElement).toBe(trigger)
-
-    await act(async () => closingDialog.dispatchEvent(new AnimationEvent('animationend', {
-      bubbles: true,
-    })))
-    expect(container.querySelector('[role="dialog"]')).toBeNull()
-
-    await act(async () => trigger.click())
-    await act(async () => document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })))
-    const outsideClosingDialog = container.querySelector<HTMLElement>('[role="dialog"]')!
-    expect(outsideClosingDialog.getAttribute('data-state')).toBe('closed')
-
-    await act(async () => trigger.click())
-    expect(outsideClosingDialog.getAttribute('data-state')).toBe('open')
-    await act(async () => outsideClosingDialog.dispatchEvent(new AnimationEvent('animationend', {
-      bubbles: true,
-    })))
-    expect(container.querySelector('[role="dialog"]')).toBe(outsideClosingDialog)
-
-    await act(async () => trigger.click())
-    await act(async () => outsideClosingDialog.dispatchEvent(new AnimationEvent('animationend', {
-      bubbles: true,
-    })))
-    expect(container.querySelector('[role="dialog"]')).toBeNull()
   })
 
-  it('closes a popover when its containing surface becomes inactive', async () => {
-    await act(async () => root.render(
-      <MemberAccountControl profile={member} variant="drawer" active />,
-    ))
-    const trigger = container.querySelector<HTMLButtonElement>('button[aria-haspopup="dialog"]')!
-    await act(async () => trigger.click())
-    expect(container.querySelector('[role="dialog"]')).not.toBeNull()
-
-    await act(async () => root.render(
-      <MemberAccountControl profile={member} variant="drawer" active={false} />,
-    ))
-    const closingDialog = container.querySelector<HTMLElement>('[role="dialog"]')!
-    expect(closingDialog.getAttribute('aria-hidden')).toBe('true')
-    expect(closingDialog.hasAttribute('inert')).toBe(true)
-    expect(closingDialog.className).toContain('pointer-events-none')
-    await act(async () => closingDialog.dispatchEvent(new AnimationEvent('animationend', {
-      bubbles: true,
-    })))
-    expect(container.querySelector('[role="dialog"]')).toBeNull()
-  })
-
-  it('closes an open popover when the route changes', async () => {
+  it('closes hover menu on route change', async () => {
     await act(async () => root.render(
       <MemberAccountControl profile={member} variant="desktop" tone="dark" />,
     ))
-    const trigger = container.querySelector<HTMLButtonElement>('button[aria-haspopup="dialog"]')!
-    await act(async () => trigger.click())
+    const trigger = [...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find((btn) => btn.getAttribute('aria-label')?.includes('Open account for'))!
 
+    // Open via click
+    await act(async () => trigger.click())
+    expect(container.querySelector('[role="menu"]')).not.toBeNull()
+
+    // Route changes → menu closes (sync)
     navigation.pathname = '/events'
     await act(async () => root.render(
       <MemberAccountControl profile={member} variant="desktop" tone="dark" />,
     ))
+    expect(container.querySelector('[role="menu"]')).toBeNull()
+  })
 
-    const closingDialog = container.querySelector<HTMLElement>('[role="dialog"]')!
-    await act(async () => closingDialog.dispatchEvent(new AnimationEvent('animationend', {
-      bubbles: true,
-    })))
-    expect(container.querySelector('[role="dialog"]')).toBeNull()
+  it('closes hover menu on outside pointer press', async () => {
+    await act(async () => root.render(
+      <MemberAccountControl profile={member} variant="desktop" tone="dark" />,
+    ))
+    const trigger = [...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find((btn) => btn.getAttribute('aria-label')?.includes('Open account for'))!
+
+    // Click opens
+    await act(async () => trigger.click())
+    expect(container.querySelector('[role="menu"]')).not.toBeNull()
+
+    // Outside press closes
+    await act(async () => document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })))
+    expect(container.querySelector('[role="menu"]')).toBeNull()
+  })
+
+  it('keeps the hover menu closed while the control is inactive', async () => {
+    await act(async () => root.render(
+      <MemberAccountControl profile={member} variant="mobile-icon" active />,
+    ))
+    const trigger = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Open account for Aroha Ngata"]',
+    )!
+
+    await act(async () => trigger.click())
+    expect(container.querySelector('[role="menu"]')).not.toBeNull()
+
+    await act(async () => root.render(
+      <MemberAccountControl profile={member} variant="mobile-icon" active={false} />,
+    ))
+    expect(container.querySelector('[role="menu"]')).toBeNull()
+
+    await act(async () => trigger.click())
+    expect(container.querySelector('[role="menu"]')).toBeNull()
+  })
+
+  it('delays hover close and cancels it on re-entry', async () => {
+    vi.useFakeTimers()
+
+    try {
+      await act(async () => root.render(
+        <MemberAccountControl profile={member} variant="desktop" tone="dark" />,
+      ))
+      const account = container.querySelector<HTMLButtonElement>(
+        'button[aria-label="Open account for Aroha Ngata"]',
+      )!.parentElement!
+
+      await act(async () => account.dispatchEvent(
+        new MouseEvent('mouseover', { bubbles: true }),
+      ))
+      expect(container.querySelector('[role="menu"]')).not.toBeNull()
+
+      await act(async () => account.dispatchEvent(
+        new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }),
+      ))
+      await act(async () => vi.advanceTimersByTime(119))
+      expect(container.querySelector('[role="menu"]')).not.toBeNull()
+
+      await act(async () => account.dispatchEvent(
+        new MouseEvent('mouseover', { bubbles: true }),
+      ))
+      await act(async () => vi.advanceTimersByTime(120))
+      expect(container.querySelector('[role="menu"]')).not.toBeNull()
+
+      await act(async () => account.dispatchEvent(
+        new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }),
+      ))
+      await act(async () => vi.advanceTimersByTime(120))
+      expect(container.querySelector('[role="menu"]')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('renders an in-place expandable area for drawer variant', async () => {
+    await act(async () => root.render(
+      <MemberAccountControl profile={member} variant="drawer" />,
+    ))
+
+    // Trigger has no aria-haspopup (it's an in-place toggle, not a popup)
+    const trigger = container.querySelector<HTMLButtonElement>(
+      'button[aria-expanded="false"]',
+    )!
+    expect(trigger).not.toBeNull()
+    expect(trigger?.getAttribute('aria-haspopup')).toBeNull()
+    expect(trigger?.textContent).toContain('Aroha Ngata')
+    expect(trigger?.textContent).toContain('aroha@example.com')
+    expect(trigger?.querySelector('img')).not.toBeNull()
+    expect(trigger?.className).toContain('w-full')
+    expect(trigger?.className).toContain('justify-between')
+    // Chevron should be present
+    expect(trigger?.querySelector('svg')).not.toBeNull()
+
+    // Closed state: grid-rows-[0fr]
+    const collapsedPanel = container.querySelector<HTMLDivElement>(
+      '[data-state="closed"]',
+    )!
+    expect(collapsedPanel?.className).toContain('grid-rows-[0fr]')
+    expect(collapsedPanel?.getAttribute('aria-hidden')).toBe('true')
+    expect(collapsedPanel?.hasAttribute('inert')).toBe(true)
+
+    // Click opens it
+    await act(async () => trigger.click())
+    const expandedPanel = container.querySelector<HTMLDivElement>(
+      '[data-state="open"]',
+    )!
+    expect(expandedPanel?.className).toContain('grid-rows-[1fr]')
+    expect(expandedPanel?.getAttribute('aria-hidden')).toBe('false')
+    expect(expandedPanel?.hasAttribute('inert')).toBe(false)
+    expect(trigger.textContent).toContain('Aroha Ngata')
+    expect(trigger.textContent).toContain('aroha@example.com')
+    expect(expandedPanel?.textContent).toContain('Overview')
+    expect(expandedPanel?.textContent).toContain('Connect Group')
+    expect(expandedPanel?.textContent).toContain('Log out')
+
+    const links = [...(expandedPanel?.querySelectorAll<HTMLAnchorElement>('a') ?? [])]
+      .map((link) => link.getAttribute('href'))
+    expect(links).toContain('/members')
+    expect(links).toContain('/members/connect-groups')
+    expect(links.some(l => l?.startsWith('/auth/logout'))).toBe(true)
+
+    // active=false still closes
+    await act(async () => root.render(
+      <MemberAccountControl profile={member} variant="drawer" active={false} />,
+    ))
+    // Panel should still be in DOM but not expanded
+    const closedAfterActive = container.querySelector<HTMLDivElement>(
+      '[data-state="closed"]',
+    )
+    expect(closedAfterActive).not.toBeNull()
+    expect(closedAfterActive?.getAttribute('aria-hidden')).toBe('true')
+    expect(closedAfterActive?.hasAttribute('inert')).toBe(true)
   })
 
   it('falls back to initials when the member image fails', async () => {
@@ -179,6 +286,7 @@ describe('MemberAccountControl', () => {
       </>,
     ))
 
+    // Each hover variant renders 1 avatar in the trigger (menu header only renders when open)
     const fallbacks = [...container.querySelectorAll<HTMLElement>('[data-avatar-fallback]')]
     expect(fallbacks).toHaveLength(2)
     expect(fallbacks[0]?.className).toBe(fallbacks[1]?.className)
@@ -189,17 +297,25 @@ describe('MemberAccountControl', () => {
     await act(async () => root.render(<Header memberProfile={member} />))
 
     const give = container.querySelector<HTMLAnchorElement>('a[href="/give"]')!
-    expect(give.nextElementSibling?.querySelector('button[aria-haspopup="dialog"]')).not.toBeNull()
+    // Desktop trigger is after Give
+    expect(give.nextElementSibling?.querySelector('button[aria-haspopup="true"]')).not.toBeNull()
 
+    // 2 hover-menu triggers (desktop + mobile-icon) with aria-label
     const accountTriggers = container.querySelectorAll(
       'button[aria-label="Open account for Aroha Ngata"]',
     )
-    expect(accountTriggers).toHaveLength(3)
+    expect(accountTriggers).toHaveLength(2)
 
     const hamburger = container.querySelector<HTMLButtonElement>('button[aria-label="Open menu"]')!
-    expect(hamburger.previousElementSibling?.querySelector('button[aria-haspopup="dialog"]')).not.toBeNull()
+    // Mobile-icon (hover menu, aria-haspopup="true") is the previous sibling
+    expect(hamburger.previousElementSibling?.querySelector('button[aria-haspopup="true"]')).not.toBeNull()
 
-    const drawerAccount = accountTriggers[2]!
+    // Drawer: find via aria-expanded + chevron SVG
+    const drawerAccount = container.querySelector<HTMLButtonElement>(
+      'button[aria-expanded="false"]',
+    )!
+    expect(drawerAccount).not.toBeNull()
+    expect(drawerAccount?.querySelector('svg')).not.toBeNull()
     const planVisit = container.querySelector<HTMLAnchorElement>('a[href="/visit"].bg-rich-red')!
     expect(
       drawerAccount.compareDocumentPosition(planVisit) & Node.DOCUMENT_POSITION_FOLLOWING,

@@ -297,7 +297,7 @@ function MobileMenu({
           ))}
 
           {memberProfile !== undefined && (
-            <div className="mt-6 border-b border-cool-grey/60 pb-6">
+            <div className="border-b border-cool-grey/60">
               <MemberAccountControl
                 profile={memberProfile}
                 variant="drawer"
@@ -463,7 +463,7 @@ export function Header({
             </nav>
             <Link
               href="/give"
-              className={`ml-3 rounded-full px-5 py-2 text-[0.8125rem] font-semibold uppercase tracking-wide transition-colors duration-200 ${
+              className={`ml-3 mr-2 rounded-full px-5 py-2 text-[0.8125rem] font-semibold uppercase tracking-wide transition-colors duration-200 ${
                 scrolled
                   ? 'bg-rich-red text-white hover:bg-deep-red'
                   : 'bg-white text-brand-black hover:bg-white/90'
