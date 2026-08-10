@@ -1,12 +1,13 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 
-import { MemberAvatar } from '@/components/members/MemberAvatar'
 import { MemberPortalChrome } from '@/components/members/MemberPortalChrome'
 import { formatResourceDates } from '@/components/members/LeaderResourceCard'
+import { LeaderResourceVideoButton } from '@/components/members/LeaderResourceVideoButton'
 import { getMemberPortalHome, getMemberResourceDetail } from '@/lib/members/data'
-import { youtubeEmbedUrl } from '@/lib/members/youtube'
+import { leaderResourceMedia } from '@/lib/members/leader-resource-media'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
@@ -38,88 +39,64 @@ export default async function LeaderResourceDetailPage({
 
   const resource = result.resource
   const dates = formatResourceDates(resource)
-  const embedUrl = youtubeEmbedUrl(resource.youtubeUrl)
+  const video = leaderResourceMedia(resource)
+  const hosts = resource.hosts.map((host) => host.name).join(' & ')
 
   return (
     <MemberPortalChrome active="resources" member={home.profile} canAccessLeaderResources={home.canAccessLeaderResources}>
       <Link href="/members/connect-group-leader-resources" className="text-sm font-bold text-rich-red hover:underline">Back to all resources</Link>
-      <header className="mt-7 max-w-5xl">
-        {dates && <p className="text-xs font-bold uppercase tracking-[0.18em] text-rich-red">{dates}</p>}
-        <h2 className="mt-4 text-4xl leading-tight text-brand-black sm:text-6xl">{resource.title}</h2>
-        {resource.campusNames.length > 0 && <p className="mt-4 text-sm text-mid-grey">For {resource.campusNames.join(', ')}</p>}
-      </header>
 
-      <div className="mt-10 grid gap-8 xl:grid-cols-[minmax(0,1.5fr)_minmax(20rem,0.7fr)]">
-        <div className="space-y-8">
-          {embedUrl ? (
-            <div className="aspect-video overflow-hidden rounded-2xl bg-brand-black shadow-xl shadow-brand-black/10">
-              <iframe
-                src={embedUrl}
-                title={`${resource.title} video`}
-                className="h-full w-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
+      <section className="mt-6 overflow-hidden rounded-xl shadow-xl shadow-brand-black/10">
+        <div className="relative overflow-hidden bg-rich-red text-white">
+          {resource.promotionalImageUrl && (
+            <div className="relative aspect-video w-full overflow-hidden bg-brand-black lg:absolute lg:inset-y-0 lg:right-0 lg:h-full lg:w-1/2 lg:aspect-auto">
+              {/* Public, same-origin route so Next can optimize the artwork. */}
+              <Image
+                src={resource.promotionalImageUrl}
+                alt=""
+                fill
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                className="object-contain"
               />
             </div>
-          ) : resource.promotionalImageUrl ? (
-            <div className="aspect-video overflow-hidden rounded-2xl bg-brand-black">
-              {/* Protected, same-origin image route. */}
-              {/* Protected, same-origin image route. */}
-              <img src={resource.promotionalImageUrl} alt="" className="h-full w-full object-cover" />
-            </div>
-          ) : null}
-
-          {resource.description && (
-            <div className="rounded-2xl border border-warm-grey bg-white p-7 text-base leading-8 text-dark-grey sm:p-10">
-              {resource.description}
-            </div>
           )}
-
-          {resource.promotionalImageUrl && embedUrl && (
-            <div className="overflow-hidden rounded-2xl bg-brand-black">
-              {/* Protected, same-origin image route. */}
-              {/* Protected, same-origin image route. */}
-              <img src={resource.promotionalImageUrl} alt="" className="h-auto w-full" />
-            </div>
-          )}
-        </div>
-
-        <aside className="h-fit rounded-2xl bg-[#f2efeb] p-6 sm:p-8">
-          {resource.bibleReference && (
-            <div className="border-b border-warm-grey pb-6">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-mid-grey">Bible reference</p>
-              <p className="mt-2 text-xl font-bold text-brand-black">{resource.bibleReference}</p>
-            </div>
-          )}
-
-          {resource.hosts.length > 0 && (
-            <div className="border-b border-warm-grey py-6">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-mid-grey">With</p>
-              <div className="mt-4 space-y-3">
-                {resource.hosts.map((host, index) => (
-                  <div key={`${host.name}-${index}`} className="flex items-center gap-3">
-                    <MemberAvatar name={host.name} src={host.avatarUrl} size="small" />
-                    <span className="font-bold text-brand-black">{host.name}</span>
-                  </div>
-                ))}
+          <header className={`relative px-6 py-8 sm:px-9 sm:py-10 ${resource.promotionalImageUrl ? 'lg:pr-[52%]' : ''}`}>
+            {dates && (
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/80">{dates}</p>
+            )}
+            <h2 className={dates ? 'mt-3 text-4xl leading-none text-white sm:text-5xl' : 'text-4xl leading-none text-white sm:text-5xl'}>{resource.title}</h2>
+            {(resource.bibleReference || hosts) && (
+              <p className="mt-4 text-sm text-white/80">
+                {[resource.bibleReference, hosts].filter(Boolean).join(' · ')}
+              </p>
+            )}
+            {resource.description && (
+              <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/85">{resource.description}</p>
+            )}
+            {(video || resource.hasLeaderNotes || resource.hasMemberStudy) && (
+              <div className="mt-7 flex flex-wrap gap-3">
+                {video && <LeaderResourceVideoButton media={video} variant="featured" size="sm" />}
+                {resource.hasLeaderNotes && (
+                  <a
+                    href={`/members/connect-group-leader-resources/${resource.rockId}/files/leader-notes`}
+                    className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-white/60 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-white/10"
+                  >
+                    <FileIcon /> Notes
+                  </a>
+                )}
+                {resource.hasMemberStudy && (
+                  <a
+                    href={`/members/connect-group-leader-resources/${resource.rockId}/files/member-study`}
+                    className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-white/60 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-white/10"
+                  >
+                    <FileIcon /> Study
+                  </a>
+                )}
               </div>
-            </div>
-          )}
-
-          <div className="space-y-3 pt-6">
-            {resource.hasLeaderNotes && (
-              <a href={`/members/connect-group-leader-resources/${resource.rockId}/files/leader-notes`} className="flex min-h-14 items-center gap-3 rounded-xl bg-white px-4 font-bold text-rich-red shadow-sm transition-colors hover:bg-rich-red hover:text-white">
-                <FileIcon /> Leader Notes
-              </a>
             )}
-            {resource.hasMemberStudy && (
-              <a href={`/members/connect-group-leader-resources/${resource.rockId}/files/member-study`} className="flex min-h-14 items-center gap-3 rounded-xl bg-white px-4 font-bold text-rich-red shadow-sm transition-colors hover:bg-rich-red hover:text-white">
-                <FileIcon /> Member Study
-              </a>
-            )}
-          </div>
-        </aside>
-      </div>
+          </header>
+        </div>
+      </section>
     </MemberPortalChrome>
   )
 }

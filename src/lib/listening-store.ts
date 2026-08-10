@@ -14,6 +14,9 @@ export interface ListeningVideoOption {
 export interface ListeningRecord {
   slug: string
   title: string
+  /** Canonical page for this media item. Defaults to its sermon page. */
+  href?: string
+  access?: 'public' | 'members'
   speaker?: string
   series?: string
   artworkUrl?: string
@@ -32,6 +35,44 @@ export interface ListeningRecord {
 const COMPLETED_THRESHOLD = 0.95
 const COMPLETED_REMAINING_SECS = 300 // 5 minutes
 
+export function isPublicListeningRecord(record: ListeningRecord): boolean {
+  return record.access !== 'members'
+}
+
+export function matchesSavedVideoProgress(
+  record: ListeningRecord | undefined,
+  campusSlug: string,
+  allowLegacyMemberVideo = false,
+): boolean {
+  if (!record) return false
+  if (record.playedAs === undefined) {
+    return allowLegacyMemberVideo && record.access === 'members'
+  }
+  return record.playedAs !== 'audio' && record.playedAs.campusSlug === campusSlug
+}
+
+export function listeningHistoryForPersistence(
+  history: Record<string, ListeningRecord>,
+): Record<string, ListeningRecord> {
+  return Object.fromEntries(
+    Object.entries(history).map(([slug, record]) => (
+      record.access === 'members'
+        ? [slug, {
+            slug: record.slug,
+            title: '',
+            audioUrl: '',
+            access: 'members' as const,
+            playedAs: record.playedAs,
+            progress: record.progress,
+            duration: record.duration,
+            completed: record.completed,
+            lastPlayedAt: record.lastPlayedAt,
+          }]
+        : [slug, record]
+    )),
+  )
+}
+
 export type MediaPreference = 'audio' | { type: 'video'; campusSlug: string }
 
 interface ListeningState {
@@ -44,6 +85,8 @@ interface ListeningState {
   saveProgress: (sermon: {
     slug: string
     title: string
+    href?: string
+    access?: 'public' | 'members'
     speaker?: string
     series?: string
     artworkUrl?: string
@@ -79,6 +122,8 @@ export const useListeningStore = create<ListeningState>()(
             [sermon.slug]: {
               slug: sermon.slug,
               title: sermon.title,
+              href: sermon.href ?? state.history[sermon.slug]?.href,
+              access: sermon.access ?? state.history[sermon.slug]?.access,
               speaker: sermon.speaker,
               series: sermon.series,
               artworkUrl: sermon.artworkUrl,
@@ -140,7 +185,7 @@ export const useListeningStore = create<ListeningState>()(
     {
       name: 'ev-sermon-history',
       partialize: (state) => ({
-        history: state.history,
+        history: listeningHistoryForPersistence(state.history),
         playbackSpeed: state.playbackSpeed,
         mediaPreference: state.mediaPreference,
       }),

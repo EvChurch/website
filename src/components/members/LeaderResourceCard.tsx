@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 
 import type { MemberLeaderResource } from '@/lib/members/data'
 
@@ -9,7 +10,7 @@ export function formatResourceDates(resource: MemberLeaderResource) {
   if (start && Number.isFinite(start.getTime()) && end && Number.isFinite(end.getTime())) {
     return `${format.format(start)} - ${format.format(end)}`
   }
-  if (start && Number.isFinite(start.getTime())) return `From ${format.format(start)}`
+  if (start && Number.isFinite(start.getTime())) return format.format(start)
   if (end && Number.isFinite(end.getTime())) return `Until ${format.format(end)}`
   return null
 }
@@ -32,12 +33,13 @@ export function LeaderResourceCard({
     >
       <div className={`relative overflow-hidden bg-[linear-gradient(135deg,#21080d,#0f0004)] ${featured ? 'min-h-72' : 'aspect-[16/9]'}`}>
         {resource.promotionalImageUrl ? (
-          // Protected, same-origin image route.
-          
-          <img
+          // Public, same-origin route so Next can optimize the artwork.
+          <Image
             src={resource.promotionalImageUrl}
             alt=""
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            fill
+            sizes={featured ? '(min-width: 1024px) 45vw, 100vw' : '(min-width: 1024px) 33vw, 100vw'}
+            className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
           />
         ) : (
           <div className="absolute inset-0 flex items-end bg-[radial-gradient(circle_at_20%_20%,rgba(226,42,48,0.45),transparent_40%)] p-7">

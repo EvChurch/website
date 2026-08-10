@@ -586,6 +586,9 @@ function timestamp(value: string | null): number | null {
 function compareResources(a: MemberLeaderResource, b: MemberLeaderResource) {
   const priority = b.priority - a.priority
   if (priority !== 0) return priority
+  const start = (timestamp(b.startDateTime) ?? Number.MIN_SAFE_INTEGER) -
+    (timestamp(a.startDateTime) ?? Number.MIN_SAFE_INTEGER)
+  if (start !== 0) return start
   const order = a.sourceOrder - b.sourceOrder
   if (order !== 0) return order
   return a.rockId - b.rockId
@@ -610,7 +613,9 @@ export async function getMemberResources(
     const expiresAt = timestamp(resource.expireDateTime)
     if (startsAt !== null && startsAt > nowTime) {
       upcoming.push(resource)
-    } else if (expiresAt === null || expiresAt > nowTime) {
+    } else if (expiresAt !== null && expiresAt > nowTime) {
+      current.push(resource)
+    } else if (startsAt === null && expiresAt === null) {
       current.push(resource)
     } else {
       history.push(resource)
@@ -645,6 +650,36 @@ export async function getMemberResourceDetail(
   return resource
     ? { access: 'granted', resource }
     : { access: 'denied' }
+}
+
+export async function getPublicLeaderResourceImage(
+  rockId: number,
+): Promise<{ guid: string } | null> {
+  if (!positiveInteger(rockId)) return null
+  const payload = (await getPayloadClient()) as unknown as MemberPayloadClient
+  const result = await payload.find({
+    collection: 'connect-group-leader-resources',
+    depth: 0,
+    limit: 1,
+    pagination: false,
+    overrideAccess: true,
+    select: {
+      rockId: true,
+      status: true,
+      promotionalImageGuid: true,
+    },
+    where: {
+      and: [
+        { rockId: { equals: rockId } },
+        { status: { equals: 1 } },
+      ],
+    },
+  })
+  const resource = result.docs[0] ? resourceFrom(result.docs[0]) : null
+  const guid = resource && isApprovedResource(resource)
+    ? nonemptyText(resource.promotionalImageGuid)
+    : null
+  return guid ? { guid } : null
 }
 
 export async function getMemberResourceAsset(

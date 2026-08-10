@@ -27,6 +27,7 @@ vi.mock('@/lib/payload', () => ({
 }))
 
 import {
+  getPublicLeaderResourceImage,
   getMemberGroupDetail,
   getMemberPortalHome,
   getMemberResourceAsset,
@@ -95,6 +96,7 @@ const resources = [
     campusGuids: [],
     campuses: [],
     hosts: [],
+    promotionalImageGuid: '99999999-9999-4999-8999-999999999999',
     leaderNotesFile: { guid: '11111111-1111-4111-8111-111111111111', name: 'Leader notes.pdf' },
     memberStudyFile: { guid: '22222222-2222-4222-8222-222222222222', name: 'Member study.pdf' },
     priority: 10,
@@ -224,6 +226,52 @@ describe('member data access', () => {
     })
   })
 
+  it('places an open-ended resource chronologically by its start date', async () => {
+    const leaderLaunch = {
+      ...resources[0],
+      rockId: 240,
+      title: 'Hebrews 2026 CG Leaders Launch',
+      startDateTime: '2026-07-06T00:00:00.000Z',
+      expireDateTime: null,
+      priority: 0,
+      sourceOrder: 0,
+    }
+    const weeklyStudy = {
+      ...resources[0],
+      rockId: 245,
+      title: 'Hebrews Study 4',
+      startDateTime: '2026-08-09T00:00:00.000Z',
+      expireDateTime: '2026-08-15T00:00:00.000Z',
+      priority: 0,
+      sourceOrder: 0,
+    }
+    const earlierStudy = {
+      ...resources[0],
+      rockId: 239,
+      title: 'Earlier Study',
+      startDateTime: '2026-07-01T00:00:00.000Z',
+      expireDateTime: '2026-07-05T00:00:00.000Z',
+      priority: 0,
+      sourceOrder: 0,
+    }
+    payloadState.find.mockImplementation(async ({ collection }) => ({
+      docs: collection === 'connect-group-leader-resources'
+        ? [leaderLaunch, weeklyStudy, earlierStudy]
+        : payloadDocs(collection),
+    }))
+
+    const result = await getMemberResources(new Date('2026-08-10T00:00:00.000Z'))
+
+    expect(result).toMatchObject({
+      access: 'granted',
+      current: [{ rockId: 245, title: 'Hebrews Study 4' }],
+      history: [
+        { rockId: 240, title: 'Hebrews 2026 CG Leaders Launch' },
+        { rockId: 239, title: 'Earlier Study' },
+      ],
+    })
+  })
+
   it('denies leader resources to an ordinary member', async () => {
     const ordinaryMember = {
       ...participant,
@@ -263,6 +311,15 @@ describe('member data access', () => {
       name: 'Notes.pdf',
     })
     await expect(getMemberResourceAsset(202, { kind: 'leader-notes' })).resolves.toBeNull()
+  })
+
+  it('exposes only approved promotional images without requiring a member session', async () => {
+    memberSession.profile = null
+
+    await expect(getPublicLeaderResourceImage(200)).resolves.toEqual({
+      guid: '99999999-9999-4999-8999-999999999999',
+    })
+    await expect(getPublicLeaderResourceImage(203)).resolves.toBeNull()
   })
 
   it('requires a resolved member session before reading private mirrors', async () => {

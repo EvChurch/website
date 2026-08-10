@@ -5,11 +5,16 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
 } from 'react'
-import { useListeningStore, type MediaPreference } from '@/lib/listening-store'
+import {
+  matchesSavedVideoProgress,
+  useListeningStore,
+  type MediaPreference,
+} from '@/lib/listening-store'
 import type Player from 'video.js/dist/types/player'
 
 export interface VideoOption {
@@ -26,6 +31,9 @@ export interface SermonMedia {
   id: number | string
   title: string
   slug: string
+  /** Canonical page for this media item. Defaults to its sermon page. */
+  href?: string
+  access?: 'public' | 'members'
   audioUrl: string
   speaker?: string
   speakerSlug?: string
@@ -73,10 +81,29 @@ interface MediaPlayerState {
 
 const MediaPlayerContext = createContext<MediaPlayerState | null>(null)
 
+interface MediaPlaybackControls {
+  currentSlug: string | null
+  isPlaying: boolean
+  isLoading: boolean
+  play: MediaPlayerState['play']
+  pause: MediaPlayerState['pause']
+  resume: MediaPlayerState['resume']
+}
+
+const MediaPlaybackControlsContext = createContext<MediaPlaybackControls | null>(null)
+
 export function useMediaPlayer(): MediaPlayerState {
   const context = useContext(MediaPlayerContext)
   if (!context) {
     throw new Error('useMediaPlayer must be used within MediaPlayerProvider')
+  }
+  return context
+}
+
+export function useMediaPlaybackControls(): MediaPlaybackControls {
+  const context = useContext(MediaPlaybackControlsContext)
+  if (!context) {
+    throw new Error('useMediaPlaybackControls must be used within MediaPlayerProvider')
   }
   return context
 }
@@ -260,6 +287,8 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
         {
           slug: currentSermon.slug,
           title: currentSermon.title,
+          href: currentSermon.href,
+          access: currentSermon.access,
           speaker: currentSermon.speaker,
           series: currentSermon.series,
           artworkUrl: currentSermon.artworkUrl,
@@ -287,6 +316,8 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
         {
           slug: currentSermon.slug,
           title: currentSermon.title,
+          href: currentSermon.href,
+          access: currentSermon.access,
           speaker: currentSermon.speaker,
           series: currentSermon.series,
           artworkUrl: currentSermon.artworkUrl,
@@ -437,10 +468,11 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
     const endSec = video.endSeconds ?? 0
     const hasSegment = startSec > 0 && endSec > startSec
     let resumeTime = 0
-    const isSameVideoProgress =
-      saved?.playedAs !== undefined &&
-      saved.playedAs !== 'audio' &&
-      saved.playedAs.campusSlug === video.campusSlug
+    const isSameVideoProgress = matchesSavedVideoProgress(
+      saved,
+      video.campusSlug,
+      sermon.access === 'members' && !sermon.audioUrl,
+    )
     if (saved && isSameVideoProgress && !saved.completed && saved.progress > 10) {
       // saved.progress is segment-relative; convert to absolute YouTube time
       resumeTime = hasSegment ? startSec + saved.progress : saved.progress
@@ -626,9 +658,18 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
     })
   }, [startVideoPolling, stopVideoPolling])
 
+  const playbackControls = useMemo<MediaPlaybackControls>(() => ({
+    currentSlug: currentSermon?.slug ?? null,
+    isPlaying,
+    isLoading,
+    play,
+    pause,
+    resume,
+  }), [currentSermon?.slug, isPlaying, isLoading, play, pause, resume])
+
   return (
-    <MediaPlayerContext.Provider
-      value={{
+    <MediaPlaybackControlsContext.Provider value={playbackControls}>
+      <MediaPlayerContext.Provider value={{
         currentSermon,
         mediaType,
         activeVideo,
@@ -656,9 +697,9 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
         videoThumbnailRef,
         videoResumeTimeRef,
         onEndedRef,
-      }}
-    >
-      {children}
-    </MediaPlayerContext.Provider>
+      }}>
+        {children}
+      </MediaPlayerContext.Provider>
+    </MediaPlaybackControlsContext.Provider>
   )
 }

@@ -193,6 +193,8 @@ export async function syncConnectGroupLeaderResources(): Promise<SyncResult> {
               ? (photoIdByAliasGuid.get(host.personAliasGuid) ?? null)
               : null,
           })),
+          leaderNotesFile: mapped.leaderNotesFile ?? {},
+          memberStudyFile: mapped.memberStudyFile ?? {},
           lastSyncedAt: syncedAt,
         },
       }

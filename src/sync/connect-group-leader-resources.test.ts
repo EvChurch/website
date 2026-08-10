@@ -163,6 +163,27 @@ describe('syncConnectGroupLeaderResources', () => {
     )
   })
 
+  it('normalizes absent optional file groups for Payload writes', async () => {
+    const itemWithFile = resource(4)
+    const { Resource1File: _resource1File, ...attributeValues } = itemWithFile.AttributeValues
+    const item = { ...itemWithFile, AttributeValues: attributeValues }
+    mocks.rockFetchAll.mockImplementation(({ endpoint }: FetchCall) => {
+      if (endpoint === 'ContentChannelItems') return Promise.resolve([item])
+      if (endpoint === 'Campuses') return Promise.resolve([])
+      throw new Error(`Unexpected endpoint ${endpoint}`)
+    })
+    mocks.find.mockResolvedValue({ docs: [] })
+
+    const result = await syncConnectGroupLeaderResources()
+
+    expect(result.errors).toEqual([])
+    const createData = mocks.create.mock.calls[0]?.[0]?.data
+    expect(createData).toMatchObject({
+      leaderNotesFile: {},
+      memberStudyFile: {},
+    })
+  })
+
   it('fails before the transaction when an assigned campus GUID is unresolved', async () => {
     mocks.find.mockResolvedValue({ docs: [] })
 
