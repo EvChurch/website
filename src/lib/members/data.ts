@@ -101,6 +101,10 @@ export type MemberResourcesResult =
       history: MemberLeaderResource[]
     }
 
+export type GroupCurrentResourcesResult =
+  | { access: 'denied' }
+  | { access: 'granted'; current: MemberLeaderResource[] }
+
 export type MemberResourceDetailResult =
   | { access: 'denied' }
   | { access: 'granted'; resource: MemberLeaderResource }
@@ -468,19 +472,15 @@ function resourceMatchesCampuses(
   })
 }
 
-async function accessibleResourceRecords(
-  payload: MemberPayloadClient,
-  participant: ParticipantRecord,
-) {
-  if (!canAccessLeaderResources(participant)) return null
-  const allowedCampusIds = participant.isCoach === true
-    ? null
-    : new Set(
-        (await findActiveGroupRecords(payload, participant))
-          .map((group) => campusId(group.campus))
-          .filter((id): id is string => id !== null),
-      )
+function resourceMatchesCampusSlug(resource: ResourceRecord, allowedCampusSlug: string | null) {
+  if ((resource.campusGuids ?? []).length === 0) return true
+  if (!allowedCampusSlug) return false
+  return (resource.campuses ?? []).some((campus) => (
+    nonemptyText(relation(campus)?.slug) === allowedCampusSlug
+  ))
+}
 
+async function approvedResourceRecords(payload: MemberPayloadClient) {
   const resourceResult = await payload.find({
     collection: 'connect-group-leader-resources',
     depth: 1,
@@ -511,10 +511,38 @@ async function accessibleResourceRecords(
 
   return resourceResult.docs
     .map(resourceFrom)
-    .filter((resource) => (
-      isApprovedResource(resource) &&
-      (allowedCampusIds === null || resourceMatchesCampuses(resource, allowedCampusIds))
-    ))
+    .filter(isApprovedResource)
+}
+
+async function memberResourceRecords(
+  payload: MemberPayloadClient,
+  participant: ParticipantRecord,
+  rockGroupId?: number,
+) {
+  if (rockGroupId !== undefined && !membershipFor(participant, rockGroupId)) return null
+  const groups = await findActiveGroupRecords(payload, participant)
+  const allowedGroups = rockGroupId === undefined
+    ? groups
+    : groups.filter((group) => positiveInteger(group.rockGroupId) === rockGroupId)
+  if (allowedGroups.length === 0) return null
+
+  const allowedCampusIds = new Set(
+    allowedGroups
+      .map((group) => campusId(group.campus))
+      .filter((id): id is string => id !== null),
+  )
+  return (await approvedResourceRecords(payload)).filter((resource) => (
+    resourceMatchesCampuses(resource, allowedCampusIds)
+  ))
+}
+
+async function accessibleResourceRecords(
+  payload: MemberPayloadClient,
+  participant: ParticipantRecord,
+) {
+  if (!canAccessLeaderResources(participant)) return null
+  if (participant.isCoach === true) return approvedResourceRecords(payload)
+  return memberResourceRecords(payload, participant)
 }
 
 async function findAccessibleResourceRecord(
@@ -586,9 +614,51 @@ function timestamp(value: string | null): number | null {
 function compareResources(a: MemberLeaderResource, b: MemberLeaderResource) {
   const priority = b.priority - a.priority
   if (priority !== 0) return priority
+  const start = (timestamp(b.startDateTime) ?? Number.MIN_SAFE_INTEGER) -
+    (timestamp(a.startDateTime) ?? Number.MIN_SAFE_INTEGER)
+  if (start !== 0) return start
   const order = a.sourceOrder - b.sourceOrder
   if (order !== 0) return order
   return a.rockId - b.rockId
+}
+
+function resourcePeriod(resource: MemberLeaderResource, nowTime: number) {
+  const startsAt = timestamp(resource.startDateTime)
+  const expiresAt = timestamp(resource.expireDateTime)
+  if (startsAt !== null && startsAt > nowTime) return 'upcoming'
+  if (expiresAt !== null && expiresAt > nowTime) return 'current'
+  if (startsAt === null && expiresAt === null) return 'current'
+  return 'history'
+}
+
+export async function getGroupCurrentResources(
+  rockGroupId: number,
+  campusSlug: string | null,
+  audience: 'leader' | 'member',
+  now = new Date(),
+): Promise<GroupCurrentResourcesResult | null> {
+  if (!positiveInteger(rockGroupId)) return { access: 'denied' }
+  const context = await currentMemberContext()
+  if (!context) return null
+  if (!context.participant) return { access: 'denied' }
+  if (audience === 'leader' && !canAccessLeaderResources(context.participant)) {
+    return { access: 'denied' }
+  }
+  if (!membershipFor(context.participant, rockGroupId)) return { access: 'denied' }
+  const records = (await approvedResourceRecords(context.payload)).filter((resource) => (
+    resourceMatchesCampusSlug(resource, campusSlug)
+  ))
+
+  const nowTime = now.getTime()
+  const current = records
+    .map(toLeaderResource)
+    .filter((resource): resource is MemberLeaderResource => (
+      resource !== null &&
+      (audience === 'leader' || resource.hasMemberStudy) &&
+      resourcePeriod(resource, nowTime) === 'current'
+    ))
+    .sort(compareResources)
+  return { access: 'granted', current }
 }
 
 export async function getMemberResources(
@@ -606,11 +676,10 @@ export async function getMemberResources(
   const history: MemberLeaderResource[] = []
 
   for (const resource of resources) {
-    const startsAt = timestamp(resource.startDateTime)
-    const expiresAt = timestamp(resource.expireDateTime)
-    if (startsAt !== null && startsAt > nowTime) {
+    const period = resourcePeriod(resource, nowTime)
+    if (period === 'upcoming') {
       upcoming.push(resource)
-    } else if (expiresAt === null || expiresAt > nowTime) {
+    } else if (period === 'current') {
       current.push(resource)
     } else {
       history.push(resource)
@@ -647,6 +716,36 @@ export async function getMemberResourceDetail(
     : { access: 'denied' }
 }
 
+export async function getPublicLeaderResourceImage(
+  rockId: number,
+): Promise<{ guid: string } | null> {
+  if (!positiveInteger(rockId)) return null
+  const payload = (await getPayloadClient()) as unknown as MemberPayloadClient
+  const result = await payload.find({
+    collection: 'connect-group-leader-resources',
+    depth: 0,
+    limit: 1,
+    pagination: false,
+    overrideAccess: true,
+    select: {
+      rockId: true,
+      status: true,
+      promotionalImageGuid: true,
+    },
+    where: {
+      and: [
+        { rockId: { equals: rockId } },
+        { status: { equals: 1 } },
+      ],
+    },
+  })
+  const resource = result.docs[0] ? resourceFrom(result.docs[0]) : null
+  const guid = resource && isApprovedResource(resource)
+    ? nonemptyText(resource.promotionalImageGuid)
+    : null
+  return guid ? { guid } : null
+}
+
 export async function getMemberResourceAsset(
   rockId: number,
   request: MemberResourceAssetRequest,
@@ -654,11 +753,24 @@ export async function getMemberResourceAsset(
   if (!positiveInteger(rockId)) return null
   const context = await currentMemberContext()
   if (!context?.participant) return null
-  const resource = await findAccessibleResourceRecord(
-    context.payload,
-    context.participant,
-    rockId,
-  )
+  let resource: ResourceRecord | null
+  if (
+    request.kind === 'member-study' &&
+    !canAccessLeaderResources(context.participant)
+  ) {
+    const candidate = (await memberResourceRecords(context.payload, context.participant))
+      ?.find((record) => positiveInteger(record.rockId) === rockId) ?? null
+    const mapped = candidate ? toLeaderResource(candidate) : null
+    resource = mapped?.hasMemberStudy && resourcePeriod(mapped, Date.now()) === 'current'
+      ? candidate
+      : null
+  } else {
+    resource = await findAccessibleResourceRecord(
+      context.payload,
+      context.participant,
+      rockId,
+    )
+  }
   if (!resource) return null
 
   if (request.kind === 'image') {

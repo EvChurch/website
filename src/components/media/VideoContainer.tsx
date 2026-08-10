@@ -13,7 +13,10 @@ function getVideojs() {
       import('video.js'),
       import('videojs-youtube'),
       import('video.js/dist/video-js.css'),
-    ]).then(([vjs]) => vjs)
+    ]).then(([vjs]) => vjs).catch((error: unknown) => {
+      videojsPromise = null
+      throw error
+    })
   }
   return videojsPromise
 }
@@ -43,7 +46,7 @@ export function VideoContainer() {
 
   const videoElRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<VjsPlayer | null>(null)
-  const prevVideoIdRef = useRef<string | null>(null)
+  const prevVideoIdentityRef = useRef<string | null>(null)
   // Use the animated close (bar slide-down) when available, otherwise raw close
   const animatedClose = useCallback(() => {
     if (onEndedRef.current) onEndedRef.current()
@@ -157,7 +160,13 @@ export function VideoContainer() {
   // Initialize or switch video when activeVideo changes
   useEffect(() => {
     if (!activeVideo || !isVideoVisible || !shouldRender) return
-    if (prevVideoIdRef.current === activeVideo.youtubeVideoId) return
+    const videoIdentity = [
+      currentSermon?.slug,
+      activeVideo.youtubeVideoId,
+      activeVideo.startSeconds ?? 0,
+      activeVideo.endSeconds ?? 0,
+    ].join(':')
+    if (prevVideoIdentityRef.current === videoIdentity) return
     let cancelled = false
 
     const initPlayer = async () => {
@@ -173,7 +182,7 @@ export function VideoContainer() {
       const container = videoElRef.current
       if (!container) return
 
-      prevVideoIdRef.current = activeVideo.youtubeVideoId
+      prevVideoIdentityRef.current = videoIdentity
 
       container.innerHTML = ''
 
@@ -276,13 +285,16 @@ export function VideoContainer() {
     }
 
     void initPlayer().catch(() => {
-      if (!cancelled) prevVideoIdRef.current = null
+      if (!cancelled) {
+        prevVideoIdentityRef.current = null
+        close()
+      }
     })
     return () => {
       cancelled = true
     }
     
-  }, [activeVideo?.youtubeVideoId, isVideoVisible, shouldRender])
+  }, [activeVideo?.youtubeVideoId, activeVideo?.startSeconds, activeVideo?.endSeconds, close, currentSermon?.slug, isVideoVisible, shouldRender])
 
   // Clean up player after fade-out completes
   useEffect(() => {
@@ -293,7 +305,7 @@ export function VideoContainer() {
         // YouTube API may throw if iframe is already detached
       }
       playerRef.current = null
-      prevVideoIdRef.current = null
+      prevVideoIdentityRef.current = null
     }
   }, [shouldRender, isVideoVisible])
 

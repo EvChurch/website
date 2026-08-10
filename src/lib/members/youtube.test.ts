@@ -1,23 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
-import { youtubeEmbedUrl } from './youtube'
+import { youtubeVideoId } from './youtube'
 
-describe('youtubeEmbedUrl', () => {
-  it('accepts standard, short, and embed YouTube URLs', () => {
-    expect(youtubeEmbedUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(
-      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+describe('youtubeVideoId', () => {
+  it('returns the video identity used by the shared media player', () => {
+    expect(youtubeVideoId('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(
+      'dQw4w9WgXcQ',
     )
-    expect(youtubeEmbedUrl('https://youtu.be/dQw4w9WgXcQ')).toBe(
-      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
-    )
-    expect(youtubeEmbedUrl('https://youtube.com/embed/dQw4w9WgXcQ')).toBe(
-      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
-    )
-  })
-
-  it('rejects unrelated hosts and malformed video IDs', () => {
-    expect(youtubeEmbedUrl('https://example.com/watch?v=dQw4w9WgXcQ')).toBeNull()
-    expect(youtubeEmbedUrl('javascript:alert(1)')).toBeNull()
-    expect(youtubeEmbedUrl('https://youtube.com/watch?v=not valid')).toBeNull()
+    expect(youtubeVideoId('https://youtu.be/dQw4w9WgXcQ')).toBe('dQw4w9WgXcQ')
+    expect(youtubeVideoId('https://youtube.com/embed/dQw4w9WgXcQ')).toBe('dQw4w9WgXcQ')
+    expect(youtubeVideoId('https://example.com/watch?v=dQw4w9WgXcQ')).toBeNull()
+    expect(youtubeVideoId('javascript:alert(1)')).toBeNull()
+    expect(youtubeVideoId('not a URL')).toBeNull()
+    expect(youtubeVideoId('https://youtube.com/watch?v=not valid')).toBeNull()
   })
 })

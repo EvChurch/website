@@ -1,6 +1,6 @@
 'use client'
 
-import { useMediaPlayer, type SermonMedia, type VideoOption } from './MediaPlayerProvider'
+import { useMediaPlayer, type SermonMedia } from './MediaPlayerProvider'
 import { useListeningStore, type MediaPreference } from '@/lib/listening-store'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -9,6 +9,9 @@ interface MediaPlayButtonProps {
   sermon: SermonMedia
   size?: 'sm' | 'md' | 'lg'
   className?: string
+  /** Render a single circular video control without the audio/video menu. */
+  videoOnly?: boolean
+  tone?: 'red' | 'black'
   /** Override preference — resume with the exact media type that was playing */
   resumeAs?: 'audio' | { type: 'video'; campusSlug: string }
 }
@@ -19,7 +22,7 @@ const dimensions = {
   lg: { px: 56, stroke: 3, radius: 24.5 },
 } as const
 
-export function MediaPlayButton({ sermon, size = 'md', className = '', resumeAs }: MediaPlayButtonProps) {
+export function MediaPlayButton({ sermon, size = 'md', className = '', resumeAs, videoOnly = false, tone = 'red' }: MediaPlayButtonProps) {
   const { currentSermon, isPlaying, isLoading, progress, duration, play, pause, resume } =
     useMediaPlayer()
 
@@ -121,6 +124,7 @@ export function MediaPlayButton({ sermon, size = 'md', className = '', resumeAs 
   const circumference = 2 * Math.PI * radius
   const dashOffset = circumference * (1 - percent)
   const center = px / 2
+  const buttonTone = tone === 'black' ? 'bg-brand-black' : 'bg-rich-red'
 
   const iconSizes = {
     sm: 'h-3.5 w-3.5',
@@ -147,7 +151,7 @@ export function MediaPlayButton({ sermon, size = 'md', className = '', resumeAs 
         {/* Main play button */}
         <button
           onClick={handleMainClick}
-          className="relative flex shrink-0 cursor-pointer items-center justify-center rounded-l-full bg-brand-red text-warm-white transition-transform active:scale-95"
+          className={`relative flex shrink-0 cursor-pointer items-center justify-center text-warm-white transition-transform active:scale-95 ${buttonTone} ${videoOnly ? 'rounded-full' : 'rounded-l-full'}`}
           style={{ width: px, height: px }}
           aria-label={
             isCurrentlyPlaying
@@ -200,21 +204,23 @@ export function MediaPlayButton({ sermon, size = 'md', className = '', resumeAs 
         </button>
 
         {/* Chevron - always shown for consistent width */}
-        <button
-          ref={chevronRef}
-          onClick={toggleDropdown}
-          className={`flex items-center justify-center rounded-r-full bg-brand-red text-warm-white/80 hover:text-white ${chevronSizes[size]}`}
-          aria-label="Media options"
-          aria-expanded={dropdownOpen}
-        >
-          <svg className={chevronIconSizes[size]} viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-          </svg>
-        </button>
+        {!videoOnly && (
+          <button
+            ref={chevronRef}
+            onClick={toggleDropdown}
+            className={`flex items-center justify-center rounded-r-full bg-rich-red text-warm-white/80 hover:text-white ${chevronSizes[size]}`}
+            aria-label="Media options"
+            aria-expanded={dropdownOpen}
+          >
+            <svg className={chevronIconSizes[size]} viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Portal-rendered dropdown */}
-      {dropdownOpen && dropdownPos && typeof document !== 'undefined' && createPortal(
+      {!videoOnly && dropdownOpen && dropdownPos && typeof document !== 'undefined' && createPortal(
         <div
           ref={dropdownRef}
           className="fixed z-[60] -translate-x-1/2 animate-[dropdownIn_0.15s_ease-out] rounded-lg border border-white/10 bg-brand-black/95 py-1 shadow-xl backdrop-blur-xl"

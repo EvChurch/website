@@ -4,7 +4,6 @@ import { useAudioPlayer } from './AudioPlayerProvider'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useListeningStore } from '@/lib/listening-store'
 
 function formatTime(seconds: number): string {
   if (!seconds || !isFinite(seconds)) return '0:00'
@@ -121,6 +120,7 @@ export function AudioPlayerBar() {
 
   if (!render || !currentSermon) return null
 
+  const mediaHref = currentSermon.href ?? `/sermons/${currentSermon.slug}`
   const progressPercent = duration > 0 ? (progress / duration) * 100 : 0
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -163,7 +163,7 @@ export function AudioPlayerBar() {
                   {...(currentSermon.artworkBlurDataURL ? { placeholder: 'blur' as const, blurDataURL: currentSermon.artworkBlurDataURL } : {})}
                 />
               ) : (
-                <Link href={`/sermons/${currentSermon.slug}`}>
+                <Link href={mediaHref}>
                   <Image
                     src={currentSermon.artworkUrl}
                     alt=""
@@ -184,7 +184,7 @@ export function AudioPlayerBar() {
           {/* Sermon info + desktop progress */}
           <div className="min-w-0 flex-1">
             <Link
-              href={`/sermons/${currentSermon.slug}`}
+              href={mediaHref}
               className="block truncate text-sm font-medium leading-tight text-warm-white hover:underline"
             >
               {currentSermon.title}

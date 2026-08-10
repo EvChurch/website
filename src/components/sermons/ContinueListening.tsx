@@ -1,6 +1,10 @@
 'use client'
 
-import { useListeningStore, type ListeningRecord } from '@/lib/listening-store'
+import {
+  isPublicListeningRecord,
+  useListeningStore,
+  type ListeningRecord,
+} from '@/lib/listening-store'
 import { MediaPlayButton } from '@/components/media/MediaPlayButton'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
@@ -20,7 +24,7 @@ export function ContinueListening() {
   if (!hydrated) return null
 
   const records: ListeningRecord[] = Object.values(history)
-    .filter((r) => !r.completed && r.progress > 10)
+    .filter((r) => isPublicListeningRecord(r) && !r.completed && r.progress > 10)
     .sort((a, b) => b.lastPlayedAt - a.lastPlayedAt)
     .slice(0, 3)
 
@@ -45,6 +49,8 @@ export function ContinueListening() {
                     id: r.slug,
                     title: r.title,
                     slug: r.slug,
+                    href: r.href,
+                    access: r.access,
                     audioUrl: r.audioUrl,
                     speaker: r.speaker,
                     series: r.series,
@@ -59,7 +65,7 @@ export function ContinueListening() {
 
                 <div className="min-w-0 flex-1">
                   <Link
-                    href={`/sermons/${r.slug}`}
+                    href={r.href ?? `/sermons/${r.slug}`}
                     className="block truncate font-semibold text-warm-white hover:text-rich-red transition-colors"
                   >
                     {r.title}

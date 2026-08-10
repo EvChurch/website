@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 
 import { ConnectGroupCard } from '@/components/members/ConnectGroupCard'
-import { MemberPortalChrome } from '@/components/members/MemberPortalChrome'
+import { memberConnectGroupHref, MemberPortalChrome } from '@/components/members/MemberPortalChrome'
 import { getMemberPortalHome } from '@/lib/members/data'
 
 export const dynamic = 'force-dynamic'
@@ -14,9 +14,12 @@ export const metadata: Metadata = {
 export default async function ConnectGroupsPage() {
   const home = await getMemberPortalHome()
   if (!home) redirect('/auth/login?returnTo=%2Fmembers%2Fconnect-groups')
+  if (home.groups.length === 1) {
+    redirect(memberConnectGroupHref(home.groups))
+  }
 
   return (
-    <MemberPortalChrome active="groups" member={home.profile} canAccessLeaderResources={home.canAccessLeaderResources}>
+    <MemberPortalChrome active="groups" member={home.profile} canAccessLeaderResources={home.canAccessLeaderResources} connectGroupHref={memberConnectGroupHref(home.groups)}>
       <p className="text-xs font-bold uppercase tracking-[0.18em] text-rich-red">Connect Groups</p>
       <h2 className="mt-3 max-w-3xl text-4xl leading-tight text-brand-black sm:text-5xl">Your groups and your people</h2>
       <p className="mt-5 max-w-2xl text-base leading-relaxed text-mid-grey">

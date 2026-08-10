@@ -1,7 +1,7 @@
 const youtubeHosts = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com'])
 const videoIdPattern = /^[A-Za-z0-9_-]{6,64}$/u
 
-export function youtubeEmbedUrl(value: string | null): string | null {
+export function youtubeVideoId(value: string | null): string | null {
   if (!value) return null
 
   try {
@@ -18,9 +18,7 @@ export function youtubeEmbedUrl(value: string | null): string | null {
       }
     }
 
-    return videoId && videoIdPattern.test(videoId)
-      ? `https://www.youtube-nocookie.com/embed/${videoId}`
-      : null
+    return videoId && videoIdPattern.test(videoId) ? videoId : null
   } catch {
     return null
   }

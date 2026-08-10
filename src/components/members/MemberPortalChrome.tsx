@@ -3,22 +3,29 @@ import type { ReactNode } from 'react'
 
 import { MemberAvatar } from './MemberAvatar'
 
-export type MemberSection = 'overview' | 'groups' | 'resources'
+export type MemberSection = 'groups' | 'resources'
+
+export function memberConnectGroupHref(groups: Array<{ rockGroupId: number }>) {
+  return groups.length === 1
+    ? `/members/connect-groups/${groups[0].rockGroupId}`
+    : '/members/connect-groups'
+}
 
 export function MemberPortalChrome({
   active,
   member,
   canAccessLeaderResources,
+  connectGroupHref,
   children,
 }: {
-  active: MemberSection
+  active?: MemberSection
   member: { name: string; email: string; avatarUrl: string | null }
   canAccessLeaderResources: boolean
+  connectGroupHref: string
   children: ReactNode
 }) {
   const links = [
-    { key: 'overview' as const, label: 'Overview', href: '/members' },
-    { key: 'groups' as const, label: 'Connect Groups', href: '/members/connect-groups' },
+    { key: 'groups' as const, label: 'Connect Group', href: connectGroupHref },
     ...(canAccessLeaderResources
       ? [{
           key: 'resources' as const,
@@ -33,15 +40,9 @@ export function MemberPortalChrome({
       <section className="bg-[radial-gradient(circle_at_85%_10%,rgba(226,42,48,0.22),transparent_34%),linear-gradient(135deg,#0f0004,#23080e)] pb-12 pt-32 text-white sm:pt-36">
         <div className="mx-auto flex max-w-[80rem] flex-col gap-8 px-5 sm:px-8 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-light-red-2">
-              Members
-            </p>
-            <h1 className="mt-4 text-[clamp(3rem,10vw,5.5rem)] leading-[0.9] tracking-[-0.055em] text-white">
+            <h1 className="text-[clamp(3rem,10vw,5.5rem)] leading-[0.9] tracking-[-0.055em] text-white">
               Kia ora, {member.name.split(/\s+/u)[0]}
             </h1>
-            <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/70">
-              Your place for church life, people, and resources.
-            </p>
           </div>
           <div className="flex max-w-sm items-center gap-4 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur-sm">
             <MemberAvatar name={member.name} src={member.avatarUrl} size="medium" />
