@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
-import { MemberPortalChrome } from '@/components/members/MemberPortalChrome'
+import { memberConnectGroupHref, MemberPortalChrome } from '@/components/members/MemberPortalChrome'
 import { getMemberPortalHome } from '@/lib/members/data'
 
 export const dynamic = 'force-dynamic'
@@ -19,10 +19,11 @@ export default async function MembersPage() {
     <MemberPortalChrome
       member={home.profile}
       canAccessLeaderResources={home.canAccessLeaderResources}
+      connectGroupHref={memberConnectGroupHref(home.groups)}
     >
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         <Link
-          href="/members/connect-groups"
+          href={memberConnectGroupHref(home.groups)}
           className="group flex min-h-72 flex-col justify-between rounded-2xl bg-rich-red p-8 text-white shadow-lg shadow-rich-red/10 transition-transform hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-light-red-2"
         >
           <div>

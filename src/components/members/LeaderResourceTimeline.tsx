@@ -116,11 +116,12 @@ function hostNames(resource: MemberLeaderResource) {
   return resource.hosts.map((host) => host.name).join(' & ')
 }
 
-function ResourceActions({ resource, inverted = false }: {
+function ResourceActions({ resource, inverted = false, audience = 'leader' }: {
   resource: MemberLeaderResource
   inverted?: boolean
+  audience?: 'leader' | 'member'
 }) {
-  const video = leaderResourceMedia(resource)
+  const video = audience === 'leader' ? leaderResourceMedia(resource) : null
   const primaryClass = inverted
     ? 'bg-white text-rich-red hover:bg-warm-white'
     : 'bg-rich-red text-white hover:bg-deep-red'
@@ -138,7 +139,7 @@ function ResourceActions({ resource, inverted = false }: {
           className={inverted ? undefined : 'inline-flex min-h-11 items-center gap-2 text-sm font-bold text-brand-black'}
         />
       )}
-      {resource.hasLeaderNotes && (
+      {audience === 'leader' && resource.hasLeaderNotes && (
         <a
           href={`/members/connect-group-leader-resources/${resource.rockId}/files/leader-notes`}
           className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border px-4 py-2.5 text-sm font-bold transition-colors ${inverted ? secondaryClass : primaryClass}`}
@@ -154,7 +155,7 @@ function ResourceActions({ resource, inverted = false }: {
           <FileIcon /> {inverted ? 'Study' : 'Member study'}
         </a>
       )}
-      {!video && !resource.hasLeaderNotes && !resource.hasMemberStudy && (
+      {audience === 'leader' && !video && !resource.hasLeaderNotes && !resource.hasMemberStudy && (
         <Link
           href={`/members/connect-group-leader-resources/${resource.rockId}`}
           className={`inline-flex min-h-11 items-center gap-2 rounded-md px-4 py-2.5 text-sm font-bold transition-colors ${primaryClass}`}
@@ -291,59 +292,13 @@ export function LeaderResourceTimeline({
   history: MemberLeaderResource[]
 }) {
   const primary = current.find((resource) => !isLeaderLaunch(resource)) ?? current[0]
-  const currentLaunches = current.filter((resource) => (
-    isLeaderLaunch(resource) && resource.rockId !== primary?.rockId
-  ))
   const otherCurrent = current.filter((resource) => (
     resource.rockId !== primary?.rockId && !isLeaderLaunch(resource)
   ))
-  const primaryHosts = primary ? hostNames(primary) : ''
 
   return (
     <>
-      {primary ? (
-        <section aria-labelledby="this-week-heading" className="overflow-hidden rounded-xl shadow-xl shadow-brand-black/10">
-          <div className="relative overflow-hidden bg-rich-red text-white">
-            {primary.promotionalImageUrl && (
-              <div className="relative aspect-video w-full overflow-hidden bg-brand-black lg:absolute lg:inset-y-0 lg:right-0 lg:h-full lg:w-1/2 lg:aspect-auto">
-                {/* Public, same-origin route so Next can optimize the artwork. */}
-                <Image
-                  src={primary.promotionalImageUrl}
-                  alt=""
-                  fill
-                  sizes="(min-width: 1024px) 50vw, 100vw"
-                  className="object-contain"
-                />
-              </div>
-            )}
-            <div className={`relative px-6 py-8 sm:px-9 sm:py-10 ${primary.promotionalImageUrl ? 'lg:pr-[52%]' : ''}`}>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/80">This week</p>
-              <h3 id="this-week-heading" className="mt-3 text-4xl leading-none text-white sm:text-5xl">
-                <Link
-                  href={`/members/connect-group-leader-resources/${primary.rockId}`}
-                  className="hover:underline"
-                >
-                  {primary.title}
-                </Link>
-              </h3>
-              {(primary.bibleReference || primaryHosts) && (
-                <p className="mt-4 text-sm text-white/80">
-                  {[primary.bibleReference, primaryHosts].filter(Boolean).join(' · ')}
-                </p>
-              )}
-              {primary.description && (
-                <p className="mt-5 line-clamp-3 max-w-2xl text-base leading-relaxed text-white/85">{primary.description}</p>
-              )}
-              <div className="mt-7">
-                <ResourceActions resource={primary} inverted />
-              </div>
-            </div>
-          </div>
-          {currentLaunches.map((resource) => (
-            <LaunchResource key={resource.rockId} resource={resource} />
-          ))}
-        </section>
-      ) : (
+      {primary ? <LeaderResourceThisWeek current={current} /> : (
         <section aria-labelledby="this-week-heading" className="border-y border-warm-grey py-8">
           <h3 id="this-week-heading" className="text-2xl text-brand-black">This week</h3>
           <p className="mt-2 text-sm text-mid-grey">There is no current resource this week.</p>
@@ -370,5 +325,72 @@ export function LeaderResourceTimeline({
         </section>
       )}
     </>
+  )
+}
+
+export function LeaderResourceThisWeek({
+  current,
+  audience = 'leader',
+}: {
+  current: MemberLeaderResource[]
+  audience?: 'leader' | 'member'
+}) {
+  const primary = current.find((resource) => !isLeaderLaunch(resource)) ?? current[0]
+  if (!primary) return null
+
+  const currentLaunches = audience === 'leader' ? current.filter((resource) => (
+    isLeaderLaunch(resource) && resource.rockId !== primary.rockId
+  )) : []
+  const primaryHosts = audience === 'leader' ? hostNames(primary) : ''
+  const primaryDates = formatResourceDates(primary)
+
+  return (
+    <section aria-labelledby="this-week-heading" className="overflow-hidden rounded-xl shadow-xl shadow-brand-black/10">
+      <div className="relative overflow-hidden bg-rich-red text-white">
+        {primary.promotionalImageUrl && (
+          <div className="relative aspect-video w-full overflow-hidden bg-brand-black lg:absolute lg:inset-y-0 lg:right-0 lg:h-full lg:w-1/2 lg:aspect-auto">
+            {/* Public, same-origin route so Next can optimize the artwork. */}
+            <Image
+              src={primary.promotionalImageUrl}
+              alt=""
+              fill
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              className="object-contain"
+            />
+          </div>
+        )}
+        <div className={`relative px-6 py-8 sm:px-9 sm:py-10 ${primary.promotionalImageUrl ? 'lg:pr-[52%]' : ''}`}>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/80">
+            {['This week', primaryDates].filter(Boolean).join(' · ')}
+          </p>
+          <h3 id="this-week-heading" className="mt-3 text-4xl leading-none text-white sm:text-5xl">
+            {audience === 'leader' ? (
+              <Link
+                href={`/members/connect-group-leader-resources/${primary.rockId}`}
+                className="hover:underline"
+              >
+                {primary.title}
+              </Link>
+            ) : primary.title}
+          </h3>
+          {(primary.bibleReference || primaryHosts) && (
+            <p className="mt-4 text-sm text-white/80">
+              {[primary.bibleReference, primaryHosts].filter(Boolean).join(' · ')}
+            </p>
+          )}
+          {primary.description && (
+            <p className="mt-5 line-clamp-3 max-w-2xl text-base leading-relaxed text-white/85">{primary.description}</p>
+          )}
+          {(audience === 'leader' || primary.hasMemberStudy) && (
+            <div className="mt-7">
+              <ResourceActions resource={primary} inverted audience={audience} />
+            </div>
+          )}
+        </div>
+      </div>
+      {currentLaunches.map((resource) => (
+        <LaunchResource key={resource.rockId} resource={resource} />
+      ))}
+    </section>
   )
 }

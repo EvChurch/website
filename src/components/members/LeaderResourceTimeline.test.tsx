@@ -12,6 +12,7 @@ vi.mock('./LeaderResourceVideoButton', () => ({
 import { formatResourceDates } from './LeaderResourceCard'
 import {
   groupResourcesByBibleBook,
+  LeaderResourceThisWeek,
   LeaderResourceTimeline,
 } from './LeaderResourceTimeline'
 
@@ -114,6 +115,7 @@ describe('LeaderResourceTimeline', () => {
     )
 
     expect(markup).toContain('This week')
+    expect(markup).toContain('9 Aug - 15 Aug')
     expect(markup.indexOf('Hebrews Study 4')).toBeLessThan(
       markup.indexOf('Hebrews 2026 CG Leaders Launch'),
     )
@@ -130,5 +132,35 @@ describe('LeaderResourceTimeline', () => {
     expect(markup).not.toContain('class="aspect-video w-full overflow-hidden')
     expect(markup).not.toContain('id="history-heading"')
     expect(markup).not.toContain('<h4')
+  })
+
+  it('shows members only the study action and public weekly content', () => {
+    const markup = renderToStaticMarkup(
+      <LeaderResourceThisWeek
+        current={[
+          resource({
+            youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            hosts: [{ name: 'Ryan Green', avatarUrl: null }],
+          }),
+          resource({
+            rockId: 240,
+            title: 'Hebrews 2026 CG Leaders Launch',
+            hasMemberStudy: false,
+          }),
+        ]}
+        audience="member"
+      />,
+    )
+
+    expect(markup).toContain('This week')
+    expect(markup).toContain('Hebrews Study 4')
+    expect(markup).toContain('Hebrews 4:14-5:10')
+    expect(markup).toContain('/245/files/member-study')
+    expect(markup).toContain('> Study</a>')
+    expect(markup).not.toContain('Play video:')
+    expect(markup).not.toContain('Ryan Green')
+    expect(markup).not.toContain('Hebrews 2026 CG Leaders Launch')
+    expect(markup).not.toContain('/245/files/leader-notes')
+    expect(markup).not.toContain('href="/members/connect-group-leader-resources/245"')
   })
 })

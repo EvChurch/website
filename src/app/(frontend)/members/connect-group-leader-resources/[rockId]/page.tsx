@@ -3,7 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 
-import { MemberPortalChrome } from '@/components/members/MemberPortalChrome'
+import { memberConnectGroupHref, MemberPortalChrome } from '@/components/members/MemberPortalChrome'
 import { formatResourceDates } from '@/components/members/LeaderResourceCard'
 import { LeaderResourceVideoButton } from '@/components/members/LeaderResourceVideoButton'
 import { getMemberPortalHome, getMemberResourceDetail } from '@/lib/members/data'
@@ -43,7 +43,7 @@ export default async function LeaderResourceDetailPage({
   const hosts = resource.hosts.map((host) => host.name).join(' & ')
 
   return (
-    <MemberPortalChrome active="resources" member={home.profile} canAccessLeaderResources={home.canAccessLeaderResources}>
+    <MemberPortalChrome active="resources" member={home.profile} canAccessLeaderResources={home.canAccessLeaderResources} connectGroupHref={memberConnectGroupHref(home.groups)}>
       <Link href="/members/connect-group-leader-resources" className="text-sm font-bold text-rich-red hover:underline">Back to all resources</Link>
 
       <section className="mt-6 overflow-hidden rounded-xl shadow-xl shadow-brand-black/10">

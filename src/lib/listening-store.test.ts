@@ -5,6 +5,7 @@ import {
   matchesSavedVideoProgress,
   listeningHistoryForPersistence,
   type ListeningRecord,
+  useListeningStore,
 } from './listening-store'
 
 function record(overrides: Partial<ListeningRecord> = {}): ListeningRecord {
@@ -69,5 +70,35 @@ describe('listening history access boundaries', () => {
 
     expect(matchesSavedVideoProgress(legacy, 'resource-video', true)).toBe(true)
     expect(matchesSavedVideoProgress(legacy, 'resource-video', false)).toBe(false)
+  })
+
+  it('does not complete a short member video until it reaches 95 percent', () => {
+    useListeningStore.setState({ history: {} })
+    const saveProgress = useListeningStore.getState().saveProgress
+    const memberVideo = {
+      slug: 'connect-group-resource-245',
+      title: 'Hebrews Study 4',
+      access: 'members' as const,
+      audioUrl: '',
+      playedAs: { type: 'video' as const, campusSlug: 'resource-video' },
+    }
+
+    saveProgress(memberVideo, 30, 240)
+    expect(useListeningStore.getState().history[memberVideo.slug]?.completed).toBe(false)
+
+    saveProgress(memberVideo, 228, 240)
+    expect(useListeningStore.getState().history[memberVideo.slug]?.completed).toBe(true)
+  })
+
+  it('retains the five-minute completion allowance for public sermons', () => {
+    useListeningStore.setState({ history: {} })
+    useListeningStore.getState().saveProgress({
+      slug: 'sermon-one',
+      title: 'A sermon',
+      access: 'public',
+      audioUrl: '/sermon.mp3',
+    }, 901, 1200)
+
+    expect(useListeningStore.getState().history['sermon-one']?.completed).toBe(true)
   })
 })

@@ -5,19 +5,27 @@ import { MemberAvatar } from './MemberAvatar'
 
 export type MemberSection = 'groups' | 'resources'
 
+export function memberConnectGroupHref(groups: Array<{ rockGroupId: number }>) {
+  return groups.length === 1
+    ? `/members/connect-groups/${groups[0].rockGroupId}`
+    : '/members/connect-groups'
+}
+
 export function MemberPortalChrome({
   active,
   member,
   canAccessLeaderResources,
+  connectGroupHref,
   children,
 }: {
   active?: MemberSection
   member: { name: string; email: string; avatarUrl: string | null }
   canAccessLeaderResources: boolean
+  connectGroupHref: string
   children: ReactNode
 }) {
   const links = [
-    { key: 'groups' as const, label: 'Connect Groups', href: '/members/connect-groups' },
+    { key: 'groups' as const, label: 'Connect Group', href: connectGroupHref },
     ...(canAccessLeaderResources
       ? [{
           key: 'resources' as const,

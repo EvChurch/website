@@ -13,7 +13,10 @@ function getVideojs() {
       import('video.js'),
       import('videojs-youtube'),
       import('video.js/dist/video-js.css'),
-    ]).then(([vjs]) => vjs)
+    ]).then(([vjs]) => vjs).catch((error: unknown) => {
+      videojsPromise = null
+      throw error
+    })
   }
   return videojsPromise
 }
@@ -282,13 +285,16 @@ export function VideoContainer() {
     }
 
     void initPlayer().catch(() => {
-      if (!cancelled) prevVideoIdentityRef.current = null
+      if (!cancelled) {
+        prevVideoIdentityRef.current = null
+        close()
+      }
     })
     return () => {
       cancelled = true
     }
     
-  }, [activeVideo?.youtubeVideoId, activeVideo?.startSeconds, activeVideo?.endSeconds, currentSermon?.slug, isVideoVisible, shouldRender])
+  }, [activeVideo?.youtubeVideoId, activeVideo?.startSeconds, activeVideo?.endSeconds, close, currentSermon?.slug, isVideoVisible, shouldRender])
 
   // Clean up player after fade-out completes
   useEffect(() => {

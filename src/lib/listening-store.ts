@@ -136,7 +136,7 @@ export const useListeningStore = create<ListeningState>()(
               duration: dur,
               completed: state.history[sermon.slug]?.completed || (dur > 0 && (
                 currentTime / dur >= COMPLETED_THRESHOLD ||
-                dur - currentTime <= COMPLETED_REMAINING_SECS
+                (sermon.access !== 'members' && dur - currentTime <= COMPLETED_REMAINING_SECS)
               )),
               lastPlayedAt: Date.now(),
             },
