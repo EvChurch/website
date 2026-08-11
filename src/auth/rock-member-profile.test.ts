@@ -67,10 +67,9 @@ describe('resolveRockMemberProfile', () => {
       endpoint: 'UserLogins',
       params: {
         $expand: 'EntityType',
-        $filter:
-          "ForeignKey eq 'auth0|member-123' and UserName eq 'AUTH0_auth0|member-123'",
+        $filter: "UserName eq 'AUTH0_auth0|member-123'",
         $select:
-          'Id,EntityTypeId,ForeignKey,PersonId,UserName,EntityType/Id,EntityType/Guid',
+          'Id,EntityTypeId,PersonId,UserName,EntityType/Id,EntityType/Guid',
         $top: '2',
       },
       timeoutMs: 3_000,
@@ -82,6 +81,22 @@ describe('resolveRockMemberProfile', () => {
           'Id,FullName,FirstName,NickName,LastName,Email,PhotoId',
       },
       timeoutMs: 3_000,
+    })
+  })
+
+  it('resolves the exact Auth0 username when Rock leaves ForeignKey empty', async () => {
+    mocks.memberRockFetch
+      .mockResolvedValueOnce([{ ...login, ForeignKey: null }])
+      .mockResolvedValueOnce(person)
+
+    await expect(resolveRockMemberProfile(subject)).resolves.toEqual({
+      ok: true,
+      profile: {
+        personId: 42,
+        name: 'Ada Lovelace',
+        email: 'ada@example.com',
+        photoUrl: '/GetAvatar.ashx?PhotoId=42&Size=400',
+      },
     })
   })
 
@@ -160,7 +175,7 @@ describe('resolveRockMemberProfile', () => {
     expect(mocks.memberRockFetch).not.toHaveBeenCalled()
   })
 
-  it('escapes quotes in both OData string literals without broadening the filter', async () => {
+  it('escapes quotes in the exact Auth0 username without broadening the filter', async () => {
     const quotedSubject = "auth0|o'hara' or PersonId ne null"
     mocks.memberRockFetch.mockResolvedValueOnce([])
 
@@ -170,7 +185,7 @@ describe('resolveRockMemberProfile', () => {
       expect.objectContaining({
         params: expect.objectContaining({
           $filter:
-            "ForeignKey eq 'auth0|o''hara'' or PersonId ne null' and UserName eq 'AUTH0_auth0|o''hara'' or PersonId ne null'",
+            "UserName eq 'AUTH0_auth0|o''hara'' or PersonId ne null'",
           $top: '2',
         }),
       }),
@@ -196,10 +211,6 @@ describe('resolveRockMemberProfile', () => {
   })
 
   it.each([
-    [
-      'case-mismatched foreign key',
-      { ...login, ForeignKey: 'AUTH0|MEMBER-123' },
-    ],
     ['wrong username', { ...login, UserName: `auth0_${subject}` }],
     [
       'wrong authentication entity',

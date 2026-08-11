@@ -6,7 +6,7 @@ This runbook enables the Rock-backed public member sign-in. It does not grant Pa
 
 - Use the website's single Auth0 application for both public-member and Payload-admin sign-in. Do not create a member-specific application.
 - Use the website's existing Rock API configuration for member identity, profile, and photo reads.
-- The website resolves only the case-sensitive OIDC `sub` stored by Rock. Email is a display field, never an identity key or fallback.
+- The website resolves only the case-sensitive OIDC `sub` stored by Rock in the Auth0 `UserLogin` username as `AUTH0_<sub>`. Email is a display field, never an identity key or fallback.
 - The website does not create or link Rock people. The existing Auth0-to-Rock connection owns that behavior.
 - Treat Auth0 subjects, Rock person IDs, cookies, and profile data as private. Do not place them in logs, screenshots, tickets, or deployment evidence.
 
@@ -41,7 +41,7 @@ Store secrets in the deployment secret store, restrict operator access, and neve
 
 Confirm the existing website Rock API credential can:
 
-- read `UserLogin` fields required to validate the Auth0 authentication entity, exact `ForeignKey`, `AUTH0_<sub>` username, and linked `PersonId`;
+- read `UserLogin` fields required to validate the Auth0 authentication entity, exact `AUTH0_<sub>` username, and linked `PersonId`;
 - read the linked `Person` name, email, and `PhotoUrl` fields; and
 - fetch that person's `/GetImage.ashx` image.
 
@@ -55,7 +55,7 @@ Perform this proof in a non-production environment first.
 
 1. Select one controlled Auth0 identity and record only an operator-owned evidence reference, not its raw `sub`.
 2. Authenticate through the existing public Auth0 application and inspect the Auth0 event securely to obtain its exact case-sensitive OIDC `sub`.
-3. In Rock, confirm exactly one Auth0 `UserLogin` has that value in `ForeignKey`, the expected Auth0 authentication entity, username `AUTH0_<sub>`, and one linked person.
+3. In Rock, confirm exactly one `UserLogin` has username `AUTH0_<sub>`, the expected Auth0 authentication entity, and one linked person. Rock may leave `ForeignKey` empty; it is not an identity key for this integration.
 4. Sign in through the website. Confirm the displayed name, email, and photo/fallback belong to that same person.
 5. Change the person's email in the controlled environment and sign in again. Confirm the same person resolves, proving email is not used for matching.
 
