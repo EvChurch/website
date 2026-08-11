@@ -245,4 +245,100 @@ describe('ConnectGroupDetailPage', () => {
     expect(markup).toContain('aria-label="Call No Contact unavailable"')
     expect(markup).toContain('aria-label="Text No Contact unavailable"')
   })
+
+  it('shows a calm leader attendance view with people needing attention first', async () => {
+    const leaderGroup = { ...currentGroup, isLeader: true, roleName: 'Leader' }
+    mocks.getMemberPortalHome.mockResolvedValue({
+      profile,
+      groups: [leaderGroup],
+      canAccessLeaderResources: true,
+    })
+    mocks.getMemberGroupDetail.mockResolvedValue({
+      access: 'granted',
+      group: leaderGroup,
+      attendance: {
+        people: {
+          84: {
+            needsAttention: true,
+            attentionLabel: '2 CGs missed',
+            connectGroup: {
+              recent: [
+                { date: '2026-07-15', didAttend: true },
+                { date: '2026-07-22', didAttend: true },
+                { date: '2026-07-29', didAttend: false },
+                { date: '2026-08-05', didAttend: false },
+              ],
+              ytdPercentage: 50,
+              missedInARow: 2,
+            },
+            church: {
+              recent: [{ date: '2026-08-09', didAttend: true }],
+              ytdPercentage: 75,
+              missedInARow: 0,
+            },
+          },
+          85: {
+            needsAttention: false,
+            attentionLabel: null,
+            connectGroup: { recent: [], ytdPercentage: 90, missedInARow: 0 },
+            church: { recent: [], ytdPercentage: 88, missedInARow: 0 },
+          },
+        },
+        summary: {
+          connectGroup: { recentPercentage: 72, ytdPercentage: 76 },
+          church: { recentPercentage: 81, ytdPercentage: 79 },
+        },
+        monthly: [
+          {
+            month: '2026-07',
+            connectGroupPercentage: null,
+            churchPercentage: 70,
+          },
+          {
+            month: '2026-08',
+            connectGroupPercentage: 72,
+            churchPercentage: 68,
+          },
+        ],
+      },
+      people: [
+        {
+          rockPersonId: 85,
+          name: 'Calm Member',
+          email: null,
+          phones: [],
+          avatarUrl: null,
+          roleName: 'Member',
+          isLeader: false,
+          isCurrentMember: false,
+        },
+        {
+          rockPersonId: 84,
+          name: 'Needs Follow Up',
+          email: null,
+          phones: [{ number: '021 555 0100', typeValueId: 12, isMessagingEnabled: true }],
+          avatarUrl: null,
+          roleName: 'Member',
+          isLeader: false,
+          isCurrentMember: false,
+        },
+      ],
+    })
+
+    const markup = renderToStaticMarkup(await ConnectGroupDetailPage({
+      params: Promise.resolve({ rockGroupId: '10' }),
+    }))
+
+    expect(markup).toContain('Needs attention')
+    expect(markup).toContain('2 CGs missed')
+    expect(markup).toContain('72%')
+    expect(markup).toContain('aria-label="Group attendance summary"')
+    expect(markup.match(/data-attendance-summary/g)).toHaveLength(1)
+    expect(markup).toContain('role="tooltip"')
+    expect(markup).toContain('72%')
+    expect(markup).toContain('No data')
+    expect(markup).toContain('tabindex="0"')
+    expect(markup.indexOf('Needs Follow Up')).toBeLessThan(markup.indexOf('Calm Member'))
+    expect(markup).not.toContain('Two consecutive missed')
+  })
 })

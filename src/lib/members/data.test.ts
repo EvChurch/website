@@ -18,12 +18,20 @@ const payloadState = vi.hoisted(() => ({
   find: vi.fn(),
 }))
 
+const attendanceState = vi.hoisted(() => ({
+  fetchConnectGroupAttendance: vi.fn(),
+}))
+
 vi.mock('@/auth/member-session', () => ({
   getCurrentMemberProfile: vi.fn(async () => memberSession.profile),
 }))
 
 vi.mock('@/lib/payload', () => ({
   getPayloadClient: vi.fn(async () => ({ find: payloadState.find })),
+}))
+
+vi.mock('@/lib/members/attendance', () => ({
+  fetchConnectGroupAttendance: attendanceState.fetchConnectGroupAttendance,
 }))
 
 import {
@@ -164,6 +172,15 @@ describe('member data access', () => {
       photoUrl: null,
     }
     payloadState.find.mockReset()
+    attendanceState.fetchConnectGroupAttendance.mockReset()
+    attendanceState.fetchConnectGroupAttendance.mockResolvedValue({
+      people: {},
+      summary: {
+        connectGroup: { recentPercentage: null, ytdPercentage: null },
+        church: { recentPercentage: null, ytdPercentage: null },
+      },
+      monthly: [],
+    })
     payloadState.find.mockImplementation(async ({ collection, where }) => {
       const rockIdCondition = where?.and?.find(
         (condition: Record<string, unknown>) => 'rockId' in condition,
@@ -210,6 +227,46 @@ describe('member data access', () => {
         },
       ],
     })
+    expect(attendanceState.fetchConnectGroupAttendance).toHaveBeenCalledWith(10, [42, 84])
+  })
+
+  it('does not request or expose attendance for an ordinary group member', async () => {
+    const ordinaryMember = {
+      ...participant,
+      memberships: participant.memberships.map((membership) => ({
+        ...membership,
+        roleName: 'Member',
+        isLeader: false,
+      })),
+    }
+    payloadState.find.mockImplementation(async ({ collection, where }) => {
+      if (collection === 'connect-group-participants' && where?.['memberships.rockGroupId']) {
+        return { docs: [ordinaryMember, otherMember] }
+      }
+      return { docs: collection === 'connect-group-participants' ? [ordinaryMember] : payloadDocs(collection) }
+    })
+
+    await expect(getMemberGroupDetail(10)).resolves.toMatchObject({
+      access: 'granted',
+      attendance: null,
+    })
+    expect(attendanceState.fetchConnectGroupAttendance).not.toHaveBeenCalled()
+  })
+
+  it('keeps the leader roster available when Rock attendance fails', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    attendanceState.fetchConnectGroupAttendance.mockRejectedValueOnce(new Error('Rock unavailable'))
+
+    await expect(getMemberGroupDetail(10)).resolves.toMatchObject({
+      access: 'granted',
+      attendance: null,
+      people: expect.any(Array),
+    })
+    expect(consoleError).toHaveBeenCalledWith(
+      'Unable to load attendance for Connect Group 10',
+      expect.any(Error),
+    )
+    consoleError.mockRestore()
   })
 
   it('denies a group the signed-in member does not belong to', async () => {
