@@ -1,4 +1,8 @@
 import { getCurrentMemberProfile } from '@/auth/member-session'
+import {
+  fetchConnectGroupAttendance,
+  type GroupAttendanceOverview,
+} from '@/lib/members/attendance'
 import { getPayloadClient } from '@/lib/payload'
 import type {
   ConnectGroup,
@@ -90,6 +94,7 @@ export type MemberGroupDetailResult =
       access: 'granted'
       group: MemberGroupSummary
       people: MemberRosterPerson[]
+      attendance: GroupAttendanceOverview | null
     }
 
 export type MemberResourcesResult =
@@ -410,7 +415,20 @@ export async function getMemberGroupDetail(
       return a.name.localeCompare(b.name)
     })
 
-  return { access: 'granted', group, people }
+  const canViewAttendance = currentMembership.isLeader === true || context.participant?.isCoach === true
+  let attendance: GroupAttendanceOverview | null = null
+  if (canViewAttendance) {
+    try {
+      attendance = await fetchConnectGroupAttendance(
+        rockGroupId,
+        people.map((person) => person.rockPersonId),
+      )
+    } catch (error) {
+      console.error(`Unable to load attendance for Connect Group ${rockGroupId}`, error)
+    }
+  }
+
+  return { access: 'granted', group, people, attendance }
 }
 
 function isApprovedResource(resource: ResourceRecord) {

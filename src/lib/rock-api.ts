@@ -93,11 +93,15 @@ export async function rockFetchAll<T>({
   params,
   pageSize = 100,
   getKey,
+  retries,
+  timeoutMs,
 }: {
   endpoint: string
   params?: Record<string, string>
   pageSize?: number
   getKey?: (record: T) => string | number
+  retries?: number
+  timeoutMs?: number
 }): Promise<T[]> {
   const records: T[] = []
   const seenKeys = new Set<string | number>()
@@ -106,6 +110,8 @@ export async function rockFetchAll<T>({
   for (let skip = 0; ; skip += pageSize) {
     const page = await rockFetch<T[]>({
       endpoint,
+      retries,
+      timeoutMs,
       params: {
         ...params,
         $top: String(pageSize),
