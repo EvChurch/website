@@ -20,7 +20,6 @@ interface RockAuthenticationEntityResponse {
 interface RockUserLoginResponse {
   Id: number
   EntityTypeId: number | null
-  ForeignKey: string | null
   PersonId: number | null
   UserName: string | null
   EntityType: RockAuthenticationEntityResponse | null
@@ -162,7 +161,6 @@ function parseLogin(value: unknown): RockUserLoginResponse | null {
     Id: typeof value.Id === 'number' ? value.Id : Number.NaN,
     EntityTypeId:
       typeof value.EntityTypeId === 'number' ? value.EntityTypeId : null,
-    ForeignKey: typeof value.ForeignKey === 'string' ? value.ForeignKey : null,
     PersonId: typeof value.PersonId === 'number' ? value.PersonId : null,
     UserName: typeof value.UserName === 'string' ? value.UserName : null,
     EntityType: {
@@ -183,7 +181,6 @@ function hasExpectedIdentity(
     isPositiveInteger(login.EntityType?.Id) &&
     login.EntityTypeId === login.EntityType.Id &&
     login.EntityType.Guid.toUpperCase() === AUTH0_ROCK_ENTITY_TYPE_GUID &&
-    login.ForeignKey === subject &&
     login.UserName === `AUTH0_${subject}`
   )
 }
@@ -257,15 +254,14 @@ export async function resolveRockMemberProfile(
 ): Promise<RockMemberProfileResolution> {
   if (!isValidSubject(subject)) return fail('invalid-subject')
 
-  const escapedSubject = escapeODataStringLiteral(subject)
   const escapedUserName = escapeODataStringLiteral(`AUTH0_${subject}`)
   const loginResponse = await requestRock({
     endpoint: 'UserLogins',
     params: {
       $expand: 'EntityType',
-      $filter: `ForeignKey eq '${escapedSubject}' and UserName eq '${escapedUserName}'`,
+      $filter: `UserName eq '${escapedUserName}'`,
       $select:
-        'Id,EntityTypeId,ForeignKey,PersonId,UserName,EntityType/Id,EntityType/Guid',
+        'Id,EntityTypeId,PersonId,UserName,EntityType/Id,EntityType/Guid',
       $top: '2',
     },
   })
