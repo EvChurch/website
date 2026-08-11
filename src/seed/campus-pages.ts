@@ -49,7 +49,7 @@ export const CAMPUS_PAGE_DEFAULTS = {
       serviceCloses: '11:30',
       serviceDuration: 'Approximately 75 minutes',
       kidsProgram: true,
-      kidsAges: 'Available for ages 0 to 12',
+      kidsAges: 'Available for ages 1 to 12',
       heroImagePath: '/images/homepage/carousel-c645786c.jpg',
       galleryImages: [
         {
@@ -116,7 +116,7 @@ export const CAMPUS_PAGE_DEFAULTS = {
       serviceCloses: '11:30',
       serviceDuration: 'Approximately 75 minutes',
       kidsProgram: true,
-      kidsAges: 'Available for ages 0 to 12',
+      kidsAges: 'Available for ages 1 to 12',
       heroImagePath: '/images/campus-central/photo-3b4be562.jpg',
       galleryImages: [
         {
@@ -268,7 +268,7 @@ function hasText(value: string | null | undefined): value is string {
   return Boolean(value?.trim())
 }
 
-const LEGACY_KIDS_AGES = 'Available for ages 1 to 12'
+const LEGACY_KIDS_AGES = 'Available for ages 0 to 12'
 
 function hasManagedPageContent(pageContent: Campus['pageContent']): boolean {
   if (!pageContent) return false

@@ -34,7 +34,7 @@ describe('buildCampusSeedUpdate', () => {
       pageContent: {
         enabled: true,
         brandName: 'Ev North',
-        kidsAges: 'Available for ages 0 to 12',
+        kidsAges: 'Available for ages 1 to 12',
         mapUrl: CAMPUS_PAGE_DEFAULTS.north.pageContent.mapUrl,
       },
     })
@@ -102,12 +102,12 @@ describe('buildCampusSeedUpdate', () => {
         pageContent: {
           ...CAMPUS_PAGE_DEFAULTS.north.pageContent,
           tagline: 'Editor tagline',
-          kidsAges: 'Available for ages 1 to 12',
+          kidsAges: 'Available for ages 0 to 12',
         },
       }),
     )
 
-    expect(update?.pageContent?.kidsAges).toBe('Available for ages 0 to 12')
+    expect(update?.pageContent?.kidsAges).toBe('Available for ages 1 to 12')
     expect(update?.pageContent?.tagline).toBe('Editor tagline')
   })
 
