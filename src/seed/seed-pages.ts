@@ -6,7 +6,11 @@ import { existsSync, readFileSync } from 'node:fs'
 import sharp from 'sharp'
 import { ensureNewishConnectionForm } from './newish-form'
 import { EXPLAINING_CHRISTIANITY_CONNECTION_BLOCK_GUID } from './explaining-christianity-form'
-import { ensureServiceTimesBlock, ensureUpcomingEventsBlock } from './home-layout'
+import {
+  ensureDailyReadingBlock,
+  ensureServiceTimesBlock,
+  ensureUpcomingEventsBlock,
+} from './home-layout'
 import { CAMPUS_PAGE_DEFAULTS, ensureCampusPageDefaults } from './campus-pages'
 import { createPageUpserter } from './page-upsert'
 
@@ -220,7 +224,7 @@ async function seed() {
   await upsertPage('home', {
     title: 'Home',
     _status: 'published',
-    layout: ensureUpcomingEventsBlock(ensureServiceTimesBlock([
+    layout: ensureDailyReadingBlock(ensureUpcomingEventsBlock(ensureServiceTimesBlock([
       {
         blockType: 'hero',
         image: img('carousel-0c59a44d'),
@@ -377,7 +381,7 @@ async function seed() {
           { label: 'Find a campus near you', href: '/visit', variant: 'primary' },
         ],
       },
-    ])),
+    ]))),
     seo: {
       metaTitle: 'Church in Auckland | Ev Church | Sundays 10:15am & 5:15pm',
       metaDescription: 'Looking for a church in Auckland? Ev Church is a community of Christ-followers meeting across Tamaki Makaurau. Join us this Sunday.',
