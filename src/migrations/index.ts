@@ -18,6 +18,9 @@ import * as migration_20260806_auth0_admin_sso from './20260806_auth0_admin_sso'
 import * as migration_20260807_service_guide_items from './20260807_service_guide_items';
 import * as migration_20260808_members_rock_sync from './20260808_members_rock_sync';
 import * as migration_20260811_143500_ev_kids_ages_1_to_12 from './20260811_143500_ev_kids_ages_1_to_12';
+import * as migration_20260811_daily_bible_readings from './20260811_daily_bible_readings';
+import * as migration_20260811_home_daily_reading_block from './20260811_home_daily_reading_block';
+import * as migration_20260812_daily_bible_readings_api_bible from './20260812_daily_bible_readings_api_bible';
 
 export const migrations = [
   {
@@ -119,5 +122,20 @@ export const migrations = [
     up: migration_20260811_143500_ev_kids_ages_1_to_12.up,
     down: migration_20260811_143500_ev_kids_ages_1_to_12.down,
     name: '20260811_143500_ev_kids_ages_1_to_12',
+  },
+  {
+    up: migration_20260811_daily_bible_readings.up,
+    down: migration_20260811_daily_bible_readings.down,
+    name: '20260811_daily_bible_readings',
+  },
+  {
+    up: migration_20260811_home_daily_reading_block.up,
+    down: migration_20260811_home_daily_reading_block.down,
+    name: '20260811_home_daily_reading_block',
+  },
+  {
+    up: migration_20260812_daily_bible_readings_api_bible.up,
+    down: migration_20260812_daily_bible_readings_api_bible.down,
+    name: '20260812_daily_bible_readings_api_bible',
   },
 ];

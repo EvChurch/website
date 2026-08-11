@@ -17,6 +17,7 @@ import { GospelStepperBlockComponent } from './GospelStepperBlockComponent'
 import { LatestSermonBlockComponent } from './LatestSermonBlockComponent'
 import { UpcomingEventsBlockComponent } from './UpcomingEventsBlockComponent'
 import { ServiceTimesBlockComponent } from './ServiceTimesBlockComponent'
+import { DailyReadingBlockComponent } from './DailyReadingBlockComponent'
 import type {
   FormEmbedBlock as PayloadFormEmbedBlock,
   UpcomingEventsBlock as PayloadUpcomingEventsBlock,
@@ -241,6 +242,12 @@ interface LatestSermonBlockType extends BaseBlock {
   heading?: string | null
 }
 
+interface DailyReadingBlockType extends BaseBlock {
+  blockType: 'dailyReading'
+  eyebrow?: string | null
+  heading?: string | null
+}
+
 interface ServiceTimesBlockType extends BaseBlock {
   blockType: 'serviceTimes'
   heading?: string | null
@@ -270,6 +277,7 @@ export type RenderableBlock =
   | PageHeaderBlock
   | GospelStepperBlockType
   | LatestSermonBlockType
+  | DailyReadingBlockType
   | ServiceTimesBlockType
   | PayloadUpcomingEventsBlock
   | BaseBlock
@@ -288,6 +296,11 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
         const aboveFold = index < 3
 
         switch (block.blockType) {
+          case 'dailyReading': {
+            const b = block as DailyReadingBlockType
+            return <DailyReadingBlockComponent key={key} eyebrow={b.eyebrow} heading={b.heading} />
+          }
+
           case 'hero': {
             const b = block as HeroBlock
             return (

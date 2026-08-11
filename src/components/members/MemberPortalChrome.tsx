@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 
 import { MemberAvatar } from './MemberAvatar'
 
-export type MemberSection = 'groups' | 'resources'
+export type MemberSection = 'groups' | 'reading' | 'resources'
 
 export function memberConnectGroupHref(groups: Array<{ rockGroupId: number }>) {
   return groups.length === 1
@@ -26,6 +26,7 @@ export function MemberPortalChrome({
 }) {
   const links = [
     { key: 'groups' as const, label: 'Connect Group', href: connectGroupHref },
+    { key: 'reading' as const, label: 'Daily Reading', href: '/members/daily-readings' },
     ...(canAccessLeaderResources
       ? [{
           key: 'resources' as const,

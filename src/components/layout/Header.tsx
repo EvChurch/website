@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   MemberAccountControl,
   type MemberDisplayProfile,
@@ -81,8 +81,14 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + '/')
 }
 
+function needsDarkHeaderAtTop(pathname: string): boolean {
+  return pathname === '/privacy'
+    || pathname === '/blog'
+    || pathname.startsWith('/daily-readings/')
+}
+
 /* ─────────────── Desktop Dropdown ─────────────── */
-function DesktopDropdown({ item, scrolled, pathname }: { item: NavItem; scrolled: boolean; pathname: string }) {
+function DesktopDropdown({ item, darkTone, pathname }: { item: NavItem; darkTone: boolean; pathname: string }) {
   const [open, setOpen] = useState(false)
   const [canHover, setCanHover] = useState(false)
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(null)
@@ -103,15 +109,15 @@ function DesktopDropdown({ item, scrolled, pathname }: { item: NavItem; scrolled
 
   const classes = `group relative flex items-center gap-1.5 px-3 py-2 text-[0.8125rem] font-semibold uppercase tracking-wide transition-colors duration-200 ${
     active
-      ? scrolled ? 'text-rich-red' : 'text-white'
-      : scrolled ? 'text-brand-black/80 hover:text-rich-red' : 'text-white/90 hover:text-white'
+      ? darkTone ? 'text-rich-red' : 'text-white'
+      : darkTone ? 'text-brand-black/80 hover:text-rich-red' : 'text-white/90 hover:text-white'
   }`
 
   const underline = (
     <span
       className={`absolute bottom-0 left-3 right-3 h-[2px] origin-left rounded-full transition-transform duration-300 ease-out ${
         active ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
-      } ${scrolled ? 'bg-rich-red' : 'bg-white'}`}
+      } ${darkTone ? 'bg-rich-red' : 'bg-white'}`}
     />
   )
 
@@ -340,6 +346,7 @@ export function Header({
   const [hidden, setHidden] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const hasScrolledRef = useRef(false)
+  const darkTone = scrolled || needsDarkHeaderAtTop(pathname)
 
   // Set correct initial state without transition
   useEffect(() => {
@@ -437,15 +444,15 @@ export function Header({
             >
               {navItems.map((item) =>
                 item.children ? (
-                  <DesktopDropdown key={item.label} item={item} scrolled={scrolled} pathname={pathname} />
+                  <DesktopDropdown key={item.label} item={item} darkTone={darkTone} pathname={pathname} />
                 ) : (
                   <Link
                     key={item.label}
                     href={item.href}
                     className={`group relative px-3 py-2 text-[0.8125rem] font-semibold uppercase tracking-wide transition-colors duration-200 ${
                       isActive(pathname, item.href)
-                        ? scrolled ? 'text-rich-red' : 'text-white'
-                        : scrolled ? 'text-brand-black/80 hover:text-rich-red' : 'text-white/90 hover:text-white'
+                        ? darkTone ? 'text-rich-red' : 'text-white'
+                        : darkTone ? 'text-brand-black/80 hover:text-rich-red' : 'text-white/90 hover:text-white'
                     }`}
                   >
                     {item.label}
@@ -455,7 +462,7 @@ export function Header({
                         isActive(pathname, item.href)
                           ? 'scale-x-100'
                           : 'scale-x-0 group-hover:scale-x-100'
-                      } ${scrolled ? 'bg-rich-red' : 'bg-white'}`}
+                      } ${darkTone ? 'bg-rich-red' : 'bg-white'}`}
                     />
                   </Link>
                 ),
@@ -464,7 +471,7 @@ export function Header({
             <Link
               href="/give"
               className={`ml-3 mr-2 rounded-full px-5 py-2 text-[0.8125rem] font-semibold uppercase tracking-wide transition-colors duration-200 ${
-                scrolled
+                darkTone
                   ? 'bg-rich-red text-white hover:bg-deep-red'
                   : 'bg-white text-brand-black hover:bg-white/90'
               }`}
@@ -475,7 +482,7 @@ export function Header({
               <MemberAccountControl
                 profile={memberProfile}
                 variant="desktop"
-                tone={scrolled ? 'dark' : 'light'}
+                tone={darkTone ? 'dark' : 'light'}
               />
             )}
           </div>
@@ -485,7 +492,7 @@ export function Header({
               <MemberAccountControl
                 profile={memberProfile}
                 variant="mobile-icon"
-                tone={scrolled ? 'dark' : 'light'}
+                tone={darkTone ? 'dark' : 'light'}
                 active={!mobileOpen}
               />
             )}
@@ -493,7 +500,7 @@ export function Header({
             {/* Mobile Hamburger */}
             <button
               className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
-                scrolled ? 'text-brand-black hover:bg-warm-white' : 'text-white hover:bg-white/10'
+                darkTone ? 'text-brand-black hover:bg-warm-white' : 'text-white hover:bg-white/10'
               }`}
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-expanded={mobileOpen}

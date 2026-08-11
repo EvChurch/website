@@ -26,5 +26,7 @@ describe('MemberPortalChrome', () => {
     const linkText = link?.[1].replace(/<[^>]+>/gu, '')
 
     expect(linkText).toBe('Connect Group')
+    expect(markup).toContain('href="/members/daily-readings"')
+    expect(markup).toContain('Daily Reading')
   })
 })

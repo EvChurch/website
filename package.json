@@ -13,7 +13,8 @@
     "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives",
     "payload": "payload",
     "generate:types": "payload generate:types",
-    "sync:rock": "tsx src/workers/rock-sync.ts"
+    "sync:rock": "tsx src/workers/rock-sync.ts",
+    "sync:daily-bible-readings": "tsx src/workers/daily-bible-reading-import.ts"
   },
   "engines": {
     "node": ">=22.0.0"
@@ -28,6 +29,7 @@
     "@payloadcms/richtext-lexical": "3.87.1",
     "@payloadcms/storage-s3": "3.87.1",
     "@tailwindcss/postcss": "4.3.3",
+    "canvas-confetti": "^1.9.4",
     "dompurify": "^3.4.13",
     "graphql": "17.0.2",
     "jsdom": "^30.0.1",
@@ -48,6 +50,7 @@
   },
   "devDependencies": {
     "@payloadcms/ui": "3.87.1",
+    "@types/canvas-confetti": "^1.9.0",
     "@types/jsdom": "^30.0.0",
     "@types/node": "26.2.0",
     "@types/pg": "8.21.0",

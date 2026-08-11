@@ -19,6 +19,7 @@ import { GospelStepperBlock } from '@/blocks/GospelStepperBlock'
 import { LatestSermonBlock } from '@/blocks/LatestSermonBlock'
 import { UpcomingEventsBlock } from '@/blocks/UpcomingEventsBlock'
 import { ServiceTimesBlock } from '@/blocks/ServiceTimesBlock'
+import { DailyReadingBlock } from '@/blocks/DailyReadingBlock'
 
 export const Pages: CollectionConfig = {
   slug: 'pages',
@@ -58,6 +59,7 @@ export const Pages: CollectionConfig = {
       type: 'blocks',
       blocks: [
         HeroBlock,
+        DailyReadingBlock,
         ServiceTimesBlock,
         ContentBlock,
         CTABlock,
