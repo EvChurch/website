@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { ensureServiceTimesBlock, ensureUpcomingEventsBlock } from './home-layout'
+import {
+  ensureDailyReadingBlock,
+  ensureServiceTimesBlock,
+  ensureUpcomingEventsBlock,
+} from './home-layout'
 
 describe('ensureServiceTimesBlock', () => {
   it('places service times immediately after the hero', () => {
@@ -73,5 +77,41 @@ describe('ensureUpcomingEventsBlock', () => {
     const layout = ensureUpcomingEventsBlock([{ blockType: 'hero' }])
 
     expect(layout.at(-1)?.blockType).toBe('upcomingEvents')
+  })
+})
+
+describe('ensureDailyReadingBlock', () => {
+  it('places the daily reading immediately after Your next step', () => {
+    const layout = ensureDailyReadingBlock([
+      { blockType: 'hero' },
+      { blockType: 'manualCardGrid', heading: 'Your next step' },
+      { blockType: 'cta' },
+    ])
+
+    expect(layout.map((block) => block.blockType)).toEqual([
+      'hero',
+      'manualCardGrid',
+      'dailyReading',
+      'cta',
+    ])
+    expect(layout[2]).toMatchObject({
+      eyebrow: 'A word from God for you today',
+      heading: 'Make room for the word.',
+    })
+  })
+
+  it('does not duplicate an existing daily-reading block', () => {
+    const existing = [
+      { blockType: 'manualCardGrid', heading: 'Your next step' },
+      { blockType: 'dailyReading' },
+    ]
+
+    expect(ensureDailyReadingBlock(existing)).toBe(existing)
+  })
+
+  it('appends the block when the layout has no next-step grid', () => {
+    const layout = ensureDailyReadingBlock([{ blockType: 'hero' }])
+
+    expect(layout.at(-1)?.blockType).toBe('dailyReading')
   })
 })

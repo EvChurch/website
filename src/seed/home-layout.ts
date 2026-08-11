@@ -19,6 +19,12 @@ const serviceTimesBlock: SeedBlock = {
   ],
 }
 
+const dailyReadingBlock: SeedBlock = {
+  blockType: 'dailyReading',
+  eyebrow: 'A word from God for you today',
+  heading: 'Make room for the word.',
+}
+
 export function ensureServiceTimesBlock(layout: SeedBlock[]): SeedBlock[] {
   if (layout.some((block) => block.blockType === 'serviceTimes')) return layout
 
@@ -41,6 +47,22 @@ export function ensureUpcomingEventsBlock(layout: SeedBlock[]): SeedBlock[] {
   return [
     ...layout.slice(0, insertionIndex),
     upcomingEventsBlock,
+    ...layout.slice(insertionIndex),
+  ]
+}
+
+export function ensureDailyReadingBlock(layout: SeedBlock[]): SeedBlock[] {
+  if (layout.some((block) => block.blockType === 'dailyReading')) return layout
+
+  const nextStepIndex = layout.findIndex((block) =>
+    block.blockType === 'manualCardGrid' &&
+    String(block.heading ?? '').trim().toLowerCase() === 'your next step',
+  )
+  const insertionIndex = nextStepIndex === -1 ? layout.length : nextStepIndex + 1
+
+  return [
+    ...layout.slice(0, insertionIndex),
+    dailyReadingBlock,
     ...layout.slice(insertionIndex),
   ]
 }
