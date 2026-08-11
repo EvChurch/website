@@ -17,6 +17,7 @@ import * as migration_20260806_130100_path_to_five_flexible_content from './2026
 import * as migration_20260806_auth0_admin_sso from './20260806_auth0_admin_sso';
 import * as migration_20260807_service_guide_items from './20260807_service_guide_items';
 import * as migration_20260808_members_rock_sync from './20260808_members_rock_sync';
+import * as migration_20260811_143500_ev_kids_ages_1_to_12 from './20260811_143500_ev_kids_ages_1_to_12';
 
 export const migrations = [
   {
@@ -113,5 +114,10 @@ export const migrations = [
     up: migration_20260808_members_rock_sync.up,
     down: migration_20260808_members_rock_sync.down,
     name: '20260808_members_rock_sync',
+  },
+  {
+    up: migration_20260811_143500_ev_kids_ages_1_to_12.up,
+    down: migration_20260811_143500_ev_kids_ages_1_to_12.down,
+    name: '20260811_143500_ev_kids_ages_1_to_12',
   },
 ];

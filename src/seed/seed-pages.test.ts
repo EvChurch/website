@@ -289,14 +289,16 @@ describe('seeded page content and giving navigation', () => {
   it('uses consistent Ev Kids ages, availability, and safety details', () => {
     const kidsSection = sourceSection("await upsertPage('kids'", "await upsertPage('youth'")
     const shortCopy =
-      'Ev Kids runs every Sunday morning at North and Central for children aged 0 to 12. Careful check-in, matched pick-up, and police-vetted, trained leaders. Allow an extra ten minutes on your first visit.'
+      'Ev Kids runs every Sunday morning at North and Central for children aged 1 to 12. Careful check-in, matched pick-up, and police-vetted, trained leaders. Allow an extra ten minutes on your first visit.'
 
-    expect(kidsSection).toContain('children aged 0 to 12')
+    expect(kidsSection).toContain('children aged 1 to 12')
+    expect(kidsSection).toContain('Creche (1 to 2 years)')
     expect(kidsSection).toContain('matched pick-up')
     expect(kidsSection).toContain("collection tag must match your child\\'s check-in tag")
     expect(kidsSection).toContain('Allow an extra ten minutes on your first visit')
     expect(seedSource.split(shortCopy)).toHaveLength(3)
-    expect(seedSource).not.toContain('ages 1 to 12')
+    expect(seedSource).not.toMatch(/(?:ages|aged) 0(?: to |-)?12/i)
+    expect(seedSource).not.toMatch(/Creche \(0(?: to |-)?2 years\)/i)
     expect(seedSource).not.toContain('during all services')
   })
 

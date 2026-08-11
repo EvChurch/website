@@ -284,7 +284,7 @@ async function seed() {
           {
             icon: 'heart',
             title: 'Great for families',
-            description: 'Ev Kids runs every Sunday morning at North and Central for children aged 0 to 12. Careful check-in, matched pick-up, and police-vetted, trained leaders. Allow an extra ten minutes on your first visit.',
+            description: 'Ev Kids runs every Sunday morning at North and Central for children aged 1 to 12. Careful check-in, matched pick-up, and police-vetted, trained leaders. Allow an extra ten minutes on your first visit.',
           },
           {
             icon: 'users',
@@ -430,7 +430,7 @@ async function seed() {
           {
             icon: 'heart',
             title: 'Bringing kids?',
-            description: 'Ev Kids runs every Sunday morning at North and Central for children aged 0 to 12. Careful check-in, matched pick-up, and police-vetted, trained leaders. Allow an extra ten minutes on your first visit.',
+            description: 'Ev Kids runs every Sunday morning at North and Central for children aged 1 to 12. Careful check-in, matched pick-up, and police-vetted, trained leaders. Allow an extra ten minutes on your first visit.',
           },
         ],
       },
@@ -903,7 +903,7 @@ async function seed() {
       {
         blockType: 'hero',
         image: img('ev-kids-banner'),
-        eyebrow: 'Ages 0 to 12',
+        eyebrow: 'Ages 1 to 12',
         heading: 'Ev Kids',
         highlightedText: 'Kids',
         subtitle: 'A safe, fun, and engaging place where your children can learn, play, and grow. Ev Kids runs every Sunday morning at North and Central.',
@@ -914,7 +914,7 @@ async function seed() {
         blockType: 'content',
         heading: 'Where kids discover faith, friendship, and fun',
         body: richText(
-          'Ev Kids runs every Sunday morning at North and Central for children aged 0 to 12. We want kids to have a blast connecting with God\'s word every week, and we make their safety a priority. Every Ev Kids leader is police vetted and trained, check-in is careful, and the collection tag must match your child\'s check-in tag for pick-up. Allow an extra ten minutes on your first visit and one of the team will walk you and your kids through it.',
+          'Ev Kids runs every Sunday morning at North and Central for children aged 1 to 12. We want kids to have a blast connecting with God\'s word every week, and we make their safety a priority. Every Ev Kids leader is police vetted and trained, check-in is careful, and the collection tag must match your child\'s check-in tag for pick-up. Allow an extra ten minutes on your first visit and one of the team will walk you and your kids through it.',
         ),
         alignment: 'center',
       },
@@ -928,7 +928,7 @@ async function seed() {
         items: [
           {
             icon: 'heart',
-            title: 'Creche (0 to 2 years)',
+            title: 'Creche (1 to 2 years)',
             description: 'A gentle, nurturing space for babies and toddlers. Our trained volunteers provide a safe and caring environment so parents can enjoy the service with peace of mind.',
           },
           {
@@ -992,8 +992,8 @@ async function seed() {
       },
     ],
     seo: {
-      metaTitle: 'Kids Church Program Auckland | Ev Kids | Ages 0-12',
-      metaDescription: 'Ev Kids is a safe Sunday morning program for children aged 0-12 at Ev Church North and Central. Careful check-in, matched pick-up, and vetted leaders.',
+      metaTitle: 'Kids Church Program Auckland | Ev Kids | Ages 1-12',
+      metaDescription: 'Ev Kids is a safe Sunday morning program for children aged 1-12 at Ev Church North and Central. Careful check-in, matched pick-up, and vetted leaders.',
     },
   })
 
@@ -1344,7 +1344,7 @@ async function seed() {
           },
           {
             question: 'Is there a kids program on Easter?',
-            answer: 'Yes. Ev Kids runs during all Easter services for children aged 0 to 12. It is a special Easter edition with fun activities and crafts.',
+            answer: 'Yes. Ev Kids runs during all Easter services for children aged 1 to 12. It is a special Easter edition with fun activities and crafts.',
           },
           {
             question: 'What should I wear?',
@@ -1526,7 +1526,7 @@ async function seed() {
           },
           {
             question: 'Is Ev Church family-friendly? What about kids?',
-            answer: 'Absolutely. Ev Kids runs every Sunday morning at North and Central for children aged 0 to 12. We have three age groups: Creche (0-2 years), Explorers (3-5 years), and Adventurers (6-12 years). Every leader is police vetted and trained, check-in is careful, and the collection tag must match your child\'s check-in tag for pick-up.',
+            answer: 'Absolutely. Ev Kids runs every Sunday morning at North and Central for children aged 1 to 12. We have three age groups: Creche (1-2 years), Explorers (3-5 years), and Adventurers (6-12 years). Every leader is police vetted and trained, check-in is careful, and the collection tag must match your child\'s check-in tag for pick-up.',
           },
           {
             question: 'What denomination is Ev Church?',
