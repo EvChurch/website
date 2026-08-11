@@ -3,10 +3,15 @@ import { describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   getMemberPortalHome: vi.fn(),
+  getLatestDailyReading: vi.fn(),
 }))
 
 vi.mock('@/lib/members/data', () => ({
   getMemberPortalHome: mocks.getMemberPortalHome,
+}))
+vi.mock('@/lib/daily-readings/data', () => ({
+  getLatestDailyReading: mocks.getLatestDailyReading,
+  formatReadingDate: () => '11 August 2026',
 }))
 vi.mock('@/components/members/MemberPortalChrome', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/components/members/MemberPortalChrome')>(),
@@ -18,6 +23,11 @@ import MembersPage from './page'
 
 describe('MembersPage Connect Group navigation', () => {
   it('links the Connect Group card directly to the only group', async () => {
+    mocks.getLatestDailyReading.mockResolvedValue({
+      rockId: 16160,
+      passageReference: 'Hebrews 5:11-14',
+      sourceDate: '2026-08-11T00:00:00.000Z',
+    })
     mocks.getMemberPortalHome.mockResolvedValue({
       profile: {
         personId: 42,
@@ -32,5 +42,7 @@ describe('MembersPage Connect Group navigation', () => {
     const markup = renderToStaticMarkup(await MembersPage())
 
     expect(markup).toContain('href="/members/connect-groups/10"')
+    expect(markup).toContain('href="/members/daily-readings"')
+    expect(markup).toContain('Hebrews 5:11-14')
   })
 })

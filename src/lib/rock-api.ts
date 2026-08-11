@@ -298,6 +298,33 @@ export type RockContentChannelItem = {
   AttributeValues?: Record<string, RockAttributeValue>
 }
 
+export type RockCommunication = {
+  Id: number
+  Guid: string
+  Name: string
+  ListGroupId: number | null
+  Subject: string
+  Status: number
+  SendDateTime: string | null
+  FutureSendDateTime: string | null
+  Message: string | null
+}
+
+/** Returns the complete, stable candidate set for the Daily Bible Reading importer. */
+export async function fetchDailyBibleReadingCommunications(): Promise<RockCommunication[]> {
+  return rockFetchAll<RockCommunication>({
+    endpoint: 'Communications',
+    getKey: (communication) => communication.Id,
+    params: {
+      $filter:
+        'ListGroupId eq 28916 and SendDateTime ne null',
+      $orderby: 'SendDateTime,Id',
+      $select:
+        'Id,Guid,Name,ListGroupId,Subject,Status,SendDateTime,FutureSendDateTime,Message',
+    },
+  })
+}
+
 export type RockGroup = {
   Id: number
   Name: string

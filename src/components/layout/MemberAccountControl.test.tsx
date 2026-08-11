@@ -333,4 +333,31 @@ describe('MemberAccountControl', () => {
     ).toBe(true)
     expect(container.querySelector('a[href="/explaining-christianity"]')).not.toBeNull()
   })
+
+  it.each(['/daily-readings/16160', '/privacy', '/blog'])(
+    'uses dark navigation at the top of the light page %s',
+    async (pathname) => {
+      navigation.pathname = pathname
+      await act(async () => root.render(<Header />))
+
+      expect(container.querySelector('header a[href="/events"]')?.className)
+        .toContain('text-brand-black/80')
+      expect(container.querySelector('header a[href="/give"]')?.className)
+        .toContain('bg-rich-red')
+      expect(container.querySelector('header button[aria-label="Open menu"]')?.className)
+        .toContain('text-brand-black')
+    },
+  )
+
+  it('keeps light navigation over the daily readings archive hero', async () => {
+    navigation.pathname = '/daily-readings'
+    await act(async () => root.render(<Header />))
+
+    expect(container.querySelector('header a[href="/events"]')?.className)
+      .toContain('text-white/90')
+    expect(container.querySelector('header a[href="/give"]')?.className)
+      .toContain('bg-white')
+    expect(container.querySelector('header button[aria-label="Open menu"]')?.className)
+      .toContain('text-white')
+  })
 })

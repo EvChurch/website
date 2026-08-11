@@ -23,6 +23,7 @@ import { fetchActiveGroupMembers } from './rock-group-members'
 import { syncServiceGuideItems } from './service-guide-items'
 import { syncConnectGroups } from './connect-groups'
 import { syncConnectGroupLeaderResources } from './connect-group-leader-resources'
+import { syncDailyBibleReadings } from './daily-bible-readings'
 
 export { syncConnectGroups } from './connect-groups'
 
@@ -32,6 +33,7 @@ export type SyncResult = {
   updated: number
   deleted: number
   errors: string[]
+  warnings?: string[]
 }
 
 /**
@@ -47,6 +49,7 @@ export async function runFullSync(options?: { sermonLimit?: number }): Promise<S
   results.push(await syncServiceGuideItems())
   results.push(await syncConnectGroups())
   results.push(await syncConnectGroupLeaderResources())
+  results.push(await syncDailyBibleReadings())
 
   // Sermon data from resources.ev.church GraphQL API
   const sermonResults = await runSermonSync(options?.sermonLimit)
