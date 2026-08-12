@@ -25,8 +25,9 @@ export function SiteHeader({ feedback, memberProfile }: {
   useLayoutEffect(() => {
     const element = stripRef.current
     if (!element || dismissed) { setStripHeight(0); return }
-    setStripHeight(element.getBoundingClientRect().height)
-    const observer = new ResizeObserver((entries) => setStripHeight(entries[0]?.contentRect.height ?? 0))
+    const measure = () => setStripHeight(element.getBoundingClientRect().height)
+    measure()
+    const observer = new ResizeObserver(measure)
     observer.observe(element)
     return () => observer.disconnect()
   }, [dismissed, feedback])

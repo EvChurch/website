@@ -66,12 +66,19 @@ describe('SiteHeader geometry and dismissal', () => {
 
     const strip = container.querySelector<HTMLElement>('[data-site-feedback-strip]')!
     await act(async () => {
+      Object.defineProperty(strip, 'getBoundingClientRect', {
+        configurable: true,
+        value: () => ({ height: 57 }),
+      })
       resizeCallback(
-        [{ target: strip, contentRect: { height: 52 } } as unknown as ResizeObserverEntry],
+        [{ target: strip, contentRect: { height: 41 } } as unknown as ResizeObserverEntry],
         {} as ResizeObserver,
       )
     })
-    expect(container.querySelector('[data-header-offset="52"]')).not.toBeNull()
+    expect(container.querySelector('[data-header-offset="57"]')).not.toBeNull()
+    expect(
+      container.querySelector<HTMLElement>('[data-site-feedback-spacer]')?.style.height,
+    ).toBe('57px')
 
     await act(async () => {
       Object.defineProperty(strip, 'getBoundingClientRect', {
@@ -79,7 +86,7 @@ describe('SiteHeader geometry and dismissal', () => {
         value: () => ({ height: 84 }),
       })
       resizeCallback(
-        [{ target: strip, contentRect: { height: 84 } } as unknown as ResizeObserverEntry],
+        [{ target: strip, contentRect: { height: 68 } } as unknown as ResizeObserverEntry],
         {} as ResizeObserver,
       )
     })
