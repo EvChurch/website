@@ -21,5 +21,6 @@ describe('Auth access message', () => {
     expect(html).toContain('<h1')
     expect(html).toContain('Check access again')
     expect(html).toContain('Sign out')
+    expect(html.match(/rel="nofollow"/gu)).toHaveLength(2)
   })
 })

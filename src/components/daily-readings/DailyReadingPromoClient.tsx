@@ -37,12 +37,14 @@ export function DailyReadingPromoClient({ reading }: { reading: DailyReadingView
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
         <Link
           href={`/members/daily-readings/${reading.rockId}`}
+          rel="nofollow"
           className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-rich-red px-6 text-sm font-bold text-white transition-colors hover:bg-deep-red"
         >
           {progress?.completed && <CheckCircleIcon />} {label}
         </Link>
         <Link
           href="/members/daily-readings"
+          rel="nofollow"
           className="inline-flex min-h-12 items-center justify-center gap-2 text-sm font-bold text-brand-black/65 transition-colors hover:text-rich-red sm:justify-start"
         >
           See more <ArrowIcon />

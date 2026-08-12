@@ -51,6 +51,7 @@ describe('MemberAccountControl', () => {
     expect(link?.getAttribute('href')).toBe(
       '/auth/login?returnTo=%2Fsermons%3Fcampus%3D2',
     )
+    expect(link?.getAttribute('rel')).toBe('nofollow')
     expect(link?.className).toContain('min-h-10')
     expect(link?.hasAttribute('data-header-account-control')).toBe(true)
     expect(link?.querySelector('[data-member-sign-in-icon]')).not.toBeNull()
@@ -99,6 +100,11 @@ describe('MemberAccountControl', () => {
     expect(links).toContain('/members')
     expect(links).toContain('/members/connect-groups')
     expect(links.some(l => l?.startsWith('/auth/logout'))).toBe(true)
+    const privateLinks = [...container.querySelectorAll<HTMLAnchorElement>(
+      'a[href^="/auth/"], a[href="/members"], a[href^="/members/"]',
+    )]
+    expect(privateLinks).not.toHaveLength(0)
+    expect(privateLinks.every((link) => link.rel === 'nofollow')).toBe(true)
   })
 
   it('closes hover menu on Escape key', async () => {
@@ -257,6 +263,11 @@ describe('MemberAccountControl', () => {
     expect(links).toContain('/members')
     expect(links).toContain('/members/connect-groups')
     expect(links.some(l => l?.startsWith('/auth/logout'))).toBe(true)
+    const privateLinks = [...container.querySelectorAll<HTMLAnchorElement>(
+      'a[href^="/auth/"], a[href="/members"], a[href^="/members/"]',
+    )]
+    expect(privateLinks).not.toHaveLength(0)
+    expect(privateLinks.every((link) => link.rel === 'nofollow')).toBe(true)
 
     // active=false still closes
     await act(async () => root.render(

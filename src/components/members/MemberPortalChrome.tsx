@@ -61,6 +61,7 @@ export function MemberPortalChrome({
             <Link
               key={link.key}
               href={link.href}
+              rel="nofollow"
               aria-current={active === link.key ? 'page' : undefined}
               className={`relative shrink-0 py-5 text-sm font-bold transition-colors ${
                 active === link.key

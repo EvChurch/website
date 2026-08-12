@@ -40,7 +40,7 @@ export default async function MemberDailyReadingPage({ params }: { params: Promi
     >
       <div className="mx-auto max-w-4xl">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <Link href="/members/daily-readings" className="text-sm font-bold text-rich-red hover:underline">
+          <Link href="/members/daily-readings" rel="nofollow" className="text-sm font-bold text-rich-red hover:underline">
             ← All readings
           </Link>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-mid-grey">

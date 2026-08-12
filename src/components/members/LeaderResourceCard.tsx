@@ -27,6 +27,7 @@ export function LeaderResourceCard({
   return (
     <Link
       href={`/members/connect-group-leader-resources/${resource.rockId}`}
+      rel="nofollow"
       className={`group overflow-hidden rounded-2xl border border-warm-grey bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-black/5 focus:outline-none focus:ring-4 focus:ring-light-red-2 ${
         featured ? 'grid lg:grid-cols-[1.15fr_0.85fr]' : 'flex h-full flex-col'
       }`}

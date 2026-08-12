@@ -47,7 +47,7 @@ export default async function ConnectGroupDetailPage({
   return (
     <MemberPortalChrome active="groups" member={home.profile} canAccessLeaderResources={home.canAccessLeaderResources} connectGroupHref={memberConnectGroupHref(home.groups)}>
       {home.groups.length > 1 && (
-        <Link href="/members/connect-groups" className="text-sm font-bold text-rich-red hover:underline">Back to your groups</Link>
+        <Link href="/members/connect-groups" rel="nofollow" className="text-sm font-bold text-rich-red hover:underline">Back to your groups</Link>
       )}
       <div className={`${home.groups.length > 1 ? 'mt-7 ' : ''}pb-10`}>
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">

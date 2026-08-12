@@ -18,6 +18,7 @@ export default function MemberSignInErrorPage() {
           <a
             className="inline-flex min-h-12 items-center justify-center rounded-full bg-rich-red px-6 py-3 font-semibold text-white transition hover:bg-brand-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rich-red"
             href="/auth/login?returnTo=%2F"
+            rel="nofollow"
           >
             Try signing in again
           </a>

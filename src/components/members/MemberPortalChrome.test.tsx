@@ -28,5 +28,6 @@ describe('MemberPortalChrome', () => {
     expect(linkText).toBe('Connect Group')
     expect(markup).toContain('href="/members/daily-readings"')
     expect(markup).toContain('Daily Reading')
+    expect(markup.match(/rel="nofollow"/gu)).toHaveLength(2)
   })
 })
