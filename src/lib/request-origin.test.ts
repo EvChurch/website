@@ -22,27 +22,27 @@ describe('same-origin request validation', () => {
 
   it('uses the Railway public domain behind the production proxy', () => {
     vi.stubEnv('NODE_ENV', 'production')
-    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'new.ev.church')
+    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'www.ev.church')
 
-    const proxiedRequest = request('https://new.ev.church', 'https://0.0.0.0:3000/api/rock-forms/example')
+    const proxiedRequest = request('https://www.ev.church', 'https://0.0.0.0:3000/api/rock-forms/example')
 
     expect(isSameOriginRequest(proxiedRequest)).toBe(true)
-    expect(isSameOriginRequest(request('http://new.ev.church', 'https://0.0.0.0:3000/path'))).toBe(false)
-    expect(isSameOriginRequest(request('https://www.ev.church', 'https://0.0.0.0:3000/path'))).toBe(false)
-    expect(isSameOriginRequest(request('https://new.ev.church:444', 'https://0.0.0.0:3000/path'))).toBe(false)
+    expect(isSameOriginRequest(request('http://www.ev.church', 'https://0.0.0.0:3000/path'))).toBe(false)
+    expect(isSameOriginRequest(request('https://ev.church', 'https://0.0.0.0:3000/path'))).toBe(false)
+    expect(isSameOriginRequest(request('https://www.ev.church:444', 'https://0.0.0.0:3000/path'))).toBe(false)
   })
 
   it('fails closed in production without a Railway public domain', () => {
     vi.stubEnv('NODE_ENV', 'production')
     vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', '')
 
-    expect(isSameOriginRequest(request('https://new.ev.church', 'https://new.ev.church/path'))).toBe(false)
+    expect(isSameOriginRequest(request('https://www.ev.church', 'https://www.ev.church/path'))).toBe(false)
   })
 
   it('fails closed in production with a malformed Railway public domain', () => {
     vi.stubEnv('NODE_ENV', 'production')
     vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'not a valid hostname')
 
-    expect(isSameOriginRequest(request('https://new.ev.church', 'https://new.ev.church/path'))).toBe(false)
+    expect(isSameOriginRequest(request('https://www.ev.church', 'https://www.ev.church/path'))).toBe(false)
   })
 })

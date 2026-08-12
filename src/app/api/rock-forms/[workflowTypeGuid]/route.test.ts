@@ -82,7 +82,7 @@ describe('Rock form route', () => {
 
   it('uses the Railway public hostname for Turnstile behind the production proxy', async () => {
     vi.stubEnv('NODE_ENV', 'production')
-    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'new.ev.church')
+    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'www.ev.church')
     const body = new FormData()
     body.set('intent', 'start')
     body.set('turnstileToken', 'verified-token')
@@ -91,7 +91,7 @@ describe('Rock form route', () => {
     const response = await POST(
       postRequest(
         body,
-        'https://new.ev.church',
+        'https://www.ev.church',
         `https://0.0.0.0:3000/api/rock-forms/${workflowTypeGuid}`,
       ),
       routeContext,
@@ -99,7 +99,7 @@ describe('Rock form route', () => {
 
     expect(response.status).toBe(200)
     expect(mocks.verifyTurnstile).toHaveBeenCalledWith(
-      expect.objectContaining({ expectedHostname: 'new.ev.church' }),
+      expect.objectContaining({ expectedHostname: 'www.ev.church' }),
     )
   })
 
