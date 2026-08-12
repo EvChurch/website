@@ -38,6 +38,15 @@ describe('analytics privacy boundaries', () => {
     expect(canReplayPath(pathname)).toBe(true)
   })
 
+  it.each([
+    '/contactless',
+    '/giveaway',
+    '/privacy-policy',
+  ])('keeps sensitive-prefix lookalike %s trackable', (pathname) => {
+    expect(canTrackAnalyticsPath(pathname)).toBe(true)
+    expect(canReplayPath(pathname)).toBe(false)
+  })
+
   it('allows analytics but not replay on arbitrary CMS pages', () => {
     expect(canTrackAnalyticsPath('/about')).toBe(true)
     expect(canReplayPath('/about')).toBe(false)

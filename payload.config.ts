@@ -28,6 +28,7 @@ import { ServiceGuideItems } from '@/collections/ServiceGuideItems'
 import { ConnectGroupParticipants } from '@/collections/ConnectGroupParticipants'
 import { ConnectGroupLeaderResources } from '@/collections/ConnectGroupLeaderResources'
 import { DailyBibleReadings } from '@/collections/DailyBibleReadings'
+import { MissingPaths } from '@/collections/MissingPaths'
 import { SiteFeedback } from '@/collections/SiteFeedback'
 
 // Globals
@@ -88,6 +89,7 @@ export default buildConfig({
     ConnectGroupParticipants,
     ConnectGroupLeaderResources,
     DailyBibleReadings,
+    MissingPaths,
     SiteFeedback,
     Registrations,
     ServiceGuideItems,

@@ -5,20 +5,47 @@ import { getAuth0Client } from '@/auth/auth0-client'
 import { getAuth0SessionFromHeaders } from '@/auth/auth0-session'
 import { readAuth0Config } from '@/auth/auth0-config'
 import { safeAdminReturnTo } from '@/auth/safe-admin-return'
+import { findMissingPathRedirect } from '@/lib/missing-paths'
+import {
+  encodePublicPathHeader,
+  isEligiblePublicPath,
+  matchesPathPrefix,
+  normalizePublicPath,
+  PUBLIC_PATH_HEADER,
+} from '@/lib/public-paths'
 
 export async function proxy(request: NextRequest) {
-  const isAdminAuthRoute =
-    request.nextUrl.pathname === '/auth' ||
-    request.nextUrl.pathname.startsWith('/auth/')
-  const isAdminRoute = request.nextUrl.pathname.startsWith('/admin')
-  const isAdminApiRoute = request.nextUrl.pathname.startsWith('/api')
+  const isAdminAuthRoute = matchesPathPrefix(request.nextUrl.pathname, '/auth')
+  const isAdminRoute = matchesPathPrefix(request.nextUrl.pathname, '/admin')
+  const isAdminApiRoute = matchesPathPrefix(request.nextUrl.pathname, '/api')
+  const normalizedPath = normalizePublicPath(request.nextUrl.pathname)
+  const isEligiblePath = normalizedPath !== null && isEligiblePublicPath(normalizedPath)
 
   if (
     !isAdminAuthRoute &&
     !isAdminRoute &&
     !isAdminApiRoute
   ) {
-    return NextResponse.next()
+    if (!isEligiblePath) {
+      const requestHeaders = new Headers(request.headers)
+      requestHeaders.delete(PUBLIC_PATH_HEADER)
+      return NextResponse.next({ request: { headers: requestHeaders } })
+    }
+    let destination: string | null = null
+    try {
+      destination = await findMissingPathRedirect(normalizedPath)
+    } catch {
+      console.error({
+        category: 'missing-path-redirect-lookup-failed',
+        path: normalizedPath,
+      })
+    }
+    if (destination) return NextResponse.redirect(new URL(destination, request.url))
+
+    const requestHeaders = new Headers(request.headers)
+    const encodedPath = encodePublicPathHeader(normalizedPath)
+    if (encodedPath) requestHeaders.set(PUBLIC_PATH_HEADER, encodedPath)
+    return NextResponse.next({ request: { headers: requestHeaders } })
   }
 
   let response: NextResponse
@@ -50,8 +77,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/auth/:path*',
-    '/admin/:path*',
-    '/api/:path*',
+    '/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|robots.txt|sitemap.xml|manifest.webmanifest).*)',
   ],
 }
