@@ -1,3 +1,4 @@
+import { readdirSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
@@ -5,7 +6,7 @@ import {
   FIX_SITE_FEEDBACK_LOCK_RELATION_DOWN_SQL,
   FIX_SITE_FEEDBACK_LOCK_RELATION_UP_SQL,
   up,
-} from '../migrations/20260812_190000_fix_site_feedback_lock_relation'
+} from '../migrations/20260812_site_feedback_lock_relation'
 import { migrations } from '../migrations'
 
 function migrationArgs(execute = vi.fn().mockResolvedValue(undefined)) {
@@ -16,12 +17,27 @@ function migrationArgs(execute = vi.fn().mockResolvedValue(undefined)) {
 }
 
 describe('Site feedback lock relation corrective migration', () => {
-  it('runs after the migration that creates feedback submissions', () => {
-    const names = migrations.map(({ name }) => name)
-
-    expect(names.indexOf('20260812_190000_fix_site_feedback_lock_relation')).toBeGreaterThan(
-      names.indexOf('20260812_site_feedback'),
+  it('runs after Site Feedback and before Missing Paths in file discovery and index order', () => {
+    const discoveredNames = readdirSync(
+      new URL('../migrations', import.meta.url),
     )
+      .sort()
+      .filter(
+        (file) =>
+          (file.endsWith('.ts') || file.endsWith('.js')) &&
+          file !== 'index.ts' &&
+          file !== 'index.js',
+      )
+      .map((file) => file.replace(/\.(?:ts|js)$/, ''))
+    const indexedNames = migrations.map(({ name }) => name)
+    const expectedOrder = [
+      '20260812_site_feedback',
+      '20260812_site_feedback_lock_relation',
+      '20260812_zzz_missing_paths',
+    ]
+
+    expect(discoveredNames.filter((name) => expectedOrder.includes(name))).toEqual(expectedOrder)
+    expect(indexedNames.filter((name) => expectedOrder.includes(name))).toEqual(expectedOrder)
   })
 
   it('adds the Payload lock relationship column, foreign key, and index', async () => {

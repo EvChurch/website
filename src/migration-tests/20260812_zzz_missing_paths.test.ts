@@ -16,7 +16,7 @@ describe('missing paths migration', () => {
     const names = migrations.map(({ name }) => name)
 
     expect(names.indexOf('20260812_zzz_missing_paths')).toBeGreaterThan(
-      names.indexOf('20260812_190000_fix_site_feedback_lock_relation'),
+      names.indexOf('20260812_site_feedback_lock_relation'),
     )
   })
 
