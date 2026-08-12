@@ -3,9 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const state = vi.hoisted(() => ({
   options: undefined as
     | {
-        beforeSessionSaved(
-          session: { user: Record<string, unknown> },
-        ): Promise<Record<string, unknown>>
+      beforeSessionSaved(
+        session: { user: Record<string, unknown> },
+      ): Promise<Record<string, unknown>>
+        session: {
+          absoluteDuration: number
+          rolling: boolean
+        }
         onCallback(
           error: Error | null,
           context: { returnTo?: string },
@@ -76,6 +80,18 @@ describe('Auth0 callback', () => {
     provisionAuth0User.mockReset()
     state.resolution.ok = true
     state.rejectResolution = false
+  })
+
+  it('uses a fixed 72-hour session without rolling expiry', () => {
+    getAuth0Client()
+
+    expect(state.options!.session).toEqual(
+      expect.objectContaining({
+        absoluteDuration: 72 * 60 * 60,
+        rolling: false,
+      }),
+    )
+    expect(state.options!.session).not.toHaveProperty('inactivityDuration')
   })
 
   it('stores the resolved Rock profile in the shared Auth0 session', async () => {

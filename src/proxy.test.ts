@@ -27,7 +27,7 @@ describe('admin Auth0 proxy', () => {
     findRedirect.mockResolvedValue(null)
   })
 
-  it('runs Auth0 middleware for admin API activity so rolling sessions stay active', () => {
+  it('runs Auth0 middleware for admin API authentication', () => {
     expect(config.matcher).toHaveLength(1)
     expect(config.matcher[0]).not.toContain('(?!api')
   })
