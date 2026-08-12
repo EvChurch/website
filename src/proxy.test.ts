@@ -22,7 +22,7 @@ describe('admin Auth0 proxy', () => {
     middleware.mockResolvedValue(NextResponse.next())
   })
 
-  it('runs Auth0 middleware for admin API activity so rolling sessions stay active', () => {
+  it('runs Auth0 middleware for admin API authentication', () => {
     expect(config.matcher).toContain('/api/:path*')
   })
 

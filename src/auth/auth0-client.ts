@@ -38,9 +38,8 @@ export function getAuth0Client() {
     logoutStrategy: 'oidc',
     signInReturnToPath: '/admin',
     session: {
-      rolling: true,
-      absoluteDuration: 8 * 60 * 60,
-      inactivityDuration: 2 * 60 * 60,
+      rolling: false,
+      absoluteDuration: 72 * 60 * 60,
       cookie: {
         name: secure ? '__Host-ev_admin_session' : 'ev_admin_session',
         path: '/',
