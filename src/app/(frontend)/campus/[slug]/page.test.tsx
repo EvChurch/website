@@ -149,7 +149,7 @@ describe('Payload-managed campus page', () => {
 
     expect(metadata.title).toEqual({ absolute: 'North Shore Church | Ev Church' })
     expect(metadata.description).toBe('Payload-managed North campus search description.')
-    expect(metadata.alternates).toEqual({ canonical: 'https://ev.church/campus/north' })
+    expect(metadata.alternates).toEqual({ canonical: 'https://www.ev.church/campus/north' })
   })
 
   it.each([

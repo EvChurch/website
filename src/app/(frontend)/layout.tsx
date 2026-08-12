@@ -16,7 +16,7 @@ import { loadLauncherData } from '@/lib/launcher/service-guide'
 import '@/styles/globals.css'
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://ev.church'),
+  metadataBase: new URL('https://www.ev.church'),
   title: {
     default: 'Church in Auckland | Ev Church NZ | Sunday Services & Community',
     template: '%s | Ev Church',
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_NZ',
-    url: 'https://ev.church',
+    url: 'https://www.ev.church',
     siteName: 'Ev Church',
     title: 'Church in Auckland | Ev Church NZ | Sunday Services & Community',
     description:

@@ -44,13 +44,13 @@ export async function generateMetadata({
     openGraph: {
       title: `${series.title} | Sermon Series | Ev Church`,
       description: `Listen to sermons from the "${series.title}" series at Ev Church Auckland.`,
-      url: `https://ev.church/sermons/series/${series.slug}`,
+      url: `https://www.ev.church/sermons/series/${series.slug}`,
       siteName: 'Ev Church',
       locale: 'en_NZ',
       type: 'website',
     },
     alternates: {
-      canonical: `https://ev.church/sermons/series/${series.slug}`,
+      canonical: `https://www.ev.church/sermons/series/${series.slug}`,
     },
   }
 }
@@ -96,9 +96,9 @@ export default async function SeriesPage({
       : null
 
   const breadcrumbItems = [
-    { name: 'Home', url: 'https://ev.church' },
-    { name: 'Sermons', url: 'https://ev.church/sermons' },
-    { name: series.title, url: `https://ev.church/sermons/series/${series.slug}` },
+    { name: 'Home', url: 'https://www.ev.church' },
+    { name: 'Sermons', url: 'https://www.ev.church/sermons' },
+    { name: series.title, url: `https://www.ev.church/sermons/series/${series.slug}` },
   ]
 
   return (

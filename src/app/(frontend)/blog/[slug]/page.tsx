@@ -25,13 +25,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: `${title} | Ev Church Blog`,
       description: `Read "${title}" on the Ev Church blog.`,
-      url: `https://ev.church/blog/${slug}`,
+      url: `https://www.ev.church/blog/${slug}`,
       siteName: 'Ev Church',
       locale: 'en_NZ',
       type: 'article',
     },
     alternates: {
-      canonical: `https://ev.church/blog/${slug}`,
+      canonical: `https://www.ev.church/blog/${slug}`,
     },
   }
 }

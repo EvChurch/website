@@ -52,7 +52,7 @@ describe('Rock form route', () => {
     vi.clearAllMocks()
     mocks.isPublished.mockResolvedValue(true)
     mocks.getSiteKey.mockReturnValue('test-site-key')
-    process.env.ROCK_WORKFLOW_REDIRECT_ORIGINS = 'https://ev.church'
+    process.env.ROCK_WORKFLOW_REDIRECT_ORIGINS = 'https://www.ev.church'
   })
 
   afterEach(() => {
@@ -146,7 +146,7 @@ describe('Rock form route', () => {
       workflow: { guid: workflowTypeGuid, name: 'Contact Us' },
       action: {
         actionData: {
-          message: { type: 4, content: 'https://ev.church/thanks' },
+          message: { type: 4, content: 'https://www.ev.church/thanks' },
         },
       },
     })
@@ -162,8 +162,8 @@ describe('Rock form route', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({
       status: 'complete',
-      message: 'https://ev.church/thanks',
-      redirectUrl: 'https://ev.church/thanks',
+      message: 'https://www.ev.church/thanks',
+      redirectUrl: 'https://www.ev.church/thanks',
     })
   })
 

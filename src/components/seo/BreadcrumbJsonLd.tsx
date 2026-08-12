@@ -1,4 +1,4 @@
-const SITE_URL = 'https://ev.church'
+const SITE_URL = 'https://www.ev.church'
 
 interface BreadcrumbItem {
   name: string

@@ -29,8 +29,8 @@ describe('sitemap', () => {
     const routes = await sitemap()
     const urls = routes.map(({ url }) => url)
 
-    expect(urls).toContain('https://ev.church')
-    expect(urls).toContain('https://ev.church/about')
-    expect(urls).not.toContain('https://ev.church/next-steps')
+    expect(urls).toContain('https://www.ev.church')
+    expect(urls).toContain('https://www.ev.church/about')
+    expect(urls).not.toContain('https://www.ev.church/next-steps')
   })
 })

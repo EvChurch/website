@@ -1,6 +1,6 @@
 import { getDisplayLocation, toPlainText, type PublicEvent } from '@/lib/events'
 
-const EVENT_BASE_URL = 'https://ev.church/events'
+const EVENT_BASE_URL = 'https://www.ev.church/events'
 
 export function escapeCalendarText(value: string): string {
   return value

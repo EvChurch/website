@@ -9,13 +9,13 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Blog | Ev Church Auckland',
     description: 'Stories, reflections, and updates from Ev Church Auckland.',
-    url: 'https://ev.church/blog',
+    url: 'https://www.ev.church/blog',
     siteName: 'Ev Church',
     locale: 'en_NZ',
     type: 'website',
   },
   alternates: {
-    canonical: 'https://ev.church/blog',
+    canonical: 'https://www.ev.church/blog',
   },
 }
 

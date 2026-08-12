@@ -57,7 +57,7 @@ export async function generateMetadata({
     openGraph: {
       title: `${sermon.title} | Sermons | Ev Church`,
       description,
-      url: `https://ev.church/sermons/${sermon.slug}`,
+      url: `https://www.ev.church/sermons/${sermon.slug}`,
       siteName: 'Ev Church',
       locale: 'en_NZ',
       type: 'article',
@@ -69,7 +69,7 @@ export async function generateMetadata({
       })()),
     },
     alternates: {
-      canonical: `https://ev.church/sermons/${sermon.slug}`,
+      canonical: `https://www.ev.church/sermons/${sermon.slug}`,
     },
   }
 }
@@ -251,16 +251,16 @@ export default async function SermonPage({
 
   // Structured data
   const breadcrumbItems = [
-    { name: 'Home', url: 'https://ev.church' },
-    { name: 'Sermons', url: 'https://ev.church/sermons' },
-    { name: sermon.title, url: `https://ev.church/sermons/${sermon.slug}` },
+    { name: 'Home', url: 'https://www.ev.church' },
+    { name: 'Sermons', url: 'https://www.ev.church/sermons' },
+    { name: sermon.title, url: `https://www.ev.church/sermons/${sermon.slug}` },
   ]
 
   const sermonJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'CreativeWork',
     name: sermon.title,
-    url: `https://ev.church/sermons/${sermon.slug}`,
+    url: `https://www.ev.church/sermons/${sermon.slug}`,
     ...(sermon.publishedAt ? { datePublished: sermon.publishedAt } : {}),
     ...(allSpeakers.length > 0
       ? {
@@ -282,7 +282,7 @@ export default async function SermonPage({
     publisher: {
       '@type': 'Organization',
       name: 'Ev Church',
-      url: 'https://ev.church',
+      url: 'https://www.ev.church',
     },
   }
 

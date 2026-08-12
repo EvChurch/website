@@ -256,7 +256,7 @@ export async function generateMetadata({
     openGraph: {
       title: `${campus.name} Campus | Ev Church`,
       description: `Services every ${serviceTimeLabel} at ${locationLabel}. Everyone is welcome.`,
-      url: `https://ev.church/campus/${slug}`,
+      url: `https://www.ev.church/campus/${slug}`,
       siteName: 'Ev Church',
       locale: 'en_NZ',
       type: 'website',
@@ -267,7 +267,7 @@ export async function generateMetadata({
       description: `${serviceTimeLabel} at ${locationLabel}.`,
     },
     alternates: {
-      canonical: `https://ev.church/campus/${slug}`,
+      canonical: `https://www.ev.church/campus/${slug}`,
     },
   }
 }

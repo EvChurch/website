@@ -4,7 +4,7 @@ import { isRetiredPageSlug } from '@/lib/public-pages'
 
 export const dynamic = 'force-dynamic'
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://ev.church'
+const SITE_URL = 'https://www.ev.church'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const payload = await getPayloadClient()

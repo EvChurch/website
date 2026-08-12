@@ -45,11 +45,11 @@ export function SermonJsonLd({
     },
     publisher: {
       '@type': 'Organization',
-      '@id': 'https://ev.church/#organization',
+      '@id': 'https://www.ev.church/#organization',
       name: 'Ev Church',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://ev.church/logo.png',
+        url: 'https://www.ev.church/logo.png',
       },
     },
     ...(seriesName && {

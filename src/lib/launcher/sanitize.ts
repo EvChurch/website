@@ -1,5 +1,5 @@
 const ALLOWED_TAGS = new Set(['p', 'br', 'strong', 'em', 'b', 'i', 'ul', 'ol', 'li'])
-const SITE_ORIGIN = 'https://ev.church'
+const SITE_ORIGIN = 'https://www.ev.church'
 
 function escapeHtml(value: string): string {
   return value
@@ -26,7 +26,7 @@ export function classifyLauncherHref(rawHref: string): string | null {
       return null
     }
     if (resolved.hostname === 'resources.ev.church') return '/sermons'
-    if (resolved.hostname === 'www.ev.church') {
+    if (resolved.hostname === 'www.ev.church' || resolved.hostname === 'ev.church') {
       return `${resolved.pathname}${resolved.search}${resolved.hash}`
     }
     return href

@@ -4,25 +4,25 @@ import { safeRockWorkflowRedirect } from './redirect'
 
 describe('safeRockWorkflowRedirect', () => {
   it.each([
-    ['/thanks', 'https://ev.church/thanks'],
-    ['thanks?from=rock#done', 'https://ev.church/thanks?from=rock#done'],
-    ['https://ev.church/next', 'https://ev.church/next'],
+    ['/thanks', 'https://www.ev.church/thanks'],
+    ['thanks?from=rock#done', 'https://www.ev.church/thanks?from=rock#done'],
+    ['https://www.ev.church/next', 'https://www.ev.church/next'],
   ])('accepts same-origin destination %s', (value, expected) => {
-    expect(safeRockWorkflowRedirect(value, 'https://ev.church')).toBe(expected)
+    expect(safeRockWorkflowRedirect(value, 'https://www.ev.church')).toBe(expected)
   })
 
   it('accepts only explicitly trusted external HTTPS origins', () => {
     expect(
       safeRockWorkflowRedirect(
         'https://events.ev.church/register?id=1',
-        'https://ev.church',
+        'https://www.ev.church',
         'https://events.ev.church, https://give.ev.church',
       ),
     ).toBe('https://events.ev.church/register?id=1')
     expect(
       safeRockWorkflowRedirect(
         'https://attacker.example/register',
-        'https://ev.church',
+        'https://www.ev.church',
         'https://events.ev.church',
       ),
     ).toBeNull()
@@ -38,13 +38,13 @@ describe('safeRockWorkflowRedirect', () => {
     'http://events.ev.church/downgrade',
     'https://user:pass@ev.church/private',
     'https://[malformed',
-    `https://ev.church/${'x'.repeat(2_100)}`,
-    'https://ev.church/path\u0000hidden',
+    `https://www.ev.church/${'x'.repeat(2_100)}`,
+    'https://www.ev.church/path\u0000hidden',
   ])('rejects unsafe destination %s', (value) => {
     expect(
       safeRockWorkflowRedirect(
         value,
-        'https://ev.church',
+        'https://www.ev.church',
         'https://events.ev.church',
       ),
     ).toBeNull()
@@ -55,13 +55,13 @@ describe('safeRockWorkflowRedirect', () => {
     expect(
       safeRockWorkflowRedirect(
         'https://events.ev.church/registration',
-        'https://ev.church',
+        'https://www.ev.church',
         allowlist,
       ),
     ).toBeNull()
     expect(
-      safeRockWorkflowRedirect('/thanks', 'https://ev.church', allowlist),
-    ).toBe('https://ev.church/thanks')
+      safeRockWorkflowRedirect('/thanks', 'https://www.ev.church', allowlist),
+    ).toBe('https://www.ev.church/thanks')
   })
 
   it('permits HTTP only for an exact local same-origin development request', () => {

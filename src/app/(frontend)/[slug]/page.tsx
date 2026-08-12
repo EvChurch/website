@@ -63,7 +63,7 @@ export async function generateMetadata({
     openGraph: {
       title: displayTitle,
       description,
-      url: `https://ev.church/${slug}`,
+      url: `https://www.ev.church/${slug}`,
       siteName: 'Ev Church',
       locale: 'en_NZ',
       type: 'website',
@@ -75,7 +75,7 @@ export async function generateMetadata({
       description,
     },
     alternates: {
-      canonical: `https://ev.church/${slug}`,
+      canonical: `https://www.ev.church/${slug}`,
     },
   }
 }
