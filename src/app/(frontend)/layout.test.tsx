@@ -9,7 +9,9 @@ const mocks = vi.hoisted(() => ({
     campuses: [],
     items: [],
   }),
-  header: vi.fn((_props: {
+  loadSiteFeedbackSettings: vi.fn().mockResolvedValue(null),
+  siteHeader: vi.fn((_props: {
+    feedback: unknown
     memberProfile?: {
       name: string
       email: string
@@ -27,10 +29,13 @@ vi.mock('@/auth/member-session', () => ({
 vi.mock('@/lib/launcher/service-guide', () => ({
   loadLauncherData: mocks.loadLauncherData,
 }))
+vi.mock('@/lib/site-feedback/settings', () => ({
+  loadSiteFeedbackSettings: mocks.loadSiteFeedbackSettings,
+}))
 vi.mock('@/components/launcher/NextStepsLauncher', () => ({
   NextStepsLauncher: () => null,
 }))
-vi.mock('@/components/layout/Header', () => ({ Header: mocks.header }))
+vi.mock('@/components/layout/SiteHeader', () => ({ SiteHeader: mocks.siteHeader }))
 vi.mock('@/components/layout/Footer', () => ({ Footer: () => null }))
 vi.mock('@/components/layout/AnnouncementBanner', () => ({
   AnnouncementBanner: () => null,
@@ -54,14 +59,35 @@ describe('FrontendLayout member account state', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.enabled = false
+    mocks.loadSiteFeedbackSettings.mockResolvedValue(null)
+  })
+
+  it('loads visitor-facing feedback settings into the composed header', async () => {
+    const feedback = {
+      bannerCopy: 'Help us improve the new ev.church.',
+      ctaLabel: 'Share feedback.',
+      modalTitle: 'Share your feedback',
+      modalIntro: 'Tell us what is working well or what we could improve.',
+      dismissalVersion: 'v2',
+      turnstileSiteKey: 'site-key',
+    }
+    mocks.loadSiteFeedbackSettings.mockResolvedValue(feedback)
+
+    renderToStaticMarkup(await FrontendLayout({ children: <main>Page</main> }))
+
+    expect(mocks.loadSiteFeedbackSettings).toHaveBeenCalledOnce()
+    expect(mocks.siteHeader).toHaveBeenCalledWith(
+      { feedback, memberProfile: undefined },
+      undefined,
+    )
   })
 
   it('does not read a member session or show account controls when disabled', async () => {
     renderToStaticMarkup(await FrontendLayout({ children: <main>Page</main> }))
 
     expect(mocks.getCurrentMemberProfileState).not.toHaveBeenCalled()
-    expect(mocks.header).toHaveBeenCalledWith(
-      { memberProfile: undefined },
+    expect(mocks.siteHeader).toHaveBeenCalledWith(
+      { feedback: null, memberProfile: undefined },
       undefined,
     )
   })
@@ -80,8 +106,9 @@ describe('FrontendLayout member account state', () => {
 
     renderToStaticMarkup(await FrontendLayout({ children: <main>Page</main> }))
 
-    expect(mocks.header).toHaveBeenCalledWith(
+    expect(mocks.siteHeader).toHaveBeenCalledWith(
       {
+        feedback: null,
         memberProfile: {
           name: 'Aroha Ngata',
           email: 'aroha@example.com',
@@ -90,7 +117,7 @@ describe('FrontendLayout member account state', () => {
       },
       undefined,
     )
-    const headerProps = mocks.header.mock.calls[0]?.[0]
+    const headerProps = mocks.siteHeader.mock.calls[0]?.[0]
     expect(headerProps).not.toHaveProperty('personId')
   })
 
@@ -108,8 +135,9 @@ describe('FrontendLayout member account state', () => {
 
     renderToStaticMarkup(await FrontendLayout({ children: <main>Page</main> }))
 
-    expect(mocks.header).toHaveBeenCalledWith(
+    expect(mocks.siteHeader).toHaveBeenCalledWith(
       {
+        feedback: null,
         memberProfile: {
           name: 'Aroha Ngata',
           email: 'aroha@example.com',
