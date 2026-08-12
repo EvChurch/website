@@ -38,13 +38,13 @@ export async function generateMetadata({
     openGraph: {
       title: `Sermons from ${scripture.name} | Ev Church`,
       description: `Explore sermons referencing ${scripture.name} from Ev Church Auckland.`,
-      url: `https://ev.church/sermons/scriptures/${scripture.slug}`,
+      url: `https://www.ev.church/sermons/scriptures/${scripture.slug}`,
       siteName: 'Ev Church',
       locale: 'en_NZ',
       type: 'website',
     },
     alternates: {
-      canonical: `https://ev.church/sermons/scriptures/${scripture.slug}`,
+      canonical: `https://www.ev.church/sermons/scriptures/${scripture.slug}`,
     },
   }
 }
@@ -75,9 +75,9 @@ export default async function ScripturePage({
   })
 
   const breadcrumbItems = [
-    { name: 'Home', url: 'https://ev.church' },
-    { name: 'Sermons', url: 'https://ev.church/sermons' },
-    { name: scripture.name, url: `https://ev.church/sermons/scriptures/${scripture.slug}` },
+    { name: 'Home', url: 'https://www.ev.church' },
+    { name: 'Sermons', url: 'https://www.ev.church/sermons' },
+    { name: scripture.name, url: `https://www.ev.church/sermons/scriptures/${scripture.slug}` },
   ]
 
   return (

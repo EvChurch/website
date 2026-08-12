@@ -13571,6 +13571,100 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.feedback_submissions": {
+      "name": "feedback_submissions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "comment": {
+          "name": "comment",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_url": {
+          "name": "source_url",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "client_address_digest": {
+          "name": "client_address_digest",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "feedback_submissions_updated_at_idx": {
+          "name": "feedback_submissions_updated_at_idx",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "feedback_submissions_created_at_idx": {
+          "name": "feedback_submissions_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.registrations": {
       "name": "registrations",
       "schema": "",
@@ -16464,12 +16558,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "missing_paths_id": {
-          "name": "missing_paths_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "registrations_id": {
           "name": "registrations_id",
           "type": "integer",
@@ -16520,6 +16608,18 @@
         },
         "sermon_audio_id": {
           "name": "sermon_audio_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "feedback_submissions_id": {
+          "name": "feedback_submissions_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "missing_paths_id": {
+          "name": "missing_paths_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -16751,21 +16851,6 @@
           "method": "btree",
           "with": {}
         },
-        "payload_locked_documents_rels_missing_paths_id_idx": {
-          "name": "payload_locked_documents_rels_missing_paths_id_idx",
-          "columns": [
-            {
-              "expression": "missing_paths_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "payload_locked_documents_rels_registrations_id_idx": {
           "name": "payload_locked_documents_rels_registrations_id_idx",
           "columns": [
@@ -16891,6 +16976,36 @@
           "columns": [
             {
               "expression": "sermon_audio_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payload_locked_documents_rels_feedback_submissions_id_idx": {
+          "name": "payload_locked_documents_rels_feedback_submissions_id_idx",
+          "columns": [
+            {
+              "expression": "feedback_submissions_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payload_locked_documents_rels_missing_paths_id_idx": {
+          "name": "payload_locked_documents_rels_missing_paths_id_idx",
+          "columns": [
+            {
+              "expression": "missing_paths_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -17072,19 +17187,6 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "payload_locked_documents_rels_missing_paths_fk": {
-          "name": "payload_locked_documents_rels_missing_paths_fk",
-          "tableFrom": "payload_locked_documents_rels",
-          "tableTo": "missing_paths",
-          "columnsFrom": [
-            "missing_paths_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "payload_locked_documents_rels_registrations_fk": {
           "name": "payload_locked_documents_rels_registrations_fk",
           "tableFrom": "payload_locked_documents_rels",
@@ -17195,6 +17297,32 @@
           "tableTo": "sermon_audio",
           "columnsFrom": [
             "sermon_audio_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_feedback_submissions_fk": {
+          "name": "payload_locked_documents_rels_feedback_submissions_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "feedback_submissions",
+          "columnsFrom": [
+            "feedback_submissions_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_missing_paths_fk": {
+          "name": "payload_locked_documents_rels_missing_paths_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "missing_paths",
+          "columnsFrom": [
+            "missing_paths_id"
           ],
           "columnsTo": [
             "id"
@@ -18024,6 +18152,54 @@
           "type": "timestamp(3) with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "feedback_enabled": {
+          "name": "feedback_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "false"
+        },
+        "feedback_banner_copy": {
+          "name": "feedback_banner_copy",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'Help us improve the new ev.church.'"
+        },
+        "feedback_cta_label": {
+          "name": "feedback_cta_label",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'Share feedback.'"
+        },
+        "feedback_modal_title": {
+          "name": "feedback_modal_title",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'Share your feedback'"
+        },
+        "feedback_modal_intro": {
+          "name": "feedback_modal_intro",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'Tell us what is working well or what we could improve.'"
+        },
+        "feedback_dismissal_version": {
+          "name": "feedback_dismissal_version",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'v1'"
+        },
+        "feedback_end_date": {
+          "name": "feedback_end_date",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -18111,6 +18287,327 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.users_sessions": {
+      "name": "users_sessions",
+      "schema": "",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "users_sessions_order_idx": {
+          "name": "users_sessions_order_idx",
+          "columns": [
+            {
+              "expression": "_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "users_sessions_parent_id_idx": {
+          "name": "users_sessions_parent_id_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "users_sessions_parent_id_fk": {
+          "name": "users_sessions_parent_id_fk",
+          "tableFrom": "users_sessions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.rock_connection_signup_nonces": {
+      "name": "rock_connection_signup_nonces",
+      "schema": "",
+      "columns": {
+        "nonce_digest": {
+          "name": "nonce_digest",
+          "type": "varchar(64)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "purpose": {
+          "name": "purpose",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "page_guid": {
+          "name": "page_guid",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "block_guid": {
+          "name": "block_guid",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "rock_connection_signup_nonces_expires_idx": {
+          "name": "rock_connection_signup_nonces_expires_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "rock_connection_signup_nonces_digest_check": {
+          "name": "rock_connection_signup_nonces_digest_check",
+          "value": "nonce_digest ~ '^[0-9a-f]{64}$'"
+        },
+        "rock_connection_signup_nonces_purpose_check": {
+          "name": "rock_connection_signup_nonces_purpose_check",
+          "value": "purpose = 'rock-connection-signup'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.rock_connection_signup_rate_limits": {
+      "name": "rock_connection_signup_rate_limits",
+      "schema": "",
+      "columns": {
+        "bucket_digest": {
+          "name": "bucket_digest",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "route_class": {
+          "name": "route_class",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "window_started_at": {
+          "name": "window_started_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "count": {
+          "name": "count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "1"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "rock_connection_signup_rate_limits_expires_idx": {
+          "name": "rock_connection_signup_rate_limits_expires_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "rock_connection_signup_rate_limits_pk": {
+          "name": "rock_connection_signup_rate_limits_pk",
+          "columns": [
+            "bucket_digest",
+            "route_class",
+            "window_started_at"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "rock_connection_signup_rate_digest_check": {
+          "name": "rock_connection_signup_rate_digest_check",
+          "value": "bucket_digest ~ '^[0-9a-f]{64}$'"
+        },
+        "rock_connection_signup_rate_class_check": {
+          "name": "rock_connection_signup_rate_class_check",
+          "value": "route_class IN ('start', 'submit', 'personSearch')"
+        },
+        "rock_connection_signup_rate_count_check": {
+          "name": "rock_connection_signup_rate_count_check",
+          "value": "count > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.site_feedback_rate_limits": {
+      "name": "site_feedback_rate_limits",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "bucket_digest": {
+          "name": "bucket_digest",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "window_started_at": {
+          "name": "window_started_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "count": {
+          "name": "count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "1"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "site_feedback_rate_limits_expires_at_idx": {
+          "name": "site_feedback_rate_limits_expires_at_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "site_feedback_rate_limits_bucket_window_unique": {
+          "name": "site_feedback_rate_limits_bucket_window_unique",
+          "columns": [
+            "bucket_digest",
+            "window_started_at"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -18680,6 +19177,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "762b448d-97d9-42f2-a0da-2bc155090ea9",
+  "id": "902648ef-c2fd-4a91-8efa-5bcbec16f364",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

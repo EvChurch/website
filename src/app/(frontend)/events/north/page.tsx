@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
   title: 'North Campus Events | Ev Church Auckland',
   description: 'Find upcoming events and community gatherings at Ev Church North Campus on Auckland’s North Shore.',
-  alternates: { canonical: 'https://ev.church/events/north' },
+  alternates: { canonical: 'https://www.ev.church/events/north' },
 }
 
 export default function NorthEventsPage() {

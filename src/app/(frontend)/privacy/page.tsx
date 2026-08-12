@@ -7,13 +7,13 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Privacy Policy | Ev Church Auckland',
     description: 'Privacy policy for Ev Church.',
-    url: 'https://ev.church/privacy',
+    url: 'https://www.ev.church/privacy',
     siteName: 'Ev Church',
     locale: 'en_NZ',
     type: 'website',
   },
   alternates: {
-    canonical: 'https://ev.church/privacy',
+    canonical: 'https://www.ev.church/privacy',
   },
 }
 

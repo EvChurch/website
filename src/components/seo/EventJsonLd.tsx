@@ -18,7 +18,7 @@ export function EventJsonLd({ event }: { event: PublicEvent }) {
     '@type': 'Event',
     name: event.title,
     description: toPlainText(event.summary) || `An upcoming event at Ev Church in Auckland.`,
-    url: `https://ev.church/events/${event.slug}`,
+    url: `https://www.ev.church/events/${event.slug}`,
     ...(event.startDate ? { startDate: event.startDate } : {}),
     ...(event.endDate ? { endDate: event.endDate } : {}),
     eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
@@ -33,7 +33,7 @@ export function EventJsonLd({ event }: { event: PublicEvent }) {
     organizer: {
       '@type': 'Organization',
       name: 'Ev Church',
-      url: 'https://ev.church',
+      url: 'https://www.ev.church',
     },
     ...(image?.url ? { image: [image.url] } : {}),
     ...(!past && registrationHref

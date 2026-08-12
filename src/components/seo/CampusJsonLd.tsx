@@ -22,10 +22,10 @@ export function CampusJsonLd({
   const data = {
     '@context': 'https://schema.org',
     '@type': 'Church',
-    '@id': `https://ev.church/campus/${slug}#church`,
+    '@id': `https://www.ev.church/campus/${slug}#church`,
     name: `Ev Church ${name}`,
     alternateName: brandName,
-    url: `https://ev.church/campus/${slug}`,
+    url: `https://www.ev.church/campus/${slug}`,
     address: {
       '@type': 'PostalAddress',
       streetAddress,
@@ -41,7 +41,7 @@ export function CampusJsonLd({
     },
     parentOrganization: {
       '@type': 'Church',
-      '@id': 'https://ev.church/#organization',
+      '@id': 'https://www.ev.church/#organization',
       name: 'Ev Church',
     },
     isAccessibleForFree: true,

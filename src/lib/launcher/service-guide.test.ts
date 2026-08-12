@@ -123,7 +123,7 @@ describe('Service Guide launcher data', () => {
       'http://ev.church/give',
       'https://user:pass@ev.church/give',
       'javascript:alert(1)',
-      'https://ev.church/\nheader',
+      'https://www.ev.church/\nheader',
     ]) {
       expect(
         resolveLauncherAction(record({ directLink, content: null })),

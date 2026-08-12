@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Metadata, Viewport } from 'next'
-import { Header } from '@/components/layout/Header'
+import { SiteHeader } from '@/components/layout/SiteHeader'
 import { Footer } from '@/components/layout/Footer'
 import { AnnouncementBanner } from '@/components/layout/AnnouncementBanner'
 import { OrganizationJsonLd } from '@/components/seo/OrganizationJsonLd'
@@ -13,10 +13,11 @@ import { isMemberAuthEnabled } from '@/auth/member-auth0-config'
 import { getCurrentMemberProfileState } from '@/auth/member-session'
 import { NextStepsLauncher } from '@/components/launcher/NextStepsLauncher'
 import { loadLauncherData } from '@/lib/launcher/service-guide'
+import { loadSiteFeedbackSettings } from '@/lib/site-feedback/settings'
 import '@/styles/globals.css'
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://ev.church'),
+  metadataBase: new URL('https://www.ev.church'),
   title: {
     default: 'Church in Auckland | Ev Church NZ | Sunday Services & Community',
     template: '%s | Ev Church',
@@ -45,7 +46,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_NZ',
-    url: 'https://ev.church',
+    url: 'https://www.ev.church',
     siteName: 'Ev Church',
     title: 'Church in Auckland | Ev Church NZ | Sunday Services & Community',
     description:
@@ -71,8 +72,9 @@ export const viewport: Viewport = {
 }
 
 export default async function FrontendLayout({ children }: { children: ReactNode }) {
-  const [launcher, rockProfileState] = await Promise.all([
+  const [launcher, feedback, rockProfileState] = await Promise.all([
     loadLauncherData(),
+    loadSiteFeedbackSettings(),
     isMemberAuthEnabled() ? getCurrentMemberProfileState() : undefined,
   ])
   const memberProfile = rockProfileState === undefined
@@ -100,7 +102,7 @@ export default async function FrontendLayout({ children }: { children: ReactNode
         <MediaPlayerProvider>
           <AnalyticsManager />
           <AnnouncementBanner />
-          <Header memberProfile={memberProfile} />
+          <SiteHeader feedback={feedback} memberProfile={memberProfile} />
           <main>{children}</main>
           <Footer />
           <AudioPlayerSpacer />

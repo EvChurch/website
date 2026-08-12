@@ -28,6 +28,6 @@ describe('buildEventCalendar', () => {
     expect(calendar).toContain('DTSTART:20260831T071500Z')
     expect(calendar).toContain('SUMMARY:Going Deeper')
     expect(calendar).toContain('LOCATION:Ev Central\\, 80 Olsen Avenue\\, Hillsborough')
-    expect(calendar).toContain('URL:https://ev.church/events/going-deeper')
+    expect(calendar).toContain('URL:https://www.ev.church/events/going-deeper')
   })
 })

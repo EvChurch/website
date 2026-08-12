@@ -4,11 +4,11 @@ export function OrganizationJsonLd() {
   const data = {
     '@context': 'https://schema.org',
     '@type': 'Church',
-    '@id': 'https://ev.church/#organization',
+    '@id': 'https://www.ev.church/#organization',
     name: 'Ev Church',
     alternateName: 'Auckland Evangelical Church',
-    url: 'https://ev.church',
-    logo: 'https://ev.church/logo.png',
+    url: 'https://www.ev.church',
+    logo: 'https://www.ev.church/logo.png',
     description:
       'Ev Church is a community of Christ-followers across Auckland (Tamaki Makaurau), New Zealand with three campuses: North, Central, and Unichurch.',
     address: [

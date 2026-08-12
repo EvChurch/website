@@ -29,6 +29,7 @@ import { ConnectGroupParticipants } from '@/collections/ConnectGroupParticipants
 import { ConnectGroupLeaderResources } from '@/collections/ConnectGroupLeaderResources'
 import { DailyBibleReadings } from '@/collections/DailyBibleReadings'
 import { MissingPaths } from '@/collections/MissingPaths'
+import { SiteFeedback } from '@/collections/SiteFeedback'
 
 // Globals
 import { Navigation } from '@/globals/Navigation'
@@ -63,6 +64,7 @@ export default buildConfig({
   },
 
   db: postgresAdapter({
+    migrationDir: path.resolve(dirname, 'src/migrations'),
     pool: {
       connectionString: process.env.DATABASE_URL || '',
     },
@@ -89,6 +91,7 @@ export default buildConfig({
     ConnectGroupLeaderResources,
     DailyBibleReadings,
     MissingPaths,
+    SiteFeedback,
     Registrations,
     ServiceGuideItems,
     // Synced from resources.ev.church GraphQL API

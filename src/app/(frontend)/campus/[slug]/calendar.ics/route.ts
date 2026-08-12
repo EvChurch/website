@@ -88,7 +88,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     .filter((part): part is string => Boolean(part?.trim()))
     .join(', ') || page.locationLabel?.trim() || summary
   const date = nextLocalDate(weekday.index)
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ev.church'
+  const siteUrl = 'https://www.ev.church'
   const body = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
