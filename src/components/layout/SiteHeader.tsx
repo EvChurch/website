@@ -41,5 +41,12 @@ export function SiteHeader({ feedback, memberProfile }: {
   return <>
     {visible && <div className="fixed left-0 right-0 top-0 z-[52]"><FeedbackStrip stripRef={stripRef} settings={feedback} onDismiss={dismiss} /></div>}
     <Header memberProfile={memberProfile} topOffset={visible ? stripHeight : 0} />
+    {visible && (
+      <div
+        aria-hidden="true"
+        data-site-feedback-spacer
+        style={{ height: stripHeight }}
+      />
+    )}
   </>
 }

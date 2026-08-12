@@ -58,6 +58,23 @@ describe('FeedbackStrip modal', () => {
     return trigger
   }
 
+  it('uses prominent close icons with touch-sized controls', async () => {
+    await open()
+
+    const dismiss = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Dismiss feedback prompt"]',
+    )!
+    const close = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Close feedback dialog"]',
+    )!
+
+    expect(dismiss.className).toContain('h-11')
+    expect(dismiss.querySelector('span')?.className).toContain('text-2xl')
+    expect(close.className).toContain('h-11')
+    expect(close.querySelector('span')?.className).toContain('text-3xl')
+    expect(container.querySelector('h2')?.className).toContain('pr-14')
+  })
+
   async function type(element: HTMLInputElement | HTMLTextAreaElement, value: string) {
     await act(async () => {
       const prototype = element instanceof HTMLTextAreaElement

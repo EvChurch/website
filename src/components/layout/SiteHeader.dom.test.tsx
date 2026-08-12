@@ -60,6 +60,9 @@ describe('SiteHeader geometry and dismissal', () => {
     await act(async () => root.render(<SiteHeader feedback={settings} />))
 
     expect(container.querySelector('[data-header-offset="44"]')).not.toBeNull()
+    expect(
+      container.querySelector<HTMLElement>('[data-site-feedback-spacer]')?.style.height,
+    ).toBe('44px')
 
     const strip = container.querySelector<HTMLElement>('[data-site-feedback-strip]')!
     await act(async () => {
@@ -81,6 +84,9 @@ describe('SiteHeader geometry and dismissal', () => {
       )
     })
     expect(container.querySelector('[data-header-offset="84"]')).not.toBeNull()
+    expect(
+      container.querySelector<HTMLElement>('[data-site-feedback-spacer]')?.style.height,
+    ).toBe('84px')
 
     await act(async () => {
       container
@@ -88,6 +94,7 @@ describe('SiteHeader geometry and dismissal', () => {
         .click()
     })
     expect(container.querySelector('[data-site-feedback-strip]')).toBeNull()
+    expect(container.querySelector('[data-site-feedback-spacer]')).toBeNull()
     expect(container.querySelector('[data-header-offset="0"]')).not.toBeNull()
     expect(localStorage.getItem('evchurch:site-feedback-dismissed:v1')).toBe('1')
     rect.mockRestore()
