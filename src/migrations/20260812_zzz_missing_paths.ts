@@ -3,15 +3,15 @@ import { sql } from '@payloadcms/db-postgres'
 
 export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
-   CREATE TABLE "missing_paths" (
-  	"id" serial PRIMARY KEY NOT NULL,
-  	"path" varchar NOT NULL,
-  	"count" numeric DEFAULT 0 NOT NULL,
-  	"destination" varchar,
-  	"updated_at" timestamp(3) with time zone DEFAULT now() NOT NULL,
-  	"created_at" timestamp(3) with time zone DEFAULT now() NOT NULL
+  CREATE TABLE "missing_paths" (
+    "id" serial PRIMARY KEY NOT NULL,
+    "path" varchar NOT NULL,
+    "count" numeric DEFAULT 0 NOT NULL,
+    "destination" varchar,
+    "updated_at" timestamp(3) with time zone DEFAULT now() NOT NULL,
+    "created_at" timestamp(3) with time zone DEFAULT now() NOT NULL
   );
-  
+
   ALTER TABLE "payload_locked_documents_rels" ADD COLUMN "missing_paths_id" integer;
   CREATE UNIQUE INDEX "missing_paths_path_idx" ON "missing_paths" USING btree ("path");
   CREATE INDEX "missing_paths_updated_at_idx" ON "missing_paths" USING btree ("updated_at");
@@ -22,7 +22,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
 
 export async function down({ db }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
-   ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_missing_paths_fk";
+  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_missing_paths_fk";
   DROP INDEX "payload_locked_documents_rels_missing_paths_id_idx";
   ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "missing_paths_id";
   ALTER TABLE "missing_paths" DISABLE ROW LEVEL SECURITY;
