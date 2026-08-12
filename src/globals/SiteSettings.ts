@@ -1,5 +1,5 @@
 import type { GlobalConfig } from 'payload'
-import { isContentLead } from '@/access/roles'
+import { contentLeadOnlyField, isContentLead } from '@/access/roles'
 
 export const SiteSettings: GlobalConfig = {
   slug: 'site-settings',
@@ -110,6 +110,19 @@ export const SiteSettings: GlobalConfig = {
           admin: {
             description: 'Optional date and time after which the feedback banner is hidden.',
             date: { pickerAppearance: 'dayAndTime' },
+          },
+        },
+        {
+          name: 'notificationRecipient',
+          label: 'Notification recipient',
+          type: 'email',
+          defaultValue: 'tataihono@ev.church',
+          access: {
+            read: contentLeadOnlyField,
+          },
+          admin: {
+            description:
+              'New feedback is emailed to this address. Clear it to disable notifications.',
           },
         },
       ],

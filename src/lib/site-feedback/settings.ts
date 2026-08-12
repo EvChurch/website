@@ -46,7 +46,17 @@ export async function loadSiteFeedbackSettings(
       slug: 'site-settings',
       depth: 0,
       overrideAccess: true,
-      select: { feedback: true },
+      select: {
+        feedback: {
+          enabled: true,
+          bannerCopy: true,
+          ctaLabel: true,
+          modalTitle: true,
+          modalIntro: true,
+          dismissalVersion: true,
+          endDate: true,
+        },
+      },
     })) as { feedback?: unknown }
     const feedback = record(settings.feedback)
     if (!feedback || feedback.enabled !== true) return null

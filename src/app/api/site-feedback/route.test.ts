@@ -82,9 +82,16 @@ function valid(overrides: Record<string, unknown> = {}) {
 }
 
 function dependencies() {
+  const afterResponseTasks: Array<() => Promise<void>> = []
   return {
     rateLimitStore: { increment: vi.fn().mockResolvedValue(1) },
-    createFeedback: vi.fn().mockResolvedValue(undefined),
+    createFeedback: vi.fn().mockResolvedValue({ id: 42, shouldNotify: true }),
+    queueNotification: vi.fn().mockResolvedValue(undefined),
+    logNotificationFailure: vi.fn(),
+    scheduleAfterResponse: vi.fn((task: () => Promise<void>) => {
+      afterResponseTasks.push(task)
+    }),
+    runAfterResponseTasks: () => Promise.all(afterResponseTasks.map((task) => task())),
   }
 }
 
@@ -98,6 +105,7 @@ describe('site feedback route', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.clearAllMocks()
     vi.unstubAllEnvs()
   })
@@ -127,6 +135,10 @@ describe('site feedback route', () => {
     expect(verifyTurnstileToken.mock.invocationCallOrder[0]).toBeLessThan(
       deps.createFeedback.mock.invocationCallOrder[0],
     )
+    expect(deps.scheduleAfterResponse).toHaveBeenCalledOnce()
+    expect(deps.queueNotification).not.toHaveBeenCalled()
+    await deps.runAfterResponseTasks()
+    expect(deps.queueNotification).toHaveBeenCalledWith(42)
   })
 
   it.each([
@@ -258,6 +270,55 @@ describe('site feedback route', () => {
     await expect(response.json()).resolves.toEqual({
       error: 'Unable to submit feedback right now',
     })
+  })
+
+  it('keeps the successful response when notification enqueueing fails', async () => {
+    const deps = dependencies()
+    deps.queueNotification.mockRejectedValue(
+      new Error('visitor@example.com: provider credentials secret'),
+    )
+
+    const response = await handleSiteFeedbackPost(request(valid()), deps)
+
+    expect(response.status).toBe(201)
+    await expect(response.json()).resolves.toEqual({ ok: true })
+    expect(deps.logNotificationFailure).not.toHaveBeenCalled()
+    await deps.runAfterResponseTasks()
+    expect(deps.logNotificationFailure).toHaveBeenCalledOnce()
+    expect(JSON.stringify(deps.logNotificationFailure.mock.calls)).not.toContain(
+      'visitor@example.com',
+    )
+    expect(JSON.stringify(deps.logNotificationFailure.mock.calls)).not.toContain(
+      'provider credentials secret',
+    )
+  })
+
+  it('returns success without waiting for notification enqueueing', async () => {
+    const deps = dependencies()
+    let resolveQueue: (() => void) | undefined
+    deps.queueNotification.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveQueue = resolve
+      }),
+    )
+
+    const response = await handleSiteFeedbackPost(request(valid()), deps)
+
+    expect(response.status).toBe(201)
+    await expect(response.json()).resolves.toEqual({ ok: true })
+    expect(deps.queueNotification).not.toHaveBeenCalled()
+    resolveQueue?.()
+  })
+
+  it('does not queue when the snapshotted recipient is blank', async () => {
+    const deps = dependencies()
+    deps.createFeedback.mockResolvedValue({ id: 42, shouldNotify: false })
+
+    const response = await handleSiteFeedbackPost(request(valid()), deps)
+
+    expect(response.status).toBe(201)
+    expect(deps.queueNotification).not.toHaveBeenCalled()
+    expect(deps.scheduleAfterResponse).not.toHaveBeenCalled()
   })
 
   it('supports independent valid requests without sharing persistence state', async () => {

@@ -20,10 +20,11 @@ import * as migration_20260808_members_rock_sync from './20260808_members_rock_s
 import * as migration_20260811_143500_ev_kids_ages_1_to_12 from './20260811_143500_ev_kids_ages_1_to_12';
 import * as migration_20260811_daily_bible_readings from './20260811_daily_bible_readings';
 import * as migration_20260811_home_daily_reading_block from './20260811_home_daily_reading_block';
+import * as migration_20260812_190000_fix_site_feedback_lock_relation from './20260812_190000_fix_site_feedback_lock_relation';
 import * as migration_20260812_daily_bible_readings_api_bible from './20260812_daily_bible_readings_api_bible';
 import * as migration_20260812_site_feedback from './20260812_site_feedback';
-import * as migration_20260812_190000_fix_site_feedback_lock_relation from './20260812_190000_fix_site_feedback_lock_relation';
 import * as migration_20260812_zzz_missing_paths from './20260812_zzz_missing_paths';
+import * as migration_20260813_site_feedback_email_notifications from './20260813_site_feedback_email_notifications';
 
 export const migrations = [
   {
@@ -155,5 +156,10 @@ export const migrations = [
     up: migration_20260812_zzz_missing_paths.up,
     down: migration_20260812_zzz_missing_paths.down,
     name: '20260812_zzz_missing_paths',
+  },
+  {
+    up: migration_20260813_site_feedback_email_notifications.up,
+    down: migration_20260813_site_feedback_email_notifications.down,
+    name: '20260813_site_feedback_email_notifications',
   },
 ];
