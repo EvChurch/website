@@ -147,11 +147,11 @@ describe('public Rock Connection signup route', () => {
   })
 
   it('uses the Railway public hostname for Turnstile behind the production proxy', async () => {
-    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'new.ev.church')
+    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'www.ev.church')
     const response = await handlePost(
       request(
         { intent: 'start', turnstileToken: 'fresh-start' },
-        { origin: 'https://new.ev.church' },
+        { origin: 'https://www.ev.church' },
         `https://0.0.0.0:3000/api/rock-connection-signups/${blockGuid}`,
       ),
       context(),
@@ -160,7 +160,7 @@ describe('public Rock Connection signup route', () => {
 
     expect(response.status).toBe(200)
     expect(verifyTurnstileToken).toHaveBeenCalledWith(
-      expect.objectContaining({ expectedHostname: 'new.ev.church' }),
+      expect.objectContaining({ expectedHostname: 'www.ev.church' }),
     )
   })
 
