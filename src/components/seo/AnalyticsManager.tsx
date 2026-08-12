@@ -12,7 +12,7 @@ import { GA_ID, GoogleAnalytics } from './GoogleAnalytics'
 
 let postHogInitialized = false
 
-function initializePostHog(): boolean {
+function initializePostHog(shouldReplay: boolean): boolean {
   const projectToken = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN
   const host = process.env.NEXT_PUBLIC_POSTHOG_HOST
   if (!projectToken || !host) return false
@@ -23,7 +23,7 @@ function initializePostHog(): boolean {
     autocapture: false,
     capture_pageview: false,
     capture_pageleave: false,
-    disable_session_recording: true,
+    disable_session_recording: !shouldReplay,
     enable_recording_console_log: false,
     mask_all_text: true,
     mask_all_element_attributes: true,
@@ -57,7 +57,9 @@ export function AnalyticsManager() {
       ;(window as unknown as Record<string, unknown>)[`ga-disable-${GA_ID}`] = !mayTrack
     }
 
-    if (!mayTrack || !initializePostHog()) {
+    const shouldReplay = canReplayPath(pathname)
+
+    if (!mayTrack || !initializePostHog(shouldReplay)) {
       if (postHogInitialized) {
         posthog.stopExceptionAutocapture()
         posthog.stopSessionRecording()
@@ -71,7 +73,7 @@ export function AnalyticsManager() {
       $pathname: pathname,
     })
 
-    if (canReplayPath(pathname)) {
+    if (shouldReplay) {
       posthog.startSessionRecording()
     } else {
       posthog.stopSessionRecording()

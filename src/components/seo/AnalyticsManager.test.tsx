@@ -57,6 +57,7 @@ describe('AnalyticsManager', () => {
       expect.any(String),
       expect.objectContaining({
         autocapture: false,
+        disable_session_recording: false,
         mask_all_text: true,
         person_profiles: 'never',
         session_recording: expect.objectContaining({
