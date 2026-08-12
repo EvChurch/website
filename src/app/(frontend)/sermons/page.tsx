@@ -28,13 +28,13 @@ export async function generateMetadata(): Promise<Metadata> {
       title: 'Sermons | Ev Church',
       description:
         'Listen to sermons from Ev Church Auckland. Browse by series, speaker, topic, or scripture.',
-      url: 'https://ev.church/sermons',
+      url: 'https://www.ev.church/sermons',
       siteName: 'Ev Church',
       locale: 'en_NZ',
       type: 'website',
     },
     alternates: {
-      canonical: 'https://ev.church/sermons',
+      canonical: 'https://www.ev.church/sermons',
     },
   }
 }

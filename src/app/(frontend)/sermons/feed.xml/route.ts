@@ -1,7 +1,7 @@
 import { getPayloadClient } from '@/lib/payload'
 import { getSermonAudioUrl } from '@/lib/sermon-utils'
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://ev.church'
+const SITE_URL = 'https://www.ev.church'
 
 function escapeXml(text: string): string {
   return text

@@ -31,7 +31,7 @@ const routeContext = { params: Promise.resolve({ workflowTypeGuid }) }
 
 function request(origin?: string) {
   return new NextRequest(
-    `https://ev.church/api/rock-forms/${workflowTypeGuid}/people`,
+    `https://www.ev.church/api/rock-forms/${workflowTypeGuid}/people`,
     {
       method: 'POST',
       headers: origin
@@ -46,7 +46,7 @@ describe('Rock workflow person search route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.stubEnv('NODE_ENV', 'production')
-    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'ev.church')
+    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'www.ev.church')
     mocks.verifyContext.mockReturnValue({
       workflowTypeGuid,
       allowedFields: [{ fieldTypeGuid: ROCK_FIELD_TYPES.person }],
@@ -65,7 +65,7 @@ describe('Rock workflow person search route', () => {
   })
 
   it('rate limits same-origin searches before querying Rock', async () => {
-    const response = await POST(request('https://ev.church'), routeContext)
+    const response = await POST(request('https://www.ev.church'), routeContext)
 
     expect(response.status).toBe(200)
     expect(mocks.enforceRateLimit).toHaveBeenCalledWith({

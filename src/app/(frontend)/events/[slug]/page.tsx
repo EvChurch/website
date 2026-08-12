@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     toPlainText(event.summary).slice(0, 155) ||
     `${event.title} at Ev Church in Auckland. Find event dates, location details, and registration information.`
   const image = getEventImage(event)
-  const url = `https://ev.church/events/${event.slug}`
+  const url = `https://www.ev.church/events/${event.slug}`
 
   return {
     title: `${event.title} | Ev Church Auckland`,
@@ -63,9 +63,9 @@ export default async function EventDetailPage({ params }: Props) {
       <EventJsonLd event={event} />
       <BreadcrumbJsonLd
         items={[
-          { name: 'Home', url: 'https://ev.church' },
-          { name: 'Events', url: 'https://ev.church/events' },
-          { name: event.title, url: `https://ev.church/events/${event.slug}` },
+          { name: 'Home', url: 'https://www.ev.church' },
+          { name: 'Events', url: 'https://www.ev.church/events' },
+          { name: event.title, url: `https://www.ev.church/events/${event.slug}` },
         ]}
       />
 

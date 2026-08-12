@@ -9,13 +9,13 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Health & Safety | Ev Church Auckland',
     description: 'Health and safety information for Ev Church Auckland.',
-    url: 'https://ev.church/hs',
+    url: 'https://www.ev.church/hs',
     siteName: 'Ev Church',
     locale: 'en_NZ',
     type: 'website',
   },
   alternates: {
-    canonical: 'https://ev.church/hs',
+    canonical: 'https://www.ev.church/hs',
   },
 }
 
