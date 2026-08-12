@@ -18,5 +18,6 @@ describe('PublicErrorExperience', () => {
     expect(html.match(/<a /g)).toHaveLength(1)
     expect(html).toContain('href="/"')
     expect(html).toContain('Return home')
+    expect(html).toContain('data-public-error-experience="true"')
   })
 })

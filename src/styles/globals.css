@@ -262,3 +262,37 @@
 body:has([data-audio-player]) .mobile-action-bar {
   bottom: 5.5rem;
 }
+
+/* Public error pages have no hero background. Match the dark controls used by
+ * other light pages from the first server-rendered paint. */
+body:has([data-public-error-experience]) [data-public-site-header] [data-header-nav-item] {
+  color: color-mix(in srgb, var(--color-brand-black) 80%, transparent);
+}
+
+body:has([data-public-error-experience]) [data-public-site-header] [data-header-nav-item]:hover,
+body:has([data-public-error-experience]) [data-public-site-header] [data-header-nav-item][data-active="true"] {
+  color: var(--color-rich-red);
+}
+
+body:has([data-public-error-experience]) [data-public-site-header] [data-header-underline] {
+  background-color: var(--color-rich-red);
+}
+
+body:has([data-public-error-experience]) [data-public-site-header] [data-header-give] {
+  background-color: var(--color-rich-red);
+  color: white;
+}
+
+body:has([data-public-error-experience]) [data-public-site-header] [data-header-give]:hover {
+  background-color: var(--color-deep-red);
+}
+
+body:has([data-public-error-experience]) [data-public-site-header] [data-header-account-control],
+body:has([data-public-error-experience]) [data-public-site-header] [data-header-menu] {
+  color: var(--color-brand-black);
+}
+
+body:has([data-public-error-experience]) [data-public-site-header] [data-header-account-control]:hover,
+body:has([data-public-error-experience]) [data-public-site-header] [data-header-menu]:hover {
+  background-color: var(--color-warm-white);
+}

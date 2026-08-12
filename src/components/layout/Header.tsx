@@ -115,6 +115,7 @@ function DesktopDropdown({ item, darkTone, pathname }: { item: NavItem; darkTone
 
   const underline = (
     <span
+      data-header-underline
       className={`absolute bottom-0 left-3 right-3 h-[2px] origin-left rounded-full transition-transform duration-300 ease-out ${
         active ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
       } ${darkTone ? 'bg-rich-red' : 'bg-white'}`}
@@ -131,6 +132,8 @@ function DesktopDropdown({ item, darkTone, pathname }: { item: NavItem; darkTone
         <Link
           href={item.href}
           className={classes}
+          data-active={active}
+          data-header-nav-item
           aria-haspopup="true"
           aria-expanded={open}
         >
@@ -143,6 +146,8 @@ function DesktopDropdown({ item, darkTone, pathname }: { item: NavItem; darkTone
       ) : (
         <button
           className={classes}
+          data-active={active}
+          data-header-nav-item
           aria-expanded={open}
           aria-haspopup="true"
           onClick={() => setOpen(!open)}
@@ -413,6 +418,7 @@ export function Header({
       <ScrollProgress />
 
       <header
+        data-public-site-header
         className={`fixed left-0 right-0 z-50 transition-[transform,background-color,box-shadow,backdrop-filter] duration-300 ${
           scrolled
             ? 'bg-white/90 shadow-sm shadow-brand-black/5 backdrop-blur-[12px]'
@@ -448,15 +454,23 @@ export function Header({
               className="flex items-center gap-0.5"
               aria-label="Main navigation"
             >
-              {navItems.map((item) =>
-                item.children ? (
-                  <DesktopDropdown key={item.label} item={item} darkTone={darkTone} pathname={pathname} />
-                ) : (
+              {navItems.map((item) => {
+                if (item.children) {
+                  return (
+                    <DesktopDropdown key={item.label} item={item} darkTone={darkTone} pathname={pathname} />
+                  )
+                }
+
+                const active = isActive(pathname, item.href)
+
+                return (
                   <Link
                     key={item.label}
                     href={item.href}
+                    data-active={active}
+                    data-header-nav-item
                     className={`group relative px-3 py-2 text-[0.8125rem] font-semibold uppercase tracking-wide transition-colors duration-200 ${
-                      isActive(pathname, item.href)
+                      active
                         ? darkTone ? 'text-rich-red' : 'text-white'
                         : darkTone ? 'text-brand-black/80 hover:text-rich-red' : 'text-white/90 hover:text-white'
                     }`}
@@ -464,18 +478,20 @@ export function Header({
                     {item.label}
                     {/* Animated underline */}
                     <span
+                      data-header-underline
                       className={`absolute bottom-0 left-3 right-3 h-[2px] origin-left rounded-full transition-transform duration-300 ease-out ${
-                        isActive(pathname, item.href)
+                        active
                           ? 'scale-x-100'
                           : 'scale-x-0 group-hover:scale-x-100'
                       } ${darkTone ? 'bg-rich-red' : 'bg-white'}`}
                     />
                   </Link>
-                ),
-              )}
+                )
+              })}
             </nav>
             <Link
               href="/give"
+              data-header-give
               className={`ml-3 mr-2 rounded-full px-5 py-2 text-[0.8125rem] font-semibold uppercase tracking-wide transition-colors duration-200 ${
                 darkTone
                   ? 'bg-rich-red text-white hover:bg-deep-red'
@@ -505,6 +521,7 @@ export function Header({
 
             {/* Mobile Hamburger */}
             <button
+              data-header-menu
               className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
                 darkTone ? 'text-brand-black hover:bg-warm-white' : 'text-white hover:bg-white/10'
               }`}

@@ -215,6 +215,7 @@ export function MemberAccountControl({
       <a
         href={`/auth/login?returnTo=${returnTo}`}
         aria-label="Sign in"
+        data-header-account-control={!isDrawer ? true : undefined}
         className={isDrawer
           ? 'flex min-h-12 w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold text-brand-black transition-colors hover:bg-warm-white'
           : `flex min-h-10 min-w-10 items-center justify-center rounded-full transition-colors ${iconTone}`}
@@ -465,6 +466,7 @@ function MemberAccountHoverMenu({
       <button
         ref={triggerRef}
         type="button"
+        data-header-account-control
         aria-label={`Open account for ${profile.name}`}
         aria-haspopup="true"
         aria-expanded={open}
