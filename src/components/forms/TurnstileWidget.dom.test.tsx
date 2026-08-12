@@ -72,6 +72,7 @@ describe('TurnstileWidget lifecycle', () => {
     const failedScript = document.querySelector<HTMLScriptElement>(
       'script[data-ev-turnstile]',
     )
+    expect(failedScript?.crossOrigin).toBe('anonymous')
     failedScript?.dispatchEvent(new Event('error'))
     expect(onError).toHaveBeenCalledWith(
       'The security check could not load. Please try again.',

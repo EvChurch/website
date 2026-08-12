@@ -37,7 +37,8 @@ describe('AnalyticsManager', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.stubEnv('NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN', 'test-token')
-    vi.stubEnv('NEXT_PUBLIC_POSTHOG_HOST', 'https://us.i.posthog.com')
+    vi.stubEnv('NEXT_PUBLIC_POSTHOG_HOST', 'https://t.ev.church')
+    vi.stubEnv('NEXT_PUBLIC_POSTHOG_UI_HOST', 'https://us.posthog.com')
     navigation.pathname = '/sermons'
     container = document.createElement('div')
     document.body.appendChild(container)
@@ -56,6 +57,7 @@ describe('AnalyticsManager', () => {
     expect(posthog.init).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
+        api_host: 'https://t.ev.church',
         autocapture: false,
         disable_session_recording: false,
         mask_all_text: true,
@@ -64,10 +66,20 @@ describe('AnalyticsManager', () => {
           blockSelector: 'form,[data-analytics-sensitive]',
           maskAllInputs: true,
         }),
+        ui_host: 'https://us.posthog.com',
       }),
     )
     expect(posthog.startExceptionAutocapture).toHaveBeenCalled()
     expect(posthog.startSessionRecording).toHaveBeenCalled()
+    expect(container.querySelector('[data-ga-path="/sermons"]')).not.toBeNull()
+  })
+
+  it('keeps PostHog off when its UI host is missing', async () => {
+    vi.stubEnv('NEXT_PUBLIC_POSTHOG_UI_HOST', '')
+
+    await act(async () => root.render(<AnalyticsManager />))
+
+    expect(posthog.init).not.toHaveBeenCalled()
     expect(container.querySelector('[data-ga-path="/sermons"]')).not.toBeNull()
   })
 

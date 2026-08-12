@@ -15,11 +15,13 @@ let postHogInitialized = false
 function initializePostHog(shouldReplay: boolean): boolean {
   const projectToken = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN
   const host = process.env.NEXT_PUBLIC_POSTHOG_HOST
-  if (!projectToken || !host) return false
+  const uiHost = process.env.NEXT_PUBLIC_POSTHOG_UI_HOST
+  if (!projectToken || !host || !uiHost) return false
   if (postHogInitialized) return true
 
   posthog.init(projectToken, {
     api_host: host,
+    ui_host: uiHost,
     autocapture: false,
     capture_pageview: false,
     capture_pageleave: false,

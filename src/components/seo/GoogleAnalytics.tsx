@@ -28,6 +28,7 @@ export function GoogleAnalytics({ pagePath }: { pagePath: string }) {
   return (
     <>
       <Script
+        crossOrigin="anonymous"
         src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
         strategy="afterInteractive"
       />
