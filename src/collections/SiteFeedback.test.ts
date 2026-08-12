@@ -58,7 +58,37 @@ describe('SiteFeedback collection', () => {
           type: 'text',
           maxLength: 512,
         }),
+        expect.objectContaining({
+          name: 'notificationStatus',
+          type: 'select',
+          defaultValue: 'disabled',
+          required: true,
+        }),
+        expect.objectContaining({
+          name: 'notificationRecipient',
+          type: 'email',
+        }),
+        expect.objectContaining({
+          name: 'notificationAttemptCount',
+          type: 'number',
+          defaultValue: 0,
+          required: true,
+        }),
       ]),
     )
+  })
+
+  it('makes every delivery field read-only in Admin', () => {
+    const deliveryFields = SiteFeedback.fields.filter(
+      (field) =>
+        'name' in field &&
+        typeof field.name === 'string' &&
+        field.name.startsWith('notification'),
+    )
+
+    expect(deliveryFields.length).toBeGreaterThanOrEqual(8)
+    for (const field of deliveryFields) {
+      expect(field.admin).toMatchObject({ readOnly: true })
+    }
   })
 })

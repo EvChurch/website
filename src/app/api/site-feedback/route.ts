@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 
 import { getPayloadClient } from '@/lib/payload'
 import { isSameOriginRequest } from '@/lib/request-origin'
@@ -19,6 +19,11 @@ import {
   TurnstileVerificationError,
   verifyTurnstileToken,
 } from '@/lib/turnstile'
+import { sanitizeNotificationError } from '@/lib/site-feedback/notification'
+import {
+  SEND_SITE_FEEDBACK_NOTIFICATION_TASK,
+  SITE_FEEDBACK_NOTIFICATION_QUEUE,
+} from '@/jobs/site-feedback-notification'
 
 export { SITE_FEEDBACK_TURNSTILE_ACTION }
 
@@ -36,7 +41,12 @@ type FeedbackData = {
 
 type SiteFeedbackRouteDependencies = {
   rateLimitStore: SiteFeedbackRateLimitStore
-  createFeedback(data: FeedbackData): Promise<void>
+  createFeedback(
+    data: FeedbackData,
+  ): Promise<{ id: number | string; shouldNotify: boolean }>
+  queueNotification(feedbackId: number | string): Promise<void>
+  logNotificationFailure(): void
+  scheduleAfterResponse(task: () => Promise<void>): void
 }
 
 class RequestTooLargeError extends Error {}
@@ -111,18 +121,82 @@ function expectedHostname(): string | null {
     : null
 }
 
-async function createFeedback(data: FeedbackData): Promise<void> {
+async function createFeedback(
+  data: FeedbackData,
+): Promise<{ id: number | string; shouldNotify: boolean }> {
   const payload = await getPayloadClient()
-  await payload.create({
+  let settings: {
+    feedback?: { notificationRecipient?: null | string } | null
+  } | null = null
+  let settingsAvailable = true
+  try {
+    settings = await payload.findGlobal({
+      slug: 'site-settings',
+      depth: 0,
+      overrideAccess: true,
+      select: { feedback: { notificationRecipient: true } },
+    })
+  } catch {
+    settingsAvailable = false
+    payload.logger.error(
+      '[SiteFeedback] Notification recipient unavailable while saving feedback',
+    )
+  }
+  const configuredRecipient = settings?.feedback?.notificationRecipient
+  const notificationRecipient =
+    typeof configuredRecipient === 'string' && configuredRecipient.trim()
+      ? configuredRecipient.trim()
+      : null
+  const now = new Date().toISOString()
+  const feedback = await payload.create({
     collection: 'feedback-submissions',
-    data,
+    data: {
+      ...data,
+      notificationStatus: settingsAvailable
+        ? notificationRecipient
+          ? 'pending'
+          : 'disabled'
+        : 'failed',
+      notificationRecipient,
+      notificationAttemptCount: 0,
+      notificationWindowStartedAt: notificationRecipient ? now : null,
+      notificationError: settingsAvailable
+        ? null
+        : 'Notification recipient unavailable',
+    },
     overrideAccess: true,
   })
+  return { id: feedback.id, shouldNotify: Boolean(notificationRecipient) }
+}
+
+async function queueNotification(feedbackId: number | string): Promise<void> {
+  const payload = await getPayloadClient()
+  await payload.jobs.queue({
+    task: SEND_SITE_FEEDBACK_NOTIFICATION_TASK,
+    input: { feedbackId: Number(feedbackId) },
+    queue: SITE_FEEDBACK_NOTIFICATION_QUEUE,
+    overrideAccess: true,
+  })
+}
+
+function logNotificationFailure(): void {
+  void getPayloadClient()
+    .then((payload) =>
+      payload.logger.error(
+        `[SiteFeedback] ${sanitizeNotificationError(undefined)} while queueing`,
+      ),
+    )
+    .catch(() => {
+      // Feedback persistence remains authoritative even if logging is unavailable.
+    })
 }
 
 const defaultDependencies: SiteFeedbackRouteDependencies = {
   rateLimitStore: createPostgresSiteFeedbackRateLimitStore(),
   createFeedback,
+  queueNotification,
+  logNotificationFailure,
+  scheduleAfterResponse: after,
 }
 
 export async function handleSiteFeedbackPost(
@@ -155,13 +229,23 @@ export async function handleSiteFeedbackPost(
       .get('user-agent')
       ?.trim()
       .slice(0, MAX_USER_AGENT_LENGTH)
-    await dependencies.createFeedback({
+    const createdFeedback = await dependencies.createFeedback({
       comment: submission.comment,
       ...(submission.email ? { email: submission.email } : {}),
       sourceUrl: submission.sourceUrl,
       clientAddressDigest: digestSiteFeedbackClientAddress(address),
       ...(userAgent ? { userAgent } : {}),
     })
+
+    if (createdFeedback.shouldNotify) {
+      dependencies.scheduleAfterResponse(async () => {
+        try {
+          await dependencies.queueNotification(createdFeedback.id)
+        } catch {
+          dependencies.logNotificationFailure()
+        }
+      })
+    }
 
     return json({ ok: true }, 201)
   } catch (caught) {

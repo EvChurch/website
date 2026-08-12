@@ -16,6 +16,11 @@ export const isContentLead: Access = ({ req: { user } }) => {
   return Boolean(u?.roles?.includes('admin') || u?.roles?.includes('content-lead'))
 }
 
+export const contentLeadOnlyField: FieldAccess = ({ req: { user } }) => {
+  const u = user as User | null
+  return Boolean(u?.roles?.includes('admin') || u?.roles?.includes('content-lead'))
+}
+
 export const isEditor: Access = ({ req: { user } }) => {
   return hasPayloadAdminRole(user as User | null)
 }

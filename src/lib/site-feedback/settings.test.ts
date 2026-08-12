@@ -17,6 +17,7 @@ describe('loadSiteFeedbackSettings', () => {
     findGlobal.mockResolvedValue({
       feedback: {
         enabled: true,
+        notificationRecipient: 'private-recipient@ev.church',
         bannerCopy: null,
         ctaLabel: null,
         modalTitle: 'Tell us what you think',
@@ -41,8 +42,21 @@ describe('loadSiteFeedbackSettings', () => {
       slug: 'site-settings',
       depth: 0,
       overrideAccess: true,
-      select: { feedback: true },
+      select: {
+        feedback: {
+          enabled: true,
+          bannerCopy: true,
+          ctaLabel: true,
+          modalTitle: true,
+          modalIntro: true,
+          dismissalVersion: true,
+          endDate: true,
+        },
+      },
     })
+    expect(JSON.stringify(await loadSiteFeedbackSettings())).not.toContain(
+      'private-recipient@ev.church',
+    )
   })
 
   it('returns null when disabled or expired at the exact boundary', async () => {

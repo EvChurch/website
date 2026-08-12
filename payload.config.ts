@@ -35,6 +35,10 @@ import { SiteFeedback } from '@/collections/SiteFeedback'
 import { Navigation } from '@/globals/Navigation'
 import { SiteSettings } from '@/globals/SiteSettings'
 import { ServiceGuideSyncState } from '@/globals/ServiceGuideSyncState'
+import {
+  notificationJobConfigs,
+  SITE_FEEDBACK_NOTIFICATION_AUTO_RUN,
+} from '@/jobs/site-feedback-notification'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -131,6 +135,7 @@ export default buildConfig({
 
   jobs: {
     tasks: [
+      ...notificationJobConfigs,
       {
         slug: 'fullSermonSync',
         retries: 2,
@@ -190,6 +195,7 @@ export default buildConfig({
       },
     ],
     autoRun: [
+      SITE_FEEDBACK_NOTIFICATION_AUTO_RUN,
       { cron: '*/15 * * * *', queue: 'default', limit: 10 },
       { cron: '0 6 * * 1', queue: 'pipeline', limit: 5 },
     ],

@@ -72,7 +72,37 @@ describe('SiteSettings global', () => {
           maxLength: 100,
         }),
         expect.objectContaining({ name: 'endDate', type: 'date' }),
+        expect.objectContaining({
+          name: 'notificationRecipient',
+          type: 'email',
+          defaultValue: 'tataihono@ev.church',
+        }),
       ]),
     )
+  })
+
+  it('keeps the notification recipient private to content leads', async () => {
+    const feedback = SiteSettings.fields.find(
+      (field) => 'name' in field && field.name === 'feedback',
+    )
+    if (!feedback || !('fields' in feedback)) {
+      throw new Error('Site Settings feedback group is not configured')
+    }
+
+    const recipient = feedback.fields.find(
+      (field) => 'name' in field && field.name === 'notificationRecipient',
+    )
+    if (!recipient || !('access' in recipient)) {
+      throw new Error('Feedback notification recipient access is not configured')
+    }
+
+    const read = recipient.access?.read
+    expect(typeof read).toBe('function')
+    if (typeof read !== 'function') return
+
+    expect(await read(accessArgs(['admin']))).toBe(true)
+    expect(await read(accessArgs(['content-lead']))).toBe(true)
+    expect(await read(accessArgs(['editor']))).toBe(false)
+    expect(await read(accessArgs())).toBe(false)
   })
 })
