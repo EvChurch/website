@@ -16,6 +16,7 @@ export function ConnectGroupCard({ group }: { group: MemberGroupSummary }) {
   return (
     <Link
       href={`/members/connect-groups/${group.rockGroupId}`}
+      rel="nofollow"
       className="group flex min-h-64 flex-col justify-between overflow-hidden rounded-2xl border border-warm-grey bg-white p-7 shadow-sm transition-all hover:-translate-y-1 hover:border-rich-red/30 hover:shadow-xl hover:shadow-brand-black/5 focus:outline-none focus:ring-4 focus:ring-light-red-2"
     >
       <div>

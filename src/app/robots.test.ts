@@ -1,10 +1,10 @@
-import type { MetadataRoute } from 'next'
+import { describe, expect, it } from 'vitest'
 
-const SITE_URL = 'https://www.ev.church'
+import robots from './robots'
 
-export default function robots(): MetadataRoute.Robots {
-  return {
-    rules: [
+describe('robots', () => {
+  it('keeps authentication and private application routes out of crawler audits', () => {
+    expect(robots().rules).toEqual([
       {
         userAgent: '*',
         allow: '/',
@@ -32,7 +32,6 @@ export default function robots(): MetadataRoute.Robots {
           '/members/',
         ],
       },
-    ],
-    sitemap: `${SITE_URL}/sitemap.xml`,
-  }
-}
+    ])
+  })
+})

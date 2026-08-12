@@ -142,6 +142,7 @@ function ResourceActions({ resource, inverted = false, audience = 'leader' }: {
       {audience === 'leader' && resource.hasLeaderNotes && (
         <a
           href={`/members/connect-group-leader-resources/${resource.rockId}/files/leader-notes`}
+          rel="nofollow"
           className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border px-4 py-2.5 text-sm font-bold transition-colors ${inverted ? secondaryClass : primaryClass}`}
         >
           <FileIcon /> {inverted ? 'Notes' : 'Leader notes'}
@@ -150,6 +151,7 @@ function ResourceActions({ resource, inverted = false, audience = 'leader' }: {
       {resource.hasMemberStudy && (
         <a
           href={`/members/connect-group-leader-resources/${resource.rockId}/files/member-study`}
+          rel="nofollow"
           className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border px-4 py-2.5 text-sm font-bold transition-colors ${secondaryClass}`}
         >
           <FileIcon /> {inverted ? 'Study' : 'Member study'}
@@ -158,6 +160,7 @@ function ResourceActions({ resource, inverted = false, audience = 'leader' }: {
       {audience === 'leader' && !video && !resource.hasLeaderNotes && !resource.hasMemberStudy && (
         <Link
           href={`/members/connect-group-leader-resources/${resource.rockId}`}
+          rel="nofollow"
           className={`inline-flex min-h-11 items-center gap-2 rounded-md px-4 py-2.5 text-sm font-bold transition-colors ${primaryClass}`}
         >
           Open resource <ArrowIcon />
@@ -188,6 +191,7 @@ function LaunchResource({ resource }: { resource: MemberLeaderResource }) {
       <div className="flex flex-wrap items-center gap-4">
         <Link
           href={`/members/connect-group-leader-resources/${resource.rockId}`}
+          rel="nofollow"
           className="inline-flex items-center gap-2 text-sm font-bold text-white hover:underline"
         >
           Open <ArrowIcon />
@@ -225,6 +229,7 @@ function TimelineRows({ resources }: { resources: MemberLeaderResource[] }) {
             <div className="col-start-2 pb-9 sm:col-start-3 sm:row-start-1">
               <Link
                 href={`/members/connect-group-leader-resources/${resource.rockId}`}
+                rel="nofollow"
                 className="text-xl leading-tight text-brand-black transition-colors hover:text-rich-red"
               >
                 {resource.title}
@@ -237,13 +242,13 @@ function TimelineRows({ resources }: { resources: MemberLeaderResource[] }) {
             </div>
             <div className="col-start-2 flex gap-4 pb-9 text-sm font-bold text-rich-red sm:col-start-4 sm:row-start-1 sm:pb-0">
               {resource.hasLeaderNotes && (
-                <a href={`/members/connect-group-leader-resources/${resource.rockId}/files/leader-notes`} className="hover:underline">Notes</a>
+                <a href={`/members/connect-group-leader-resources/${resource.rockId}/files/leader-notes`} rel="nofollow" className="hover:underline">Notes</a>
               )}
               {resource.hasMemberStudy && (
-                <a href={`/members/connect-group-leader-resources/${resource.rockId}/files/member-study`} className="hover:underline">Study</a>
+                <a href={`/members/connect-group-leader-resources/${resource.rockId}/files/member-study`} rel="nofollow" className="hover:underline">Study</a>
               )}
               {!video && !resource.hasLeaderNotes && !resource.hasMemberStudy && (
-                <Link href={`/members/connect-group-leader-resources/${resource.rockId}`} className="hover:underline">Open</Link>
+                <Link href={`/members/connect-group-leader-resources/${resource.rockId}`} rel="nofollow" className="hover:underline">Open</Link>
               )}
             </div>
           </article>
@@ -367,6 +372,7 @@ export function LeaderResourceThisWeek({
             {audience === 'leader' ? (
               <Link
                 href={`/members/connect-group-leader-resources/${primary.rockId}`}
+                rel="nofollow"
                 className="hover:underline"
               >
                 {primary.title}

@@ -100,7 +100,7 @@ export function ReadingHubClient({ readings }: { readings: DailyReadingView[] })
                 Take a few quiet minutes to read today’s passage, reflect on what it means, and pray in response.
               </p>
               <div className="mt-7">
-                <Link href={`/members/daily-readings/${latest.rockId}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-rich-red px-6 text-sm font-bold text-white transition-colors hover:bg-deep-red">
+                <Link href={`/members/daily-readings/${latest.rockId}`} rel="nofollow" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-rich-red px-6 text-sm font-bold text-white transition-colors hover:bg-deep-red">
                   {latestProgress?.completed && <CheckCircleIcon />}
                   {latestProgress?.completed ? 'Read again' : latestProgress ? 'Resume reading' : 'Begin reading'}
                 </Link>
@@ -161,6 +161,7 @@ export function ReadingHubClient({ readings }: { readings: DailyReadingView[] })
                           <Link
                             key={key}
                             href={`/members/daily-readings/${reading.rockId}`}
+                            rel="nofollow"
                             className="group flex min-h-16 items-center gap-4 border-b border-warm-grey/70 py-3 last:border-b-0"
                             aria-label={`${displayDate(reading.sourceDate, true)}: ${reading.passageReference}${readingProgress?.completed ? ', complete' : readingProgress ? ', in progress' : ''}`}
                           >

@@ -222,6 +222,7 @@ export function DailyReadingFlow({ reading }: { reading: DailyReadingView }) {
           </button>
           <Link
             href="/members/daily-readings"
+            rel="nofollow"
             className="group inline-flex min-h-11 items-center gap-2 text-sm font-bold text-rich-red transition-colors hover:text-deep-red focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-rich-red"
           >
             View your progress

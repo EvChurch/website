@@ -214,6 +214,7 @@ export function MemberAccountControl({
     return (
       <a
         href={`/auth/login?returnTo=${returnTo}`}
+        rel="nofollow"
         aria-label="Sign in"
         data-header-account-control={!isDrawer ? true : undefined}
         className={isDrawer
@@ -266,12 +267,14 @@ export function MemberAccountControl({
             <div className="pb-4 pl-4">
               <a
                 href="/members"
+                rel="nofollow"
                 className="block py-2.5 text-sm text-mid-grey transition-colors hover:text-rich-red"
               >
                 Overview
               </a>
               <a
                 href="/members/connect-groups"
+                rel="nofollow"
                 className="block py-2.5 text-sm text-mid-grey transition-colors hover:text-rich-red"
               >
                 Connect Group
@@ -279,6 +282,7 @@ export function MemberAccountControl({
               <div className="my-1 border-t border-warm-grey/30" />
               <a
                 href={`/auth/logout?returnTo=${returnTo}`}
+                rel="nofollow"
                 className="block py-2.5 text-sm text-mid-grey transition-colors hover:text-rich-red"
               >
                 Log out
@@ -503,6 +507,7 @@ function MemberAccountHoverMenu({
               <a
                 key={item.href}
                 href={item.href}
+                rel="nofollow"
                 role="menuitem"
                 className="block px-4 py-2.5 text-sm text-dark-grey transition-all duration-150 hover:bg-warm-white hover:text-rich-red hover:pl-5"
               >
@@ -512,6 +517,7 @@ function MemberAccountHoverMenu({
             <div className="my-1 border-t border-warm-grey/30" />
             <a
               href="/auth/logout"
+              rel="nofollow"
               role="menuitem"
               className="block px-4 py-2.5 text-sm text-rich-red transition-all duration-150 hover:bg-rich-red/10 hover:pl-5"
             >

@@ -44,7 +44,7 @@ export default async function LeaderResourceDetailPage({
 
   return (
     <MemberPortalChrome active="resources" member={home.profile} canAccessLeaderResources={home.canAccessLeaderResources} connectGroupHref={memberConnectGroupHref(home.groups)}>
-      <Link href="/members/connect-group-leader-resources" className="text-sm font-bold text-rich-red hover:underline">Back to all resources</Link>
+      <Link href="/members/connect-group-leader-resources" rel="nofollow" className="text-sm font-bold text-rich-red hover:underline">Back to all resources</Link>
 
       <section className="mt-6 overflow-hidden rounded-xl shadow-xl shadow-brand-black/10">
         <div className="relative overflow-hidden bg-rich-red text-white">
@@ -79,6 +79,7 @@ export default async function LeaderResourceDetailPage({
                 {resource.hasLeaderNotes && (
                   <a
                     href={`/members/connect-group-leader-resources/${resource.rockId}/files/leader-notes`}
+                    rel="nofollow"
                     className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-white/60 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-white/10"
                   >
                     <FileIcon /> Notes
@@ -87,6 +88,7 @@ export default async function LeaderResourceDetailPage({
                 {resource.hasMemberStudy && (
                   <a
                     href={`/members/connect-group-leader-resources/${resource.rockId}/files/member-study`}
+                    rel="nofollow"
                     className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-white/60 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-white/10"
                   >
                     <FileIcon /> Study
