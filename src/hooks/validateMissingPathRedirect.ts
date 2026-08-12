@@ -63,32 +63,29 @@ export const validateMissingPathRedirect: CollectionBeforeChangeHook<MissingPath
   }
 
   if (destination) {
-    const { docs } = await req.payload.find({
+    const where = originalDoc?.id
+      ? {
+          and: [
+            { path: { equals: destination } },
+            { id: { not_equals: originalDoc.id } },
+          ],
+        }
+      : { path: { equals: destination } }
+
+    const { docs: activeSources } = await req.payload.find({
       collection: 'missing-paths',
       depth: 0,
-      limit: 1000,
+      limit: 1,
       overrideAccess: true,
       pagination: false,
       req,
-      select: { path: true, destination: true },
-      where: originalDoc?.id ? { id: { not_equals: originalDoc.id } } : undefined,
+      select: { destination: true },
+      where,
     })
-    const graph = new Map(
-      docs.flatMap((doc) => doc.destination ? [[doc.path, doc.destination] as const] : []),
-    )
 
-    if (graph.has(destination)) {
+    const activeDestination = activeSources[0]?.destination
+    if (typeof activeDestination === 'string' && activeDestination.length > 0) {
       throw invalidRedirect('Redirect destination is already configured as a redirect source.')
-    }
-
-    const visited = new Set<string>()
-    let current: string | undefined = destination
-    while (current) {
-      if (current === source || visited.has(current)) {
-        throw invalidRedirect('Redirect destination would create a redirect loop.')
-      }
-      visited.add(current)
-      current = graph.get(current)
     }
   }
 
