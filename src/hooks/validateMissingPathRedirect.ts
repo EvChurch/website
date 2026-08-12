@@ -1,5 +1,5 @@
 import { sql } from '@payloadcms/db-postgres'
-import { APIError, type CollectionBeforeChangeHook } from 'payload'
+import { APIError, type CollectionBeforeChangeHook, type Where } from 'payload'
 
 import { normalizePublicPath, parseInternalRedirectDestination } from '@/lib/public-paths'
 
@@ -63,7 +63,7 @@ export const validateMissingPathRedirect: CollectionBeforeChangeHook<MissingPath
   }
 
   if (destination) {
-    const where = originalDoc?.id
+    const where: Where = originalDoc?.id
       ? {
           and: [
             { path: { equals: destination } },
