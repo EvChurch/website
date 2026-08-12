@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Metadata, Viewport } from 'next'
-import { Header } from '@/components/layout/Header'
+import { SiteHeader } from '@/components/layout/SiteHeader'
 import { Footer } from '@/components/layout/Footer'
 import { AnnouncementBanner } from '@/components/layout/AnnouncementBanner'
 import { OrganizationJsonLd } from '@/components/seo/OrganizationJsonLd'
@@ -13,6 +13,7 @@ import { isMemberAuthEnabled } from '@/auth/member-auth0-config'
 import { getCurrentMemberProfileState } from '@/auth/member-session'
 import { NextStepsLauncher } from '@/components/launcher/NextStepsLauncher'
 import { loadLauncherData } from '@/lib/launcher/service-guide'
+import { loadSiteFeedbackSettings } from '@/lib/site-feedback/settings'
 import '@/styles/globals.css'
 
 export const metadata: Metadata = {
@@ -71,8 +72,9 @@ export const viewport: Viewport = {
 }
 
 export default async function FrontendLayout({ children }: { children: ReactNode }) {
-  const [launcher, rockProfileState] = await Promise.all([
+  const [launcher, feedback, rockProfileState] = await Promise.all([
     loadLauncherData(),
+    loadSiteFeedbackSettings(),
     isMemberAuthEnabled() ? getCurrentMemberProfileState() : undefined,
   ])
   const memberProfile = rockProfileState === undefined
@@ -100,7 +102,7 @@ export default async function FrontendLayout({ children }: { children: ReactNode
         <MediaPlayerProvider>
           <AnalyticsManager />
           <AnnouncementBanner />
-          <Header memberProfile={memberProfile} />
+          <SiteHeader feedback={feedback} memberProfile={memberProfile} />
           <main>{children}</main>
           <Footer />
           <AudioPlayerSpacer />

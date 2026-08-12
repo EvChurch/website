@@ -28,6 +28,7 @@ import { ServiceGuideItems } from '@/collections/ServiceGuideItems'
 import { ConnectGroupParticipants } from '@/collections/ConnectGroupParticipants'
 import { ConnectGroupLeaderResources } from '@/collections/ConnectGroupLeaderResources'
 import { DailyBibleReadings } from '@/collections/DailyBibleReadings'
+import { SiteFeedback } from '@/collections/SiteFeedback'
 
 // Globals
 import { Navigation } from '@/globals/Navigation'
@@ -87,6 +88,7 @@ export default buildConfig({
     ConnectGroupParticipants,
     ConnectGroupLeaderResources,
     DailyBibleReadings,
+    SiteFeedback,
     Registrations,
     ServiceGuideItems,
     // Synced from resources.ev.church GraphQL API

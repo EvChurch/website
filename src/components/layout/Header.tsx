@@ -338,8 +338,10 @@ function MobileMenu({
 /* ─────────────── Header ─────────────── */
 export function Header({
   memberProfile,
+  topOffset = 0,
 }: {
   memberProfile?: MemberDisplayProfile | null
+  topOffset?: number
 }) {
   const pathname = usePathname()
   const [scrolled, setScrolled] = useState(false)
@@ -411,13 +413,17 @@ export function Header({
       <ScrollProgress />
 
       <header
-        className={`fixed left-0 right-0 top-0 z-50 transition-all duration-300 ${
-          hidden && !mobileOpen ? '-translate-y-full' : 'translate-y-0'
-        } ${
+        className={`fixed left-0 right-0 z-50 transition-[transform,background-color,box-shadow,backdrop-filter] duration-300 ${
           scrolled
             ? 'bg-white/90 shadow-sm shadow-brand-black/5 backdrop-blur-[12px]'
             : 'bg-transparent'
         }`}
+        style={{
+          top: topOffset,
+          transform: hidden && !mobileOpen
+            ? `translateY(calc(-100% - ${topOffset}px))`
+            : 'translateY(0)',
+        }}
       >
         <div className="mx-auto flex h-20 max-w-[80rem] items-center justify-between px-5 lg:h-[100px] lg:px-8">
           {/* Logo */}
