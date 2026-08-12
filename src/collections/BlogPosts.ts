@@ -1,5 +1,7 @@
 import type { CollectionConfig } from 'payload'
+import { revalidateTag } from 'next/cache'
 import { isEditor, publishedOnly } from '@/access/roles'
+import { CACHE_TAGS } from '@/lib/cache-tags'
 
 export const BlogPosts: CollectionConfig = {
   slug: 'blog-posts',
@@ -17,6 +19,10 @@ export const BlogPosts: CollectionConfig = {
     create: isEditor,
     update: isEditor,
     delete: isEditor,
+  },
+  hooks: {
+    afterChange: [() => revalidateTag(CACHE_TAGS.blogPosts, 'default')],
+    afterDelete: [() => revalidateTag(CACHE_TAGS.blogPosts, 'default')],
   },
   fields: [
     {

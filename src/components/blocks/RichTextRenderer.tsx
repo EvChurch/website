@@ -14,7 +14,17 @@ interface LexicalNode {
   newTab?: boolean
   version?: number
   direction?: string
-  fields?: { url?: string; linkType?: string; newTab?: boolean }
+  fields?: {
+    url?: string
+    linkType?: string
+    newTab?: boolean
+    doc?: {
+      relationTo?: string
+      value?: unknown
+    } | null
+  }
+  relationTo?: string
+  value?: unknown
 }
 
 interface LexicalRoot {
@@ -71,7 +81,22 @@ function renderNode(node: LexicalNode, index: number): React.ReactNode {
 
   // Link
   if (node.type === 'link' || node.type === 'autolink') {
-    const href = node.url ?? node.fields?.url ?? '#'
+    const doc = node.fields?.doc
+    const value = doc?.value
+    const slug = value && typeof value === 'object' && 'slug' in value
+      ? (value as { slug?: string }).slug
+      : null
+    const internalHref = slug
+      ? ({
+          pages: slug === 'home' ? '/' : `/${slug}`,
+          'blog-posts': `/blog/${slug}`,
+          events: `/events/${slug}`,
+          campuses: `/campus/${slug}`,
+          sermons: `/sermons/${slug}`,
+          'sermon-series': `/sermons/series/${slug}`,
+        } as Record<string, string>)[doc?.relationTo ?? '']
+      : null
+    const href = internalHref ?? node.url ?? node.fields?.url ?? '#'
     const newTab = node.newTab ?? node.fields?.newTab
     return (
       <a
@@ -82,6 +107,40 @@ function renderNode(node: LexicalNode, index: number): React.ReactNode {
       >
         {children}
       </a>
+    )
+  }
+
+  // Populated upload embedded in rich text
+  if (node.type === 'upload' && node.relationTo === 'media') {
+    if (!node.value || typeof node.value !== 'object') return null
+    const media = node.value as {
+      url?: string | null
+      alt?: string | null
+      width?: number | null
+      height?: number | null
+      mimeType?: string | null
+      filename?: string | null
+    }
+    if (!media.url) return null
+
+    if (!media.mimeType?.startsWith('image/')) {
+      return (
+        <a key={index} href={media.url} rel="noopener noreferrer">
+          {media.filename ?? 'Download file'}
+        </a>
+      )
+    }
+
+    return (
+      <figure key={index} className="my-8">
+        <img
+          src={media.url}
+          alt={media.alt ?? ''}
+          width={media.width ?? undefined}
+          height={media.height ?? undefined}
+          className="h-auto w-full"
+        />
+      </figure>
     )
   }
 
