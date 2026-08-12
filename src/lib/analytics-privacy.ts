@@ -1,17 +1,4 @@
-import { matchesPathPrefix } from './public-paths'
-
-const SENSITIVE_PREFIXES = [
-  '/admin',
-  '/api',
-  '/auth',
-  '/contact',
-  '/give',
-  '/member-auth',
-  '/member-avatar',
-  '/member-sign-in',
-  '/members',
-  '/privacy',
-]
+import { isAnalyticsSensitivePath, matchesPathPrefix } from './public-paths'
 
 const REPLAY_PUBLIC_PREFIXES = [
   '/blog',
@@ -22,7 +9,7 @@ const REPLAY_PUBLIC_PREFIXES = [
 ]
 
 export function canTrackAnalyticsPath(pathname: string): boolean {
-  return !SENSITIVE_PREFIXES.some((prefix) => matchesPathPrefix(pathname, prefix))
+  return !isAnalyticsSensitivePath(pathname)
 }
 
 export function canReplayPath(pathname: string): boolean {

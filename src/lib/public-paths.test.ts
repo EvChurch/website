@@ -38,6 +38,10 @@ describe('public path policy', () => {
     it.each([
       '/members',
       '/members/connect-groups/123',
+      '/contact',
+      '/contact/pastoral-care',
+      '/give',
+      '/privacy',
       '/admin',
       '/api/health',
       '/auth/login',
@@ -62,8 +66,25 @@ describe('public path policy', () => {
       '/memberships',
       '/administrator',
       '/apiary',
+      '/authorization',
+      '/contactless',
+      '/giveaway',
+      '/privacy-policy',
     ])('keeps eligible or prefix-lookalike path %s', (pathname) => {
       expect(isEligiblePublicPath(pathname)).toBe(true)
+    })
+  })
+
+  describe('trusted public path header transport', () => {
+    it.each([
+      ['/māori/whānau', '%2Fm%C4%81ori%2Fwh%C4%81nau'],
+      ['/church/教会', '%2Fchurch%2F%E6%95%99%E4%BC%9A'],
+    ])('round trips %s through an ASCII-safe value', async (path, encoded) => {
+      const { decodePublicPathHeader, encodePublicPathHeader } = await import(
+        './public-paths'
+      )
+      expect(encodePublicPathHeader(path)).toBe(encoded)
+      expect(decodePublicPathHeader(encoded)).toBe(path)
     })
   })
 

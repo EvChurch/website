@@ -56,8 +56,18 @@ describe('admin Auth0 proxy', () => {
     expect(getSession).not.toHaveBeenCalled()
     expect(middleware).not.toHaveBeenCalled()
     expect(findRedirect).toHaveBeenCalledWith('/events')
-    expect(response.headers.get('x-middleware-request-x-ev-public-path')).toBe('/events')
+    expect(response.headers.get('x-middleware-request-x-ev-public-path')).toBe('%2Fevents')
   })
+
+  it.each(['/administrator', '/apiary', '/authorization'])(
+    'keeps prefix-lookalike route %s public',
+    async (pathname) => {
+    const response = await proxy(new NextRequest(`https://www.ev.church${pathname}`))
+    expect(response.status).toBe(200)
+    expect(middleware).not.toHaveBeenCalled()
+    expect(findRedirect).toHaveBeenCalledWith(pathname)
+    },
+  )
 
   it('redirects slash and query variants immediately', async () => {
     findRedirect.mockResolvedValue('/kids')
@@ -92,13 +102,47 @@ describe('admin Auth0 proxy', () => {
     const response = await proxy(new NextRequest('https://www.ev.church/real/', {
       headers: { 'x-ev-public-path': '/spoofed' },
     }))
-    expect(response.headers.get('x-middleware-request-x-ev-public-path')).toBe('/real')
+    expect(response.headers.get('x-middleware-request-x-ev-public-path')).toBe('%2Freal')
+  })
+
+  it.each([
+    ['/māori/whānau', '%2Fm%C4%81ori%2Fwh%C4%81nau'],
+    ['/教会', '%2F%E6%95%99%E4%BC%9A'],
+  ])('encodes Unicode public path %s for trusted header transport', async (pathname, encoded) => {
+    const response = await proxy(new NextRequest(`https://www.ev.church${pathname}`))
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-middleware-request-x-ev-public-path')).toBe(encoded)
+  })
+
+  it('fails open and logs only a sanitized category and path when redirect lookup rejects', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    findRedirect.mockRejectedValue(new Error('password=secret'))
+
+    const response = await proxy(
+      new NextRequest('https://www.ev.church/old?token=sensitive'),
+    )
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-middleware-request-x-ev-public-path')).toBe('%2Fold')
+    expect(error).toHaveBeenCalledWith({
+      category: 'missing-path-redirect-lookup-failed',
+      path: '/old',
+    })
+    expect(JSON.stringify(error.mock.calls)).not.toContain('secret')
+    expect(JSON.stringify(error.mock.calls)).not.toContain('sensitive')
+    error.mockRestore()
   })
 
   it('dispatches Auth0 routes to the shared Auth0 client', async () => {
     getSession.mockResolvedValue(null)
     await proxy(new NextRequest('https://www.ev.church/auth/login'))
     expect(middleware).toHaveBeenCalledOnce()
+  })
+
+  it('dispatches API children to the shared Auth0 client', async () => {
+    await proxy(new NextRequest('https://www.ev.church/api/health'))
+    expect(middleware).toHaveBeenCalledOnce()
+    expect(findRedirect).not.toHaveBeenCalled()
   })
 
   it('returns a private 503 when an Auth0 route cannot run', async () => {

@@ -63,7 +63,7 @@ export const validateMissingPathRedirect: CollectionBeforeChangeHook<MissingPath
   }
 
   if (destination) {
-    const where: Where = originalDoc?.id
+    const destinationAsSourceWhere: Where = originalDoc?.id
       ? {
           and: [
             { path: { equals: destination } },
@@ -80,12 +80,36 @@ export const validateMissingPathRedirect: CollectionBeforeChangeHook<MissingPath
       pagination: false,
       req,
       select: { destination: true },
-      where,
+      where: destinationAsSourceWhere,
     })
 
     const activeDestination = activeSources[0]?.destination
     if (typeof activeDestination === 'string' && activeDestination.length > 0) {
       throw invalidRedirect('Redirect destination is already configured as a redirect source.')
+    }
+
+    const sourceAsDestinationWhere: Where = originalDoc?.id
+      ? {
+          and: [
+            { destination: { equals: source } },
+            { id: { not_equals: originalDoc.id } },
+          ],
+        }
+      : { destination: { equals: source } }
+
+    const { docs: reverseEdges } = await req.payload.find({
+      collection: 'missing-paths',
+      depth: 0,
+      limit: 1,
+      overrideAccess: true,
+      pagination: false,
+      req,
+      select: { destination: true },
+      where: sourceAsDestinationWhere,
+    })
+
+    if (reverseEdges.length > 0) {
+      throw invalidRedirect('Missing path is already configured as a redirect destination.')
     }
   }
 

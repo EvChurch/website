@@ -1,12 +1,14 @@
-const EXCLUDED_PUBLIC_PREFIXES = [
-  '/_next',
+const ANALYTICS_SENSITIVE_PREFIXES = [
   '/admin',
   '/api',
   '/auth',
+  '/contact',
+  '/give',
   '/member-auth',
   '/member-avatar',
   '/member-sign-in',
   '/members',
+  '/privacy',
 ] as const
 
 const METADATA_PATHS = new Set([
@@ -26,6 +28,12 @@ export const PUBLIC_PATH_HEADER = 'x-ev-public-path'
 
 export function matchesPathPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`)
+}
+
+export function isAnalyticsSensitivePath(pathname: string): boolean {
+  return ANALYTICS_SENSITIVE_PREFIXES.some((prefix) =>
+    matchesPathPrefix(pathname, prefix),
+  )
 }
 
 function pathnameFromInput(input: string): string | null {
@@ -76,9 +84,22 @@ export function isEligiblePublicPath(input: string): boolean {
   if (!pathname) return false
   if (METADATA_PATHS.has(pathname) || FILE_LIKE_SEGMENT.test(pathname)) return false
 
-  return !EXCLUDED_PUBLIC_PREFIXES.some((prefix) =>
-    matchesPathPrefix(pathname, prefix),
-  )
+  return !matchesPathPrefix(pathname, '/_next') && !isAnalyticsSensitivePath(pathname)
+}
+
+export function encodePublicPathHeader(input: string): string | null {
+  const pathname = normalizePublicPath(input)
+  return pathname ? encodeURIComponent(pathname) : null
+}
+
+export function decodePublicPathHeader(input: string): string | null {
+  let decoded: string
+  try {
+    decoded = decodeURIComponent(input)
+  } catch {
+    return null
+  }
+  return normalizePublicPath(decoded)
 }
 
 export function parseInternalRedirectDestination(input: string): string | null {

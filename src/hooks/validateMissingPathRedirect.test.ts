@@ -30,6 +30,33 @@ function hookArgs({
   }
 }
 
+function graphHookArgs(records: Array<{ id: number; path: string; destination?: string | null }>) {
+  const execute = vi.fn().mockResolvedValue(undefined)
+  const find = vi.fn(async ({ where }: { where: Record<string, unknown> }) => {
+    const serialized = JSON.stringify(where)
+    const docs = records.filter((record) => {
+      if (serialized.includes(`\"path\":{\"equals\":\"${record.path}\"}`)) return true
+      return typeof record.destination === 'string' &&
+        serialized.includes(`\"destination\":{\"equals\":\"${record.destination}\"}`)
+    })
+    return { docs: docs.slice(0, 1) }
+  })
+
+  const args = (data: Record<string, unknown>) => ({
+    data,
+    operation: 'create',
+    req: {
+      transactionID: Promise.resolve('tx-1'),
+      payload: {
+        db: { sessions: { 'tx-1': { db: { execute } } } },
+        find,
+      },
+    },
+  }) as never
+
+  return { args, find }
+}
+
 describe('validateMissingPathRedirect', () => {
   it('normalizes a valid source and destination under an advisory lock', async () => {
     const { args, execute } = hookArgs({ data: { path: '/old/', destination: '/kids/' } })
@@ -66,5 +93,21 @@ describe('validateMissingPathRedirect', () => {
     const { args } = hookArgs({ data: { path: '/old', destination: '/kids' } })
     ;(args as { req: { transactionID: Promise<undefined> } }).req.transactionID = Promise.resolve(undefined)
     await expect(validateMissingPathRedirect(args)).rejects.toMatchObject({ status: 503 })
+  })
+
+  it('rejects a reverse-edge chain across sequential saves under validation', async () => {
+    const records: Array<{ id: number; path: string; destination?: string | null }> = []
+    const { args } = graphHookArgs(records)
+
+    const first = await validateMissingPathRedirect(args({
+      path: '/old',
+      destination: '/middle',
+    }))
+    records.push({ id: 1, ...first } as never)
+
+    await expect(validateMissingPathRedirect(args({
+      path: '/middle',
+      destination: '/new',
+    }))).rejects.toBeInstanceOf(APIError)
   })
 })

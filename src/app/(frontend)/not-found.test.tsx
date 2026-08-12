@@ -32,6 +32,16 @@ describe('frontend not found boundary', () => {
     expect(mocks.after).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['%2Fm%C4%81ori%2Fwh%C4%81nau', '/māori/whānau'],
+    ['%2F%E6%95%99%E4%BC%9A', '/教会'],
+  ])('decodes trusted header %s before recording', async (header, path) => {
+    mocks.headers.mockResolvedValue(new Headers({ 'x-ev-public-path': header }))
+    mocks.after.mockImplementation((callback: () => unknown) => callback())
+    renderToStaticMarkup(await NotFound())
+    expect(mocks.record).toHaveBeenCalledWith(path)
+  })
+
   it('keeps rendering when a scheduled recording rejects', async () => {
     mocks.headers.mockResolvedValue(new Headers({ 'x-ev-public-path': '/old' }))
     mocks.after.mockImplementation((callback: () => Promise<unknown>) => {

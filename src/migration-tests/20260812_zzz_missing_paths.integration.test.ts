@@ -92,6 +92,30 @@ describe.skipIf(!databaseUrl)('MissingPaths migration on PostgreSQL', () => {
     })
     expect(afterDelete.totalDocs).toBe(0)
 
+    const firstRedirect = await payload.create({
+      collection: 'missing-paths',
+      data: {
+        path: '/migration-chain-old',
+        count: 1,
+        destination: '/migration-chain-middle',
+      },
+      overrideAccess: true,
+    })
+    await expect(payload.create({
+      collection: 'missing-paths',
+      data: {
+        path: '/migration-chain-middle',
+        count: 1,
+        destination: '/migration-chain-new',
+      },
+      overrideAccess: true,
+    })).rejects.toMatchObject({ status: 400 })
+    await payload.delete({
+      collection: 'missing-paths',
+      id: firstRedirect.id,
+      overrideAccess: true,
+    })
+
     const args = { db: migrationDb, payload, req: {} } as never
     await missingPathsDown(args)
     const rolledDown = await payload.db.drizzle.execute(
