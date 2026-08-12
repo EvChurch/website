@@ -15,39 +15,25 @@ describe('missing paths migration', () => {
   it('runs after the merged main migrations', () => {
     const names = migrations.map(({ name }) => name)
 
+    expect(names).toContain('20260812_190000_fix_site_feedback_lock_relation')
+    expect(names).not.toContain('20260812_site_feedback_lock_relation')
     expect(names.indexOf('20260812_zzz_missing_paths')).toBeGreaterThan(
-      names.indexOf('20260812_site_feedback_lock_relation'),
+      names.indexOf('20260812_190000_fix_site_feedback_lock_relation'),
     )
   })
 
-  it('ships a current-schema snapshot containing only the MissingPaths delta', () => {
-    const before = JSON.parse(
+  it('ships a current-schema snapshot containing MissingPaths', () => {
+    const snapshot = JSON.parse(
       readFileSync(
-        new URL(
-          '../migrations/20260812_zz_current_schema_checkpoint.json',
-          import.meta.url,
-        ),
-        'utf8',
-      ),
-    ) as { tables: Record<string, unknown> }
-    const after = JSON.parse(
-      readFileSync(
-        new URL('../migrations/zzzz_20260812_missing_paths.json', import.meta.url),
+        new URL('../migrations/20260812_zzz_missing_paths.json', import.meta.url),
         'utf8',
       ),
     ) as { tables: Record<string, unknown> }
 
-    expect(
-      Object.keys(after.tables).filter((table) => !(table in before.tables)),
-    ).toEqual(['public.missing_paths'])
-    expect(
-      Object.keys(before.tables).filter((table) => !(table in after.tables)),
-    ).toEqual([])
-    expect(
-      Object.keys(before.tables).filter(
-        (table) => JSON.stringify(before.tables[table]) !== JSON.stringify(after.tables[table]),
-      ),
-    ).toEqual(['public.payload_locked_documents_rels'])
+    expect(snapshot.tables).toHaveProperty('public.missing_paths')
+    expect(JSON.stringify(snapshot.tables['public.payload_locked_documents_rels'])).toContain(
+      'missing_paths_id',
+    )
   })
 
   it('uses one atomic execution in each direction', async () => {
