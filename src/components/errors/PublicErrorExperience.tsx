@@ -21,7 +21,10 @@ export function PublicErrorExperience({
   actions,
 }: PublicErrorExperienceProps) {
   return (
-    <section className="bg-warm-white px-5 py-24 lg:px-8 lg:py-32">
+    <section
+      className="bg-warm-white px-5 py-24 lg:px-8 lg:py-32"
+      data-public-error-experience
+    >
       <div className="mx-auto max-w-2xl py-12 text-center sm:py-20">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rich-red">
           {eyebrow}

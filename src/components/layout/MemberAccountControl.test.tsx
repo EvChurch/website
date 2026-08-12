@@ -52,6 +52,7 @@ describe('MemberAccountControl', () => {
       '/auth/login?returnTo=%2Fsermons%3Fcampus%3D2',
     )
     expect(link?.className).toContain('min-h-10')
+    expect(link?.hasAttribute('data-header-account-control')).toBe(true)
     expect(link?.querySelector('[data-member-sign-in-icon]')).not.toBeNull()
     expect(link?.querySelector('circle')).not.toBeNull()
     expect(container.textContent).not.toContain('Aroha')
@@ -70,6 +71,8 @@ describe('MemberAccountControl', () => {
       .filter((btn) => btn.getAttribute('aria-label')?.includes('Open account for'))
       .filter((btn) => btn.getAttribute('aria-haspopup') === 'true')
     expect(hoverTriggers).toHaveLength(2)
+    expect(hoverTriggers.every((trigger) => trigger.hasAttribute('data-header-account-control')))
+      .toBe(true)
     expect(hoverTriggers[0]?.getAttribute('aria-controls')).not.toBe(
       hoverTriggers[1]?.getAttribute('aria-controls'),
     )
@@ -348,6 +351,18 @@ describe('MemberAccountControl', () => {
         .toContain('text-brand-black')
     },
   )
+
+  it('uses dark navigation when a public error page has no background', async () => {
+    await act(async () => root.render(<Header />))
+
+    expect(container.querySelector('header[data-public-site-header]')).not.toBeNull()
+    expect(container.querySelector('header a[href="/events"][data-header-nav-item]'))
+      .not.toBeNull()
+    expect(container.querySelector('header a[href="/give"][data-header-give]'))
+      .not.toBeNull()
+    expect(container.querySelector('header button[aria-label="Open menu"][data-header-menu]'))
+      .not.toBeNull()
+  })
 
   it('keeps light navigation over the daily readings archive hero', async () => {
     navigation.pathname = '/daily-readings'
