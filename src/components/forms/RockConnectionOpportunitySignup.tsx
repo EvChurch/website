@@ -438,6 +438,7 @@ export function RockConnectionOpportunitySignup({
   const contextReady = Boolean(contextToken)
   return (
     <form
+      data-analytics-sensitive
       aria-label={schema.opportunityName}
       className="space-y-8"
       onSubmit={async (event) => {

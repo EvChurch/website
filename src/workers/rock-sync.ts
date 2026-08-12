@@ -6,6 +6,7 @@ import {
   type RockSyncLockResult,
 } from '@/lib/rock-sync-lock'
 import { destroyPayloadClient } from '@/lib/payload'
+import { notifyHeartbeat } from '@/lib/better-stack-heartbeat'
 import { runFullSync, type SyncResult } from '@/sync/sync-runner'
 
 const MAX_RUNTIME_MS = 14 * 60 * 1000
@@ -22,6 +23,18 @@ type LockRunner = (
 type WorkerDependencies = {
   runSync?: () => Promise<SyncResult[]>
   withLock?: LockRunner
+}
+
+export async function notifyCompletedWorker(
+  result: WorkerResult,
+  notify: typeof notifyHeartbeat = notifyHeartbeat,
+): Promise<void> {
+  if (result.status === 'completed') {
+    await notify(
+      process.env.BETTER_STACK_ROCK_SYNC_HEARTBEAT_URL,
+      'success',
+    )
+  }
 }
 
 export async function runRockSyncWorker({
@@ -61,11 +74,15 @@ export async function waitForPayloadCleanup({
 
 async function main() {
   const startedAt = Date.now()
-  const watchdog = setTimeout(() => {
+  const watchdog = setTimeout(async () => {
     console.error(JSON.stringify({
       message: 'Rock sync exceeded its maximum runtime',
       durationMs: Date.now() - startedAt,
     }))
+    await notifyHeartbeat(
+      process.env.BETTER_STACK_ROCK_SYNC_HEARTBEAT_URL,
+      'failure',
+    )
     process.exit(1)
   }, MAX_RUNTIME_MS)
   watchdog.unref()
@@ -80,6 +97,7 @@ async function main() {
       durationMs: Date.now() - startedAt,
       ...result,
     }))
+    await notifyCompletedWorker(result)
   } finally {
     const cleanedUp = await waitForPayloadCleanup()
     if (!cleanedUp) {
@@ -95,15 +113,18 @@ async function main() {
 export async function runWorkerEntrypoint({
   run = main,
   exit = process.exit,
+  notify = notifyHeartbeat,
 }: {
   run?: () => Promise<void>
   exit?: (code: number) => void
+  notify?: typeof notifyHeartbeat
 } = {}): Promise<void> {
   try {
     await run()
     exit(0)
   } catch (error: unknown) {
     console.error(error instanceof Error ? error.message : String(error))
+    await notify(process.env.BETTER_STACK_ROCK_SYNC_HEARTBEAT_URL, 'failure')
     exit(1)
   }
 }

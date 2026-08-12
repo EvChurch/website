@@ -4,7 +4,7 @@ import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { AnnouncementBanner } from '@/components/layout/AnnouncementBanner'
 import { OrganizationJsonLd } from '@/components/seo/OrganizationJsonLd'
-import { GoogleAnalytics } from '@/components/seo/GoogleAnalytics'
+import { AnalyticsManager } from '@/components/seo/AnalyticsManager'
 import { MediaPlayerProvider } from '@/components/media/MediaPlayerProvider'
 import { VideoContainer } from '@/components/media/VideoContainer'
 import { AudioPlayerBar } from '@/components/audio/AudioPlayerBar'
@@ -98,7 +98,7 @@ export default async function FrontendLayout({ children }: { children: ReactNode
       </head>
       <body className="bg-brand-black font-sans text-brand-black antialiased">
         <MediaPlayerProvider>
-          <GoogleAnalytics />
+          <AnalyticsManager />
           <AnnouncementBanner />
           <Header memberProfile={memberProfile} />
           <main>{children}</main>

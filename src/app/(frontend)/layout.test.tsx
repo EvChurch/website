@@ -38,8 +38,8 @@ vi.mock('@/components/layout/AnnouncementBanner', () => ({
 vi.mock('@/components/seo/OrganizationJsonLd', () => ({
   OrganizationJsonLd: () => null,
 }))
-vi.mock('@/components/seo/GoogleAnalytics', () => ({
-  GoogleAnalytics: () => null,
+vi.mock('@/components/seo/AnalyticsManager', () => ({
+  AnalyticsManager: () => null,
 }))
 vi.mock('@/components/media/MediaPlayerProvider', () => ({
   MediaPlayerProvider: ({ children }: { children: React.ReactNode }) => children,

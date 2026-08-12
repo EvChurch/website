@@ -37,6 +37,7 @@
     "payload": "3.87.1",
     "pg": "8.22.0",
     "postcss": "8.5.26",
+    "posthog-js": "^1.415.6",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-icons": "5.7.0",

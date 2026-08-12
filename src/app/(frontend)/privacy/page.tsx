@@ -58,7 +58,10 @@ export default function PrivacyPage() {
               <li>Information provided when registering for events or programs</li>
               <li>Prayer requests and pastoral care information</li>
               <li>Donation and financial information (processed securely by third-party providers)</li>
-              <li>Website usage data collected via cookies and analytics tools</li>
+              <li>
+                Website usage data collected via Google Analytics and PostHog, including
+                privacy-masked replays of selected anonymous public-page sessions
+              </li>
             </ul>
           </div>
 
@@ -123,9 +126,12 @@ export default function PrivacyPage() {
               7. Cookies
             </h2>
             <p className="mt-4">
-              Our website may use cookies and similar tracking technologies to enhance
-              your browsing experience. You can control cookie settings through your
-              browser preferences.
+              We use Google Analytics to measure website traffic, page visits, and general usage
+              patterns. We use PostHog to understand how people use public pages, identify errors,
+              and review privacy-masked session replays so we can improve the website. Analytics
+              are disabled on member, sign-in, giving, contact, pastoral-care, and other sensitive
+              journeys. PostHog masks page text and inputs, blocks form contents from replay, and
+              respects browser Do Not Track settings.
             </p>
           </div>
 
