@@ -85,6 +85,7 @@ export function TurnstileWidget({
       script.addEventListener('error', failed, { once: true })
       loadTimeout = setTimeout(failed, 15_000)
       if (!existing) {
+        script.crossOrigin = 'anonymous'
         script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
         script.async = true
         script.defer = true
