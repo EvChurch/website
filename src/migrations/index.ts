@@ -22,6 +22,7 @@ import * as migration_20260811_daily_bible_readings from './20260811_daily_bible
 import * as migration_20260811_home_daily_reading_block from './20260811_home_daily_reading_block';
 import * as migration_20260812_daily_bible_readings_api_bible from './20260812_daily_bible_readings_api_bible';
 import * as migration_20260812_site_feedback from './20260812_site_feedback';
+import * as migration_20260812_190000_fix_site_feedback_lock_relation from './20260812_190000_fix_site_feedback_lock_relation';
 
 export const migrations = [
   {
@@ -67,7 +68,7 @@ export const migrations = [
   {
     up: migration_20260803_110431_rock_form_embed.up,
     down: migration_20260803_110431_rock_form_embed.down,
-    name: '20260803_110431_rock_form_embed'
+    name: '20260803_110431_rock_form_embed',
   },
   {
     up: migration_20260804_rock_connection_signup.up,
@@ -143,5 +144,10 @@ export const migrations = [
     up: migration_20260812_site_feedback.up,
     down: migration_20260812_site_feedback.down,
     name: '20260812_site_feedback',
+  },
+  {
+    up: migration_20260812_190000_fix_site_feedback_lock_relation.up,
+    down: migration_20260812_190000_fix_site_feedback_lock_relation.down,
+    name: '20260812_190000_fix_site_feedback_lock_relation',
   },
 ];

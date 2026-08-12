@@ -14840,7 +14840,8 @@
           "columns": [
             "bucket_digest",
             "window_started_at"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
