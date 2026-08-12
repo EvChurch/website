@@ -1,10 +1,26 @@
-'use client'
-
+import { useEffect, useRef } from 'react'
 import Script from 'next/script'
 
-const GA_ID = process.env.NEXT_PUBLIC_GA_ID
+export const GA_ID = process.env.NEXT_PUBLIC_GA_ID
 
-export function GoogleAnalytics() {
+declare global {
+  interface Window {
+    dataLayer?: unknown[]
+    gtag?: (...args: unknown[]) => void
+  }
+}
+
+export function GoogleAnalytics({ pagePath }: { pagePath: string }) {
+  const initialPagePath = useRef(pagePath)
+
+  useEffect(() => {
+    if (pagePath === initialPagePath.current) return
+    window.gtag?.('event', 'page_view', {
+      page_location: `${window.location.origin}${pagePath}`,
+      page_path: pagePath,
+    })
+  }, [pagePath])
+
   if (!GA_ID) {
     return null
   }
@@ -18,9 +34,13 @@ export function GoogleAnalytics() {
       <Script id="google-analytics" strategy="afterInteractive">
         {`
           window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
+          window.gtag = function(){dataLayer.push(arguments);}
           gtag('js', new Date());
-          gtag('config', '${GA_ID}');
+          gtag('config', '${GA_ID}', { send_page_view: false });
+          gtag('event', 'page_view', {
+            page_location: window.location.origin + '${pagePath}',
+            page_path: '${pagePath}'
+          });
         `}
       </Script>
     </>

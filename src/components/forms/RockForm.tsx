@@ -777,6 +777,7 @@ export function RockForm({
 
   return (
     <form
+      data-analytics-sensitive
       className="space-y-8"
       onSubmit={async (event) => {
         event.preventDefault()
