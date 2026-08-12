@@ -5,6 +5,12 @@ import { getAuth0Client } from '@/auth/auth0-client'
 import { getAuth0SessionFromHeaders } from '@/auth/auth0-session'
 import { readAuth0Config } from '@/auth/auth0-config'
 import { safeAdminReturnTo } from '@/auth/safe-admin-return'
+import { findMissingPathRedirect } from '@/lib/missing-paths'
+import {
+  isEligiblePublicPath,
+  normalizePublicPath,
+  PUBLIC_PATH_HEADER,
+} from '@/lib/public-paths'
 
 export async function proxy(request: NextRequest) {
   const isAdminAuthRoute =
@@ -12,13 +18,25 @@ export async function proxy(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/auth/')
   const isAdminRoute = request.nextUrl.pathname.startsWith('/admin')
   const isAdminApiRoute = request.nextUrl.pathname.startsWith('/api')
+  const normalizedPath = normalizePublicPath(request.nextUrl.pathname)
+  const isEligiblePath = normalizedPath !== null && isEligiblePublicPath(normalizedPath)
 
   if (
     !isAdminAuthRoute &&
     !isAdminRoute &&
     !isAdminApiRoute
   ) {
-    return NextResponse.next()
+    if (!isEligiblePath) {
+      const requestHeaders = new Headers(request.headers)
+      requestHeaders.delete(PUBLIC_PATH_HEADER)
+      return NextResponse.next({ request: { headers: requestHeaders } })
+    }
+    const destination = await findMissingPathRedirect(normalizedPath)
+    if (destination) return NextResponse.redirect(new URL(destination, request.url))
+
+    const requestHeaders = new Headers(request.headers)
+    requestHeaders.set(PUBLIC_PATH_HEADER, normalizedPath)
+    return NextResponse.next({ request: { headers: requestHeaders } })
   }
 
   let response: NextResponse
@@ -50,8 +68,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/auth/:path*',
-    '/admin/:path*',
-    '/api/:path*',
+    '/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|robots.txt|sitemap.xml|manifest.webmanifest).*)',
   ],
 }

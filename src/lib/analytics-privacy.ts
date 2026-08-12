@@ -1,3 +1,5 @@
+import { matchesPathPrefix } from './public-paths'
+
 const SENSITIVE_PREFIXES = [
   '/admin',
   '/api',
@@ -18,10 +20,6 @@ const REPLAY_PUBLIC_PREFIXES = [
   '/hs',
   '/sermons',
 ]
-
-function matchesPathPrefix(pathname: string, prefix: string): boolean {
-  return pathname === prefix || pathname.startsWith(`${prefix}/`)
-}
 
 export function canTrackAnalyticsPath(pathname: string): boolean {
   return !SENSITIVE_PREFIXES.some((prefix) => matchesPathPrefix(pathname, prefix))

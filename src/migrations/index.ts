@@ -21,6 +21,7 @@ import * as migration_20260811_143500_ev_kids_ages_1_to_12 from './20260811_1435
 import * as migration_20260811_daily_bible_readings from './20260811_daily_bible_readings';
 import * as migration_20260811_home_daily_reading_block from './20260811_home_daily_reading_block';
 import * as migration_20260812_daily_bible_readings_api_bible from './20260812_daily_bible_readings_api_bible';
+import * as migration_20260812_missing_paths from './20260812_missing_paths';
 
 export const migrations = [
   {
@@ -137,5 +138,10 @@ export const migrations = [
     up: migration_20260812_daily_bible_readings_api_bible.up,
     down: migration_20260812_daily_bible_readings_api_bible.down,
     name: '20260812_daily_bible_readings_api_bible',
+  },
+  {
+    up: migration_20260812_missing_paths.up,
+    down: migration_20260812_missing_paths.down,
+    name: '20260812_missing_paths',
   },
 ];
