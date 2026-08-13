@@ -40,7 +40,7 @@ export function SiteHeader({ feedback, memberProfile }: {
 
   const visible = feedback !== null && !dismissed
   return <>
-    {visible && <div className="fixed left-0 right-0 top-0 z-[52]"><FeedbackStrip stripRef={stripRef} settings={feedback} onDismiss={dismiss} /></div>}
+    {visible && <div className="fixed left-0 right-0 top-0 z-[52]"><FeedbackStrip stripRef={stripRef} settings={feedback} signedInEmail={memberProfile?.email} onDismiss={dismiss} /></div>}
     <Header memberProfile={memberProfile} topOffset={visible ? stripHeight : 0} />
     {visible && (
       <div

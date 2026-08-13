@@ -12,6 +12,7 @@ export const SiteFeedback: CollectionConfig = {
   admin: {
     useAsTitle: 'comment',
     defaultColumns: [
+      'resolutionStatus',
       'comment',
       'email',
       'sourceUrl',
@@ -37,6 +38,23 @@ export const SiteFeedback: CollectionConfig = {
       name: 'email',
       label: 'Email',
       type: 'email',
+      required: true,
+    },
+    {
+      name: 'resolutionStatus',
+      label: 'Resolution status',
+      type: 'select',
+      required: true,
+      defaultValue: 'new',
+      index: true,
+      options: [
+        { label: 'New', value: 'new' },
+        { label: 'Planned', value: 'planned' },
+        { label: 'In progress', value: 'in-progress' },
+        { label: 'Resolved', value: 'resolved' },
+        { label: 'Won’t fix', value: 'wont-fix' },
+      ],
+      admin: { position: 'sidebar' },
     },
     {
       name: 'sourceUrl',

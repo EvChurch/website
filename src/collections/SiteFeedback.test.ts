@@ -28,7 +28,14 @@ describe('SiteFeedback collection', () => {
 
   it('defines the bounded submission and server-owned metadata contract', () => {
     expect(SiteFeedback.admin).toMatchObject({
-      defaultColumns: ['comment', 'email', 'sourceUrl', 'postHogReplayUrl', 'createdAt'],
+      defaultColumns: [
+        'resolutionStatus',
+        'comment',
+        'email',
+        'sourceUrl',
+        'postHogReplayUrl',
+        'createdAt',
+      ],
       useAsTitle: 'comment',
     })
 
@@ -40,7 +47,21 @@ describe('SiteFeedback collection', () => {
           required: true,
           maxLength: 4_000,
         }),
-        expect.objectContaining({ name: 'email', type: 'email' }),
+        expect.objectContaining({ name: 'email', type: 'email', required: true }),
+        expect.objectContaining({
+          name: 'resolutionStatus',
+          type: 'select',
+          defaultValue: 'new',
+          required: true,
+          index: true,
+          options: [
+            { label: 'New', value: 'new' },
+            { label: 'Planned', value: 'planned' },
+            { label: 'In progress', value: 'in-progress' },
+            { label: 'Resolved', value: 'resolved' },
+            { label: 'Won\u2019t fix', value: 'wont-fix' },
+          ],
+        }),
         expect.objectContaining({
           name: 'sourceUrl',
           type: 'text',

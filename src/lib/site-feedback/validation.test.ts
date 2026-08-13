@@ -25,7 +25,7 @@ function valid(overrides: Record<string, unknown> = {}) {
 }
 
 describe('site feedback validation', () => {
-  it('normalizes a bounded submission and omits an empty optional email', () => {
+  it('normalizes a bounded submission with its required email', () => {
     expect(
       validateSiteFeedbackSubmission(
         valid(),
@@ -42,24 +42,6 @@ describe('site feedback validation', () => {
         'https://us.posthog.com/project/test-token/replay/019ff7cd-46fd-725b-9590-cfceaf201eb3?t=42',
       turnstileToken: 'visitor-token',
     })
-
-    expect(
-      validateSiteFeedbackSubmission(
-        valid({
-          email: '   ',
-          postHogReplayUrl: undefined,
-        }),
-        origin,
-        'https://us.posthog.com',
-        'test-token',
-      ),
-    ).toEqual(
-      expect.not.objectContaining({
-        email: expect.anything(),
-        postHogSessionId: expect.anything(),
-        postHogReplayUrl: expect.anything(),
-      }),
-    )
   })
 
   it.each([
@@ -72,6 +54,8 @@ describe('site feedback validation', () => {
       valid({ comment: 'x'.repeat(MAX_FEEDBACK_COMMENT_LENGTH + 1) }),
     ],
     ['a non-string email', valid({ email: 42 })],
+    ['a missing email', valid({ email: undefined })],
+    ['a blank email', valid({ email: '   ' })],
     ['an invalid email', valid({ email: 'not-an-email' })],
     [
       'an oversized email',

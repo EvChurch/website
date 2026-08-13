@@ -72,7 +72,7 @@ const EMAIL_PATTERN =
 
 export type ValidSiteFeedbackSubmission = {
   comment: string
-  email?: string
+  email: string
   sourceUrl: string
   postHogSessionId?: string
   postHogReplayUrl?: string
@@ -116,8 +116,8 @@ export function validateSiteFeedbackSubmission(
     MAX_FEEDBACK_COMMENT_LENGTH,
     true,
   )
-  const email = boundedString(input.email ?? '', MAX_FEEDBACK_EMAIL_LENGTH, false)
-  if (email && !EMAIL_PATTERN.test(email)) invalid()
+  const email = boundedString(input.email, MAX_FEEDBACK_EMAIL_LENGTH, true)
+  if (!EMAIL_PATTERN.test(email)) invalid()
 
   const rawSourceUrl = boundedString(
     input.sourceUrl,
@@ -163,7 +163,7 @@ export function validateSiteFeedbackSubmission(
 
   return {
     comment,
-    ...(email ? { email } : {}),
+    email,
     sourceUrl: sourceUrl.href,
     ...(postHogReplay
       ? {

@@ -1,8 +1,8 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildConfig, type CollectionConfig } from 'payload'
+import { buildConfig, type CollectionConfig, type GlobalConfig } from 'payload'
 import { postgresAdapter } from '@payloadcms/db-postgres'
-import { mcpPlugin } from '@payloadcms/plugin-mcp'
+import { mcpPlugin, type MCPPluginConfig } from '@payloadcms/plugin-mcp'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { s3Storage } from '@payloadcms/storage-s3'
 import sharp from 'sharp'
@@ -59,6 +59,52 @@ export function restrictMcpApiKeyCollection(
   }
 }
 
+export const applicationCollections: CollectionConfig[] = [
+  Users,
+  Media,
+  Pages,
+  BlogPosts,
+  Announcements,
+  Campuses,
+  TeamMembers,
+  Events,
+  ConnectGroups,
+  ConnectGroupParticipants,
+  ConnectGroupLeaderResources,
+  DailyBibleReadings,
+  MissingPaths,
+  SiteFeedback,
+  Registrations,
+  ServiceGuideItems,
+  SermonSeries,
+  Sermons,
+  Speakers,
+  Topics,
+  Categories,
+  Scriptures,
+  SermonAudio,
+]
+
+export const applicationGlobals: GlobalConfig[] = [
+  Navigation,
+  SiteSettings,
+  ServiceGuideSyncState,
+]
+
+function enableMcpEntities<T extends { slug: string }>(entities: T[]) {
+  return Object.fromEntries(
+    entities.map(({ slug }) => [slug, { enabled: true as const }]),
+  )
+}
+
+export const mcpCollections = enableMcpEntities(applicationCollections) satisfies NonNullable<
+  MCPPluginConfig['collections']
+>
+
+export const mcpGlobals = enableMcpEntities(applicationGlobals) satisfies NonNullable<
+  MCPPluginConfig['globals']
+>
+
 const payloadSecret = process.env.PAYLOAD_SECRET?.trim()
 if (
   process.env.NODE_ENV === 'production' &&
@@ -93,43 +139,14 @@ export default buildConfig({
 
   sharp,
 
-  collections: [
-    // Auth + media
-    Users,
-    Media,
-    // Content (block editor)
-    Pages,
-    BlogPosts,
-    Announcements,
-    // Synced from Rock RMS
-    Campuses,
-    TeamMembers,
-    Events,
-    ConnectGroups,
-    ConnectGroupParticipants,
-    ConnectGroupLeaderResources,
-    DailyBibleReadings,
-    MissingPaths,
-    SiteFeedback,
-    Registrations,
-    ServiceGuideItems,
-    // Synced from resources.ev.church GraphQL API
-    SermonSeries,
-    Sermons,
-    Speakers,
-    Topics,
-    Categories,
-    Scriptures,
-    SermonAudio,
-  ],
+  collections: [...applicationCollections],
 
-  globals: [Navigation, SiteSettings, ServiceGuideSyncState],
+  globals: [...applicationGlobals],
 
   plugins: [
     mcpPlugin({
-      collections: {
-        pages: { enabled: true },
-      },
+      collections: mcpCollections,
+      globals: mcpGlobals,
       overrideApiKeyCollection: restrictMcpApiKeyCollection,
     }),
     ...(process.env.S3_BUCKET

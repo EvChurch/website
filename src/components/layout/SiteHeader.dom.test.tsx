@@ -146,4 +146,24 @@ describe('SiteHeader geometry and dismissal', () => {
     getItem.mockRestore()
     setItem.mockRestore()
   })
+
+  it('passes the signed-in member email to feedback', async () => {
+    await act(async () =>
+      root.render(
+        <SiteHeader
+          feedback={settings}
+          memberProfile={{
+            name: 'Aroha Ngata',
+            email: 'aroha@example.com',
+            avatarUrl: null,
+          }}
+        />,
+      ),
+    )
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('button[data-feedback-trigger]')!.click(),
+    )
+
+    expect(container.querySelector('input[name="email"]')).toBeNull()
+  })
 })
