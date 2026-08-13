@@ -151,16 +151,21 @@ export async function getPublicLeaderResourceShare(token: string): Promise<Publi
   }
 }
 
-export async function getPublicLeaderResourceAsset(token: string, kind: 'notes' | 'avatar') {
+export async function getPublicLeaderResourceAsset(token: string, kind: 'notes' | 'study' | 'avatar') {
   if (!isLeaderResourceShareToken(token)) return null
   const payload = (await getPayloadClient()) as unknown as SharingPayload
   const share = await findShare(payload, { token: { equals: token } })
   if (!share) return null
-  const collection = kind === 'notes' ? 'connect-group-leader-resources' : 'connect-group-participants'
-  const where = kind === 'notes'
+  const isResourceFile = kind === 'notes' || kind === 'study'
+  const collection = isResourceFile ? 'connect-group-leader-resources' : 'connect-group-participants'
+  const where = isResourceFile
     ? { rockId: { equals: share.resourceRockId } }
     : { rockPersonId: { equals: share.sharerRockPersonId } }
-  const select = kind === 'notes' ? { leaderNotesFile: true } : { photoId: true }
+  const select = kind === 'notes'
+    ? { leaderNotesFile: true }
+    : kind === 'study'
+      ? { memberStudyFile: true }
+      : { photoId: true }
   const result = await payload.find({ collection, depth: 0, limit: 1, pagination: false, overrideAccess: true, select, where })
   const item = record(result.docs[0])
   if (!item) return null
@@ -168,7 +173,7 @@ export async function getPublicLeaderResourceAsset(token: string, kind: 'notes' 
     const photoId = positiveInteger(item.photoId)
     return photoId ? { kind, photoId } as const : null
   }
-  const file = record(item.leaderNotesFile)
+  const file = record(kind === 'notes' ? item.leaderNotesFile : item.memberStudyFile)
   const guid = text(file?.guid)
   const name = text(file?.name)
   return guid && name ? { kind, guid: guid.toLowerCase(), name } as const : null

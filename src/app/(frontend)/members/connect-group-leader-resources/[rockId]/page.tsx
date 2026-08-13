@@ -86,12 +86,6 @@ export default async function LeaderResourceDetailPage({
                     <FileIcon /> Notes
                   </a>
                 )}
-                {(video || resource.hasLeaderNotes) && (
-                  <LeaderResourceShareButton
-                    rockId={resource.rockId}
-                    className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-white/60 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-white/10"
-                  />
-                )}
                 {resource.hasMemberStudy && (
                   <a
                     href={`/members/connect-group-leader-resources/${resource.rockId}/files/member-study`}
@@ -100,6 +94,12 @@ export default async function LeaderResourceDetailPage({
                   >
                     <FileIcon /> Study
                   </a>
+                )}
+                {(video || resource.hasLeaderNotes) && (
+                  <LeaderResourceShareButton
+                    rockId={resource.rockId}
+                    className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-white/60 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-white/10"
+                  />
                 )}
               </div>
             )}

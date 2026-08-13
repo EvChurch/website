@@ -26,10 +26,10 @@ export function LeaderResourceShareButton({ rockId, className = '' }: { rockId: 
     }
   }
 
-  return <span className="inline-flex flex-col items-start gap-2">
+  return <span className="inline-flex items-center gap-2">
     <button type="button" disabled={state === 'loading'} onClick={share} className={className}>
       <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/></svg>
-      {state === 'loading' ? 'Preparing…' : 'Share link'}
+      {state === 'loading' ? 'Preparing…' : 'Share'}
     </button>
     <span aria-live="polite" className="text-xs font-normal">
       {state === 'copied' && 'Link copied'}

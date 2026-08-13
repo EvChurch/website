@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { headers } from 'next/headers'
 import type { Metadata, Viewport } from 'next'
 import { SiteHeader } from '@/components/layout/SiteHeader'
+import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { AnnouncementBanner } from '@/components/layout/AnnouncementBanner'
 import { OrganizationJsonLd } from '@/components/seo/OrganizationJsonLd'
@@ -77,7 +78,15 @@ export default async function FrontendLayout({ children }: { children: ReactNode
   if (isSharedResource) {
     return (
       <html lang="en">
-        <body className="bg-warm-white font-sans text-brand-black antialiased">{children}</body>
+        <head>
+          <link rel="preconnect" href="https://use.typekit.net" crossOrigin="anonymous" />
+          <link rel="dns-prefetch" href="https://use.typekit.net" />
+        </head>
+        <body className="bg-warm-white font-sans text-brand-black antialiased">
+          <Header />
+          <main>{children}</main>
+          <Footer />
+        </body>
       </html>
     )
   }

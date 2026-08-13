@@ -10,6 +10,9 @@ const mocks = vi.hoisted(() => ({
     items: [],
   }),
   loadSiteFeedbackSettings: vi.fn().mockResolvedValue(null),
+  sharedResource: false,
+  header: vi.fn(() => null),
+  footer: vi.fn(() => null),
   siteHeader: vi.fn((_props: {
     feedback: unknown
     memberProfile?: {
@@ -21,7 +24,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('next/headers', () => ({
-  headers: async () => new Headers(),
+  headers: async () => new Headers(mocks.sharedResource ? { 'x-ev-shared-resource': '1' } : undefined),
 }))
 
 vi.mock('@/auth/member-auth0-config', () => ({
@@ -40,7 +43,8 @@ vi.mock('@/components/launcher/NextStepsLauncher', () => ({
   NextStepsLauncher: () => null,
 }))
 vi.mock('@/components/layout/SiteHeader', () => ({ SiteHeader: mocks.siteHeader }))
-vi.mock('@/components/layout/Footer', () => ({ Footer: () => null }))
+vi.mock('@/components/layout/Header', () => ({ Header: mocks.header }))
+vi.mock('@/components/layout/Footer', () => ({ Footer: mocks.footer }))
 vi.mock('@/components/layout/AnnouncementBanner', () => ({
   AnnouncementBanner: () => null,
 }))
@@ -63,7 +67,21 @@ describe('FrontendLayout member account state', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.enabled = false
+    mocks.sharedResource = false
     mocks.loadSiteFeedbackSettings.mockResolvedValue(null)
+  })
+
+  it('keeps the normal header and footer around shared resources without loading visitor services', async () => {
+    mocks.sharedResource = true
+
+    renderToStaticMarkup(await FrontendLayout({ children: <section>Shared resource</section> }))
+
+    expect(mocks.header).toHaveBeenCalledOnce()
+    expect(mocks.footer).toHaveBeenCalledOnce()
+    expect(mocks.siteHeader).not.toHaveBeenCalled()
+    expect(mocks.loadSiteFeedbackSettings).not.toHaveBeenCalled()
+    expect(mocks.loadLauncherData).not.toHaveBeenCalled()
+    expect(mocks.getCurrentMemberProfileState).not.toHaveBeenCalled()
   })
 
   it('loads visitor-facing feedback settings into the composed header', async () => {
