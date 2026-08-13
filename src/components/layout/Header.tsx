@@ -84,6 +84,7 @@ function isActive(pathname: string, href: string): boolean {
 function needsDarkHeaderAtTop(pathname: string): boolean {
   return pathname === '/privacy'
     || pathname === '/blog'
+    || pathname.startsWith('/members')
     || pathname.startsWith('/daily-readings/')
 }
 

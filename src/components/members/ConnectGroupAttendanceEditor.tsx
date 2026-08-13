@@ -31,7 +31,7 @@ export function ConnectGroupAttendanceEditor({
   people: AttendancePerson[]
 }) {
   const [meetingIndex, setMeetingIndex] = useState(() => Math.max(0, meetings.findIndex((meeting) => sameMeeting(meeting, initialMeeting.identity))))
-  const [meeting, setMeeting] = useState(initialMeeting)
+  const [meeting, setMeeting] = useState(() => markUnrecordedPresent(initialMeeting))
   const [message, setMessage] = useState<string | null>(null)
   const [loadFailed, setLoadFailed] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -62,7 +62,7 @@ export function ConnectGroupAttendanceEditor({
         setMessage('This meeting could not be loaded. Reload the page and try again.')
         return
       }
-      setMeeting(loaded)
+      setMeeting(markUnrecordedPresent(loaded))
     })
   }
 
@@ -111,6 +111,18 @@ export function ConnectGroupAttendanceEditor({
         </select>
       </div>
 
+      <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-warm-grey bg-white px-4 py-3 font-bold text-brand-black">
+        <input
+          name="didNotMeet"
+          type="checkbox"
+          checked={meeting.didNotMeet}
+          disabled={isPending || loadFailed}
+          onChange={(event) => setMeeting((current) => ({ ...current, didNotMeet: event.target.checked }))}
+          className="h-5 w-5 accent-rich-red"
+        />
+        Group did not meet
+      </label>
+
       {isPending && <p role="status" aria-live="polite" className="text-sm text-mid-grey">Updating attendance…</p>}
 
       <div className="overflow-hidden rounded-xl border border-warm-grey bg-white" aria-busy={isPending}>
@@ -135,18 +147,6 @@ export function ConnectGroupAttendanceEditor({
           </fieldset>
         ))}
       </div>
-
-      <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-warm-grey bg-white px-4 py-3 font-bold text-brand-black">
-        <input
-          name="didNotMeet"
-          type="checkbox"
-          checked={meeting.didNotMeet}
-          disabled={isPending || loadFailed}
-          onChange={(event) => setMeeting((current) => ({ ...current, didNotMeet: event.target.checked }))}
-          className="h-5 w-5 accent-rich-red"
-        />
-        Group did not meet
-      </label>
 
       <div>
         <label htmlFor="meeting-notes" className="mb-2 block text-sm font-bold text-brand-black">Meeting notes</label>
@@ -177,4 +177,14 @@ function sameMeeting(left: AttendanceMeetingIdentity, right: AttendanceMeetingId
 
 function formattedDate(date: string) {
   return new Intl.DateTimeFormat('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00.000Z`))
+}
+
+function markUnrecordedPresent(meeting: ConnectGroupAttendanceMeeting) {
+  return {
+    ...meeting,
+    marks: Object.fromEntries(Object.entries(meeting.marks).map(([personId, state]) => [
+      personId,
+      state === 'unrecorded' ? 'present' : state,
+    ])) as Record<number, AttendanceMarkState>,
+  }
 }

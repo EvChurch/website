@@ -49,10 +49,11 @@ describe('ConnectGroupAttendanceEditor', () => {
     expect(Array.from(container.querySelectorAll<HTMLInputElement>('input[type="radio"]')).every((input) => input.closest('fieldset')?.disabled)).toBe(true)
   })
 
-  it('blocks saving while any existing mark is unrecorded', async () => {
+  it('defaults unrecorded roster members to present', async () => {
     await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first]} initialMeeting={{ ...selected, marks: { 1: 'present', 2: 'unrecorded' } }} people={people} />))
-    expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true)
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain('mark every person')
+    expect(container.querySelector<HTMLInputElement>('input[name="person-2"][value="present"]')?.checked).toBe(true)
+    expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false)
+    expect(container.textContent).toContain('2 present')
   })
 
   it('ignores stale meeting responses and keeps save disabled while loading', async () => {

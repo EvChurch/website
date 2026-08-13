@@ -348,7 +348,7 @@ describe('MemberAccountControl', () => {
     expect(container.querySelector('a[href="/explaining-christianity"]')).not.toBeNull()
   })
 
-  it.each(['/daily-readings/16160', '/privacy', '/blog'])(
+  it.each(['/daily-readings/16160', '/privacy', '/blog', '/members/connect-groups/29043/attendance'])(
     'uses dark navigation at the top of the light page %s',
     async (pathname) => {
       navigation.pathname = pathname

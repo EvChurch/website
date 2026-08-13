@@ -42,7 +42,7 @@ export default async function ConnectGroupAttendancePage({
   }
 
   return (
-    <main className="min-h-screen bg-warm-white px-5 py-8 sm:px-8 sm:py-12">
+    <main className="min-h-screen bg-warm-white px-5 pb-8 pt-28 sm:px-8 sm:pb-12 lg:pt-32">
       <div className="mx-auto max-w-3xl">
         <Link
           href={`/members/connect-groups/${context.group.rockGroupId}`}
