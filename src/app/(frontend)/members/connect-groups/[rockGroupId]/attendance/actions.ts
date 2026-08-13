@@ -80,9 +80,7 @@ export async function saveAttendanceAction(
     rockGroupId,
     context.actorRockPersonId,
   )
-  if (!liveContext) {
-    return rejected('Your current Rock leadership could not be verified. Reload before trying again.')
-  }
+  if (!liveContext) return rejected('Your current Rock leadership could not be verified. Reload before trying again.')
 
   const canonical = await canonicalMeeting(rockGroupId, liveContext.rosterRockPersonIds, input.meeting)
   if (!canonical) return rejected('That meeting is no longer available. Reload before trying again.')
@@ -99,19 +97,17 @@ export async function saveAttendanceAction(
     rockPersonId,
     state: input.marks[rockPersonId],
   }))
-  if (!input.didNotMeet && roster.some((person) => person.state !== 'present' && person.state !== 'absent')) {
+  if (roster.some((person) => person.state !== 'present' && person.state !== 'absent')) {
     return rejected('Mark every person present or absent before saving.')
   }
 
   return saveConnectGroupAttendanceMeeting({
     groupId: rockGroupId,
     meeting: canonical,
-    roster: input.didNotMeet
-      ? []
-      : roster.map((person) => ({
-          rockPersonId: person.rockPersonId,
-          state: person.state as 'present' | 'absent',
-        })),
+    roster: roster.map((person) => ({
+      rockPersonId: person.rockPersonId,
+      state: person.state as 'present' | 'absent',
+    })),
     notes: input.notes,
     didNotMeet: input.didNotMeet,
   })

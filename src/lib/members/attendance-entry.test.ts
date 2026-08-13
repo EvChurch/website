@@ -152,24 +152,35 @@ describe('Connect Group attendance entry', () => {
   })
 
   it('proves live leadership and returns the current Rock roster', async () => {
-    mocks.rockFetchAll.mockResolvedValueOnce([{
-      Id: 10,
-      Members: [
+    mocks.rockFetchAll
+      .mockResolvedValueOnce([{ Id: 10 }])
+      .mockResolvedValueOnce([
         { Id: 1, GroupId: 10, GroupMemberStatus: 1, IsArchived: false, Person: { Id: 42 }, GroupRole: { IsLeader: true } },
         { Id: 2, GroupId: 10, GroupMemberStatus: 1, IsArchived: false, Person: { Id: 84 }, GroupRole: { IsLeader: false } },
-      ],
-    }])
+      ])
 
     await expect(getLiveAttendanceWriteContext(10, 42)).resolves.toEqual({
       rosterRockPersonIds: [42, 84],
     })
+    expect(mocks.rockFetchAll).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      endpoint: 'Groups',
+      params: { $filter: 'Id eq 10 and IsActive eq true', $select: 'Id' },
+    }))
+    expect(mocks.rockFetchAll).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      endpoint: 'GroupMembers',
+      params: expect.objectContaining({
+        $filter: "GroupId eq 10 and GroupMemberStatus eq 'Active' and IsArchived eq false",
+        $expand: 'Person,GroupRole',
+      }),
+    }))
   })
 
   it('denies a current non-leader at the live Rock boundary', async () => {
-    mocks.rockFetchAll.mockResolvedValueOnce([{
-      Id: 10,
-      Members: [{ Id: 1, GroupId: 10, GroupMemberStatus: 1, IsArchived: false, Person: { Id: 42 }, GroupRole: { IsLeader: false } }],
-    }])
+    mocks.rockFetchAll
+      .mockResolvedValueOnce([{ Id: 10 }])
+      .mockResolvedValueOnce([
+        { Id: 1, GroupId: 10, GroupMemberStatus: 1, IsArchived: false, Person: { Id: 42 }, GroupRole: { IsLeader: false } },
+      ])
     await expect(getLiveAttendanceWriteContext(10, 42)).resolves.toBeNull()
   })
 
@@ -227,7 +238,7 @@ describe('Connect Group attendance entry', () => {
     expect(mocks.rockFetch).not.toHaveBeenCalledWith(expect.objectContaining({ endpoint: 'Attendances', method: 'POST' }))
   })
 
-  it('clears all attached marks for did-not-meet, including hidden visitors', async () => {
+  it('clears roster marks for did-not-meet without changing hidden visitors', async () => {
     mocks.rockFetchAll
       .mockResolvedValueOnce([{ Id: 99, GroupId: 10, ScheduleId: 20, LocationId: null, OccurrenceDate: meeting.date }])
       .mockResolvedValueOnce([{ Id: 42, PrimaryAliasId: 142 }])
@@ -240,6 +251,8 @@ describe('Connect Group attendance entry', () => {
         { Id: 1, OccurrenceId: 99, PersonAliasId: 142, DidAttend: true },
         { Id: 9, OccurrenceId: 99, PersonAliasId: 999, DidAttend: true },
       ])
+      .mockResolvedValueOnce([{ Id: 42, PrimaryAliasId: 142 }])
+      .mockResolvedValueOnce([{ Id: 999, PersonId: 9999 }])
       .mockResolvedValueOnce([{ Id: 99, GroupId: 10, ScheduleId: 20, LocationId: null, OccurrenceDate: meeting.date, DidNotOccur: true }])
       .mockResolvedValueOnce([{ Id: 42, PrimaryAliasId: 142 }])
       .mockResolvedValueOnce([{ Id: 1, OccurrenceId: 99, PersonAliasId: 142, DidAttend: null }])
@@ -248,7 +261,8 @@ describe('Connect Group attendance entry', () => {
     await expect(saveConnectGroupAttendanceMeeting({
       groupId: 10, meeting, roster: [{ rockPersonId: 42, state: 'present' }], notes: '', didNotMeet: true,
     })).resolves.toMatchObject({ status: 'saved', state: { didNotMeet: true } })
-    expect(mocks.rockFetch).toHaveBeenCalledWith(expect.objectContaining({ endpoint: 'Attendances/9', method: 'PUT' }))
+    expect(mocks.rockFetch).toHaveBeenCalledWith(expect.objectContaining({ endpoint: 'Attendances/1', method: 'PUT' }))
+    expect(mocks.rockFetch).not.toHaveBeenCalledWith(expect.objectContaining({ endpoint: 'Attendances/9', method: 'PUT' }))
   })
 
   it('reports unknown mutation outcomes without retrying', async () => {

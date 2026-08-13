@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
+import { HiCheckCircle, HiClipboardDocumentCheck } from 'react-icons/hi2'
 
 import { LeaderResourceThisWeek } from '@/components/members/LeaderResourceTimeline'
 import {
@@ -23,10 +24,13 @@ export const metadata: Metadata = {
 
 export default async function ConnectGroupDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ rockGroupId: string }>
+  searchParams?: Promise<{ attendance?: string }>
 }) {
   const { rockGroupId: rawRockGroupId } = await params
+  const query = await searchParams
   const returnTo = encodeURIComponent(`/members/connect-groups/${rawRockGroupId}`)
   const [home, detail] = await Promise.all([
     getMemberPortalHome(),
@@ -46,10 +50,16 @@ export default async function ConnectGroupDetailPage({
 
   return (
     <MemberPortalChrome active="groups" member={home.profile} canAccessLeaderResources={home.canAccessLeaderResources} connectGroupHref={memberConnectGroupHref(home.groups)}>
+      {query?.attendance === 'saved' && (
+        <div role="status" className="mb-5 flex items-start gap-3 rounded-xl border border-newish-green/30 bg-newish-green/10 px-4 py-3 text-sm font-semibold text-brand-black">
+          <HiCheckCircle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-newish-green" />
+          <p>Attendance saved successfully.</p>
+        </div>
+      )}
       {home.groups.length > 1 && (
         <Link href="/members/connect-groups" rel="nofollow" className="text-sm font-bold text-rich-red hover:underline">Back to your groups</Link>
       )}
-      <div className={`${home.groups.length > 1 ? 'mt-7 ' : ''}pb-10`}>
+      <div className={`${home.groups.length > 1 ? 'mt-7 ' : ''}pb-8`}>
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h2 className="text-4xl leading-tight text-brand-black sm:text-6xl">{detail.group.name}</h2>
@@ -58,8 +68,9 @@ export default async function ConnectGroupDetailPage({
               <Link
                 href={`/members/connect-groups/${detail.group.rockGroupId}/attendance`}
                 rel="nofollow"
-                className="mt-5 inline-flex rounded-lg bg-rich-red px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-black"
+                className="mt-3 inline-flex items-center gap-2 rounded-lg bg-rich-red px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-black"
               >
+                <HiClipboardDocumentCheck aria-hidden="true" className="h-5 w-5 shrink-0" />
                 Record attendance
               </Link>
             )}

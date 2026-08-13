@@ -348,7 +348,7 @@ describe('MemberAccountControl', () => {
     expect(container.querySelector('a[href="/explaining-christianity"]')).not.toBeNull()
   })
 
-  it.each(['/daily-readings/16160', '/privacy', '/blog', '/members/connect-groups/29043/attendance'])(
+  it.each(['/daily-readings/16160', '/privacy', '/blog'])(
     'uses dark navigation at the top of the light page %s',
     async (pathname) => {
       navigation.pathname = pathname
@@ -362,6 +362,16 @@ describe('MemberAccountControl', () => {
         .toContain('text-brand-black')
     },
   )
+
+  it('uses white navigation over the member-area gradient', async () => {
+    navigation.pathname = '/members/connect-groups/29043/attendance'
+    await act(async () => root.render(<Header />))
+
+    expect(container.querySelector('header a[href="/events"]')?.className)
+      .toContain('text-white/90')
+    expect(container.querySelector('header button[aria-label="Open menu"]')?.className)
+      .toContain('text-white')
+  })
 
   it('uses dark navigation when a public error page has no background', async () => {
     await act(async () => root.render(<Header />))

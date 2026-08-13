@@ -282,20 +282,32 @@ export async function getLiveAttendanceWriteContext(
 ): Promise<LiveAttendanceWriteContext | null> {
   validGroupId(groupId)
   if (!positive(actorRockPersonId)) return null
-  const groups = await rockFetchAll<RockGroupWithSchedules & { Members?: RockAttendanceGroupMember[] }>({
+  const groups = await rockFetchAll<Pick<RockGroupWithSchedules, 'Id'>>({
     endpoint: 'Groups',
     getKey: (group) => group.Id,
     params: {
       $filter: `Id eq ${groupId} and IsActive eq true`,
-      $expand: 'Members($expand=Person,GroupRole)',
       $select: 'Id',
     },
     ...REQUEST,
   })
   if (groups.length !== 1) return null
-  const members = (groups[0].Members ?? []).filter((member) =>
+  const memberships = await rockFetchAll<RockAttendanceGroupMember>({
+    endpoint: 'GroupMembers',
+    getKey: (membership) => {
+      if (!positive(membership.Id)) throw new Error('Rock group membership is missing a durable Id')
+      return membership.Id
+    },
+    params: {
+      $filter: `GroupId eq ${groupId} and GroupMemberStatus eq 'Active' and IsArchived eq false`,
+      $expand: 'Person,GroupRole',
+      $orderby: 'Id',
+    },
+    ...REQUEST,
+  })
+  const members = memberships.filter((member) =>
     member.GroupId === groupId && positive(member.Id) && positive(member.Person?.Id) &&
-    member.GroupMemberStatus === 1 && member.IsArchived === false,
+    member.IsArchived === false,
   )
   const actor = members.find((member) => member.Person?.Id === actorRockPersonId)
   if (actor?.GroupRole?.IsLeader !== true) return null
@@ -350,7 +362,19 @@ export async function saveConnectGroupAttendanceMeeting(input: AttendanceSaveInp
       params: { $filter: `OccurrenceId eq ${occurrenceId}`, $orderby: 'Id' }, ...REQUEST,
     })
     if (input.didNotMeet) {
+      const aliases = await aliasesByPerson(rosterIds)
+      const primaryAliasToPerson = new Map([...aliases].map(([personId, aliasId]) => [aliasId, personId]))
+      const primaryAliasIds = new Set(aliases.values())
+      const attendancePeople = await peopleByAlias([...new Set(allAttendances.flatMap((attendance) =>
+        positive(attendance.PersonAliasId) && !primaryAliasIds.has(attendance.PersonAliasId)
+          ? [attendance.PersonAliasId]
+          : [],
+      ))])
       for (const attendance of allAttendances) {
+        const personId = positive(attendance.PersonAliasId)
+          ? primaryAliasToPerson.get(attendance.PersonAliasId) ?? attendancePeople.get(attendance.PersonAliasId)
+          : null
+        if (!personId || !rosterIds.includes(personId)) continue
         mutationStarted = true
         await mutate<void>(`Attendances/${attendance.Id}`, 'PUT', { ...attendance, DidAttend: null })
         mutationCompleted = true

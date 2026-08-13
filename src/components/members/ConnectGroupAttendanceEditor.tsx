@@ -1,6 +1,8 @@
 'use client'
 
 import { useRef, useState, useTransition } from 'react'
+import { HiExclamationTriangle } from 'react-icons/hi2'
+import { useRouter } from 'next/navigation'
 
 import {
   loadAttendanceMeetingAction,
@@ -30,6 +32,7 @@ export function ConnectGroupAttendanceEditor({
   initialMeeting: ConnectGroupAttendanceMeeting
   people: AttendancePerson[]
 }) {
+  const router = useRouter()
   const [meetingIndex, setMeetingIndex] = useState(() => Math.max(0, meetings.findIndex((meeting) => sameMeeting(meeting, initialMeeting.identity))))
   const [meeting, setMeeting] = useState(() => markUnrecordedPresent(initialMeeting))
   const [message, setMessage] = useState<string | null>(null)
@@ -88,8 +91,7 @@ export function ConnectGroupAttendanceEditor({
         return
       }
       if (result.status === 'saved') {
-        setMeeting(result.state)
-        setMessage('Attendance saved.')
+        router.push(`/members/connect-groups/${rockGroupId}?attendance=saved`)
         return
       }
       setMessage(result.message)
@@ -99,9 +101,9 @@ export function ConnectGroupAttendanceEditor({
   return (
     <form action={save} className="space-y-4">
       <div>
-        <label htmlFor="attendance-meeting" className="mb-2 block text-sm font-bold text-brand-black">Meeting</label>
         <select
           id="attendance-meeting"
+          aria-label="Meeting date"
           value={meetingIndex}
           onChange={(event) => selectMeeting(Number(event.target.value))}
           disabled={isPending}
@@ -122,8 +124,6 @@ export function ConnectGroupAttendanceEditor({
         />
         Group did not meet
       </label>
-
-      {isPending && <p role="status" aria-live="polite" className="text-sm text-mid-grey">Updating attendance…</p>}
 
       <div className="overflow-hidden rounded-xl border border-warm-grey bg-white" aria-busy={isPending}>
         {people.map((person) => (
@@ -157,6 +157,13 @@ export function ConnectGroupAttendanceEditor({
         <textarea id="meeting-notes" value={meeting.notes} disabled={isPending || loadFailed} onChange={(event) => setMeeting((current) => ({ ...current, notes: event.target.value }))} rows={3} className="w-full rounded-xl border border-warm-grey bg-white px-4 py-3 text-brand-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-black" />
       </div>
 
+      {message && (
+        <div role="alert" aria-live="assertive" className="flex animate-fade-in items-start gap-3 rounded-xl border border-rich-red/25 bg-rich-red/5 px-4 py-3 text-sm font-semibold text-brand-black motion-reduce:animate-none">
+          <HiExclamationTriangle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-rich-red" />
+          <p>{message}</p>
+        </div>
+      )}
+
       <div aria-live="polite" className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm font-bold text-brand-black">
           {meeting.didNotMeet ? 'No individual attendance' : `${present} present · ${absent} absent${unrecorded ? ` · ${unrecorded} unmarked` : ''}`}
@@ -166,7 +173,6 @@ export function ConnectGroupAttendanceEditor({
         </button>
       </div>
       {!meeting.didNotMeet && unrecorded > 0 && <p role="alert" className="text-sm font-bold text-rich-red">Please mark every person present or absent before saving.</p>}
-      {message && <p role={message === 'Attendance saved.' ? 'status' : 'alert'} aria-live="polite" className="text-sm font-bold text-brand-black">{message}</p>}
     </form>
   )
 }

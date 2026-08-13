@@ -19,6 +19,7 @@ export default async function MembersPage() {
 
   return (
     <MemberPortalChrome
+      active="overview"
       member={home.profile}
       canAccessLeaderResources={home.canAccessLeaderResources}
       connectGroupHref={memberConnectGroupHref(home.groups)}

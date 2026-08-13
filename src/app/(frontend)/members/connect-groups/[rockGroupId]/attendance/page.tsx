@@ -3,8 +3,15 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 
 import { ConnectGroupAttendanceEditor } from '@/components/members/ConnectGroupAttendanceEditor'
+import {
+  memberConnectGroupHref,
+  MemberPortalChrome,
+} from '@/components/members/MemberPortalChrome'
 import { getConnectGroupAttendanceEntry } from '@/lib/members/attendance-entry'
-import { authorizeConnectGroupAttendanceLeader } from '@/lib/members/data'
+import {
+  authorizeConnectGroupAttendanceLeader,
+  getMemberPortalHome,
+} from '@/lib/members/data'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
@@ -21,9 +28,12 @@ export default async function ConnectGroupAttendancePage({
   const returnTo = encodeURIComponent(
     `/members/connect-groups/${rawRockGroupId}/attendance`,
   )
-  const context = await authorizeConnectGroupAttendanceLeader(Number(rawRockGroupId))
+  const [context, home] = await Promise.all([
+    authorizeConnectGroupAttendanceLeader(Number(rawRockGroupId)),
+    getMemberPortalHome(),
+  ])
 
-  if (!context) redirect(`/auth/login?returnTo=${returnTo}`)
+  if (!context || !home) redirect(`/auth/login?returnTo=${returnTo}`)
   if (context.access === 'denied') notFound()
 
   let attendanceEntry = null
@@ -42,22 +52,23 @@ export default async function ConnectGroupAttendancePage({
   }
 
   return (
-    <main className="min-h-screen bg-warm-white px-5 pb-8 pt-28 sm:px-8 sm:pb-12 lg:pt-32">
+    <MemberPortalChrome
+      active="groups"
+      member={home.profile}
+      canAccessLeaderResources={home.canAccessLeaderResources}
+      connectGroupHref={memberConnectGroupHref(home.groups)}
+    >
       <div className="mx-auto max-w-3xl">
+        <h1 className="text-4xl leading-tight text-brand-black sm:text-5xl">
+          Record attendance
+        </h1>
         <Link
           href={`/members/connect-groups/${context.group.rockGroupId}`}
           rel="nofollow"
-          className="text-sm font-bold text-rich-red hover:underline"
+          className="mt-1 inline-block text-base text-mid-grey transition-colors hover:text-rich-red hover:underline sm:text-lg"
         >
-          Back to {context.group.name}
+          {context.group.name}
         </Link>
-        <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-rich-red">
-          Connect Group
-        </p>
-        <h1 className="mt-2 text-4xl leading-tight text-brand-black sm:text-5xl">
-          Record attendance
-        </h1>
-        <p className="mt-2 text-base text-mid-grey sm:text-lg">{context.group.name}</p>
         <div className="mt-7">
           {attendanceEntry?.selectedMeeting ? (
             <ConnectGroupAttendanceEditor
@@ -80,6 +91,6 @@ export default async function ConnectGroupAttendancePage({
           )}
         </div>
       </div>
-    </main>
+    </MemberPortalChrome>
   )
 }

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   authorize: vi.fn(),
+  getMemberPortalHome: vi.fn(),
   getEntry: vi.fn(),
   redirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`)
@@ -14,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/members/data', () => ({
   authorizeConnectGroupAttendanceLeader: mocks.authorize,
+  getMemberPortalHome: mocks.getMemberPortalHome,
 }))
 
 vi.mock('@/lib/members/attendance-entry', () => ({
@@ -61,6 +63,11 @@ const context = {
 describe('group-specific attendance route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.getMemberPortalHome.mockResolvedValue({
+      profile: { personId: 42, name: 'Aroha Ngata', email: 'aroha@example.com', avatarUrl: null },
+      groups: [context.group],
+      canAccessLeaderResources: true,
+    })
     mocks.getEntry.mockResolvedValue({
       meetings: [{
         date: '2026-08-12',
