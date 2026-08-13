@@ -56,13 +56,26 @@ function safeTag(token: string): string {
   )
   const href = hrefMatch ? classifyLauncherHref(hrefMatch[1] ?? hrefMatch[2] ?? '') : null
   if (!href) return '<a>'
-  return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer nofollow">`
+  const isCta = /(?:^|\s)data-launcher-cta(?:\s*=\s*(?:"true"|'true'|true))?(?:\s|$)/i.test(
+    anchorOpen[1],
+  )
+  return `<a href="${escapeHtml(href)}"${isCta ? ' data-launcher-cta="true"' : ''} target="_blank" rel="noopener noreferrer nofollow">`
 }
 
 export function sanitizeLauncherHtml(value: string): string {
+  const withCtaMarkers = value
+    .replace(
+      /<a\b([^>]*\bclass\s*=\s*(?:"[^"]*\blink-button\b[^"]*"|'[^']*\blink-button\b[^']*')[^>]*)>/gi,
+      '<a$1 data-launcher-cta="true">',
+    )
+    .replace(
+      /<p\b[^>]*>\s*(<a\b(?![^>]*data-launcher-cta)[^>]*>[^<]*<\/a>)\s*<\/p>/gi,
+      (paragraph) => paragraph.replace(/<a\b/, '<a data-launcher-cta="true"'),
+    )
+
   // Drop dangerous containers with their content before reconstructing only the
   // small tag allowlist. Everything outside an allowed tag is emitted as text.
-  const withoutDangerousContent = value.replace(
+  const withoutDangerousContent = withCtaMarkers.replace(
     /<(script|style|svg|math|iframe|object|embed|form)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,
     '',
   )
