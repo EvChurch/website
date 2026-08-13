@@ -1,7 +1,8 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildConfig } from 'payload'
+import { buildConfig, type CollectionConfig } from 'payload'
 import { postgresAdapter } from '@payloadcms/db-postgres'
+import { mcpPlugin } from '@payloadcms/plugin-mcp'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { s3Storage } from '@payloadcms/storage-s3'
 import sharp from 'sharp'
@@ -30,6 +31,7 @@ import { ConnectGroupLeaderResources } from '@/collections/ConnectGroupLeaderRes
 import { DailyBibleReadings } from '@/collections/DailyBibleReadings'
 import { MissingPaths } from '@/collections/MissingPaths'
 import { SiteFeedback } from '@/collections/SiteFeedback'
+import { isAdmin } from '@/access/roles'
 
 // Globals
 import { Navigation } from '@/globals/Navigation'
@@ -42,6 +44,20 @@ import {
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
+
+export function restrictMcpApiKeyCollection(
+  collection: CollectionConfig,
+): CollectionConfig {
+  return {
+    ...collection,
+    access: {
+      create: isAdmin,
+      read: isAdmin,
+      update: isAdmin,
+      delete: isAdmin,
+    },
+  }
+}
 
 const payloadSecret = process.env.PAYLOAD_SECRET?.trim()
 if (
@@ -110,6 +126,12 @@ export default buildConfig({
   globals: [Navigation, SiteSettings, ServiceGuideSyncState],
 
   plugins: [
+    mcpPlugin({
+      collections: {
+        pages: { enabled: true },
+      },
+      overrideApiKeyCollection: restrictMcpApiKeyCollection,
+    }),
     ...(process.env.S3_BUCKET
       ? [
           s3Storage({
