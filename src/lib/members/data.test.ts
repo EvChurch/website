@@ -35,6 +35,8 @@ vi.mock('@/lib/members/attendance', () => ({
 }))
 
 import {
+  authorizeConnectGroupAttendanceLeader,
+  getLedConnectGroups,
   getGroupCurrentResources,
   getPublicLeaderResourceImage,
   getMemberGroupDetail,
@@ -200,6 +202,83 @@ describe('member data access', () => {
       groups: [{ rockGroupId: 10, name: 'Tuesday Central Connect', isLeader: true }],
       canAccessLeaderResources: true,
     })
+  })
+
+  it('returns only active groups the member explicitly leads', async () => {
+    const ordinaryGroup = { ...group, id: 6, rockGroupId: 11, name: 'Thursday Connect' }
+    const coachParticipant = {
+      ...participant,
+      isCoach: true,
+      memberships: [
+        ...participant.memberships,
+        {
+          rockGroupId: 11,
+          rockMembershipId: 1002,
+          rockRoleId: 2,
+          roleName: 'Member',
+          isLeader: false,
+        },
+      ],
+    }
+    payloadState.find.mockImplementation(async ({ collection }) => ({
+      docs: collection === 'connect-group-participants'
+        ? [coachParticipant]
+        : collection === 'connect-groups'
+          ? [ordinaryGroup, group]
+          : [],
+    }))
+
+    await expect(getLedConnectGroups()).resolves.toMatchObject({
+      groups: [{ rockGroupId: 10, name: 'Tuesday Central Connect', isLeader: true }],
+    })
+  })
+
+  it('returns a leader-only context with the current active roster', async () => {
+    payloadState.find.mockImplementation(async ({ collection, where }) => {
+      if (
+        collection === 'connect-group-participants' &&
+        where?.['memberships.rockGroupId']
+      ) {
+        return { docs: [participant, otherMember] }
+      }
+      return { docs: payloadDocs(collection) }
+    })
+
+    await expect(authorizeConnectGroupAttendanceLeader(10)).resolves.toMatchObject({
+      access: 'granted',
+      group: { rockGroupId: 10, name: 'Tuesday Central Connect', isLeader: true },
+      people: [
+        { rockPersonId: 42, isLeader: true },
+        { rockPersonId: 84, isLeader: false },
+      ],
+    })
+    expect(attendanceState.fetchConnectGroupAttendance).not.toHaveBeenCalled()
+  })
+
+  it('denies leader context to coaches, ordinary members, and another group leader', async () => {
+    const coachOnly = {
+      ...participant,
+      isCoach: true,
+      memberships: participant.memberships.map((membership) => ({
+        ...membership,
+        roleName: 'Member',
+        isLeader: false,
+      })),
+    }
+    payloadState.find.mockImplementation(async ({ collection }) => ({
+      docs: collection === 'connect-group-participants' ? [coachOnly] : [group],
+    }))
+
+    await expect(authorizeConnectGroupAttendanceLeader(10)).resolves.toEqual({ access: 'denied' })
+    await expect(authorizeConnectGroupAttendanceLeader(11)).resolves.toEqual({ access: 'denied' })
+    await expect(authorizeConnectGroupAttendanceLeader(Number.NaN)).resolves.toEqual({ access: 'denied' })
+  })
+
+  it('returns null attendance leader data when signed out', async () => {
+    memberSession.profile = null
+
+    await expect(getLedConnectGroups()).resolves.toBeNull()
+    await expect(authorizeConnectGroupAttendanceLeader(10)).resolves.toBeNull()
   })
 
   it('returns only people who share the requested active group', async () => {

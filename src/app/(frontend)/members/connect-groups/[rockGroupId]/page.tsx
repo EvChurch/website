@@ -54,6 +54,15 @@ export default async function ConnectGroupDetailPage({
           <div>
             <h2 className="text-4xl leading-tight text-brand-black sm:text-6xl">{detail.group.name}</h2>
             {location && <p className="mt-4 text-sm text-mid-grey">{location}</p>}
+            {detail.group.isLeader && (
+              <Link
+                href={`/members/connect-groups/${detail.group.rockGroupId}/attendance`}
+                rel="nofollow"
+                className="mt-5 inline-flex rounded-lg bg-rich-red px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-black"
+              >
+                Record attendance
+              </Link>
+            )}
           </div>
           {detail.attendance && <ConnectGroupAttendanceSummary attendance={detail.attendance} />}
         </div>

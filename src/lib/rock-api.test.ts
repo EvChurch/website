@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { rockFetchAll } from './rock-api'
+import { rockFetch, rockFetchAll } from './rock-api'
 
 describe('rockFetchAll', () => {
   afterEach(() => {
@@ -37,6 +37,21 @@ describe('rockFetchAll', () => {
         getKey: (item) => item.Id,
       }),
     ).rejects.toThrow('Rock pagination did not advance for ContentChannelItems')
+  })
+})
+
+describe('rockFetch', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it.each([204, 200])('accepts an empty %s response', async (status) => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(null, { status }))
+    await expect(rockFetch<void>({ endpoint: 'Attendances/1', method: 'PUT' })).resolves.toBeUndefined()
+  })
+
+  it('supports JSON mutation responses', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse(42))
+    await expect(rockFetch<number>({ endpoint: 'AttendanceOccurrences', method: 'POST', body: {} }))
+      .resolves.toBe(42)
   })
 })
 

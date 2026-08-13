@@ -90,6 +90,8 @@ describe('ConnectGroupDetailPage', () => {
     }))
 
     expect(markup).toContain('This week (leader): Hebrews Study 4')
+    expect(markup).toContain('href="/members/connect-groups/10/attendance"')
+    expect(markup).toContain('Record attendance')
   })
 
   it('shows the member weekly variant to a non-leader', async () => {
@@ -128,6 +130,7 @@ describe('ConnectGroupDetailPage', () => {
 
     expect(mocks.getGroupCurrentResources).toHaveBeenCalledWith(10, 'central', 'leader')
     expect(markup).toContain('This week (leader): Hebrews Study 4')
+    expect(markup).not.toContain('/attendance')
   })
 
   it('does not show an empty this week banner for a group leader', async () => {

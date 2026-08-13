@@ -12,12 +12,12 @@ type RockRequestOptions = {
   endpoint: string
   params?: Record<string, string>
   retries?: number
-  method?: 'GET' | 'POST'
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body?: unknown
   timeoutMs?: number
 }
 
-class RockAPIError extends Error {
+export class RockAPIError extends Error {
   constructor(
     public status: number,
     public endpoint: string,
@@ -69,7 +69,9 @@ export async function rockFetch<T>({
         )
       }
 
-      return (await response.json()) as T
+      if (response.status === 204) return undefined as T
+      const text = await response.text()
+      return (text ? JSON.parse(text) : undefined) as T
     } catch (error) {
       if (
         error instanceof RockAPIError &&
