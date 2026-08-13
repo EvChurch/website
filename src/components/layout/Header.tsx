@@ -87,6 +87,10 @@ function needsDarkHeaderAtTop(pathname: string): boolean {
     || pathname.startsWith('/daily-readings/')
 }
 
+function isMemberPath(pathname: string) {
+  return pathname === '/members' || pathname.startsWith('/members/')
+}
+
 /* ─────────────── Desktop Dropdown ─────────────── */
 function DesktopDropdown({ item, darkTone, pathname }: { item: NavItem; darkTone: boolean; pathname: string }) {
   const [open, setOpen] = useState(false)
@@ -354,6 +358,7 @@ export function Header({
   const [mobileOpen, setMobileOpen] = useState(false)
   const hasScrolledRef = useRef(false)
   const darkTone = scrolled || needsDarkHeaderAtTop(pathname)
+  const memberPath = isMemberPath(pathname)
 
   // Set correct initial state without transition
   useEffect(() => {
@@ -422,7 +427,9 @@ export function Header({
         className={`fixed left-0 right-0 z-50 transition-[transform,background-color,box-shadow,backdrop-filter] duration-300 ${
           scrolled
             ? 'bg-white/90 shadow-sm shadow-brand-black/5 backdrop-blur-[12px]'
-            : 'bg-transparent'
+            : memberPath
+              ? 'bg-[radial-gradient(circle_at_85%_10%,rgba(226,42,48,0.22),transparent_34%),linear-gradient(135deg,#0f0004,#23080e)]'
+              : 'bg-transparent'
         }`}
         style={{
           top: topOffset,

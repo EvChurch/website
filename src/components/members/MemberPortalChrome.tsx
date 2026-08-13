@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 
 import { MemberAvatar } from './MemberAvatar'
 
-export type MemberSection = 'groups' | 'reading' | 'resources'
+export type MemberSection = 'overview' | 'groups' | 'reading' | 'resources'
 
 export function memberConnectGroupHref(groups: Array<{ rockGroupId: number }>) {
   return groups.length === 1
@@ -25,6 +25,7 @@ export function MemberPortalChrome({
   children: ReactNode
 }) {
   const links = [
+    { key: 'overview' as const, label: 'Overview', href: '/members' },
     { key: 'groups' as const, label: 'Connect Group', href: connectGroupHref },
     { key: 'reading' as const, label: 'Daily Reading', href: '/members/daily-readings' },
     ...(canAccessLeaderResources
@@ -38,22 +39,26 @@ export function MemberPortalChrome({
 
   return (
     <div className="min-h-screen bg-warm-white pb-20">
-      <section className="bg-[radial-gradient(circle_at_85%_10%,rgba(226,42,48,0.22),transparent_34%),linear-gradient(135deg,#0f0004,#23080e)] pb-12 pt-32 text-white sm:pt-36">
-        <div className="mx-auto flex max-w-[80rem] flex-col gap-8 px-5 sm:px-8 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="text-[clamp(3rem,10vw,5.5rem)] leading-[0.9] tracking-[-0.055em] text-white">
-              Kia ora, {member.name.split(/\s+/u)[0]}
-            </h1>
-          </div>
-          <div className="flex max-w-sm items-center gap-4 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur-sm">
-            <MemberAvatar name={member.name} src={member.avatarUrl} size="medium" />
-            <div className="min-w-0">
-              <p className="truncate font-semibold text-white">{member.name}</p>
-              <p className="truncate text-sm text-white/60">{member.email}</p>
+      {active === 'overview' ? (
+        <section className="bg-[radial-gradient(circle_at_85%_10%,rgba(226,42,48,0.22),transparent_34%),linear-gradient(135deg,#0f0004,#23080e)] pb-12 pt-32 text-white sm:pt-36">
+          <div className="mx-auto flex max-w-[80rem] flex-col gap-8 px-5 sm:px-8 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h1 className="text-[clamp(3rem,10vw,5.5rem)] leading-[0.9] tracking-[-0.055em] text-white">
+                Kia ora, {member.name.split(/\s+/u)[0]}
+              </h1>
+            </div>
+            <div className="flex max-w-sm items-center gap-4 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur-sm">
+              <MemberAvatar name={member.name} src={member.avatarUrl} size="medium" />
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-white">{member.name}</p>
+                <p className="truncate text-sm text-white/60">{member.email}</p>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : (
+        <div aria-hidden="true" className="h-20 lg:h-[100px]" />
+      )}
 
       <nav aria-label="Members" className="border-b border-warm-grey bg-white">
         <div className="mx-auto flex max-w-[80rem] gap-7 overflow-x-auto px-5 sm:px-8">
@@ -78,7 +83,7 @@ export function MemberPortalChrome({
         </div>
       </nav>
 
-      <div className="mx-auto max-w-[80rem] px-5 py-12 sm:px-8 sm:py-16">
+      <div className={`mx-auto max-w-[80rem] px-5 sm:px-8 ${active === 'overview' ? 'py-12 sm:py-16' : 'py-7 sm:py-9'}`}>
         {children}
       </div>
     </div>

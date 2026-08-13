@@ -97,6 +97,15 @@ export type MemberGroupDetailResult =
       attendance: GroupAttendanceOverview | null
     }
 
+export type ConnectGroupAttendanceLeaderResult =
+  | { access: 'denied' }
+  | {
+      access: 'granted'
+      group: MemberGroupSummary
+      people: MemberRosterPerson[]
+      actorRockPersonId: number
+    }
+
 export type MemberResourcesResult =
   | { access: 'denied' }
   | {
@@ -312,6 +321,16 @@ export async function getMemberPortalHome(): Promise<MemberPortalHome | null> {
   }
 }
 
+export async function getLedConnectGroups(): Promise<MemberPortalHome | null> {
+  const home = await getMemberPortalHome()
+  if (!home) return null
+
+  return {
+    ...home,
+    groups: home.groups.filter((group) => group.isLeader),
+  }
+}
+
 function toRosterPerson(
   participant: ParticipantRecord,
   membership: ParticipantMembershipRecord,
@@ -429,6 +448,84 @@ export async function getMemberGroupDetail(
   }
 
   return { access: 'granted', group, people, attendance }
+}
+
+export async function authorizeConnectGroupAttendanceLeader(
+  rockGroupId: number,
+): Promise<ConnectGroupAttendanceLeaderResult | null> {
+  if (!positiveInteger(rockGroupId)) return { access: 'denied' }
+  const context = await currentMemberContext()
+  if (!context) return null
+  const currentMembership = context.participant
+    ? membershipFor(context.participant, rockGroupId)
+    : null
+  if (currentMembership?.isLeader !== true) return { access: 'denied' }
+
+  const [groupResult, peopleResult] = await Promise.all([
+    context.payload.find({
+      collection: 'connect-groups',
+      depth: 1,
+      limit: 1,
+      pagination: false,
+      overrideAccess: true,
+      select: {
+        rockGroupId: true,
+        name: true,
+        slug: true,
+        location: true,
+        campus: true,
+        isActive: true,
+      },
+      where: {
+        and: [
+          { rockGroupId: { equals: rockGroupId } },
+          { isActive: { equals: true } },
+        ],
+      },
+    }),
+    context.payload.find({
+      collection: 'connect-group-participants',
+      depth: 0,
+      limit: 0,
+      pagination: false,
+      overrideAccess: true,
+      select: {
+        rockPersonId: true,
+        name: true,
+        email: true,
+        phoneNumbers: true,
+        photoId: true,
+        memberships: true,
+      },
+      where: { 'memberships.rockGroupId': { equals: rockGroupId } },
+    }),
+  ])
+
+  const groupRecord = groupResult.docs[0]
+  if (!groupRecord) return { access: 'denied' }
+  const group = toMemberGroup(groupFrom(groupRecord), currentMembership)
+  if (!group) return { access: 'denied' }
+
+  const people = peopleResult.docs
+    .map(participantFrom)
+    .map((participant) => {
+      const membership = membershipFor(participant, rockGroupId)
+      return membership
+        ? toRosterPerson(participant, membership, context.profile.personId)
+        : null
+    })
+    .filter((person): person is MemberRosterPerson => person !== null)
+    .sort((a, b) => {
+      if (a.isLeader !== b.isLeader) return a.isLeader ? -1 : 1
+      return a.name.localeCompare(b.name)
+    })
+
+  return {
+    access: 'granted',
+    group,
+    people,
+    actorRockPersonId: context.profile.personId,
+  }
 }
 
 function isApprovedResource(resource: ResourceRecord) {

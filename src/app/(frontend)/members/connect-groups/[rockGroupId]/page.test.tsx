@@ -92,6 +92,24 @@ describe('ConnectGroupDetailPage', () => {
     }))
 
     expect(markup).toContain('This week (leader): Hebrews Study 4')
+    expect(markup).toContain('href="/members/connect-groups/10/attendance"')
+    expect(markup).toContain('Record attendance')
+  })
+
+  it('shows attendance success at the top after returning from save', async () => {
+    mocks.getMemberPortalHome.mockResolvedValue({
+      profile,
+      groups: [currentGroup],
+      canAccessLeaderResources: false,
+    })
+
+    const markup = renderToStaticMarkup(await ConnectGroupDetailPage({
+      params: Promise.resolve({ rockGroupId: '10' }),
+      searchParams: Promise.resolve({ attendance: 'saved' }),
+    }))
+
+    expect(markup).toContain('Attendance saved successfully')
+    expect(markup.indexOf('Attendance saved successfully')).toBeLessThan(markup.indexOf(currentGroup.name))
   })
 
   it('shows the member weekly variant to a non-leader', async () => {
@@ -130,6 +148,7 @@ describe('ConnectGroupDetailPage', () => {
 
     expect(mocks.getGroupCurrentResources).toHaveBeenCalledWith(10, 'central', 'leader')
     expect(markup).toContain('This week (leader): Hebrews Study 4')
+    expect(markup).not.toContain('/attendance')
   })
 
   it('does not show an empty this week banner for a group leader', async () => {

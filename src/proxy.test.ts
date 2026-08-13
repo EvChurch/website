@@ -90,6 +90,18 @@ describe('admin Auth0 proxy', () => {
     expect(findRedirect).toHaveBeenCalledWith('/old')
   })
 
+  it('uses configured missing-path data for a legacy attendance link', async () => {
+    findRedirect.mockResolvedValueOnce('/members/connect-groups/attendance')
+
+    const response = await proxy(new NextRequest('https://www.ev.church/page/368'))
+
+    expect(findRedirect).toHaveBeenCalledWith('/page/368')
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe(
+      'https://www.ev.church/members/connect-groups/attendance',
+    )
+  })
+
   it.each([
     '/members/missing',
     '/_next/static/chunk.js',
