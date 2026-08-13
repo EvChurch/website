@@ -6,6 +6,7 @@ import { notFound, redirect } from 'next/navigation'
 import { memberConnectGroupHref, MemberPortalChrome } from '@/components/members/MemberPortalChrome'
 import { formatResourceDates } from '@/components/members/LeaderResourceCard'
 import { LeaderResourceVideoButton } from '@/components/members/LeaderResourceVideoButton'
+import { LeaderResourceShareButton } from '@/components/members/LeaderResourceShareButton'
 import { getMemberPortalHome, getMemberResourceDetail } from '@/lib/members/data'
 import { leaderResourceMedia } from '@/lib/members/leader-resource-media'
 
@@ -84,6 +85,12 @@ export default async function LeaderResourceDetailPage({
                   >
                     <FileIcon /> Notes
                   </a>
+                )}
+                {(video || resource.hasLeaderNotes) && (
+                  <LeaderResourceShareButton
+                    rockId={resource.rockId}
+                    className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-white/60 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-white/10"
+                  />
                 )}
                 {resource.hasMemberStudy && (
                   <a

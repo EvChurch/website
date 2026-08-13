@@ -29,6 +29,7 @@ import * as migration_20260813_120000_feedback_triage_all_mcp from './20260813_1
 import * as migration_20260813_110000_feedback_posthog_replay from './20260813_110000_feedback_posthog_replay';
 import * as migration_20260813_230000_feedback_triage_assessment from './20260813_230000_feedback_triage_assessment';
 import * as migration_20260813_site_feedback_email_notifications from './20260813_site_feedback_email_notifications';
+import * as migration_20260814_leader_resource_shares from './20260814_leader_resource_shares';
 
 export const migrations = [
   {
@@ -185,5 +186,10 @@ export const migrations = [
     up: migration_20260813_230000_feedback_triage_assessment.up,
     down: migration_20260813_230000_feedback_triage_assessment.down,
     name: '20260813_230000_feedback_triage_assessment',
+  },
+  {
+    up: migration_20260814_leader_resource_shares.up,
+    down: migration_20260814_leader_resource_shares.down,
+    name: '20260814_leader_resource_shares',
   },
 ];

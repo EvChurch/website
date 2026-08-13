@@ -26,6 +26,16 @@ export async function proxy(request: NextRequest) {
     !isAdminRoute &&
     !isAdminApiRoute
   ) {
+    if (matchesPathPrefix(request.nextUrl.pathname, '/shared/leader-resources')) {
+      const requestHeaders = new Headers(request.headers)
+      requestHeaders.delete(PUBLIC_PATH_HEADER)
+      requestHeaders.set('x-ev-shared-resource', '1')
+      const sharedResponse = NextResponse.next({ request: { headers: requestHeaders } })
+      sharedResponse.headers.set('Cache-Control', 'private, no-store, max-age=0')
+      sharedResponse.headers.set('Referrer-Policy', 'no-referrer')
+      sharedResponse.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet')
+      return sharedResponse
+    }
     if (!isEligiblePath) {
       const requestHeaders = new Headers(request.headers)
       requestHeaders.delete(PUBLIC_PATH_HEADER)

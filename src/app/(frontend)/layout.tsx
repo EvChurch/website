@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { headers } from 'next/headers'
 import type { Metadata, Viewport } from 'next'
 import { SiteHeader } from '@/components/layout/SiteHeader'
 import { Footer } from '@/components/layout/Footer'
@@ -72,6 +73,14 @@ export const viewport: Viewport = {
 }
 
 export default async function FrontendLayout({ children }: { children: ReactNode }) {
+  const isSharedResource = (await headers()).get('x-ev-shared-resource') === '1'
+  if (isSharedResource) {
+    return (
+      <html lang="en">
+        <body className="bg-warm-white font-sans text-brand-black antialiased">{children}</body>
+      </html>
+    )
+  }
   const [launcher, feedback, rockProfileState] = await Promise.all([
     loadLauncherData(),
     loadSiteFeedbackSettings(),

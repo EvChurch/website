@@ -20,6 +20,10 @@ const mocks = vi.hoisted(() => ({
   }) => null),
 }))
 
+vi.mock('next/headers', () => ({
+  headers: async () => new Headers(),
+}))
+
 vi.mock('@/auth/member-auth0-config', () => ({
   isMemberAuthEnabled: () => mocks.enabled,
 }))
