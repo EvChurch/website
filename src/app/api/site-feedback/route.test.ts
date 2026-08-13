@@ -77,6 +77,8 @@ function valid(overrides: Record<string, unknown> = {}) {
     sourceUrl: 'https://www.ev.church/events?campus=central',
     website: '',
     turnstileToken: 'visitor-token',
+    postHogReplayUrl:
+      'https://us.posthog.com/project/test-token/replay/019ff7cd-46fd-725b-9590-cfceaf201eb3?t=42',
     ...overrides,
   }
 }
@@ -101,6 +103,8 @@ describe('site feedback route', () => {
     vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'www.ev.church')
     vi.stubEnv('SITE_FEEDBACK_RATE_LIMIT_SECRET', 'a'.repeat(32))
     vi.stubEnv('SITE_FEEDBACK_TRUST_CF_CONNECTING_IP', 'true')
+    vi.stubEnv('NEXT_PUBLIC_POSTHOG_UI_HOST', 'https://us.posthog.com')
+    vi.stubEnv('NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN', 'test-token')
     verifyTurnstileToken.mockResolvedValue(undefined)
   })
 
@@ -126,6 +130,9 @@ describe('site feedback route', () => {
       comment: 'Please make campus filters easier to find.',
       email: 'visitor@example.com',
       sourceUrl: 'https://www.ev.church/events?campus=central',
+      postHogSessionId: '019ff7cd-46fd-725b-9590-cfceaf201eb3',
+      postHogReplayUrl:
+        'https://us.posthog.com/project/test-token/replay/019ff7cd-46fd-725b-9590-cfceaf201eb3?t=42',
       clientAddressDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
       userAgent: 'Feedback Browser',
     })

@@ -60,7 +60,7 @@ export default function PrivacyPage() {
               <li>Donation and financial information (processed securely by third-party providers)</li>
               <li>
                 Website usage data collected via Google Analytics and PostHog, including
-                privacy-masked replays of selected anonymous public-page sessions
+                session replays of website visits
               </li>
             </ul>
           </div>
@@ -127,11 +127,11 @@ export default function PrivacyPage() {
             </h2>
             <p className="mt-4">
               We use Google Analytics to measure website traffic, page visits, and general usage
-              patterns. We use PostHog to understand how people use public pages, identify errors,
-              and review privacy-masked session replays so we can improve the website. Analytics
-              are disabled on member, sign-in, giving, contact, pastoral-care, and other sensitive
-              journeys. PostHog masks page text and inputs, blocks form contents from replay, and
-              respects browser Do Not Track settings.
+              patterns. We use PostHog to understand how people use the website, identify errors,
+              and review session replays so we can improve the website. PostHog records page
+              content and interactions across website journeys, masks values entered into form
+              controls, and runs across member, sign-in, giving, contact, pastoral-care, and other
+              website journeys. Google Analytics remains disabled on those journeys.
             </p>
           </div>
 
