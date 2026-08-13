@@ -33,7 +33,7 @@ export async function generateMetadata({
   if (!topic) return {}
 
   return {
-    title: `${topic.name} Sermons | Ev Church`,
+    title: `${topic.name} Sermons`,
     description: `Explore sermons on the topic of ${topic.name} from Ev Church Auckland.`,
     openGraph: {
       title: `${topic.name} Sermons | Ev Church`,
