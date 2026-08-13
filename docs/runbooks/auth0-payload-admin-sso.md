@@ -34,13 +34,16 @@ Stop if the target differs, if any record must be retained, or if application wr
 
 ## Railway release sequence
 
-Railway currently runs `npx payload migrate` before the seed command and application start. Do not trigger the release while the existing service can still write: a rolling overlap would reopen the cleanup-to-migration race.
+Railway runs `pnpm run payload migrate` immediately before application start.
+Production deployments must not run the seed command. Do not trigger the release
+while the existing service can still write: a rolling overlap would reopen the
+cleanup-to-migration race.
 
 1. The deployment operator enables the maintenance window, scales the web service to zero, and confirms there are no active replicas, one-off jobs, or local processes using this database.
 2. Record the database fingerprint above and take the approved pre-cutover snapshot. Record its identifier and restore instructions.
 3. Run the disposable-user cleanup below and commit only after its five postconditions are zero.
-4. Trigger exactly one Railway deployment. Do not manually run the same migration in parallel. The startup migration must complete before the seed command or web server begins.
-5. In Railway logs, require the Auth0 migration to complete once, the seed command to complete, and the application health check to become healthy. A migration error, retry loop, or old replica still serving traffic is a **stop** condition.
+4. Trigger exactly one Railway deployment. Do not manually run the same migration in parallel. The startup migration must complete before the web server begins.
+5. In Railway logs, require the Auth0 migration to complete once, confirm that no seed command runs, and require the application health check to become healthy. A migration error, seed invocation, retry loop, or old replica still serving traffic is a **stop** condition.
 6. Before inviting any Auth0 sign-in, run the post-migration gate below. Keep the service unavailable if any assertion fails.
 
 ### Mandatory post-migration gate

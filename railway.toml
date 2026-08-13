@@ -2,6 +2,6 @@
 buildCommand = "pnpm run payload generate:importmap && pnpm run build"
 
 [deploy]
-startCommand = "pnpm run payload migrate && npx tsx src/seed/seed-pages.ts && pnpm start"
+startCommand = "pnpm run payload migrate && pnpm start"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
