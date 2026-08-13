@@ -33,7 +33,7 @@ const NO_STORE = { 'Cache-Control': 'no-store, max-age=0' }
 
 type FeedbackData = {
   comment: string
-  email?: string
+  email: string
   sourceUrl: string
   postHogSessionId?: string
   postHogReplayUrl?: string
@@ -154,6 +154,7 @@ async function createFeedback(
     collection: 'feedback-submissions',
     data: {
       ...data,
+      resolutionStatus: 'new',
       notificationStatus: settingsAvailable
         ? notificationRecipient
           ? 'pending'
@@ -233,7 +234,7 @@ export async function handleSiteFeedbackPost(
       .slice(0, MAX_USER_AGENT_LENGTH)
     const createdFeedback = await dependencies.createFeedback({
       comment: submission.comment,
-      ...(submission.email ? { email: submission.email } : {}),
+      email: submission.email,
       sourceUrl: submission.sourceUrl,
       ...(submission.postHogSessionId && submission.postHogReplayUrl
         ? {

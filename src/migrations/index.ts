@@ -25,8 +25,9 @@ import * as migration_20260812_daily_bible_readings_api_bible from './20260812_d
 import * as migration_20260812_site_feedback from './20260812_site_feedback';
 import * as migration_20260812_zzz_missing_paths from './20260812_zzz_missing_paths';
 import * as migration_20260813_033314_add_payload_mcp from './20260813_033314_add_payload_mcp';
-import * as migration_20260813_site_feedback_email_notifications from './20260813_site_feedback_email_notifications';
+import * as migration_20260813_120000_feedback_triage_all_mcp from './20260813_120000_feedback_triage_all_mcp';
 import * as migration_20260813_110000_feedback_posthog_replay from './20260813_110000_feedback_posthog_replay';
+import * as migration_20260813_site_feedback_email_notifications from './20260813_site_feedback_email_notifications';
 
 export const migrations = [
   {
@@ -160,9 +161,9 @@ export const migrations = [
     name: '20260812_zzz_missing_paths',
   },
   {
-    up: migration_20260813_site_feedback_email_notifications.up,
-    down: migration_20260813_site_feedback_email_notifications.down,
-    name: '20260813_site_feedback_email_notifications',
+    up: migration_20260813_033314_add_payload_mcp.up,
+    down: migration_20260813_033314_add_payload_mcp.down,
+    name: '20260813_033314_add_payload_mcp',
   },
   {
     up: migration_20260813_110000_feedback_posthog_replay.up,
@@ -170,8 +171,13 @@ export const migrations = [
     name: '20260813_110000_feedback_posthog_replay',
   },
   {
-    up: migration_20260813_033314_add_payload_mcp.up,
-    down: migration_20260813_033314_add_payload_mcp.down,
-    name: '20260813_033314_add_payload_mcp',
+    up: migration_20260813_site_feedback_email_notifications.up,
+    down: migration_20260813_site_feedback_email_notifications.down,
+    name: '20260813_site_feedback_email_notifications'
+  },
+  {
+    up: migration_20260813_120000_feedback_triage_all_mcp.up,
+    down: migration_20260813_120000_feedback_triage_all_mcp.down,
+    name: '20260813_120000_feedback_triage_all_mcp',
   },
 ];

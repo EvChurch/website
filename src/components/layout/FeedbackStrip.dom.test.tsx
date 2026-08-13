@@ -155,6 +155,52 @@ describe('FeedbackStrip modal', () => {
     })
   })
 
+  it('requires an email address before submitting', async () => {
+    await open()
+
+    const email = container.querySelector<HTMLInputElement>('input[name="email"]')!
+    expect(email.required).toBe(true)
+    expect(email.labels?.[0]?.textContent).toBe('Email')
+  })
+
+  it('hides email and submits the signed-in member email', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    await act(async () =>
+      root?.render(
+        <FeedbackStrip
+          settings={settings}
+          signedInEmail="aroha@example.com"
+          onDismiss={() => undefined}
+        />,
+      ),
+    )
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('button[data-feedback-trigger]')!.click(),
+    )
+
+    expect(container.querySelector('input[name="email"]')).toBeNull()
+    await type(
+      container.querySelector<HTMLTextAreaElement>('textarea[name="comment"]')!,
+      'The page was helpful.',
+    )
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>('button[type="button"]'))
+        .find((button) => button.textContent?.includes('Complete security check'))!
+        .click()
+    })
+    await act(async () => container.querySelector<HTMLFormElement>('form')!.requestSubmit())
+
+    const [, request] = vi.mocked(fetch).mock.calls[0]
+    expect(JSON.parse(String(request?.body))).toMatchObject({
+      email: 'aroha@example.com',
+    })
+  })
+
   it('retains input and shows retryable server and network errors', async () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify({ error: 'Too many requests' }), {
@@ -165,6 +211,7 @@ describe('FeedbackStrip modal', () => {
     await open()
     const comment = container.querySelector<HTMLTextAreaElement>('textarea[name="comment"]')!
     await type(comment, 'Please improve search.')
+    await type(container.querySelector<HTMLInputElement>('input[name="email"]')!, 'visitor@example.com')
     await act(async () => {
       Array.from(container.querySelectorAll<HTMLButtonElement>('button[type="button"]'))
         .find((button) => button.textContent?.includes('Complete security check'))!
@@ -192,6 +239,7 @@ describe('FeedbackStrip modal', () => {
       container.querySelector<HTMLTextAreaElement>('textarea[name="comment"]')!,
       'The page was helpful.',
     )
+    await type(container.querySelector<HTMLInputElement>('input[name="email"]')!, 'visitor@example.com')
     await act(async () => {
       Array.from(container.querySelectorAll<HTMLButtonElement>('button[type="button"]'))
         .find((button) => button.textContent?.includes('Complete security check'))!
@@ -225,6 +273,7 @@ describe('FeedbackStrip modal', () => {
       container.querySelector<HTMLTextAreaElement>('textarea[name="comment"]')!,
       'Please improve search.',
     )
+    await type(container.querySelector<HTMLInputElement>('input[name="email"]')!, 'visitor@example.com')
     await act(async () => {
       Array.from(container.querySelectorAll<HTMLButtonElement>('button[type="button"]'))
         .find((button) => button.textContent?.includes('Complete security check'))!
@@ -259,6 +308,7 @@ describe('FeedbackStrip modal', () => {
       container.querySelector<HTMLTextAreaElement>('textarea[name="comment"]')!,
       'Please improve search.',
     )
+    await type(container.querySelector<HTMLInputElement>('input[name="email"]')!, 'visitor@example.com')
     await act(async () => {
       Array.from(container.querySelectorAll<HTMLButtonElement>('button[type="button"]'))
         .find((button) => button.textContent?.includes('Complete security check'))!
@@ -286,6 +336,7 @@ describe('FeedbackStrip modal', () => {
     await open()
     const comment = container.querySelector<HTMLTextAreaElement>('textarea[name="comment"]')!
     await type(comment, 'Keep this feedback safe.')
+    await type(container.querySelector<HTMLInputElement>('input[name="email"]')!, 'visitor@example.com')
     await act(async () => {
       Array.from(container.querySelectorAll<HTMLButtonElement>('button[type="button"]'))
         .find((button) => button.textContent?.includes('Complete security check'))!
@@ -311,6 +362,7 @@ describe('FeedbackStrip modal', () => {
       container.querySelector<HTMLTextAreaElement>('textarea[name="comment"]')!,
       'Do not lose this.',
     )
+    await type(container.querySelector<HTMLInputElement>('input[name="email"]')!, 'visitor@example.com')
     await act(async () => {
       Array.from(container.querySelectorAll<HTMLButtonElement>('button[type="button"]'))
         .find((button) => button.textContent?.includes('Complete security check'))!

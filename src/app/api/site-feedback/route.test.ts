@@ -158,6 +158,8 @@ describe('site feedback route', () => {
     ],
     ['cross-origin source', valid({ sourceUrl: 'https://evil.test/' }), {}],
     ['blank comment', valid({ comment: '  ' }), {}],
+    ['missing email', valid({ email: undefined }), {}],
+    ['blank email', valid({ email: '   ' }), {}],
     ['invalid email', valid({ email: 'bad' }), {}],
     ['honeypot', valid({ website: 'spam' }), {}],
     [

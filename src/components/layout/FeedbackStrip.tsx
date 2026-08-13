@@ -20,8 +20,9 @@ function retryAfterSeconds(value: string | null): number | null {
   return Math.max(0, Math.ceil((retryAt - Date.now()) / 1_000))
 }
 
-export function FeedbackStrip({ settings, onDismiss, stripRef }: {
+export function FeedbackStrip({ settings, signedInEmail, onDismiss, stripRef }: {
   settings: PublicSiteFeedbackSettings
+  signedInEmail?: string
   onDismiss: () => void
   stripRef?: React.Ref<HTMLDivElement>
 }) {
@@ -84,6 +85,8 @@ export function FeedbackStrip({ settings, onDismiss, stripRef }: {
     if (pending || cooldownSeconds > 0) return
     const normalizedComment = comment.trim()
     if (!normalizedComment) { setError('Please enter your feedback.'); textareaRef.current?.focus(); return }
+    const submissionEmail = signedInEmail?.trim() || email.trim()
+    if (!submissionEmail) { setError('Please enter your email address.'); return }
     if (!turnstileToken) { setError('Please complete the security check.'); return }
     const controller = new AbortController()
     submissionControllerRef.current = controller
@@ -102,7 +105,7 @@ export function FeedbackStrip({ settings, onDismiss, stripRef }: {
         signal: controller.signal,
         body: JSON.stringify({
           comment: normalizedComment,
-          ...(email.trim() ? { email: email.trim() } : {}),
+          email: submissionEmail,
           sourceUrl: window.location.href,
           ...(postHogReplayUrl ? { postHogReplayUrl } : {}),
           website,
@@ -155,7 +158,7 @@ export function FeedbackStrip({ settings, onDismiss, stripRef }: {
         {complete ? <div className="py-8 text-center" role="status"><h3 className="font-serif text-2xl text-brand-black">Thank you for your feedback</h3><p className="mt-3 text-sm text-dark-grey">We appreciate you helping us improve ev.church.</p><button type="button" className="mt-6 rounded-full bg-rich-red px-6 py-3 text-sm font-semibold text-white hover:bg-deep-red" onClick={close}>Close</button></div> :
           <form className="mt-6 space-y-5" onSubmit={submit}>
             <div><label htmlFor={`${titleId}-comment`} className="block text-sm font-semibold text-brand-black">Feedback</label><textarea ref={textareaRef} id={`${titleId}-comment`} name="comment" required maxLength={4000} rows={5} value={comment} onChange={(event) => setComment(event.target.value)} className="mt-2 w-full resize-y rounded-lg border border-mid-grey/40 bg-white px-4 py-3 text-base outline-none focus:border-rich-red focus:ring-2 focus:ring-rich-red/20" /></div>
-            <div><label htmlFor={`${titleId}-email`} className="block text-sm font-semibold text-brand-black">Email <span className="font-normal text-mid-grey">(optional)</span></label><input id={`${titleId}-email`} name="email" type="email" maxLength={254} autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-2 w-full rounded-lg border border-mid-grey/40 bg-white px-4 py-3 text-base outline-none focus:border-rich-red focus:ring-2 focus:ring-rich-red/20" /></div>
+            {!signedInEmail && <div><label htmlFor={`${titleId}-email`} className="block text-sm font-semibold text-brand-black">Email</label><input id={`${titleId}-email`} name="email" type="email" required maxLength={254} autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-2 w-full rounded-lg border border-mid-grey/40 bg-white px-4 py-3 text-base outline-none focus:border-rich-red focus:ring-2 focus:ring-rich-red/20" /></div>}
             <div className="absolute -left-[9999px]" aria-hidden="true"><label htmlFor={`${titleId}-website`}>Website</label><input id={`${titleId}-website`} name="website" tabIndex={-1} autoComplete="off" value={website} onChange={(event) => setWebsite(event.target.value)} /></div>
             <TurnstileWidget siteKey={settings.turnstileSiteKey} action={SITE_FEEDBACK_TURNSTILE_ACTION} resetKey={turnstileReset} onToken={setTurnstileToken} onError={setError} />
             {error && <p role="alert" className="text-sm font-medium text-rich-red">{error}</p>}
