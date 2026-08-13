@@ -28,7 +28,7 @@ describe('SiteFeedback collection', () => {
 
   it('defines the bounded submission and server-owned metadata contract', () => {
     expect(SiteFeedback.admin).toMatchObject({
-      defaultColumns: ['comment', 'email', 'sourceUrl', 'createdAt'],
+      defaultColumns: ['comment', 'email', 'sourceUrl', 'postHogReplayUrl', 'createdAt'],
       useAsTitle: 'comment',
     })
 
@@ -73,6 +73,22 @@ describe('SiteFeedback collection', () => {
           type: 'number',
           defaultValue: 0,
           required: true,
+        }),
+        expect.objectContaining({
+          name: 'postHogSessionId',
+          type: 'text',
+          maxLength: 64,
+        }),
+        expect.objectContaining({
+          name: 'postHogReplayUrl',
+          type: 'text',
+          maxLength: 2_048,
+          admin: expect.objectContaining({
+            readOnly: true,
+            components: expect.objectContaining({
+              Field: '@/components/admin/PostHogReplayLink',
+            }),
+          }),
         }),
       ]),
     )

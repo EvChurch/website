@@ -1,12 +1,23 @@
 import type { CollectionConfig } from 'payload'
 
 import { isContentLead } from '@/access/roles'
+import {
+  MAX_POSTHOG_REPLAY_URL_LENGTH,
+  MAX_POSTHOG_SESSION_ID_LENGTH,
+  parsePostHogReplayUrl,
+} from '@/lib/site-feedback/validation'
 
 export const SiteFeedback: CollectionConfig = {
   slug: 'feedback-submissions',
   admin: {
     useAsTitle: 'comment',
-    defaultColumns: ['comment', 'email', 'sourceUrl', 'createdAt'],
+    defaultColumns: [
+      'comment',
+      'email',
+      'sourceUrl',
+      'postHogReplayUrl',
+      'createdAt',
+    ],
   },
   access: {
     create: isContentLead,
@@ -33,6 +44,32 @@ export const SiteFeedback: CollectionConfig = {
       type: 'text',
       required: true,
       maxLength: 2_048,
+    },
+    {
+      name: 'postHogSessionId',
+      label: 'PostHog session ID',
+      type: 'text',
+      maxLength: MAX_POSTHOG_SESSION_ID_LENGTH,
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'postHogReplayUrl',
+      label: 'Session replay',
+      type: 'text',
+      maxLength: MAX_POSTHOG_REPLAY_URL_LENGTH,
+      validate: (value: unknown) =>
+        !value || parsePostHogReplayUrl(value)
+          ? true
+          : 'Enter a valid PostHog session replay URL.',
+      admin: {
+        readOnly: true,
+        components: {
+          Field: '@/components/admin/PostHogReplayLink',
+        },
+      },
     },
     {
       name: 'clientAddressDigest',
