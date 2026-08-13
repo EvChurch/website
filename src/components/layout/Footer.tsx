@@ -38,6 +38,7 @@ const columns: FooterColumn[] = [
       { label: 'Resources', href: 'https://resources.aucklandev.co.nz' },
       { label: 'Contact', href: '/contact' },
       { label: 'Give', href: '/give' },
+      { label: 'Sitemap', href: '/sitemap' },
     ],
   },
   {
@@ -67,7 +68,7 @@ function FooterLink({
 }) {
   const isExternal = href.startsWith('http')
   const classes =
-    'text-[0.8125rem] text-mid-grey transition-colors duration-150 hover:text-rich-red'
+    'group text-[0.8125rem] text-mid-grey transition-colors duration-150 hover:text-rich-red'
   if (isExternal) {
     return (
       <a href={href} target="_blank" rel="noopener noreferrer" className={classes}>
@@ -108,12 +109,12 @@ export function Footer() {
                   <li key={link.href}>
                     <FooterLink href={link.href}>
                       {link.label}
+                      {link.meta && (
+                        <span className="block text-[0.8125rem] font-medium leading-tight text-dark-grey transition-colors duration-150 group-hover:text-rich-red">
+                          {link.meta}
+                        </span>
+                      )}
                     </FooterLink>
-                    {link.meta && (
-                      <span className="ml-1.5 text-xs text-warm-grey">
-                        {link.meta}
-                      </span>
-                    )}
                   </li>
                 ))}
               </ul>

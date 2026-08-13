@@ -17,9 +17,10 @@ describe('sitemap', () => {
       docs:
         collection === 'pages'
           ? [
-              { slug: 'home', updatedAt: '2026-08-01T00:00:00.000Z' },
-              { slug: 'next-steps', updatedAt: '2026-08-02T00:00:00.000Z' },
-              { slug: 'about', updatedAt: '2026-08-03T00:00:00.000Z' },
+              { title: 'Home', slug: 'home', updatedAt: '2026-08-01T00:00:00.000Z' },
+              { title: 'Next Steps', slug: 'next-steps', updatedAt: '2026-08-02T00:00:00.000Z' },
+              { title: 'About', slug: 'about', updatedAt: '2026-08-03T00:00:00.000Z' },
+              { title: 'Give', slug: 'give', updatedAt: '2026-08-04T00:00:00.000Z' },
             ]
           : [],
     }))
@@ -31,6 +32,8 @@ describe('sitemap', () => {
 
     expect(urls).toContain('https://www.ev.church')
     expect(urls).toContain('https://www.ev.church/about')
+    expect(urls).toContain('https://www.ev.church/sitemap')
     expect(urls).not.toContain('https://www.ev.church/next-steps')
+    expect(urls).not.toContain('https://www.ev.church/give')
   })
 })
