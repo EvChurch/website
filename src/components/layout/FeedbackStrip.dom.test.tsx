@@ -7,6 +7,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PublicSiteFeedbackSettings } from '@/lib/site-feedback/settings'
 import { FeedbackStrip } from './FeedbackStrip'
 
+const posthog = vi.hoisted(() => ({
+  get_session_replay_url: vi.fn(() =>
+    'https://us.posthog.com/project/test-token/replay/019ff7cd-46fd-725b-9590-cfceaf201eb3?t=42',
+  ),
+}))
+
+vi.mock('posthog-js', () => ({ default: posthog }))
+
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean })
   .IS_REACT_ACT_ENVIRONMENT = true
 
@@ -32,6 +40,9 @@ describe('FeedbackStrip modal', () => {
   let root: Root | null
 
   beforeEach(() => {
+    posthog.get_session_replay_url.mockReturnValue(
+      'https://us.posthog.com/project/test-token/replay/019ff7cd-46fd-725b-9590-cfceaf201eb3?t=42',
+    )
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
@@ -130,6 +141,8 @@ describe('FeedbackStrip modal', () => {
           comment: 'The campus information was easy to find.',
           email: 'visitor@example.com',
           sourceUrl: 'http://localhost:3000/visit?campus=north',
+          postHogReplayUrl:
+            'https://us.posthog.com/project/test-token/replay/019ff7cd-46fd-725b-9590-cfceaf201eb3?t=42',
           website: '',
           turnstileToken: 'verified-token',
         }),
@@ -137,6 +150,9 @@ describe('FeedbackStrip modal', () => {
     )
     expect(container.textContent).toContain('Thank you for your feedback')
     expect(container.querySelector('form')).toBeNull()
+    expect(posthog.get_session_replay_url).toHaveBeenCalledWith({
+      withTimestamp: true,
+    })
   })
 
   it('retains input and shows retryable server and network errors', async () => {
@@ -161,6 +177,35 @@ describe('FeedbackStrip modal', () => {
       container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled,
     ).toBe(false)
     expect(container.textContent).not.toContain('Thank you for your feedback')
+  })
+
+  it('submits feedback without replay metadata when PostHog has no session', async () => {
+    posthog.get_session_replay_url.mockReturnValue('')
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    await open()
+    await type(
+      container.querySelector<HTMLTextAreaElement>('textarea[name="comment"]')!,
+      'The page was helpful.',
+    )
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>('button[type="button"]'))
+        .find((button) => button.textContent?.includes('Complete security check'))!
+        .click()
+    })
+    await act(async () => container.querySelector<HTMLFormElement>('form')!.requestSubmit())
+
+    const [, request] = vi.mocked(fetch).mock.calls[0]
+    expect(JSON.parse(String(request?.body))).toEqual(
+      expect.not.objectContaining({
+        postHogReplayUrl: expect.anything(),
+      }),
+    )
+    expect(container.textContent).toContain('Thank you for your feedback')
   })
 
   it('honors Retry-After and disables resubmission until the cooldown elapses', async () => {

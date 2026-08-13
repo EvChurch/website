@@ -1,6 +1,7 @@
 'use client'
 
 import { FormEvent, useCallback, useEffect, useId, useRef, useState } from 'react'
+import posthog from 'posthog-js'
 import { TurnstileWidget } from '@/components/forms/TurnstileWidget'
 import { SITE_FEEDBACK_TURNSTILE_ACTION } from '@/lib/site-feedback/constants'
 import type { PublicSiteFeedbackSettings } from '@/lib/site-feedback/settings'
@@ -93,13 +94,19 @@ export function FeedbackStrip({ settings, onDismiss, stripRef }: {
     }, SUBMISSION_TIMEOUT_MS)
     setPending(true); setError('')
     try {
+      const postHogReplayUrl = posthog.get_session_replay_url({
+        withTimestamp: true,
+      })
       const response = await fetch('/api/site-feedback', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
         body: JSON.stringify({
           comment: normalizedComment,
           ...(email.trim() ? { email: email.trim() } : {}),
-          sourceUrl: window.location.href, website, turnstileToken,
+          sourceUrl: window.location.href,
+          ...(postHogReplayUrl ? { postHogReplayUrl } : {}),
+          website,
+          turnstileToken,
         }),
       })
       const result = (await response.json().catch(() => ({}))) as { error?: unknown }

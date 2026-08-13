@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  canTrackAnalyticsPath,
-  canReplayPath,
-} from './analytics-privacy'
+import { canTrackAnalyticsPath } from './analytics-privacy'
 
 describe('analytics privacy boundaries', () => {
   it.each([
@@ -21,7 +18,6 @@ describe('analytics privacy boundaries', () => {
     '/privacy',
   ])('blocks analytics on sensitive route %s', (pathname) => {
     expect(canTrackAnalyticsPath(pathname)).toBe(false)
-    expect(canReplayPath(pathname)).toBe(false)
   })
 
   it.each([
@@ -33,9 +29,8 @@ describe('analytics privacy boundaries', () => {
     '/sermons/hope',
     '/blog/latest',
     '/hs',
-  ])('allows replay only on a conservative public route %s', (pathname) => {
+  ])('allows Google Analytics on a public route %s', (pathname) => {
     expect(canTrackAnalyticsPath(pathname)).toBe(true)
-    expect(canReplayPath(pathname)).toBe(true)
   })
 
   it.each([
@@ -44,11 +39,9 @@ describe('analytics privacy boundaries', () => {
     '/privacy-policy',
   ])('keeps sensitive-prefix lookalike %s trackable', (pathname) => {
     expect(canTrackAnalyticsPath(pathname)).toBe(true)
-    expect(canReplayPath(pathname)).toBe(false)
   })
 
-  it('allows analytics but not replay on arbitrary CMS pages', () => {
+  it('allows Google Analytics on arbitrary CMS pages', () => {
     expect(canTrackAnalyticsPath('/about')).toBe(true)
-    expect(canReplayPath('/about')).toBe(false)
   })
 })

@@ -35,6 +35,8 @@ type FeedbackData = {
   comment: string
   email?: string
   sourceUrl: string
+  postHogSessionId?: string
+  postHogReplayUrl?: string
   clientAddressDigest: string
   userAgent?: string
 }
@@ -233,6 +235,12 @@ export async function handleSiteFeedbackPost(
       comment: submission.comment,
       ...(submission.email ? { email: submission.email } : {}),
       sourceUrl: submission.sourceUrl,
+      ...(submission.postHogSessionId && submission.postHogReplayUrl
+        ? {
+            postHogSessionId: submission.postHogSessionId,
+            postHogReplayUrl: submission.postHogReplayUrl,
+          }
+        : {}),
       clientAddressDigest: digestSiteFeedbackClientAddress(address),
       ...(userAgent ? { userAgent } : {}),
     })

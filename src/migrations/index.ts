@@ -25,6 +25,7 @@ import * as migration_20260812_daily_bible_readings_api_bible from './20260812_d
 import * as migration_20260812_site_feedback from './20260812_site_feedback';
 import * as migration_20260812_zzz_missing_paths from './20260812_zzz_missing_paths';
 import * as migration_20260813_site_feedback_email_notifications from './20260813_site_feedback_email_notifications';
+import * as migration_20260813_110000_feedback_posthog_replay from './20260813_110000_feedback_posthog_replay';
 
 export const migrations = [
   {
@@ -161,5 +162,10 @@ export const migrations = [
     up: migration_20260813_site_feedback_email_notifications.up,
     down: migration_20260813_site_feedback_email_notifications.down,
     name: '20260813_site_feedback_email_notifications',
+  },
+  {
+    up: migration_20260813_110000_feedback_posthog_replay.up,
+    down: migration_20260813_110000_feedback_posthog_replay.down,
+    name: '20260813_110000_feedback_posthog_replay',
   },
 ];
