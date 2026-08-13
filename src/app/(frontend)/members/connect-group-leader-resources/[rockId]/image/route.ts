@@ -8,11 +8,11 @@ export async function GET(
 ) {
   const { rockId: rawRockId } = await params
   const asset = await getPublicLeaderResourceImage(Number(rawRockId))
-  if (!asset) return memberMediaNotFound()
+  if (!asset) return memberMediaNotFound('members', 'connect-group-leader-resources', rawRockId, 'image')
   const image = await fetchMemberRockAvatar(`/GetImage.ashx?Guid=${asset.guid}&w=1400`)
   return image
     ? memberMediaResponse(image.body, image.contentType, {
         'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
       })
-    : memberMediaNotFound()
+    : memberMediaNotFound('members', 'connect-group-leader-resources', rawRockId, 'image')
 }

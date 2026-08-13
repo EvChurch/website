@@ -12,9 +12,9 @@ vi.mock('next/server', () => ({ after: mocks.after }))
 vi.mock('next/navigation', () => ({ notFound: mocks.notFound }))
 vi.mock('@/lib/missing-paths', () => ({ recordMissingPublicPath: mocks.record }))
 
-import { publicNotFound } from './public-not-found'
+import { trackNotFound, trackedNotFound } from './tracked-not-found'
 
-describe('publicNotFound', () => {
+describe('tracked not found', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('schedules tracking only when explicitly terminating a public route as not found', async () => {
@@ -23,7 +23,7 @@ describe('publicNotFound', () => {
       scheduled = callback
     })
 
-    expect(() => publicNotFound('old')).toThrow('NEXT_NOT_FOUND')
+    expect(() => trackedNotFound('old')).toThrow('NEXT_NOT_FOUND')
 
     expect(mocks.after).toHaveBeenCalledOnce()
     expect(mocks.notFound).toHaveBeenCalledOnce()
@@ -36,7 +36,7 @@ describe('publicNotFound', () => {
   it('preserves encoded structural characters so ineligible paths are rejected', async () => {
     mocks.after.mockImplementation((callback: () => unknown) => callback())
 
-    expect(() => publicNotFound('old/nested', 'query?', 'fragment#'))
+    expect(() => trackedNotFound('old/nested', 'query?', 'fragment#'))
       .toThrow('NEXT_NOT_FOUND')
 
     expect(mocks.record).toHaveBeenCalledWith('/old%2Fnested/query%3F/fragment%23')
@@ -50,7 +50,7 @@ describe('publicNotFound', () => {
     mocks.record.mockRejectedValue(new Error('database unavailable'))
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
-    expect(() => publicNotFound('old')).toThrow('NEXT_NOT_FOUND')
+    expect(() => trackedNotFound('old')).toThrow('NEXT_NOT_FOUND')
     await expect(scheduled?.()).resolves.toBeUndefined()
     expect(error).toHaveBeenCalledWith({
       category: 'missing-path-write-failed',
@@ -58,5 +58,13 @@ describe('publicNotFound', () => {
     })
 
     error.mockRestore()
+  })
+
+  it('can track direct 404 responses without throwing', async () => {
+    mocks.after.mockImplementation((callback: () => unknown) => callback())
+
+    expect(() => trackNotFound('api', 'missing')).not.toThrow()
+    expect(mocks.notFound).not.toHaveBeenCalled()
+    expect(mocks.record).toHaveBeenCalledWith('/api/missing')
   })
 })

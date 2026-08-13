@@ -8,7 +8,7 @@ import { EventStatus } from '@/components/events/EventStatus'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
 import { EventJsonLd } from '@/components/seo/EventJsonLd'
 import { getPayloadMediaUrl } from '@/lib/payload-media'
-import { publicNotFound } from '@/lib/public-not-found'
+import { trackedNotFound } from '@/lib/tracked-not-found'
 import {
   formatEventDate,
   getCampusName,
@@ -54,7 +54,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function EventDetailPage({ params }: Props) {
   const { slug } = await params
   const event = await getEventBySlug(slug)
-  if (!event) publicNotFound('events', slug)
+  if (!event) trackedNotFound('events', slug)
 
   const past = isPastEvent(event)
   const campus = getCampusName(event)

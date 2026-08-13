@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   }),
 }))
 
-vi.mock('@/lib/public-not-found', () => ({ publicNotFound: mocks.notFound }))
+vi.mock('@/lib/tracked-not-found', () => ({ trackedNotFound: mocks.notFound }))
 vi.mock('@/lib/blog', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/lib/blog')>(),
   getBlogPostBySlug: mocks.getBlogPostBySlug,

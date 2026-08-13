@@ -1,5 +1,6 @@
 import { buildEventCalendar } from '@/lib/event-sharing'
 import { getEventBySlug } from '@/lib/events'
+import { trackNotFound } from '@/lib/tracked-not-found'
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -10,6 +11,7 @@ export async function GET(_request: Request, { params }: Props) {
   const event = await getEventBySlug(slug)
 
   if (!event?.startDate) {
+    trackNotFound('events', slug, 'calendar.ics')
     return new Response('Event not found', { status: 404 })
   }
 

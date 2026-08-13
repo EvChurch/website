@@ -20,11 +20,11 @@ export async function GET(
 ) {
   const { rockId: rawRockId, kind } = await params
   if (kind !== 'leader-notes' && kind !== 'member-study') {
-    return memberMediaNotFound()
+    return memberMediaNotFound('members', 'connect-group-leader-resources', rawRockId, 'files', kind)
   }
   const asset = await getMemberResourceAsset(Number(rawRockId), { kind })
   if (!asset || asset.kind !== 'file') {
-    return memberMediaNotFound()
+    return memberMediaNotFound('members', 'connect-group-leader-resources', rawRockId, 'files', kind)
   }
   let file: Awaited<ReturnType<typeof fetchMemberRockFile>>
   try {
@@ -37,7 +37,9 @@ export async function GET(
     })
     return memberMediaUnavailable()
   }
-  if (!file) return memberMediaNotFound()
+  if (!file) {
+    return memberMediaNotFound('members', 'connect-group-leader-resources', rawRockId, 'files', kind)
+  }
   return memberMediaResponse(file.body, file.contentType, {
     'Content-Disposition': `attachment; filename="${safeFilename(asset.name)}"`,
   })

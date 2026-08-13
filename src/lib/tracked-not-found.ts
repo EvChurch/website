@@ -3,7 +3,7 @@ import { after } from 'next/server'
 
 import { recordMissingPublicPath } from '@/lib/missing-paths'
 
-export function publicNotFound(...segments: string[]): never {
+export function trackNotFound(...segments: string[]): void {
   const path = `/${segments.map(encodeURIComponent).join('/')}`
   after(async () => {
     try {
@@ -15,5 +15,9 @@ export function publicNotFound(...segments: string[]): never {
       })
     }
   })
+}
+
+export function trackedNotFound(...segments: string[]): never {
+  trackNotFound(...segments)
   notFound()
 }

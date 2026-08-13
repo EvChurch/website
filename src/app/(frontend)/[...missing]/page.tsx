@@ -1,4 +1,4 @@
-import { publicNotFound } from '@/lib/public-not-found'
+import { trackedNotFound } from '@/lib/tracked-not-found'
 
 export default async function MissingPublicPage({
   params,
@@ -6,5 +6,5 @@ export default async function MissingPublicPage({
   params: Promise<{ missing: string[] }>
 }): Promise<never> {
   const { missing } = await params
-  publicNotFound(...missing)
+  trackedNotFound(...missing)
 }

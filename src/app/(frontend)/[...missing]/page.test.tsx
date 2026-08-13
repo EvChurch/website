@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
     throw new Error('NEXT_NOT_FOUND')
   }),
 }))
-vi.mock('@/lib/public-not-found', () => ({ publicNotFound: mocks.trackedNotFound }))
+vi.mock('@/lib/tracked-not-found', () => ({ trackedNotFound: mocks.trackedNotFound }))
 
 import MissingPublicPage from './page'
 

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   fetchMemberRockFile: vi.fn(),
   getMemberResourceAsset: vi.fn(),
+  track: vi.fn(),
 }))
 
 vi.mock('@/auth/member-rock-file', () => ({
@@ -12,6 +13,7 @@ vi.mock('@/auth/member-rock-file', () => ({
 vi.mock('@/lib/members/data', () => ({
   getMemberResourceAsset: mocks.getMemberResourceAsset,
 }))
+vi.mock('@/lib/tracked-not-found', () => ({ trackNotFound: mocks.track }))
 
 import { GET } from './route'
 
@@ -50,6 +52,13 @@ describe('Connect Group resource file route', () => {
     })
 
     expect(response.status).toBe(404)
+    expect(mocks.track).toHaveBeenCalledWith(
+      'members',
+      'connect-group-leader-resources',
+      '201',
+      'files',
+      kind,
+    )
     expect(response.headers.get('cache-control')).toBe('private, no-store')
     expect(mocks.fetchMemberRockFile).not.toHaveBeenCalled()
   })
