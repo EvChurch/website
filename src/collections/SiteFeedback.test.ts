@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { SiteFeedback } from './SiteFeedback'
+import { SiteFeedback, validateDuplicateReference } from './SiteFeedback'
 
 function accessArgs(roles?: string[]) {
   return { req: { user: roles === undefined ? null : { roles } } } as never
@@ -58,10 +58,35 @@ describe('SiteFeedback collection', () => {
             { label: 'New', value: 'new' },
             { label: 'Planned', value: 'planned' },
             { label: 'In progress', value: 'in-progress' },
+            { label: 'Needs approval', value: 'needs-approval' },
             { label: 'Resolved', value: 'resolved' },
+            { label: 'Duplicate', value: 'duplicate' },
             { label: 'Won\u2019t fix', value: 'wont-fix' },
           ],
         }),
+        expect.objectContaining({
+          name: 'classification',
+          type: 'select',
+          index: true,
+        }),
+        expect.objectContaining({ name: 'risk', type: 'select' }),
+        expect.objectContaining({ name: 'requesterRank', type: 'select' }),
+        expect.objectContaining({ name: 'areaRelevance', type: 'select' }),
+        expect.objectContaining({ name: 'priority', type: 'select', index: true }),
+        expect.objectContaining({ name: 'recommendation', type: 'select' }),
+        expect.objectContaining({
+          name: 'requesterTeamMember',
+          type: 'relationship',
+          relationTo: 'team-members',
+        }),
+        expect.objectContaining({
+          name: 'duplicateOf',
+          type: 'relationship',
+          relationTo: 'feedback-submissions',
+          index: true,
+        }),
+        expect.objectContaining({ name: 'triagedAt', type: 'date', index: true }),
+        expect.objectContaining({ name: 'deliveryPhase', type: 'select', index: true }),
         expect.objectContaining({
           name: 'sourceUrl',
           type: 'text',
@@ -115,17 +140,91 @@ describe('SiteFeedback collection', () => {
     )
   })
 
-  it('makes every delivery field read-only in Admin', () => {
-    const deliveryFields = SiteFeedback.fields.filter(
+  it('requires a canonical reference only for duplicates and prevents chains', async () => {
+    expect(
+      validateDuplicateReference(null, {
+        siblingData: { classification: 'duplicate', resolutionStatus: 'duplicate' },
+      }),
+    ).toMatch(/canonical/i)
+    expect(
+      validateDuplicateReference(42, {
+        siblingData: { resolutionStatus: 'new' },
+      }),
+    ).toMatch(/only allowed/i)
+    expect(
+      validateDuplicateReference({ id: 42 }, {
+        id: 42,
+        siblingData: { classification: 'duplicate', resolutionStatus: 'duplicate' },
+      }),
+    ).toMatch(/itself/i)
+    await expect(
+      validateDuplicateReference(41, {
+        id: 42,
+        siblingData: { classification: 'duplicate', resolutionStatus: 'duplicate' },
+        req: {
+          payload: {
+            findByID: async () => ({ classification: 'bug', resolutionStatus: 'new' }),
+          },
+        },
+      }),
+    ).resolves.toBe(true)
+    await expect(
+      validateDuplicateReference(41, {
+        id: 42,
+        siblingData: { classification: 'duplicate', resolutionStatus: 'duplicate' },
+        req: {
+          payload: {
+            findByID: async () => ({
+              classification: 'duplicate',
+              resolutionStatus: 'duplicate',
+            }),
+          },
+        },
+      }),
+    ).resolves.toMatch(/canonical/i)
+    expect(
+      validateDuplicateReference(41, {
+        id: 42,
+        siblingData: { classification: 'duplicate', resolutionStatus: 'new' },
+      }),
+    ).toMatch(/set together/i)
+  })
+
+  it('makes every notification field read-only in Admin', () => {
+    const notificationFields = SiteFeedback.fields.filter(
       (field) =>
         'name' in field &&
         typeof field.name === 'string' &&
         field.name.startsWith('notification'),
     )
 
-    expect(deliveryFields.length).toBeGreaterThanOrEqual(8)
-    for (const field of deliveryFields) {
+    expect(notificationFields.length).toBeGreaterThanOrEqual(8)
+    for (const field of notificationFields) {
       expect(field.admin).toMatchObject({ readOnly: true })
+    }
+  })
+
+  it('makes every delivery checkpoint read-only in Admin', () => {
+    const expectedNames = [
+      'deliveryKind',
+      'deliveryPhase',
+      'deliveryRunId',
+      'deliveryBranch',
+      'deliveryPrUrl',
+      'deliveryMergeCommit',
+      'deliveryDeploymentId',
+      'deliveryVerificationResult',
+      'deliveryLastVerifiedAt',
+      'deliveryFailureNote',
+    ]
+    const fieldsByName = new Map(
+      SiteFeedback.fields
+        .filter((field) => 'name' in field && typeof field.name === 'string')
+        .map((field) => [('name' in field ? field.name : ''), field]),
+    )
+
+    for (const name of expectedNames) {
+      expect(fieldsByName.get(name)?.admin).toMatchObject({ readOnly: true })
     }
   })
 })

@@ -27,6 +27,7 @@ import * as migration_20260812_zzz_missing_paths from './20260812_zzz_missing_pa
 import * as migration_20260813_033314_add_payload_mcp from './20260813_033314_add_payload_mcp';
 import * as migration_20260813_120000_feedback_triage_all_mcp from './20260813_120000_feedback_triage_all_mcp';
 import * as migration_20260813_110000_feedback_posthog_replay from './20260813_110000_feedback_posthog_replay';
+import * as migration_20260813_230000_feedback_triage_assessment from './20260813_230000_feedback_triage_assessment';
 import * as migration_20260813_site_feedback_email_notifications from './20260813_site_feedback_email_notifications';
 
 export const migrations = [
@@ -179,5 +180,10 @@ export const migrations = [
     up: migration_20260813_120000_feedback_triage_all_mcp.up,
     down: migration_20260813_120000_feedback_triage_all_mcp.down,
     name: '20260813_120000_feedback_triage_all_mcp',
+  },
+  {
+    up: migration_20260813_230000_feedback_triage_assessment.up,
+    down: migration_20260813_230000_feedback_triage_assessment.down,
+    name: '20260813_230000_feedback_triage_assessment',
   },
 ];
