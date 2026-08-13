@@ -2,7 +2,7 @@
 buildCommand = "pnpm run payload generate:importmap && pnpm run build"
 
 [deploy]
-startCommand = "pnpm run payload migrate && npx tsx src/seed/seed-pages.ts && pnpm start"
+startCommand = "pnpm run payload migrate && pnpm start"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"

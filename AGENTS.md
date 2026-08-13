@@ -69,6 +69,20 @@ they are sufficient, then run the build for changes that can affect production.
 - Treat database migrations and sync jobs as production-data changes. Confirm
   the target database before running them and preserve idempotency where possible.
 
+## Payload Content Changes
+
+- Use the production Payload MCP server for content changes to collections and
+  globals that it exposes. Find the current document first, update it through
+  MCP, then read it back to verify the saved result.
+- The initial MCP surface exposes `pages`. Do not assume other collections or
+  globals are available; inspect the MCP tools before acting.
+- Do not edit `src/seed/` to change existing production content, and do not run
+  `pnpm seed` against production. Seed files are bootstrap fixtures for explicit
+  local or new-environment setup only.
+- Use a migration for structural schema changes or a reviewed, one-off data
+  migration when MCP cannot express the required production change. Confirm the
+  target database before any production data mutation.
+
 ## Styling
 
 - Rich Red: `#E22A30`

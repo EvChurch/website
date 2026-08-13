@@ -12,4 +12,11 @@ describe('Railway website deployment', () => {
       /\[deploy\][\s\S]*healthcheckPath\s*=\s*"\/api\/health"/,
     )
   })
+
+  it('runs migrations without seeding production content', () => {
+    expect(railwayConfig).toContain(
+      'startCommand = "pnpm run payload migrate && pnpm start"',
+    )
+    expect(railwayConfig).not.toMatch(/(?:pnpm\s+seed|src\/seed\/)/)
+  })
 })
