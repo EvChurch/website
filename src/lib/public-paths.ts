@@ -9,6 +9,7 @@ const ANALYTICS_SENSITIVE_PREFIXES = [
   '/member-sign-in',
   '/members',
   '/privacy',
+  '/shared',
 ] as const
 
 const METADATA_PATHS = new Set([

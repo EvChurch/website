@@ -180,4 +180,15 @@ describe('AnalyticsManager', () => {
     expect(posthog.stopExceptionAutocapture).not.toHaveBeenCalled()
     expect(container.querySelector('[data-ga-path]')).toBeNull()
   })
+
+  it('does not send capability URLs to analytics or replay', async () => {
+    navigation.pathname = '/shared/leader-resources/opaque-token'
+
+    await act(async () => root.render(<AnalyticsManager />))
+
+    expect(posthog.init).not.toHaveBeenCalled()
+    expect(posthog.capture).not.toHaveBeenCalled()
+    expect(posthog.startSessionRecording).not.toHaveBeenCalled()
+    expect(container.querySelector('[data-ga-path]')).toBeNull()
+  })
 })

@@ -35,12 +35,13 @@ export function MemberAvatar({
 }: {
   name: string
   src: string | null
-  size?: 'small' | 'medium' | 'large'
+  size?: 'xsmall' | 'small' | 'medium' | 'large'
 }) {
   const [failed, setFailed] = useState(false)
   useEffect(() => setFailed(false), [src])
 
   const sizes = {
+    xsmall: 'h-7 w-7 text-[0.625rem]',
     small: 'h-10 w-10 text-xs',
     medium: 'h-14 w-14 text-sm',
     large: 'h-20 w-20 text-lg',

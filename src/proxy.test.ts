@@ -59,6 +59,17 @@ describe('admin Auth0 proxy', () => {
     expect(response.headers.get('x-middleware-request-x-ev-public-path')).toBe('%2Fevents')
   })
 
+  it('keeps capability routes out of redirects, caches, referrers, and indexing', async () => {
+    const response = await proxy(new NextRequest(
+      `https://www.ev.church/shared/leader-resources/${'a'.repeat(32)}`,
+    ))
+    expect(findRedirect).not.toHaveBeenCalled()
+    expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0')
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer')
+    expect(response.headers.get('x-robots-tag')).toContain('noindex')
+    expect(response.headers.get('x-middleware-request-x-ev-shared-resource')).toBe('1')
+  })
+
   it.each(['/administrator', '/apiary', '/authorization'])(
     'keeps prefix-lookalike route %s public',
     async (pathname) => {
