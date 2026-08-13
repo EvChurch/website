@@ -9,7 +9,10 @@ describe('OrganizationJsonLd', () => {
     const json = markup.match(/<script type="application\/ld\+json">(.*)<\/script>/)?.[1]
 
     expect(json).toBeDefined()
-    expect(JSON.parse(json!).sameAs).toEqual([
+    const data = JSON.parse(json!)
+
+    expect(data).not.toHaveProperty('areaServed')
+    expect(data.sameAs).toEqual([
       'https://www.facebook.com/aucklandev.co.nz',
       'https://www.instagram.com/aucklandev.church',
       'https://www.youtube.com/@ev.church',
