@@ -40,7 +40,7 @@ export async function generateMetadata({
   if (!series) return {}
 
   return {
-    title: `${series.title} | Sermon Series | Ev Church`,
+    title: `${series.title} | Sermon Series`,
     description: `Listen to sermons from the "${series.title}" series at Ev Church Auckland.`,
     openGraph: {
       title: `${series.title} | Sermon Series | Ev Church`,
