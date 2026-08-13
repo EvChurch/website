@@ -13,6 +13,7 @@ import type {
 import { mapRockCampus } from './mappers/campus'
 import { mapRockTeamMember, TEAM_GROUP_IDS } from './mappers/team-member'
 import {
+  getEventItemIdsWithUpcomingOccurrences,
   getEventItemIdsForCalendar,
   mapRockEvent,
   selectNextEventOccurrences,
@@ -184,6 +185,11 @@ async function syncEvents(): Promise<SyncResult> {
       eventCalendarItems,
       'Website (Public)',
     )
+    const syncedEventItemIds = getEventItemIdsWithUpcomingOccurrences(
+      occurrences,
+      eventItems,
+      publicEventItemIds,
+    )
     const eventItemsById = new Map(eventItems.map((eventItem) => [eventItem.Id, eventItem]))
     for (const occ of selectNextEventOccurrences(occurrences)) {
       const eventItem = eventItemsById.get(occ.EventItemId)
@@ -263,7 +269,7 @@ async function syncEvents(): Promise<SyncResult> {
       },
     })
     for (const event of syncedEvents.docs) {
-      if (publicEventItemIds.has(event.rockEventId)) continue
+      if (syncedEventItemIds.has(event.rockEventId)) continue
 
       await payload.delete({
         collection: 'events',

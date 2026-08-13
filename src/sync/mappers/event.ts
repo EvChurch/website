@@ -59,17 +59,45 @@ export function normalizeRockDateTime(value: string | null): string | null {
 
 export function selectNextEventOccurrences(
   occurrences: RockEventItemOccurrence[],
+  now = new Date(),
 ): RockEventItemOccurrence[] {
   const selectedEventItemIds = new Set<number>()
 
   return occurrences.filter((occurrence) => {
-    if (!occurrence.NextStartDateTime || selectedEventItemIds.has(occurrence.EventItemId)) {
+    const effectiveEndDate = occurrence.Schedule?.EffectiveEndDate
+    const scheduleHasEnded = effectiveEndDate
+      ? normalizeRockDateTime(effectiveEndDate)! < now.toISOString()
+      : false
+
+    if (
+      !occurrence.NextStartDateTime ||
+      scheduleHasEnded ||
+      selectedEventItemIds.has(occurrence.EventItemId)
+    ) {
       return false
     }
 
     selectedEventItemIds.add(occurrence.EventItemId)
     return true
   })
+}
+
+export function getEventItemIdsWithUpcomingOccurrences(
+  occurrences: RockEventItemOccurrence[],
+  eventItems: RockEventItem[],
+  publicEventItemIds: Set<number>,
+  now = new Date(),
+): Set<number> {
+  const activeEventItemIds = new Set(eventItems.map((eventItem) => eventItem.Id))
+
+  return new Set(
+    selectNextEventOccurrences(occurrences, now)
+      .map((occurrence) => occurrence.EventItemId)
+      .filter(
+        (eventItemId) =>
+          activeEventItemIds.has(eventItemId) && publicEventItemIds.has(eventItemId),
+      ),
+  )
 }
 
 export function getEventItemIdsForCalendar(
@@ -121,7 +149,12 @@ export function mapRockEvent(
           email: contactEmail,
           phone: contactPhone,
         }
-      : undefined,
+      : {
+          name: null,
+          email: null,
+          phone: null,
+          photo: null,
+        },
     _descriptionHtml: rock.Note || eventItem.Description || eventItem.Summary || '',
     _imageUrl: eventItem.Photo?.Guid
       ? `/GetImage.ashx?Guid=${eventItem.Photo.Guid}`

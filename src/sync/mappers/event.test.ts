@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  getEventItemIdsWithUpcomingOccurrences,
   getEventItemIdsForCalendar,
   mapRockEvent,
   normalizeRockDateTime,
@@ -56,6 +57,35 @@ describe('mapRockEvent', () => {
       phone: '021 555 0123',
     })
   })
+
+  it('clears a previously synced contact when Rock has no contact details', () => {
+    const mapped = mapRockEvent(
+      {
+        EventItemId: 21,
+        NextStartDateTime: '2026-08-15T10:00:00',
+        CampusId: null,
+        ContactPersonAliasId: null,
+        ContactEmail: '',
+        ContactPhone: '',
+        Location: 'Ev North',
+      },
+      {
+        Id: 21,
+        Name: 'Refresh',
+        Summary: '',
+        Description: '',
+        IsActive: true,
+      },
+      null,
+    )
+
+    expect(mapped.contactPerson).toEqual({
+      name: null,
+      email: null,
+      phone: null,
+      photo: null,
+    })
+  })
 })
 
 describe('selectNextEventOccurrences', () => {
@@ -106,5 +136,36 @@ describe('getEventItemIdsForCalendar', () => {
         'Website (Public)',
       ),
     ).toThrow('Rock calendar has no events: Website (Public)')
+  })
+})
+
+describe('getEventItemIdsWithUpcomingOccurrences', () => {
+  it('excludes public event items that no longer have an upcoming occurrence', () => {
+    const publicEventItemIds = new Set([21, 30])
+    const eventItems = [
+      { Id: 21, Name: 'Refresh', Summary: '', Description: '', IsActive: true },
+      { Id: 30, Name: 'Mania', Summary: '', Description: '', IsActive: true },
+    ]
+    const occurrences = [
+      { EventItemId: 21, NextStartDateTime: '2026-08-15T10:00:00', CampusId: null },
+      {
+        EventItemId: 30,
+        NextStartDateTime: '2027-01-04T09:00:00',
+        CampusId: null,
+        Schedule: {
+          iCalendarContent: '',
+          EffectiveEndDate: '2026-01-16T09:00:00',
+        },
+      },
+    ]
+
+    expect([
+      ...getEventItemIdsWithUpcomingOccurrences(
+        occurrences,
+        eventItems,
+        publicEventItemIds,
+        new Date('2026-08-13T00:00:00.000Z'),
+      ),
+    ]).toEqual([21])
   })
 })
