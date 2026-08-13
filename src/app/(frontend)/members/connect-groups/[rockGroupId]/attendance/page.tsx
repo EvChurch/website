@@ -51,14 +51,14 @@ export default async function ConnectGroupAttendancePage({
         >
           Back to {context.group.name}
         </Link>
-        <p className="mt-8 text-xs font-bold uppercase tracking-[0.18em] text-rich-red">
+        <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-rich-red">
           Connect Group
         </p>
-        <h1 className="mt-3 text-4xl leading-tight text-brand-black sm:text-5xl">
+        <h1 className="mt-2 text-4xl leading-tight text-brand-black sm:text-5xl">
           Record attendance
         </h1>
-        <p className="mt-3 text-lg text-mid-grey">{context.group.name}</p>
-        <div className="mt-10">
+        <p className="mt-2 text-base text-mid-grey sm:text-lg">{context.group.name}</p>
+        <div className="mt-7">
           {attendanceEntry?.selectedMeeting ? (
             <ConnectGroupAttendanceEditor
               rockGroupId={context.group.rockGroupId}

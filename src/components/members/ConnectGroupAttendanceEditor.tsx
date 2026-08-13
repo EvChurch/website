@@ -97,7 +97,7 @@ export function ConnectGroupAttendanceEditor({
   }
 
   return (
-    <form action={save} className="space-y-6">
+    <form action={save} className="space-y-4">
       <div>
         <label htmlFor="attendance-meeting" className="mb-2 block text-sm font-bold text-brand-black">Meeting</label>
         <select
@@ -111,7 +111,7 @@ export function ConnectGroupAttendanceEditor({
         </select>
       </div>
 
-      <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-warm-grey bg-white px-4 py-3 font-bold text-brand-black">
+      <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-warm-grey bg-white px-4 py-2.5 font-bold text-brand-black">
         <input
           name="didNotMeet"
           type="checkbox"
@@ -127,17 +127,21 @@ export function ConnectGroupAttendanceEditor({
 
       <div className="overflow-hidden rounded-xl border border-warm-grey bg-white" aria-busy={isPending}>
         {people.map((person) => (
-          <fieldset key={person.rockPersonId} disabled={meeting.didNotMeet || isPending || loadFailed} className="grid gap-3 border-t border-warm-grey px-4 py-4 first:border-t-0 sm:grid-cols-[1fr_auto] sm:items-center">
+          <fieldset key={person.rockPersonId} disabled={meeting.didNotMeet || isPending || loadFailed} className="grid grid-cols-[minmax(0,1fr)_9rem] items-center gap-3 border-t border-warm-grey px-3 py-2.5 first:border-t-0 sm:grid-cols-[1fr_10rem] sm:px-4">
             <legend className="sr-only">Attendance for {person.name}</legend>
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center gap-2.5">
               <MemberAvatar name={person.name} src={person.avatarUrl} size="small" />
-              <span aria-hidden="true" className="font-bold text-brand-black">{person.name}</span>
+              <span aria-hidden="true" className="truncate text-sm font-bold text-brand-black sm:text-base">{person.name}</span>
             </div>
-            <div role="radiogroup" aria-label={`Attendance for ${person.name}`} className="grid grid-cols-2 rounded-lg bg-[#f2efeb] p-1">
+            <div role="radiogroup" aria-label={`Attendance for ${person.name}`} className="relative grid grid-cols-2 rounded-lg bg-[#f2efeb] p-1">
+              <span
+                aria-hidden="true"
+                className={`absolute bottom-1 left-1 top-1 w-[calc(50%-0.25rem)] rounded-md bg-brand-black shadow-sm transition-transform duration-200 ease-out ${meeting.marks[person.rockPersonId] === 'absent' ? 'translate-x-full' : 'translate-x-0'}`}
+              />
               {(['present', 'absent'] as const).map((state) => {
                 const checked = meeting.marks[person.rockPersonId] === state
                 return (
-                  <label key={state} className={`flex min-h-11 cursor-pointer items-center justify-center rounded-md px-4 text-sm font-bold ${checked ? state === 'present' ? 'bg-brand-black text-white' : 'bg-rich-red text-white' : 'text-brand-black'}`}>
+                  <label key={state} className={`relative z-10 flex min-h-10 cursor-pointer items-center justify-center rounded-md px-2 text-xs font-bold transition-colors duration-200 sm:text-sm ${checked ? 'text-white' : 'text-brand-black'}`}>
                     <input className="sr-only" type="radio" name={`person-${person.rockPersonId}`} value={state} checked={checked} onChange={() => setMark(person.rockPersonId, state)} />
                     {state === 'present' ? 'Present' : 'Absent'}
                   </label>
@@ -150,7 +154,7 @@ export function ConnectGroupAttendanceEditor({
 
       <div>
         <label htmlFor="meeting-notes" className="mb-2 block text-sm font-bold text-brand-black">Meeting notes</label>
-        <textarea id="meeting-notes" value={meeting.notes} disabled={isPending || loadFailed} onChange={(event) => setMeeting((current) => ({ ...current, notes: event.target.value }))} rows={4} className="w-full rounded-xl border border-warm-grey bg-white px-4 py-3 text-brand-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-black" />
+        <textarea id="meeting-notes" value={meeting.notes} disabled={isPending || loadFailed} onChange={(event) => setMeeting((current) => ({ ...current, notes: event.target.value }))} rows={3} className="w-full rounded-xl border border-warm-grey bg-white px-4 py-3 text-brand-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-black" />
       </div>
 
       <div aria-live="polite" className="flex flex-wrap items-center justify-between gap-3">

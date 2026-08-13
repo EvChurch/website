@@ -41,6 +41,19 @@ describe('ConnectGroupAttendanceEditor', () => {
     expect(container.textContent).toContain('2 present')
     expect(container.querySelector('textarea')?.labels?.[0]?.textContent).toContain('Meeting notes')
     expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent).toContain('Save attendance')
+    expect(container.querySelector('textarea')?.getAttribute('rows')).toBe('3')
+  })
+
+  it('slides one black selection between present and absent', async () => {
+    await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first]} initialMeeting={selected} people={people} />))
+    const firstGroup = container.querySelector('[role="radiogroup"]')!
+    const slider = firstGroup.querySelector<HTMLSpanElement>('span[aria-hidden="true"]')!
+    expect(slider.className).toContain('translate-x-0')
+    expect(firstGroup.querySelector<HTMLLabelElement>('label')?.className).toContain('text-white')
+
+    await act(async () => firstGroup.querySelector<HTMLInputElement>('input[value="absent"]')?.click())
+    expect(slider.className).toContain('translate-x-full')
+    expect(firstGroup.querySelectorAll<HTMLLabelElement>('label')[1]?.className).toContain('text-white')
   })
 
   it('disables marks when the group did not meet', async () => {
