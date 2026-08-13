@@ -11,10 +11,12 @@ import type {
   AttendanceMeetingIdentity,
   ConnectGroupAttendanceMeeting,
 } from '@/lib/members/attendance-entry'
+import { MemberAvatar } from './MemberAvatar'
 
 interface AttendancePerson {
   rockPersonId: number
   name: string
+  avatarUrl: string | null
 }
 
 export function ConnectGroupAttendanceEditor({
@@ -115,7 +117,10 @@ export function ConnectGroupAttendanceEditor({
         {people.map((person) => (
           <fieldset key={person.rockPersonId} disabled={meeting.didNotMeet || isPending || loadFailed} className="grid gap-3 border-t border-warm-grey px-4 py-4 first:border-t-0 sm:grid-cols-[1fr_auto] sm:items-center">
             <legend className="sr-only">Attendance for {person.name}</legend>
-            <span aria-hidden="true" className="font-bold text-brand-black">{person.name}</span>
+            <div className="flex items-center gap-3">
+              <MemberAvatar name={person.name} src={person.avatarUrl} size="small" />
+              <span aria-hidden="true" className="font-bold text-brand-black">{person.name}</span>
+            </div>
             <div role="radiogroup" aria-label={`Attendance for ${person.name}`} className="grid grid-cols-2 rounded-lg bg-[#f2efeb] p-1">
               {(['present', 'absent'] as const).map((state) => {
                 const checked = meeting.marks[person.rockPersonId] === state

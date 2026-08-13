@@ -64,9 +64,10 @@ export default async function ConnectGroupAttendancePage({
               rockGroupId={context.group.rockGroupId}
               meetings={attendanceEntry.meetings}
               initialMeeting={attendanceEntry.selectedMeeting}
-              people={context.people.map(({ rockPersonId, name }) => ({
+              people={context.people.map(({ rockPersonId, name, avatarUrl }) => ({
                 rockPersonId,
                 name,
+                avatarUrl,
               }))}
             />
           ) : (

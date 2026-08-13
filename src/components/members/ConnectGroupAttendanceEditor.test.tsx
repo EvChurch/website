@@ -17,7 +17,10 @@ import type { ConnectGroupAttendanceMeeting } from '@/lib/members/attendance-ent
 
 const first = { date: '2026-08-12', startDateTime: '2026-08-12T19:00:00+12:00', scheduleId: 1, locationId: null, occurrenceId: null }
 const second = { date: '2026-08-05', startDateTime: '2026-08-05T19:00:00+12:00', scheduleId: 1, locationId: null, occurrenceId: 2 }
-const people = [{ rockPersonId: 1, name: 'Aroha' }, { rockPersonId: 2, name: 'James' }]
+const people = [
+  { rockPersonId: 1, name: 'Aroha', avatarUrl: '/members/people/1/avatar' },
+  { rockPersonId: 2, name: 'James', avatarUrl: null },
+]
 const selected = { identity: first, notes: '', didNotMeet: false, marks: { 1: 'present' as const, 2: 'present' as const } }
 
 describe('ConnectGroupAttendanceEditor', () => {
@@ -32,6 +35,8 @@ describe('ConnectGroupAttendanceEditor', () => {
   it('renders accessible explicit marks, totals, notes, and immediate save', async () => {
     await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first, second]} initialMeeting={selected} people={people} />))
     expect(container.querySelectorAll('[role="radiogroup"]')).toHaveLength(2)
+    expect(container.querySelector<HTMLImageElement>('img[alt="Aroha\'s profile"]')?.src).toContain('/members/people/1/avatar')
+    expect(container.querySelector('[aria-label="James\'s profile"]')?.textContent).toBe('J')
     expect(container.querySelector('[role="radiogroup"]')?.getAttribute('aria-label')).toContain('Aroha')
     expect(container.textContent).toContain('2 present')
     expect(container.querySelector('textarea')?.labels?.[0]?.textContent).toContain('Meeting notes')
