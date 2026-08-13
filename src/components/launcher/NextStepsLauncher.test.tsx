@@ -250,9 +250,9 @@ describe("NextStepsLauncher", () => {
     expect(panelText).not.toContain(
       "Explore everything available at your campus",
     );
-    expect(container.querySelector('a[href="/give"]')).not.toBeNull();
+    expect(container.querySelector('a[href="https://give.ev.church"]')).not.toBeNull();
     expect(button(container, "Plan a Visit")?.className).toContain("py-6");
-    expect(container.querySelector('a[href="/give"]')?.className).not.toContain(
+    expect(container.querySelector('a[href="https://give.ev.church"]')?.className).not.toContain(
       "py-6",
     );
 

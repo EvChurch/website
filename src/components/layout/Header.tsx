@@ -327,7 +327,7 @@ function MobileMenu({
               Plan Your Visit
             </Link>
             <Link
-              href="/give"
+              href="https://give.ev.church"
               className="block w-full rounded-md border border-rich-red py-3.5 text-center text-sm font-semibold text-rich-red transition-colors hover:bg-rich-red hover:text-white"
               onClick={onClose}
             >
@@ -490,7 +490,7 @@ export function Header({
               })}
             </nav>
             <Link
-              href="/give"
+              href="https://give.ev.church"
               data-header-give
               className={`ml-3 mr-2 rounded-full px-5 py-2 text-[0.8125rem] font-semibold uppercase tracking-wide transition-colors duration-200 ${
                 darkTone

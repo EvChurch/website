@@ -558,7 +558,7 @@ export function NextStepsLauncher({
               }
             />
             <a
-              href="/give"
+              href="https://give.ev.church"
               className="group flex w-full animate-fade-in items-center justify-between gap-4 rounded-2xl border border-warm-grey/70 bg-white px-5 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-rich-red/35 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red motion-reduce:animate-none"
               style={{ animationDelay: "250ms" }}
             >

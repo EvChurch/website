@@ -37,10 +37,6 @@ export function OrganizationJsonLd() {
         addressCountry: 'NZ',
       },
     ],
-    areaServed: {
-      '@type': 'City',
-      name: 'Auckland',
-    },
     isAccessibleForFree: true,
     publicAccess: true,
     sameAs: SOCIAL_LINKS.map(({ href }) => href),

@@ -310,7 +310,7 @@ describe('MemberAccountControl', () => {
   it('places account access after Give and in both mobile surfaces', async () => {
     await act(async () => root.render(<Header memberProfile={member} />))
 
-    const give = container.querySelector<HTMLAnchorElement>('a[href="/give"]')!
+    const give = container.querySelector<HTMLAnchorElement>('a[href="https://give.ev.church"]')!
     // Desktop trigger is after Give
     expect(give.nextElementSibling?.querySelector('button[aria-haspopup="true"]')).not.toBeNull()
 
@@ -356,7 +356,7 @@ describe('MemberAccountControl', () => {
 
       expect(container.querySelector('header a[href="/events"]')?.className)
         .toContain('text-brand-black/80')
-      expect(container.querySelector('header a[href="/give"]')?.className)
+      expect(container.querySelector('header a[href="https://give.ev.church"]')?.className)
         .toContain('bg-rich-red')
       expect(container.querySelector('header button[aria-label="Open menu"]')?.className)
         .toContain('text-brand-black')
@@ -369,7 +369,7 @@ describe('MemberAccountControl', () => {
     expect(container.querySelector('header[data-public-site-header]')).not.toBeNull()
     expect(container.querySelector('header a[href="/events"][data-header-nav-item]'))
       .not.toBeNull()
-    expect(container.querySelector('header a[href="/give"][data-header-give]'))
+    expect(container.querySelector('header a[href="https://give.ev.church"][data-header-give]'))
       .not.toBeNull()
     expect(container.querySelector('header button[aria-label="Open menu"][data-header-menu]'))
       .not.toBeNull()
@@ -381,7 +381,7 @@ describe('MemberAccountControl', () => {
 
     expect(container.querySelector('header a[href="/events"]')?.className)
       .toContain('text-white/90')
-    expect(container.querySelector('header a[href="/give"]')?.className)
+    expect(container.querySelector('header a[href="https://give.ev.church"]')?.className)
       .toContain('bg-white')
     expect(container.querySelector('header button[aria-label="Open menu"]')?.className)
       .toContain('text-white')
