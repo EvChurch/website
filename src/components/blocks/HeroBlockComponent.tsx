@@ -1,14 +1,8 @@
 import { MediaImage } from '@/components/media/MediaImage'
+import type { PayloadMediaImage } from '@/lib/payload-media'
 import { Button, ArrowRight } from '@/components/ui/Button'
 
-interface MediaUpload {
-  id: string
-  url: string
-  alt: string
-  width?: number
-  height?: number
-  blurDataURL?: string | null
-}
+type MediaUpload = PayloadMediaImage & { id: string }
 
 interface HeroButton {
   label: string
@@ -293,6 +287,7 @@ export function HeroBlockComponent({
             {imageUrl && (
               <MediaImage
                 media={image}
+                mediaSize="hero"
                 fill
                 priority
                 sizes="(max-width: 1023px) 100vw, (max-width: 1280px) 60vw, 720px"
@@ -312,6 +307,7 @@ export function HeroBlockComponent({
         <div className="absolute inset-0">
           <MediaImage
             media={typeof image === 'string' ? image : image}
+            mediaSize="hero"
             fill
             priority
             sizes="100vw"

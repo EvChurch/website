@@ -1,8 +1,9 @@
 import { MediaImage } from '@/components/media/MediaImage'
+import type { PayloadMediaImage } from '@/lib/payload-media'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 
 interface PhotoImage {
-  image: { url: string; alt: string; blurDataURL?: string | null } | string
+  image: (PayloadMediaImage & { url: string; alt: string }) | string
 }
 
 interface PhotoStripBlockProps {
@@ -44,6 +45,7 @@ export function PhotoStripBlockComponent({ layout: layoutProp, images }: PhotoSt
                 <div key={i} className="relative aspect-[4/3]">
                   <MediaImage
                     media={img.image}
+                    mediaSize="medium"
                     fill
                     sizes="(max-width: 768px) 50vw, 25vw"
                     className="rounded-lg object-cover"
@@ -67,6 +69,7 @@ export function PhotoStripBlockComponent({ layout: layoutProp, images }: PhotoSt
                 <div key={i} className={`relative aspect-[3/4] ${i === 1 ? 'mt-8' : ''}`}>
                   <MediaImage
                     media={img.image}
+                    mediaSize="large"
                     fill
                     sizes="(max-width: 640px) 100vw, 50vw"
                     className="rounded-lg object-cover"
@@ -90,6 +93,7 @@ export function PhotoStripBlockComponent({ layout: layoutProp, images }: PhotoSt
                 <div key={i} className="mb-3 break-inside-avoid">
                   <MediaImage
                     media={img.image}
+                    mediaSize="medium"
                     width={600}
                     height={i % 3 === 0 ? 800 : i % 3 === 1 ? 600 : 450}
                     sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
@@ -123,6 +127,7 @@ export function PhotoStripBlockComponent({ layout: layoutProp, images }: PhotoSt
                 <ScrollReveal key={i} delay={delayPatterns[i % delayPatterns.length]}>
                   <MediaImage
                     media={img.image}
+                    mediaSize="medium"
                     width={600}
                     height={800}
                     sizes="(max-width: 640px) 70vw, 300px"
@@ -150,6 +155,7 @@ export function PhotoStripBlockComponent({ layout: layoutProp, images }: PhotoSt
             <MediaImage
               key={i}
               media={img.image}
+              mediaSize="medium"
               width={600}
               height={800}
               sizes="(max-width: 1024px) 70vw, 300px"

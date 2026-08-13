@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { SeriesCard } from './SeriesCard'
+import type { PayloadMediaImage } from '@/lib/payload-media'
 import Link from 'next/link'
 
 type BrowseMode = 'series' | 'scripture' | 'preachers'
@@ -10,7 +11,7 @@ interface SeriesItem {
   id: number
   title: string
   slug: string
-  bannerImage: { url: string; blurDataURL?: string | null } | null
+  bannerImage: PayloadMediaImage | null
   sermonCount: number
   earliestDate: string
   latestDate: string

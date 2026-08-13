@@ -1,4 +1,5 @@
 import { getPayloadClient } from '@/lib/payload'
+import type { PayloadMediaImage } from '@/lib/payload-media'
 
 export type RegistrationStatus = 'open' | 'full' | 'closed' | 'coming-soon' | null
 
@@ -28,12 +29,7 @@ export interface PublicCampus {
   slug: string
 }
 
-export interface PublicMedia {
-  url?: string | null
-  alt?: string | null
-  width?: number | null
-  height?: number | null
-}
+export type PublicMedia = PayloadMediaImage
 
 const AUCKLAND_TIME_ZONE = 'Pacific/Auckland'
 

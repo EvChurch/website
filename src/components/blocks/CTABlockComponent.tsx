@@ -1,4 +1,5 @@
 import { MediaImage } from '@/components/media/MediaImage'
+import type { PayloadMediaImage } from '@/lib/payload-media'
 import { Button } from '@/components/ui/Button'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 
@@ -11,14 +12,7 @@ interface CTAButton {
 
 type ColorPreset = 'primary-red' | 'light' | 'dark'
 
-interface MediaRef {
-  id: string
-  url: string
-  alt: string
-  width?: number
-  height?: number
-  blurDataURL?: string | null
-}
+type MediaRef = PayloadMediaImage & { id: string }
 
 interface CTABlockProps {
   heading: string
@@ -61,6 +55,7 @@ export function CTABlockComponent({
         <>
           <MediaImage
             media={typeof backgroundImage === 'string' ? backgroundImage : backgroundImage!}
+            mediaSize="hero"
             fill
             sizes="100vw"
             className="object-cover"

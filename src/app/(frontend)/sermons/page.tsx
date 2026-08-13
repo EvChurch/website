@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import type { Where } from 'payload'
 import { MediaImage } from '@/components/media/MediaImage'
+import { getPayloadMediaUrl, type PayloadMediaImage } from '@/lib/payload-media'
 import { getPayloadClient } from '@/lib/payload'
 import { getSermonAudioUrl, getSeriesBannerUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { SermonCard } from '@/components/sermons/SermonCard'
@@ -349,15 +350,14 @@ export default async function SermonsPage({
   const heroSeriesDoc = heroSeriesId
     ? await payload.findByID({ collection: 'sermon-series', id: heroSeriesId, depth: 1 })
     : null
-  type MediaObj = { url: string; alt?: string; blurDataURL?: string | null }
   const heroBackgroundMedia =
     (heroSeriesDoc?.backgroundImage && typeof heroSeriesDoc.backgroundImage === 'object' && 'url' in heroSeriesDoc.backgroundImage
-      ? (heroSeriesDoc.backgroundImage as MediaObj) : null)
+      ? (heroSeriesDoc.backgroundImage as PayloadMediaImage) : null)
     || (heroSeriesDoc?.bannerImage && typeof heroSeriesDoc.bannerImage === 'object' && 'url' in heroSeriesDoc.bannerImage
-      ? (heroSeriesDoc.bannerImage as MediaObj) : null)
+      ? (heroSeriesDoc.bannerImage as PayloadMediaImage) : null)
   const heroBannerMedia =
     heroSeriesDoc?.bannerImage && typeof heroSeriesDoc.bannerImage === 'object' && 'url' in heroSeriesDoc.bannerImage
-      ? (heroSeriesDoc.bannerImage as MediaObj) : null
+      ? (heroSeriesDoc.bannerImage as PayloadMediaImage) : null
   const heroAudioSpeaker = latestSermon?.audioSpeaker && typeof latestSermon.audioSpeaker === 'object' && 'name' in latestSermon.audioSpeaker
     ? latestSermon.audioSpeaker as { name: string; slug: string }
     : null
@@ -394,6 +394,7 @@ export default async function SermonsPage({
             <>
               <MediaImage
                 media={heroBackgroundMedia}
+                mediaSize="hero"
                 alt=""
                 fill
                 priority
@@ -411,6 +412,7 @@ export default async function SermonsPage({
                 <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-xl shadow-2xl md:w-72 lg:w-80">
                   <MediaImage
                     media={heroBannerMedia}
+                    mediaSize="medium"
                     alt={latestSermon.title}
                     fill
                     sizes="(max-width: 768px) 100vw, 320px"
@@ -488,7 +490,7 @@ export default async function SermonsPage({
                     speakerSlug={heroSpeakerSlug}
                     seriesTitle={heroSeriesTitle}
                     seriesSlug={heroSeriesSlug}
-                    artworkUrl={heroBannerMedia?.url ?? undefined}
+                    artworkUrl={heroBannerMedia ? getPayloadMediaUrl(heroBannerMedia, 'medium') ?? undefined : undefined}
                     artworkBlurDataURL={heroBannerMedia?.blurDataURL ?? undefined}
                     duration={latestSermon.duration ?? undefined}
                     videos={getSermonVideos(latestSermon)}
@@ -597,7 +599,7 @@ export default async function SermonsPage({
                     typeof s.bannerImage === 'object' &&
                     s.bannerImage !== null &&
                     'url' in s.bannerImage
-                      ? { url: s.bannerImage.url as string, blurDataURL: (s.bannerImage as { blurDataURL?: string | null }).blurDataURL }
+                      ? (s.bannerImage as PayloadMediaImage)
                       : null,
                   sermonCount: s.sermonCount,
                   earliestDate: s.earliestSermonDate,

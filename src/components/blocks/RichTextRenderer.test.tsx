@@ -17,13 +17,21 @@ describe('RichTextRenderer uploads', () => {
               width: 1200,
               height: 800,
               mimeType: 'image/jpeg',
+              sizes: {
+                largeWebp: {
+                  url: 'https://cdn.example.com/article-1200.webp',
+                  width: 1200,
+                  height: 800,
+                },
+              },
             },
           }],
         },
       }} />,
     )
 
-    expect(markup).toContain('src="https://cdn.example.com/article.jpg"')
+    expect(markup).toContain('src="https://cdn.example.com/article-1200.webp"')
+    expect(markup).not.toContain('article.jpg')
     expect(markup).toContain('alt="People gathering"')
   })
 

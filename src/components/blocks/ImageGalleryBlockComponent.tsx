@@ -1,14 +1,8 @@
 import { MediaImage } from '@/components/media/MediaImage'
+import type { PayloadMediaImage } from '@/lib/payload-media'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 
-interface MediaUpload {
-  id: string
-  url: string
-  alt: string
-  width?: number
-  height?: number
-  blurDataURL?: string | null
-}
+type MediaUpload = PayloadMediaImage & { id: string }
 
 interface GalleryImage {
   image: MediaUpload | string
@@ -45,6 +39,7 @@ export function ImageGalleryBlockComponent({ images }: ImageGalleryBlockProps) {
               <div className="group relative overflow-hidden rounded-lg">
                 <MediaImage
                   media={img}
+                  mediaSize="large"
                   width={img.width ?? 800}
                   height={img.height ?? 600}
                   className="aspect-[4/3] w-full object-cover transition-transform duration-500 group-hover:scale-105"

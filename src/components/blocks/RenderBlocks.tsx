@@ -22,6 +22,7 @@ import type {
   FormEmbedBlock as PayloadFormEmbedBlock,
   UpcomingEventsBlock as PayloadUpcomingEventsBlock,
 } from '@/payload-types'
+import type { PayloadMediaImage } from '@/lib/payload-media'
 
 /**
  * Union of all known block types.
@@ -32,13 +33,7 @@ interface BaseBlock {
   id?: string
 }
 
-interface MediaRef {
-  id: string
-  url: string
-  alt: string
-  width?: number
-  height?: number
-}
+type MediaRef = PayloadMediaImage & { id: string; url: string; alt: string }
 
 type Media = MediaRef | string
 

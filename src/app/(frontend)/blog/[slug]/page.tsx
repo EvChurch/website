@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 
 import RichText from '@/components/blocks/RichTextRenderer'
 import { MediaImage } from '@/components/media/MediaImage'
+import { getPayloadMediaUrl } from '@/lib/payload-media'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 import {
   formatBlogDate,
@@ -26,6 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = post.seo?.metaTitle?.trim() || `${post.title} | Ev Church Blog`
   const description = getBlogDescription(post)
   const image = getBlogImage(post)
+  const imageUrl = image ? getPayloadMediaUrl(image, 'large') : null
   const url = `https://www.ev.church/blog/${post.slug}`
 
   return {
@@ -40,7 +42,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       type: 'article',
       publishedTime: post.publishedDate,
       authors: [post.author],
-      ...(image?.url ? { images: [{ url: image.url, alt: image.alt || post.title }] } : {}),
+      ...(imageUrl ? { images: [{ url: imageUrl, alt: image?.alt || post.title }] } : {}),
     },
     alternates: { canonical: url },
   }
@@ -60,6 +62,7 @@ export default async function BlogPostPage({ params }: Props) {
           <div className="absolute inset-0">
             <MediaImage
               media={image}
+              mediaSize="hero"
               fill
               priority
               sizes="100vw"

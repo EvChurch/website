@@ -1,10 +1,11 @@
 import { MediaImage } from '@/components/media/MediaImage'
+import type { PayloadMediaImage } from '@/lib/payload-media'
 import Link from 'next/link'
 
 interface SeriesCardProps {
   title: string
   slug: string
-  bannerImage: { url: string; blurDataURL?: string | null } | null
+  bannerImage: PayloadMediaImage | null
   sermonCount: number
   earliestDate?: string
   latestDate?: string
@@ -36,6 +37,7 @@ export function SeriesCard({
       {bannerImage?.url ? (
         <MediaImage
           media={bannerImage}
+          mediaSize="medium"
           alt={title}
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"

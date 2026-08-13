@@ -2,16 +2,10 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { MediaImage } from '@/components/media/MediaImage'
+import type { PayloadMediaImage } from '@/lib/payload-media'
 import { Button } from '@/components/ui/Button'
 
-interface MediaRef {
-  id: string
-  url: string
-  alt: string
-  width?: number
-  height?: number
-  blurDataURL?: string | null
-}
+type MediaRef = PayloadMediaImage & { id: string }
 
 type Media = MediaRef | string
 
@@ -171,6 +165,7 @@ export function GospelStepperBlockComponent({
                 <div className="relative flex min-h-[400px] items-center overflow-hidden rounded-2xl bg-brand-black lg:min-h-[500px]">
                   <MediaImage
                     media={step.image!}
+                    mediaSize="hero"
                     fill
                     sizes="(max-width: 768px) 100vw, 80rem"
                     className="object-cover opacity-40"
@@ -202,6 +197,7 @@ export function GospelStepperBlockComponent({
                     <div className="relative aspect-[4/3] w-full flex-1 overflow-hidden rounded-2xl lg:aspect-square">
                       <MediaImage
                         media={step.image}
+                        mediaSize="large"
                         fill
                         sizes="(max-width: 768px) 100vw, 50vw"
                         className="object-cover"

@@ -64,6 +64,7 @@ export default async function BlogPage() {
                         {image?.url ? (
                           <MediaImage
                             media={image}
+                            mediaSize="medium"
                             fill
                             sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 33vw"
                             className="object-cover transition-transform duration-500 group-hover:scale-105"

@@ -6,9 +6,11 @@ import {
   toPlainText,
   type PublicEvent,
 } from '@/lib/events'
+import { getPayloadMediaUrl } from '@/lib/payload-media'
 
 export function EventJsonLd({ event }: { event: PublicEvent }) {
   const image = getEventImage(event)
+  const imageUrl = image ? getPayloadMediaUrl(image, 'large') : null
   const registrationHref = getRegistrationHref(event)
   const past = isPastEvent(event)
   const locationName = event.location?.name ?? getCampusName(event) ?? 'Ev Church'
@@ -35,7 +37,7 @@ export function EventJsonLd({ event }: { event: PublicEvent }) {
       name: 'Ev Church',
       url: 'https://www.ev.church',
     },
-    ...(image?.url ? { image: [image.url] } : {}),
+    ...(imageUrl ? { image: [imageUrl] } : {}),
     ...(!past && registrationHref
       ? {
           offers: {

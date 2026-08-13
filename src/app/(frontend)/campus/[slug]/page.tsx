@@ -8,6 +8,7 @@ import { BreadcrumbJsonLd, buildBreadcrumbs } from '@/components/seo/BreadcrumbJ
 import { CampusJsonLd } from '@/components/seo/CampusJsonLd'
 import { Button, type ButtonLinkAction } from '@/components/ui/Button'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
+import { getPayloadMediaUrl, type PayloadMediaSize } from '@/lib/payload-media'
 import { getGoogleMapsEmbedUrl } from '@/lib/google-maps'
 import { getPayloadClient } from '@/lib/payload'
 import type { Campus, Media } from '@/payload-types'
@@ -193,9 +194,13 @@ const getCampusBySlug = cache(async (slug: string): Promise<ManagedCampusPage | 
   return content ? { campus, content } : null
 })
 
-function getMediaImage(value: number | Media | null | undefined): CampusImage | null {
-  if (!value || typeof value !== 'object' || !value.url) return null
-  return { src: value.url, alt: value.alt }
+function getMediaImage(
+  value: number | Media | null | undefined,
+  size: PayloadMediaSize,
+): CampusImage | null {
+  if (!value || typeof value !== 'object') return null
+  const src = getPayloadMediaUrl(value, size)
+  return src ? { src, alt: value.alt } : null
 }
 
 function getHeroImage(
@@ -203,7 +208,7 @@ function getHeroImage(
   content: ManagedPageContent,
 ): CampusImage | null {
   return (
-    getMediaImage(campus.featuredImage) ??
+    getMediaImage(campus.featuredImage, 'hero') ??
     (content.heroImagePath
       ? {
           src: content.heroImagePath,
@@ -216,7 +221,7 @@ function getHeroImage(
 function getGalleryImages(campus: CampusPageDocument, content: ManagedPageContent): CampusImage[] {
   const uploadedImages =
     campus.slideImages
-      ?.map(({ image }) => getMediaImage(image))
+      ?.map(({ image }) => getMediaImage(image, 'large'))
       .filter((image): image is CampusImage => image !== null) ?? []
 
   if (uploadedImages.length > 0) return uploadedImages

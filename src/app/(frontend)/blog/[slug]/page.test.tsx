@@ -36,7 +36,11 @@ describe('blog post page', () => {
         metaTitle: 'Custom search title',
         metaDescription: 'Custom search description.',
       },
-      featuredImage: { url: 'https://cdn.example.com/blog.jpg', alt: 'People together' },
+      featuredImage: {
+        url: 'https://cdn.example.com/blog.jpg',
+        alt: 'People together',
+        sizes: { largeWebp: { url: 'https://cdn.example.com/blog-1200.webp' } },
+      },
     })
 
     const metadata = await generateMetadata({
@@ -47,7 +51,7 @@ describe('blog post page', () => {
     expect(metadata.description).toBe('Custom search description.')
     expect(metadata.openGraph).toEqual(expect.objectContaining({
       title: 'Custom search title',
-      images: [{ url: 'https://cdn.example.com/blog.jpg', alt: 'People together' }],
+      images: [{ url: 'https://cdn.example.com/blog-1200.webp', alt: 'People together' }],
     }))
   })
 

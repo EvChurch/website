@@ -1,3 +1,5 @@
+import { getPayloadMediaUrl, type PayloadMediaImage } from '@/lib/payload-media'
+
 /**
  * Extract the audio URL from a sermon's `audio` field.
  * At depth 0, `audio` is a number (ID). At depth 1+, it's the full upload object with `url`.
@@ -81,8 +83,8 @@ export function getSeriesBannerUrl(sermon: { series?: unknown }): string | null 
   if (!series || typeof series !== 'object') return null
   const s = series as Record<string, unknown>
   const banner = s.bannerImage
-  if (banner && typeof banner === 'object' && banner !== null && 'url' in banner) {
-    return (banner as { url: string }).url
+  if (banner && typeof banner === 'object' && banner !== null) {
+    return getPayloadMediaUrl(banner as PayloadMediaImage, 'medium')
   }
   return null
 }

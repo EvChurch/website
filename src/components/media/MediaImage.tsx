@@ -1,25 +1,23 @@
 import Image, { type ImageProps } from 'next/image'
-
-interface MediaObject {
-  url?: string | null
-  alt?: string
-  width?: number | null
-  height?: number | null
-  blurDataURL?: string | null
-}
+import {
+  getPayloadMediaDerivative,
+  type PayloadMediaImage,
+  type PayloadMediaSize,
+} from '@/lib/payload-media'
 
 type MediaImageProps = Omit<ImageProps, 'src' | 'alt' | 'placeholder' | 'blurDataURL'> & {
-  media: MediaObject | string
+  media: PayloadMediaImage | string
+  mediaSize: PayloadMediaSize
   alt?: string
 }
 
-export function MediaImage({ media, alt, ...props }: MediaImageProps) {
+export function MediaImage({ media, mediaSize, alt, ...props }: MediaImageProps) {
   if (typeof media === 'string') {
     return <Image src={media} alt={alt ?? ''} {...props} />
   }
 
-  const src = media.url
-  if (!src) return null
+  const derivative = getPayloadMediaDerivative(media, mediaSize)
+  if (!derivative?.url) return null
 
   const blurProps =
     media.blurDataURL
@@ -28,7 +26,7 @@ export function MediaImage({ media, alt, ...props }: MediaImageProps) {
 
   return (
     <Image
-      src={src}
+      src={derivative.url}
       alt={alt ?? media.alt ?? ''}
       {...blurProps}
       {...props}
