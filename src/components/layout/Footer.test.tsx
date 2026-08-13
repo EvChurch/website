@@ -4,6 +4,22 @@ import { describe, expect, it } from 'vitest'
 import { Footer } from './Footer'
 
 describe('Footer social links', () => {
+  it('links to the public HTML sitemap', () => {
+    const markup = renderToStaticMarkup(<Footer />)
+
+    expect(markup).toContain('href="/sitemap"')
+    expect(markup).toContain('>Sitemap<')
+  })
+
+  it('places campus service times on a visible line below each campus link', () => {
+    const markup = renderToStaticMarkup(<Footer />)
+
+    expect(markup).toContain('href="/campus/north"')
+    expect(markup).toContain('href="/campus/north">North<span class="block text-[0.8125rem] font-medium leading-tight text-dark-grey transition-colors duration-150 group-hover:text-rich-red">Sun 10:15 am</span></a>')
+    expect(markup).toContain('href="/campus/central">Central<span class="block text-[0.8125rem] font-medium leading-tight text-dark-grey transition-colors duration-150 group-hover:text-rich-red">Sun 10:15 am</span></a>')
+    expect(markup).toContain('href="/campus/unichurch">Unichurch<span class="block text-[0.8125rem] font-medium leading-tight text-dark-grey transition-colors duration-150 group-hover:text-rich-red">Sun 5:15 pm</span></a>')
+  })
+
   it('links to the verified Ev Church social and podcast profiles', () => {
     const markup = renderToStaticMarkup(<Footer />)
 
