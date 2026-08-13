@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
 
 import RichText from '@/components/blocks/RichTextRenderer'
 import { MediaImage } from '@/components/media/MediaImage'
 import { getPayloadMediaUrl } from '@/lib/payload-media'
+import { publicNotFound } from '@/lib/public-not-found'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 import {
   formatBlogDate,
@@ -51,7 +51,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params
   const post = await getBlogPostBySlug(slug)
-  if (!post) notFound()
+  if (!post) publicNotFound('blog', slug)
 
   const image = getBlogImage(post)
 

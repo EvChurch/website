@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   }),
 }))
 
-vi.mock('next/navigation', () => ({ notFound: mocks.notFound }))
+vi.mock('@/lib/public-not-found', () => ({ publicNotFound: mocks.notFound }))
 vi.mock('@/lib/blog', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/lib/blog')>(),
   getBlogPostBySlug: mocks.getBlogPostBySlug,
@@ -24,7 +24,7 @@ describe('blog post page', () => {
 
     await expect(BlogPostPage({ params: Promise.resolve({ slug: 'missing' }) }))
       .rejects.toThrow('NEXT_NOT_FOUND')
-    expect(mocks.notFound).toHaveBeenCalledOnce()
+    expect(mocks.notFound).toHaveBeenCalledWith('blog', 'missing')
   })
 
   it('builds metadata from the Payload post instead of the URL slug', async () => {
@@ -85,5 +85,6 @@ describe('blog post page', () => {
     expect(markup).toContain('The real article body.')
     expect(markup).toContain('AI-assisted and reviewed.')
     expect(markup).not.toContain('Lorem ipsum')
+    expect(mocks.notFound).not.toHaveBeenCalled()
   })
 })

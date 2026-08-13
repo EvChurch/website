@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
 import { MediaImage } from '@/components/media/MediaImage'
 import type { PayloadMediaImage } from '@/lib/payload-media'
 import { getPayloadClient } from '@/lib/payload'
+import { publicNotFound } from '@/lib/public-not-found'
 import { getSermonAudioUrl, getSeriesBannerUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { SermonCard } from '@/components/sermons/SermonCard'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
@@ -65,7 +65,7 @@ export default async function SeriesPage({
   const payload = await getPayloadClient()
   const series = await getSeriesBySlug(slug)
 
-  if (!series) notFound()
+  if (!series) publicNotFound('sermons', 'series', slug)
 
   // Fetch all sermons in this series
   const sermonsResult = await payload.find({

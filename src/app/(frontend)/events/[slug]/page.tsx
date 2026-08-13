@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
 
 import RichText from '@/components/blocks/RichTextRenderer'
 import { EventImage } from '@/components/events/EventImage'
@@ -9,6 +8,7 @@ import { EventStatus } from '@/components/events/EventStatus'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
 import { EventJsonLd } from '@/components/seo/EventJsonLd'
 import { getPayloadMediaUrl } from '@/lib/payload-media'
+import { publicNotFound } from '@/lib/public-not-found'
 import {
   formatEventDate,
   getCampusName,
@@ -54,7 +54,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function EventDetailPage({ params }: Props) {
   const { slug } = await params
   const event = await getEventBySlug(slug)
-  if (!event) notFound()
+  if (!event) publicNotFound('events', slug)
 
   const past = isPastEvent(event)
   const campus = getCampusName(event)

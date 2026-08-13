@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { publicNotFound } from '@/lib/public-not-found'
 import Link from 'next/link'
 import Image from 'next/image'
 import { MediaImage } from '@/components/media/MediaImage'
@@ -102,7 +102,7 @@ export default async function SermonPage({
   const payload = await getPayloadClient()
   const sermon = await getSermonBySlug(slug)
 
-  if (!sermon) notFound()
+  if (!sermon) publicNotFound('sermons', slug)
 
   // Extract audio speaker (singular) from populated relationship
   const audioSpeaker =

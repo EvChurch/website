@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
 import { getPayloadClient } from '@/lib/payload'
+import { publicNotFound } from '@/lib/public-not-found'
 import { getSermonAudioUrl, getSeriesBannerUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { SermonCard } from '@/components/sermons/SermonCard'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
@@ -58,7 +58,7 @@ export default async function SpeakerPage({
   const payload = await getPayloadClient()
   const speaker = await getSpeakerBySlug(slug)
 
-  if (!speaker) notFound()
+  if (!speaker) publicNotFound('sermons', 'speakers', slug)
 
   // Fetch sermons by this speaker
   const sermonsResult = await payload.find({

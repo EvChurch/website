@@ -7,9 +7,7 @@ const mocks = vi.hoisted(() => ({
   }),
 }))
 
-vi.mock('next/navigation', () => ({
-  notFound: mocks.notFound,
-}))
+vi.mock('@/lib/public-not-found', () => ({ publicNotFound: mocks.notFound }))
 
 vi.mock('@/lib/payload', () => ({
   getPayloadClient: vi.fn(async () => ({ find: mocks.find })),
@@ -25,7 +23,7 @@ describe('retired dynamic pages', () => {
       DynamicPage({ params: Promise.resolve({ slug: 'next-steps' }) }),
     ).rejects.toThrow('NEXT_NOT_FOUND')
 
-    expect(mocks.notFound).toHaveBeenCalledOnce()
+    expect(mocks.notFound).toHaveBeenCalledWith('next-steps')
     expect(mocks.find).not.toHaveBeenCalled()
   })
 
