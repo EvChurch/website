@@ -2,21 +2,41 @@
 
 ## Default Workflow
 
-Use Compound Engineering as the primary way of working in this repository.
+Optimize for the shortest safe path from the user's request to production. Do
+the minimum work needed to make the requested change correct, verify it, and
+ship it. Do not add process, documentation, refactors, tests, or polish that are
+not needed for that outcome.
 
-- Start vague product or UX work with `$ce-brainstorm`.
-- Turn agreed requirements into an implementation plan with `$ce-plan`.
-- Execute an approved plan or a concrete build request with `$ce-work`.
-- Investigate bugs and failing behavior with `$ce-debug`.
-- Review meaningful changes with `$ce-code-review` before shipping.
-- Simplify recently changed code with `$ce-simplify-code` when a cleanup pass is useful.
-- Capture durable project learnings with `$ce-compound`.
-- Commit, push, and open a PR with `$ce-commit-push-pr` only when explicitly asked.
+- For a clear request, inspect the relevant code, implement the smallest scoped
+  change, and run the narrowest credible verification. Do not create a plan or
+  ask for approval merely because a task has multiple steps.
+- Use existing repository patterns and preserve unrelated behavior. Do not
+  broaden the task into adjacent cleanup or architectural work.
+- Diagnose enough to identify the cause before fixing a bug, but keep the
+  investigation proportional to the failure.
+- Add or update tests when they protect changed behavior or a likely regression.
+  Do not add tests solely to satisfy a workflow ritual.
+- Run focused checks while iterating. Run `pnpm build` when the change can affect
+  production compilation, generated Payload types, or integration behavior.
+- Treat review effort as risk-based. Perform a focused self-review of the diff;
+  use a separate comprehensive review only for high-risk changes such as auth,
+  payments, permissions, migrations, production data, or broad cross-cutting
+  changes, or when the user explicitly requests it.
+- Do not create brainstorms, plans, solution notes, handoffs, or other process
+  artifacts unless the user asks for them or unresolved decisions make them
+  necessary to implement safely.
+- Use Compound Engineering skills selectively when they materially shorten or
+  de-risk the work. They are tools, not mandatory stages: `$ce-debug` for a
+  genuinely open-ended bug, `$ce-plan` for unresolved or large-scope work, and
+  `$ce-code-review` for high-risk review. A concrete build request may be
+  implemented directly.
+- Commit, push, open a PR, deploy, or mutate production only when the user's
+  request authorizes that action. When asked to ship, continue through the
+  requested delivery steps without adding optional gates.
 
-Compound Engineering artifacts live under `docs/` by default. Reuse relevant
-material in `docs/brainstorms/`, `docs/plans/`, and `docs/solutions/` instead of
-starting from scratch. Keep plans and implementation aligned; if implementation
-reveals a product decision that the plan did not settle, pause and resolve it.
+If implementation exposes a product decision that materially changes scope or
+user-visible behavior, pause and ask. Otherwise make reasonable, reversible
+assumptions and keep moving.
 
 ## Tech Stack
 
