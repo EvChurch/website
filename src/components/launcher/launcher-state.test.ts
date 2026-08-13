@@ -38,7 +38,7 @@ describe('launcherReducer', () => {
 describe('launcher campus and search helpers', () => {
   const validCampusSlugs = ['north', 'central', 'unichurch']
 
-  it('prefers a campus route, otherwise accepts only a valid stored campus', () => {
+  it('prefers route, remembered, member, then Central campus', () => {
     expect(
       chooseInitialCampus({
         pathname: '/campus/north/visit',
@@ -59,7 +59,23 @@ describe('launcher campus and search helpers', () => {
         storedCampus: 'not-a-campus',
         validCampusSlugs,
       }),
-    ).toBeNull()
+    ).toBe('central')
+    expect(
+      chooseInitialCampus({
+        pathname: '/about',
+        storedCampus: null,
+        memberCampus: 'north',
+        validCampusSlugs,
+      }),
+    ).toBe('north')
+    expect(
+      chooseInitialCampus({
+        pathname: '/about',
+        storedCampus: 'unichurch',
+        memberCampus: 'north',
+        validCampusSlugs,
+      }),
+    ).toBe('unichurch')
   })
 
   it('matches title, blurb, and content text case-insensitively', () => {

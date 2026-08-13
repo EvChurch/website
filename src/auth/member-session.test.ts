@@ -13,6 +13,7 @@ const state = vi.hoisted(() => ({
     name: string
     email: string
     photoUrl: string | null
+    campusSlug?: string | null
   },
 }))
 
@@ -71,6 +72,7 @@ describe('member session marker', () => {
       name: 'Alex Member',
       email: 'alex@example.com',
       photoUrl: null,
+      campusSlug: 'central',
     })
 
     expect(getMemberProfileFromSession(session(marker))).toEqual({
@@ -78,6 +80,7 @@ describe('member session marker', () => {
       name: 'Alex Member',
       email: 'alex@example.com',
       photoUrl: null,
+      campusSlug: 'central',
     })
   })
 
@@ -128,9 +131,9 @@ describe('member session marker', () => {
     await expect(getCurrentMemberProfile()).resolves.toBeNull()
   })
 
-  it('refreshes a version 1 profile so existing sessions receive Rock photos', async () => {
+  it.each([1, 2])('refreshes a version %s profile to the current Rock profile', async (version) => {
     state.currentSession = session({
-      version: 1,
+      version,
       status: 'resolved',
       profile: {
         personId: 42,
@@ -144,6 +147,7 @@ describe('member session marker', () => {
       name: 'Alex Member',
       email: 'alex@example.com',
       photoUrl: '/GetAvatar.ashx?PhotoId=84&Size=400',
+      campusSlug: 'north',
     }
 
     await expect(
@@ -153,16 +157,16 @@ describe('member session marker', () => {
     )
     expect(state.updatedSession).toMatchObject({
       rockProfile: {
-        version: 2,
+        version: 3,
         status: 'resolved',
         profile: state.resolvedProfile,
       },
     })
   })
 
-  it('detects a legacy profile without contacting Rock during layout rendering', async () => {
+  it.each([1, 2])('detects a version %s profile without contacting Rock during layout rendering', async (version) => {
     state.currentSession = session({
-      version: 1,
+      version,
       status: 'resolved',
       profile: {
         personId: 42,

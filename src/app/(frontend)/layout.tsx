@@ -111,6 +111,7 @@ export default async function FrontendLayout({ children }: { children: ReactNode
           <NextStepsLauncher
             campuses={launcher.campuses}
             items={launcher.available ? launcher.items : null}
+            memberCampusSlug={rockProfileState?.profile.campusSlug ?? null}
           />
         </MediaPlayerProvider>
       </body>

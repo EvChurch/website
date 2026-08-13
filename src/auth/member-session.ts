@@ -2,8 +2,8 @@ import type { SessionData } from '@auth0/nextjs-auth0/types'
 
 import type { RockMemberProfile } from './rock-member-profile'
 
-const LEGACY_MEMBER_PROFILE_MARKER_VERSION = 1 as const
-const MEMBER_PROFILE_MARKER_VERSION = 2 as const
+const LEGACY_MEMBER_PROFILE_MARKER_VERSIONS = [1, 2] as const
+const MEMBER_PROFILE_MARKER_VERSION = 3 as const
 const MAX_NAME_LENGTH = 300
 const MAX_EMAIL_LENGTH = 320
 const MAX_PHOTO_REFERENCE_LENGTH = 2_048
@@ -55,7 +55,12 @@ function isRockMemberProfile(value: unknown): value is RockMemberProfile {
     value.personId > 0 &&
     isRequiredText(value.name, MAX_NAME_LENGTH) &&
     isRequiredText(value.email, MAX_EMAIL_LENGTH) &&
-    isPhotoReference(value.photoUrl)
+    isPhotoReference(value.photoUrl) &&
+    (
+      value.campusSlug === undefined ||
+      value.campusSlug === null ||
+      ['north', 'central', 'unichurch'].includes(value.campusSlug as string)
+    )
   )
 }
 
@@ -70,6 +75,7 @@ export function createResolvedMemberMarker(
       name: profile.name,
       email: profile.email,
       photoUrl: profile.photoUrl,
+      campusSlug: profile.campusSlug ?? null,
     },
   }
 }
@@ -90,7 +96,7 @@ export function getMemberProfileFromSession(
 function getMemberProfileFromSessionVersion(
   session: unknown,
   version:
-    | typeof LEGACY_MEMBER_PROFILE_MARKER_VERSION
+    | (typeof LEGACY_MEMBER_PROFILE_MARKER_VERSIONS)[number]
     | typeof MEMBER_PROFILE_MARKER_VERSION,
 ): RockMemberProfile | null {
   if (!isRecord(session)) return null
@@ -110,6 +116,10 @@ function getMemberProfileFromSessionVersion(
     name: marker.profile.name,
     email: marker.profile.email,
     photoUrl: marker.profile.photoUrl,
+    campusSlug:
+      typeof marker.profile.campusSlug === 'string'
+        ? marker.profile.campusSlug
+        : null,
   }
 }
 
@@ -122,10 +132,9 @@ async function readCurrentMemberSession() {
     return { auth0, session, profile: currentProfile, needsRefresh: false }
   }
 
-  const legacyProfile = getMemberProfileFromSessionVersion(
-    session,
-    LEGACY_MEMBER_PROFILE_MARKER_VERSION,
-  )
+  const legacyProfile = LEGACY_MEMBER_PROFILE_MARKER_VERSIONS
+    .map((version) => getMemberProfileFromSessionVersion(session, version))
+    .find((profile) => profile !== null) ?? null
   if (!legacyProfile || !session || !session.user.sub) return null
 
   return { auth0, session, profile: legacyProfile, needsRefresh: true }

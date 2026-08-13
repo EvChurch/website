@@ -78,6 +78,16 @@ function setInputValue(input: HTMLInputElement, value: string) {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
+async function chooseCampus(container: HTMLElement, campus: string) {
+  await act(async () => button(container, "Central")?.click());
+  await act(async () => {
+    const option = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+    ).find((candidate) => candidate.textContent?.includes(campus));
+    option?.click();
+  });
+}
+
 function hasImageSource(container: HTMLElement, source: string) {
   return Array.from(container.querySelectorAll<HTMLImageElement>("img")).some(
     (image) =>
@@ -417,8 +427,9 @@ describe("NextStepsLauncher", () => {
     await act(async () => button(container, "Open next steps")?.click());
     await act(async () => button(container, "See more next steps")?.click());
 
-    const select = container.querySelector<HTMLSelectElement>("select")!;
-    expect(select.value).toBe("north");
+    expect(button(container, "North")?.getAttribute("aria-expanded")).toBe(
+      "false",
+    );
     expect(container.textContent).toContain("Join a Group");
     expect(container.textContent).not.toContain("Find community");
     expect(container.textContent).not.toContain("Central Kids");
@@ -432,9 +443,12 @@ describe("NextStepsLauncher", () => {
     });
     expect(container.textContent).toContain("Join a Group");
 
+    await act(async () => button(container, "North")?.click());
     await act(async () => {
-      select.value = "central";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
+      const central = Array.from(
+        container.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+      ).find((candidate) => candidate.textContent?.includes("Central"));
+      central?.click();
     });
     expect(window.localStorage.getItem(LAUNCHER_CAMPUS_STORAGE_KEY)).toBe(
       "central",
@@ -452,7 +466,7 @@ describe("NextStepsLauncher", () => {
     expect(direct?.rel).toBe("noopener noreferrer");
   });
 
-  it("asks for a campus before exposing an unfiltered catalogue", async () => {
+  it("defaults an anonymous visitor to Central", async () => {
     await act(async () => {
       root.render(
         <NextStepsLauncher
@@ -465,13 +479,66 @@ describe("NextStepsLauncher", () => {
     await act(async () => button(container, "Open next steps")?.click());
     await act(async () => button(container, "See more next steps")?.click());
 
-    expect(container.textContent).toContain("Choose your campus");
+    expect(button(container, "Central")).toBeTruthy();
     expect(container.textContent).not.toContain("Join a Group");
-    expect(container.textContent).not.toContain("Central Kids");
+    expect(container.textContent).toContain("Central Kids");
     expect(
       container.querySelector<HTMLInputElement>('input[type="search"]')
         ?.disabled,
-    ).toBe(true);
+    ).toBe(false);
+  });
+
+  it("closes the campus menu before closing the launcher with Escape", async () => {
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+    await act(async () => button(container, "Open next steps")?.click());
+    await act(async () => button(container, "See more next steps")?.click());
+    await act(async () => button(container, "Central")?.click());
+
+    expect(container.querySelector('[role="listbox"]')).not.toBeNull();
+
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(container.querySelector('[role="listbox"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Next steps launcher"]')).not.toBeNull();
+
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(button(container, "Open next steps")).toBeTruthy();
+  });
+
+  it("does not reopen with a stale campus menu", async () => {
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+    await act(async () => button(container, "Open next steps")?.click());
+    await act(async () => button(container, "See more next steps")?.click());
+    await act(async () => button(container, "Central")?.click());
+    await act(async () => button(container, "Close next steps")?.click());
+    await act(async () => button(container, "Open next steps")?.click());
+
+    expect(container.querySelector('[role="listbox"]')).toBeNull();
+  });
+
+  it("uses a signed-in member campus when there is no remembered choice", async () => {
+    await act(async () => {
+      root.render(
+        <NextStepsLauncher
+          campuses={campuses}
+          items={items}
+          initialPathname="/about"
+          memberCampusSlug="north"
+        />,
+      );
+    });
+    await act(async () => button(container, "Open next steps")?.click());
+    await act(async () => button(container, "See more next steps")?.click());
+
+    expect(button(container, "North")).toBeTruthy();
+    expect(container.textContent).toContain("Join a Group");
   });
 
   it("distinguishes a campus with no items from a search with no matches", async () => {

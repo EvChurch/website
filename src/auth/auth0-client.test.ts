@@ -24,6 +24,7 @@ const state = vi.hoisted(() => ({
       name: 'Alex Member',
       email: 'alex@example.com',
       photoUrl: null,
+      campusSlug: 'central',
     },
   },
   rejectResolution: false,
@@ -99,7 +100,7 @@ describe('Auth0 callback', () => {
     const result = await state.options!.beforeSessionSaved(verifiedSession)
 
     expect(result.rockProfile).toEqual({
-      version: 2,
+      version: 3,
       status: 'resolved',
       profile: state.resolution.profile,
     })
@@ -115,7 +116,7 @@ describe('Auth0 callback', () => {
 
     const result = await state.options!.beforeSessionSaved(verifiedSession)
 
-    expect(result.rockProfile).toEqual({ version: 2, status: 'unresolved' })
+    expect(result.rockProfile).toEqual({ version: 3, status: 'unresolved' })
   })
 
   it('completes public sign-in without provisioning Payload access', async () => {

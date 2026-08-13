@@ -41,6 +41,7 @@ const person = {
   LastName: 'Lovelace',
   Email: 'ada@example.com',
   PhotoId: 42,
+  PrimaryCampusId: 3,
 }
 
 describe('resolveRockMemberProfile', () => {
@@ -61,6 +62,7 @@ describe('resolveRockMemberProfile', () => {
         name: 'Ada Lovelace',
         email: 'ada@example.com',
         photoUrl: '/GetAvatar.ashx?PhotoId=42&Size=400',
+        campusSlug: 'central',
       },
     })
     expect(mocks.memberRockFetch).toHaveBeenNthCalledWith(1, {
@@ -78,9 +80,26 @@ describe('resolveRockMemberProfile', () => {
       endpoint: 'People/42',
       params: {
         $select:
-          'Id,FullName,FirstName,NickName,LastName,Email,PhotoId',
+          'Id,FullName,FirstName,NickName,LastName,Email,PhotoId,PrimaryCampusId',
       },
       timeoutMs: 3_000,
+    })
+  })
+
+  it.each([
+    [2, 'north'],
+    [3, 'central'],
+    [4, 'unichurch'],
+    [99, null],
+    [null, null],
+  ])('maps Rock campus %s to %s', async (campusId, campusSlug) => {
+    mocks.memberRockFetch
+      .mockResolvedValueOnce([login])
+      .mockResolvedValueOnce({ ...person, PrimaryCampusId: campusId })
+
+    await expect(resolveRockMemberProfile(subject)).resolves.toMatchObject({
+      ok: true,
+      profile: { campusSlug },
     })
   })
 
@@ -96,6 +115,7 @@ describe('resolveRockMemberProfile', () => {
         name: 'Ada Lovelace',
         email: 'ada@example.com',
         photoUrl: '/GetAvatar.ashx?PhotoId=42&Size=400',
+        campusSlug: 'central',
       },
     })
   })
@@ -132,6 +152,7 @@ describe('resolveRockMemberProfile', () => {
         name: 'Ada Lovelace',
         email: 'ada@example.com',
         photoUrl: null,
+        campusSlug: 'central',
       },
     })
   })
