@@ -32,8 +32,13 @@ export default async function ConnectGroupAttendancePage({
       context.group.rockGroupId,
       context.people.map((person) => person.rockPersonId),
     )
-  } catch {
+  } catch (error) {
     // Rock remains authoritative; an incomplete read must not create a draft.
+    console.error({
+      category: 'connect-group-attendance-load-failed',
+      groupId: context.group.rockGroupId,
+      error: error instanceof Error ? error.message : 'Unknown attendance load failure',
+    })
   }
 
   return (

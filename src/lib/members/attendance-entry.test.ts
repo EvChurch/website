@@ -73,19 +73,18 @@ describe('Connect Group attendance entry', () => {
     })).toThrow('unambiguous active weekly schedule')
   })
 
-  it('honours schedule effective dates and Rock group exclusions', () => {
+  it('honours schedule effective dates', () => {
     const meetings = buildRecentScheduledMeetings({
       group: {
         Id: 10,
         Schedule: {
           Id: 20, WeeklyDayOfWeek: 3, EffectiveStartDate: '2026-07-29', EffectiveEndDate: '2026-08-12',
         },
-        GroupType: { GroupScheduleExclusions: [{ Start: '2026-08-05', End: '2026-08-05' }] },
       },
       occurrences: [],
       now: new Date('2026-08-14T00:00:00Z'),
     })
-    expect(meetings.map((item) => item.date)).toEqual(['2026-08-12', '2026-07-29'])
+    expect(meetings.map((item) => item.date)).toEqual(['2026-08-12', '2026-08-05', '2026-07-29'])
   })
 
   it('defaults every roster person present only after a complete no-occurrence read', async () => {
@@ -115,6 +114,7 @@ describe('Connect Group attendance entry', () => {
         { Id: 2, OccurrenceId: 99, PersonAliasId: 184, DidAttend: false },
         { Id: 3, OccurrenceId: 99, PersonAliasId: 999, DidAttend: true },
       ])
+      .mockResolvedValueOnce([])
 
     await expect(loadConnectGroupAttendanceMeeting(10, meeting, [42, 84, 126])).resolves.toMatchObject({
       identity: { ...meeting, occurrenceId: 99 },
@@ -143,6 +143,12 @@ describe('Connect Group attendance entry', () => {
     expect(entry.meetings[0]).toMatchObject({ date: '2026-08-12' })
     expect(entry.meetings[1]).toMatchObject({ date: '2026-08-05' })
     expect(entry.selectedMeeting).toMatchObject({ marks: { 42: 'present' } })
+    expect(mocks.rockFetchAll).toHaveBeenCalledWith(expect.objectContaining({
+      endpoint: 'Groups',
+      params: expect.objectContaining({
+        $expand: 'Schedule,GroupLocations/Schedules',
+      }),
+    }))
   })
 
   it('proves live leadership and returns the current Rock roster', async () => {
@@ -175,11 +181,13 @@ describe('Connect Group attendance entry', () => {
         { Id: 1, OccurrenceId: 99, PersonAliasId: 142, DidAttend: false },
         { Id: 9, OccurrenceId: 99, PersonAliasId: 999, DidAttend: true },
       ])
+      .mockResolvedValueOnce([{ Id: 999, PersonId: 9999 }])
       .mockResolvedValueOnce([
         { Id: 1, OccurrenceId: 99, PersonAliasId: 142, DidAttend: false },
         { Id: 9, OccurrenceId: 99, PersonAliasId: 999, DidAttend: true },
       ])
       .mockResolvedValueOnce([{ Id: 42, PrimaryAliasId: 142 }])
+      .mockResolvedValueOnce([{ Id: 999, PersonId: 9999 }])
       .mockResolvedValueOnce([{ Id: 99, GroupId: 10, ScheduleId: 20, LocationId: null, OccurrenceDate: meeting.date, Notes: 'Updated' }])
       .mockResolvedValueOnce([{ Id: 42, PrimaryAliasId: 142 }])
       .mockResolvedValueOnce([{ Id: 1, OccurrenceId: 99, PersonAliasId: 142, DidAttend: true }])
@@ -201,12 +209,15 @@ describe('Connect Group attendance entry', () => {
     mocks.rockFetchAll
       .mockResolvedValueOnce([{ Id: 99, GroupId: 10, ScheduleId: 20, LocationId: null, OccurrenceDate: meeting.date }])
       .mockResolvedValueOnce([{ Id: 42, PrimaryAliasId: 142 }])
-      .mockResolvedValueOnce([{ Id: 7, OccurrenceId: 99, PersonAliasId: 777, PersonAlias: { PersonId: 42 }, DidAttend: false }])
-      .mockResolvedValueOnce([{ Id: 7, OccurrenceId: 99, PersonAliasId: 777, PersonAlias: { PersonId: 42 }, DidAttend: false }])
+      .mockResolvedValueOnce([{ Id: 7, OccurrenceId: 99, PersonAliasId: 777, DidAttend: false }])
+      .mockResolvedValueOnce([{ Id: 777, PersonId: 42 }])
+      .mockResolvedValueOnce([{ Id: 7, OccurrenceId: 99, PersonAliasId: 777, DidAttend: false }])
       .mockResolvedValueOnce([{ Id: 42, PrimaryAliasId: 142 }])
+      .mockResolvedValueOnce([{ Id: 777, PersonId: 42 }])
       .mockResolvedValueOnce([{ Id: 99, GroupId: 10, ScheduleId: 20, LocationId: null, OccurrenceDate: meeting.date }])
       .mockResolvedValueOnce([{ Id: 42, PrimaryAliasId: 142 }])
-      .mockResolvedValueOnce([{ Id: 7, OccurrenceId: 99, PersonAliasId: 777, PersonAlias: { PersonId: 42 }, DidAttend: true }])
+      .mockResolvedValueOnce([{ Id: 7, OccurrenceId: 99, PersonAliasId: 777, DidAttend: true }])
+      .mockResolvedValueOnce([{ Id: 777, PersonId: 42 }])
     mocks.rockFetch.mockResolvedValueOnce({ Id: 99 }).mockResolvedValue(undefined)
 
     await expect(saveConnectGroupAttendanceMeeting({
@@ -224,6 +235,7 @@ describe('Connect Group attendance entry', () => {
         { Id: 1, OccurrenceId: 99, PersonAliasId: 142, DidAttend: true },
         { Id: 9, OccurrenceId: 99, PersonAliasId: 999, DidAttend: true },
       ])
+      .mockResolvedValueOnce([{ Id: 999, PersonId: 9999 }])
       .mockResolvedValueOnce([
         { Id: 1, OccurrenceId: 99, PersonAliasId: 142, DidAttend: true },
         { Id: 9, OccurrenceId: 99, PersonAliasId: 999, DidAttend: true },

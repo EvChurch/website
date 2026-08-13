@@ -56,9 +56,6 @@ interface RockGroupWithSchedules {
   ScheduleId?: number | null
   Schedule?: RockGroupSchedule | null
   GroupLocations?: RockGroupLocation[] | null
-  GroupType?: {
-    GroupScheduleExclusions?: Array<{ Start?: string | null; End?: string | null }> | null
-  } | null
 }
 
 interface RockOccurrence {
@@ -77,7 +74,11 @@ interface RockAttendance {
   PersonAliasId?: number | null
   DidAttend?: boolean | null
   StartDateTime?: string | null
-  PersonAlias?: { PersonId?: number | null } | null
+}
+
+interface RockPersonAlias {
+  Id: number
+  PersonId?: number | null
 }
 
 interface RockAttendanceGroupMember {
@@ -134,7 +135,6 @@ export function buildRecentScheduledMeetings({
   }
   const candidates = new Map<string, AttendanceMeetingIdentity>()
   const schedulesById = new Map(schedules.map((item) => [item.schedule.Id, item]))
-  const exclusions = group.GroupType?.GroupScheduleExclusions ?? []
   for (const { schedule, locationId } of schedules) {
     if (schedule.IsActive === false || schedule.WeeklyDayOfWeek == null) continue
     for (let offset = 0; offset < 8; offset++) {
@@ -142,11 +142,6 @@ export function buildRecentScheduledMeetings({
       const effectiveStart = dateKey(schedule.EffectiveStartDate)
       const effectiveEnd = dateKey(schedule.EffectiveEndDate)
       if ((effectiveStart && date < effectiveStart) || (effectiveEnd && date > effectiveEnd)) continue
-      if (exclusions.some((exclusion) => {
-        const start = dateKey(exclusion.Start)
-        const end = dateKey(exclusion.End)
-        return !!start && !!end && date >= start && date <= end
-      })) continue
       const time = schedule.WeeklyTimeOfDay?.slice(0, 8) || '00:00:00'
       const identity = { date, startDateTime: `${date}T${time}`, scheduleId: schedule.Id, locationId, occurrenceId: null }
       candidates.set(meetingKey(identity), identity)
@@ -177,8 +172,7 @@ async function fetchGroupSchedules(groupId: number) {
     endpoint: 'Groups', getKey: (group) => group.Id,
     params: {
       $filter: `Id eq ${groupId} and IsActive eq true`,
-      $expand: 'Schedule,GroupLocations/Schedules,GroupType/GroupScheduleExclusions',
-      $select: 'Id,ScheduleId',
+      $expand: 'Schedule,GroupLocations/Schedules',
     }, ...REQUEST,
   })
   if (groups.length !== 1) throw new Error('Rock did not return one active Connect Group')
@@ -211,6 +205,19 @@ async function aliasesByPerson(personIds: number[]) {
   return result
 }
 
+async function peopleByAlias(aliasIds: number[]) {
+  if (aliasIds.length === 0) return new Map<number, number>()
+  const filter = aliasIds.map((id) => `Id eq ${id}`).join(' or ')
+  const aliases = await rockFetchAll<RockPersonAlias>({
+    endpoint: 'PersonAlias', getKey: (alias) => alias.Id,
+    params: { $filter: `(${filter})`, $orderby: 'Id', $select: 'Id,PersonId' },
+    ...REQUEST,
+  })
+  return new Map(aliases.flatMap((alias) =>
+    positive(alias.PersonId) ? [[alias.Id, alias.PersonId] as const] : [],
+  ))
+}
+
 async function loadMeeting(groupId: number, identity: AttendanceMeetingIdentity, rosterIds: number[]) {
   const matches = await fetchOccurrences(groupId, identity.date, identity.date)
   const canonical = matches.filter((item) =>
@@ -227,15 +234,19 @@ async function loadMeeting(groupId: number, identity: AttendanceMeetingIdentity,
     params: {
       $filter: `OccurrenceId eq ${occurrence.Id}`,
       $orderby: 'Id',
-      $expand: 'PersonAlias',
-      $select: 'Id,OccurrenceId,PersonAliasId,DidAttend,StartDateTime,PersonAlias/PersonId',
+      $select: 'Id,OccurrenceId,PersonAliasId,DidAttend,StartDateTime',
     },
     ...REQUEST,
   })
+  const unknownAliases = await peopleByAlias([...new Set(attendances.flatMap((attendance) =>
+    positive(attendance.PersonAliasId) && !aliasToPerson.has(attendance.PersonAliasId)
+      ? [attendance.PersonAliasId]
+      : [],
+  ))])
   for (const attendance of attendances) {
-    const person = positive(attendance.PersonAlias?.PersonId)
-      ? attendance.PersonAlias.PersonId
-      : positive(attendance.PersonAliasId) ? aliasToPerson.get(attendance.PersonAliasId) : null
+    const person = positive(attendance.PersonAliasId)
+      ? aliasToPerson.get(attendance.PersonAliasId) ?? unknownAliases.get(attendance.PersonAliasId)
+      : null
     if (person) marks[person] = attendance.DidAttend == null ? 'unrecorded' : attendance.DidAttend ? 'present' : 'absent'
   }
   return {
@@ -336,7 +347,7 @@ export async function saveConnectGroupAttendanceMeeting(input: AttendanceSaveInp
     }
     const allAttendances = await rockFetchAll<RockAttendance>({
       endpoint: 'Attendances', getKey: (item) => item.Id,
-      params: { $filter: `OccurrenceId eq ${occurrenceId}`, $orderby: 'Id', $expand: 'PersonAlias' }, ...REQUEST,
+      params: { $filter: `OccurrenceId eq ${occurrenceId}`, $orderby: 'Id' }, ...REQUEST,
     })
     if (input.didNotMeet) {
       for (const attendance of allAttendances) {
@@ -346,12 +357,22 @@ export async function saveConnectGroupAttendanceMeeting(input: AttendanceSaveInp
       }
     } else {
       const aliases = await aliasesByPerson(rosterIds)
+      const primaryAliasToPerson = new Map([...aliases].map(([personId, aliasId]) => [aliasId, personId]))
       const existingByAlias = new Map(allAttendances.map((attendance) => [attendance.PersonAliasId, attendance]))
       const existingByPerson = new Map<number, RockAttendance>()
+      const primaryAliasIds = new Set(aliases.values())
+      const attendancePeople = await peopleByAlias([...new Set(allAttendances.flatMap((attendance) =>
+        positive(attendance.PersonAliasId) && !primaryAliasIds.has(attendance.PersonAliasId)
+          ? [attendance.PersonAliasId]
+          : [],
+      ))])
       for (const attendance of allAttendances) {
-        if (!positive(attendance.PersonAlias?.PersonId) || !rosterIds.includes(attendance.PersonAlias.PersonId)) continue
-        if (existingByPerson.has(attendance.PersonAlias.PersonId)) throw new Error('Rock returned duplicate attendance rows for one person')
-        existingByPerson.set(attendance.PersonAlias.PersonId, attendance)
+        const personId = positive(attendance.PersonAliasId)
+          ? primaryAliasToPerson.get(attendance.PersonAliasId) ?? attendancePeople.get(attendance.PersonAliasId)
+          : null
+        if (!personId || !rosterIds.includes(personId)) continue
+        if (existingByPerson.has(personId)) throw new Error('Rock returned duplicate attendance rows for one person')
+        existingByPerson.set(personId, attendance)
       }
       for (const row of input.roster) {
         const aliasId = aliases.get(row.rockPersonId)
