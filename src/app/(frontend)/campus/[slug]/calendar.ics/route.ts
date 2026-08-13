@@ -1,4 +1,5 @@
 import { getPayloadClient } from '@/lib/payload'
+import { trackNotFound } from '@/lib/tracked-not-found'
 import { escapeCalendarText, formatCalendarDate } from '@/lib/event-sharing'
 
 const WEEKDAYS: Record<string, { index: number; code: string }> = {
@@ -77,6 +78,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     endTime <= startTime ||
     !summary
   ) {
+    trackNotFound('campus', slug, 'calendar.ics')
     return new Response('Campus calendar not found', { status: 404 })
   }
 

@@ -4,10 +4,10 @@ import { fetchMemberRockAvatar } from '@/auth/member-rock-avatar'
 
 export async function GET() {
   const profile = await getCurrentMemberProfile({ persistLegacyProfile: true })
-  if (!profile?.photoUrl) return memberMediaNotFound()
+  if (!profile?.photoUrl) return memberMediaNotFound('member-avatar')
 
   const avatar = await fetchMemberRockAvatar(profile.photoUrl)
   return avatar
     ? memberMediaResponse(avatar.body, avatar.contentType)
-    : memberMediaNotFound()
+    : memberMediaNotFound('member-avatar')
 }

@@ -9,12 +9,12 @@ export async function GET(
   const { rockPersonId: rawRockPersonId } = await params
   const rockPersonId = Number(rawRockPersonId)
   const access = await getSharedMemberAvatar(rockPersonId)
-  if (!access) return memberMediaNotFound()
+  if (!access) return memberMediaNotFound('members', 'people', rawRockPersonId, 'avatar')
 
   const avatar = await fetchMemberRockAvatar(
     `/GetAvatar.ashx?PhotoId=${access.photoId}&Size=256`,
   )
   return avatar
     ? memberMediaResponse(avatar.body, avatar.contentType)
-    : memberMediaNotFound()
+    : memberMediaNotFound('members', 'people', rawRockPersonId, 'avatar')
 }

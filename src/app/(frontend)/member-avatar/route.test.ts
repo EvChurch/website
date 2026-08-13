@@ -12,11 +12,13 @@ const fetchMemberRockAvatar = vi.hoisted(() => vi.fn())
 const getCurrentMemberProfile = vi.hoisted(() =>
   vi.fn(async () => state.profile),
 )
+const trackNotFound = vi.hoisted(() => vi.fn())
 
 vi.mock('@/auth/member-session', () => ({
   getCurrentMemberProfile,
 }))
 vi.mock('@/auth/member-rock-avatar', () => ({ fetchMemberRockAvatar }))
+vi.mock('@/lib/tracked-not-found', () => ({ trackNotFound }))
 
 import { GET } from './route'
 
@@ -39,6 +41,8 @@ describe('member avatar route', () => {
 
     expect(noSession.status).toBe(404)
     expect(noPhoto.status).toBe(404)
+    expect(trackNotFound).toHaveBeenCalledTimes(2)
+    expect(trackNotFound).toHaveBeenCalledWith('member-avatar')
     expect(fetchMemberRockAvatar).not.toHaveBeenCalled()
   })
 
@@ -83,6 +87,7 @@ describe('member avatar route', () => {
     const response = await GET()
 
     expect(response.status).toBe(404)
+    expect(trackNotFound).toHaveBeenCalledWith('member-avatar')
     expect(response.headers.get('cache-control')).toBe('private, no-store')
     expect(response.headers.get('x-content-type-options')).toBe('nosniff')
   })

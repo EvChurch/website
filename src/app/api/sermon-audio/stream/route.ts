@@ -4,6 +4,7 @@ import { getPayloadClient } from '@/lib/payload'
 import type { SermonAudio } from '@/payload-types'
 import { open, stat } from 'node:fs/promises'
 import path from 'node:path'
+import { trackNotFound } from '@/lib/tracked-not-found'
 
 const SIGNED_URL_EXPIRES_IN = 43200 // 12 hours
 
@@ -38,6 +39,7 @@ export async function GET(request: Request) {
   })
 
   if (result.docs.length === 0) {
+    trackNotFound('api', 'sermon-audio', 'stream')
     return new Response('Not found', { status: 404 })
   }
 
@@ -105,6 +107,7 @@ export async function GET(request: Request) {
       },
     })
   } catch {
+    trackNotFound('api', 'sermon-audio', 'stream')
     return new Response('File not found on disk', { status: 404 })
   }
 }

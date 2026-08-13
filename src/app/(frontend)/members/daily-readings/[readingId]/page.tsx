@@ -1,11 +1,12 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { notFound, redirect } from 'next/navigation'
+import { redirect } from 'next/navigation'
 
 import { DailyReadingFlow } from '@/components/daily-readings/DailyReadingFlow'
 import { memberConnectGroupHref, MemberPortalChrome } from '@/components/members/MemberPortalChrome'
 import { formatReadingDate, getDailyReadingByRockId } from '@/lib/daily-readings/data'
 import { getMemberPortalHome } from '@/lib/members/data'
+import { trackedNotFound } from '@/lib/tracked-not-found'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,7 +22,9 @@ export async function generateMetadata({ params }: { params: Promise<{ readingId
 export default async function MemberDailyReadingPage({ params }: { params: Promise<{ readingId: string }> }) {
   const { readingId } = await params
   const rockId = Number(readingId)
-  if (!Number.isInteger(rockId)) notFound()
+  if (!Number.isInteger(rockId)) {
+    trackedNotFound('members', 'daily-readings', readingId)
+  }
 
   const returnTo = encodeURIComponent(`/members/daily-readings/${readingId}`)
   const [home, reading] = await Promise.all([
@@ -29,7 +32,7 @@ export default async function MemberDailyReadingPage({ params }: { params: Promi
     getDailyReadingByRockId(rockId),
   ])
   if (!home) redirect(`/auth/login?returnTo=${returnTo}`)
-  if (!reading) notFound()
+  if (!reading) trackedNotFound('members', 'daily-readings', readingId)
 
   return (
     <MemberPortalChrome

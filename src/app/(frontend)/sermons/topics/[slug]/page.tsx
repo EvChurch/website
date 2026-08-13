@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
 import { getPayloadClient } from '@/lib/payload'
+import { trackedNotFound } from '@/lib/tracked-not-found'
 import { getSermonAudioUrl, getSeriesBannerUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { SermonCard } from '@/components/sermons/SermonCard'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
@@ -58,7 +58,7 @@ export default async function TopicPage({
   const payload = await getPayloadClient()
   const topic = await getTopicBySlug(slug)
 
-  if (!topic) notFound()
+  if (!topic) trackedNotFound('sermons', 'topics', slug)
 
   // Fetch sermons with this topic
   const sermonsResult = await payload.find({

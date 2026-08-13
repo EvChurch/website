@@ -41,12 +41,13 @@ describe('missing path services', () => {
     expect(JSON.stringify(query.queryChunks)).toContain('ON CONFLICT')
   })
 
-  it('does not increment an ineligible path', async () => {
+  it('records member and API 404s without enabling them as redirect sources', async () => {
     const execute = vi.fn()
     await expect(recordMissingPublicPath('/api/private', payload({
       db: { drizzle: { execute } },
-    }))).resolves.toEqual({ recorded: false, reason: 'ineligible' })
-    expect(execute).not.toHaveBeenCalled()
+    }))).resolves.toEqual({ recorded: true, path: '/api/private' })
+    expect(execute).toHaveBeenCalledOnce()
+    await expect(findMissingPathRedirect('/api/private', payload())).resolves.toBeNull()
   })
 
   it('sanitizes database failures and returns a non-throwing result', async () => {

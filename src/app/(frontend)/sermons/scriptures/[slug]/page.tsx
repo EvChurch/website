@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
 import { getPayloadClient } from '@/lib/payload'
+import { trackedNotFound } from '@/lib/tracked-not-found'
 import { getSermonAudioUrl, getSeriesBannerUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { SermonCard } from '@/components/sermons/SermonCard'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
@@ -58,7 +58,7 @@ export default async function ScripturePage({
   const payload = await getPayloadClient()
   const scripture = await getScriptureBySlug(slug)
 
-  if (!scripture) notFound()
+  if (!scripture) trackedNotFound('sermons', 'scriptures', slug)
 
   // Fetch sermons referencing this scripture
   const sermonsResult = await payload.find({

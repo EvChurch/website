@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   isEligiblePublicPath,
+  isTrackableMissingPath,
   normalizePublicPath,
   parseInternalRedirectDestination,
 } from './public-paths'
@@ -86,6 +87,25 @@ describe('public path policy', () => {
       expect(encodePublicPathHeader(path)).toBe(encoded)
       expect(decodePublicPathHeader(encoded)).toBe(path)
     })
+  })
+
+  describe('isTrackableMissingPath', () => {
+    it.each([
+      '/',
+      '/members/connect-groups/123',
+      '/api/admin/rock-forms',
+      '/events/missing/calendar.ics',
+      '/images/missing.svg',
+    ])('tracks normalized 404 path %s', (pathname) => {
+      expect(isTrackableMissingPath(pathname)).toBe(true)
+    })
+
+    it.each(['', '//example.com/path', '/path\\escape', '/path/%2fescape'])(
+      'rejects unsafe tracking path %j',
+      (pathname) => {
+        expect(isTrackableMissingPath(pathname)).toBe(false)
+      },
+    )
   })
 
   describe('parseInternalRedirectDestination', () => {

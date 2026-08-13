@@ -87,6 +87,10 @@ export function isEligiblePublicPath(input: string): boolean {
   return !matchesPathPrefix(pathname, '/_next') && !isAnalyticsSensitivePath(pathname)
 }
 
+export function isTrackableMissingPath(input: string): boolean {
+  return normalizePublicPath(input) !== null
+}
+
 export function encodePublicPathHeader(input: string): string | null {
   const pathname = normalizePublicPath(input)
   return pathname ? encodeURIComponent(pathname) : null

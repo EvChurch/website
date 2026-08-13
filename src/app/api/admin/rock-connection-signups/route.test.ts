@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   list: vi.fn(),
+  track: vi.fn(),
 }))
 
 vi.mock('@/lib/payload', () => ({
@@ -13,6 +14,7 @@ vi.mock('@/lib/payload', () => ({
 vi.mock('@/lib/rock-connection-signups/server', () => ({
   listEligibleRockConnectionSignups: mocks.list,
 }))
+vi.mock('@/lib/tracked-not-found', () => ({ trackNotFound: mocks.track }))
 
 import { GET } from './route'
 
@@ -58,6 +60,7 @@ describe('Rock connection signup admin discovery route', () => {
     const response = await GET(request())
 
     expect(response.status).toBe(404)
+    expect(mocks.track).toHaveBeenCalledWith('api', 'admin', 'rock-connection-signups')
     expect(await response.json()).toEqual({ error: 'Not found' })
     expect(mocks.list).not.toHaveBeenCalled()
   })
@@ -66,6 +69,7 @@ describe('Rock connection signup admin discovery route', () => {
     mocks.auth.mockRejectedValue(new Error('expired'))
     const response = await GET(request())
     expect(response.status).toBe(404)
+    expect(mocks.track).toHaveBeenCalledWith('api', 'admin', 'rock-connection-signups')
     expect(mocks.list).not.toHaveBeenCalled()
   })
 

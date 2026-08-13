@@ -4,6 +4,7 @@ import type { Payload } from 'payload'
 import { getPayloadClient } from '@/lib/payload'
 import {
   isEligiblePublicPath,
+  isTrackableMissingPath,
   normalizePublicPath,
   parseInternalRedirectDestination,
 } from '@/lib/public-paths'
@@ -40,7 +41,7 @@ export async function recordMissingPublicPath(
   payload?: Payload,
 ): Promise<MissingPathRecordResult> {
   const path = normalizePublicPath(input)
-  if (!path || !isEligiblePublicPath(path)) {
+  if (!path || !isTrackableMissingPath(path)) {
     return { recorded: false, reason: 'ineligible' }
   }
 
