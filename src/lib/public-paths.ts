@@ -9,6 +9,7 @@ const ANALYTICS_SENSITIVE_PREFIXES = [
   '/member-sign-in',
   '/members',
   '/privacy',
+  '/shared',
 ] as const
 
 const METADATA_PATHS = new Set([
@@ -85,6 +86,10 @@ export function isEligiblePublicPath(input: string): boolean {
   if (METADATA_PATHS.has(pathname) || FILE_LIKE_SEGMENT.test(pathname)) return false
 
   return !matchesPathPrefix(pathname, '/_next') && !isAnalyticsSensitivePath(pathname)
+}
+
+export function isTrackableMissingPath(input: string): boolean {
+  return normalizePublicPath(input) !== null
 }
 
 export function encodePublicPathHeader(input: string): string | null {

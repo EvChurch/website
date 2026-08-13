@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getDailyReadingByRockId: vi.fn(),
   redirect: vi.fn(),
   notFound: vi.fn(),
+  trackedNotFound: vi.fn(),
 }))
 
 vi.mock('@/lib/members/data', () => ({
@@ -25,6 +26,7 @@ vi.mock('@/components/daily-readings/DailyReadingFlow', () => ({
   DailyReadingFlow: () => <p>Guided reading</p>,
 }))
 vi.mock('next/navigation', () => ({ redirect: mocks.redirect, notFound: mocks.notFound }))
+vi.mock('@/lib/tracked-not-found', () => ({ trackedNotFound: mocks.trackedNotFound }))
 
 import MemberDailyReadingPage from './page'
 

@@ -1,5 +1,10 @@
-import { notFound } from 'next/navigation'
+import { trackedNotFound } from '@/lib/tracked-not-found'
 
-export default function MissingPublicPage(): never {
-  notFound()
+export default async function MissingPublicPage({
+  params,
+}: {
+  params: Promise<{ missing: string[] }>
+}): Promise<never> {
+  const { missing } = await params
+  trackedNotFound(...missing)
 }

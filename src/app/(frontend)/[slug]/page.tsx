@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
 import { getPayloadClient } from '@/lib/payload'
+import { trackedNotFound } from '@/lib/tracked-not-found'
 import { isRetiredPageSlug } from '@/lib/public-pages'
 import { RenderBlocks } from '@/components/blocks/RenderBlocks'
 import { BreadcrumbJsonLd, buildBreadcrumbs } from '@/components/seo/BreadcrumbJsonLd'
@@ -86,11 +86,11 @@ export default async function DynamicPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  if (isRetiredPageSlug(slug)) notFound()
+  if (isRetiredPageSlug(slug)) trackedNotFound(slug)
 
   const page = await getPageBySlug(slug)
 
-  if (!page) notFound()
+  if (!page) trackedNotFound(slug)
 
 
   const blocks = (page.layout ?? []) as any[]

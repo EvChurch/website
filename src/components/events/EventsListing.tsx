@@ -26,7 +26,7 @@ export async function EventsListing({
   const { featured, remaining } = prepareEventsListing(events, campusSlug)
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_18%_12%,rgba(226,42,48,0.32),transparent_34%),radial-gradient(circle_at_86%_78%,rgba(226,42,48,0.14),transparent_30%),linear-gradient(145deg,#0f0004,#21080d_55%,#0f0004)] text-white">
       <section className="px-5 pb-5 pt-24 lg:px-8 lg:pb-6 lg:pt-28">
         <div className="mx-auto max-w-[80rem]">
           <h1 className="sr-only">{heading}</h1>

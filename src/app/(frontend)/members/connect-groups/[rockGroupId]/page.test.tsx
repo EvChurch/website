@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getMemberGroupDetail: vi.fn(),
   getGroupCurrentResources: vi.fn(),
   notFound: vi.fn(),
+  trackedNotFound: vi.fn(),
   redirect: vi.fn(),
 }))
 
@@ -13,6 +14,7 @@ vi.mock('next/navigation', () => ({
   notFound: mocks.notFound,
   redirect: mocks.redirect,
 }))
+vi.mock('@/lib/tracked-not-found', () => ({ trackedNotFound: mocks.trackedNotFound }))
 vi.mock('@/lib/members/data', () => ({
   getMemberPortalHome: mocks.getMemberPortalHome,
   getMemberGroupDetail: mocks.getMemberGroupDetail,

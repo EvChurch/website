@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { getPayloadClient } from '@/lib/payload'
 import { listEligibleRockConnectionSignups } from '@/lib/rock-connection-signups/server'
+import { trackNotFound } from '@/lib/tracked-not-found'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,6 +11,7 @@ const PRIVATE_HEADERS = {
 }
 
 function notFound() {
+  trackNotFound('api', 'admin', 'rock-connection-signups')
   return NextResponse.json(
     { error: 'Not found' },
     { status: 404, headers: PRIVATE_HEADERS },

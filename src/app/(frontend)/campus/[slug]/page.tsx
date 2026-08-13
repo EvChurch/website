@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { trackedNotFound } from '@/lib/tracked-not-found'
 import { cache } from 'react'
 
 import { RenderBlocks, type RenderableBlock } from '@/components/blocks/RenderBlocks'
@@ -284,7 +284,7 @@ export default async function CampusPage({
 }) {
   const { slug } = await params
   const managedCampus = await getCampusBySlug(slug)
-  if (!managedCampus) notFound()
+  if (!managedCampus) trackedNotFound('campus', slug)
 
   const { campus, content } = managedCampus
   const heroImage = getHeroImage(campus, content)

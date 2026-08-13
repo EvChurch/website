@@ -1,13 +1,15 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { notFound, redirect } from 'next/navigation'
+import { redirect } from 'next/navigation'
 
 import { memberConnectGroupHref, MemberPortalChrome } from '@/components/members/MemberPortalChrome'
 import { formatResourceDates } from '@/components/members/LeaderResourceCard'
 import { LeaderResourceVideoButton } from '@/components/members/LeaderResourceVideoButton'
+import { LeaderResourceShareButton } from '@/components/members/LeaderResourceShareButton'
 import { getMemberPortalHome, getMemberResourceDetail } from '@/lib/members/data'
 import { leaderResourceMedia } from '@/lib/members/leader-resource-media'
+import { trackedNotFound } from '@/lib/tracked-not-found'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
@@ -35,7 +37,9 @@ export default async function LeaderResourceDetailPage({
     getMemberResourceDetail(Number(rawRockId)),
   ])
   if (!home || !result) redirect(`/auth/login?returnTo=${returnTo}`)
-  if (result.access === 'denied') notFound()
+  if (result.access === 'denied') {
+    trackedNotFound('members', 'connect-group-leader-resources', rawRockId)
+  }
 
   const resource = result.resource
   const dates = formatResourceDates(resource)
@@ -93,6 +97,12 @@ export default async function LeaderResourceDetailPage({
                   >
                     <FileIcon /> Study
                   </a>
+                )}
+                {(video || resource.hasLeaderNotes) && (
+                  <LeaderResourceShareButton
+                    rockId={resource.rockId}
+                    className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-white/60 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-white/10"
+                  />
                 )}
               </div>
             )}

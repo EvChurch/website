@@ -12,10 +12,10 @@ export async function GET(
     index: Number(rawHostIndex),
   })
   if (!asset || asset.kind !== 'avatar') {
-    return memberMediaNotFound()
+    return memberMediaNotFound('members', 'connect-group-leader-resources', rawRockId, 'hosts', rawHostIndex, 'avatar')
   }
   const image = await fetchMemberRockAvatar(`/GetAvatar.ashx?PhotoId=${asset.photoId}&Size=160`)
   return image
     ? memberMediaResponse(image.body, image.contentType)
-    : memberMediaNotFound()
+    : memberMediaNotFound('members', 'connect-group-leader-resources', rawRockId, 'hosts', rawHostIndex, 'avatar')
 }

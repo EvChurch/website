@@ -31,6 +31,7 @@ import { ConnectGroupLeaderResources } from '@/collections/ConnectGroupLeaderRes
 import { DailyBibleReadings } from '@/collections/DailyBibleReadings'
 import { MissingPaths } from '@/collections/MissingPaths'
 import { SiteFeedback } from '@/collections/SiteFeedback'
+import { LeaderResourceShares } from '@/collections/LeaderResourceShares'
 import { isAdmin } from '@/access/roles'
 
 // Globals
@@ -74,6 +75,7 @@ export const applicationCollections: CollectionConfig[] = [
   DailyBibleReadings,
   MissingPaths,
   SiteFeedback,
+  LeaderResourceShares,
   Registrations,
   ServiceGuideItems,
   SermonSeries,
@@ -97,7 +99,9 @@ function enableMcpEntities<T extends { slug: string }>(entities: T[]) {
   )
 }
 
-export const mcpCollections = enableMcpEntities(applicationCollections) satisfies NonNullable<
+export const mcpCollections = enableMcpEntities(
+  applicationCollections.filter(({ slug }) => slug !== 'leader-resource-shares'),
+) satisfies NonNullable<
   MCPPluginConfig['collections']
 >
 

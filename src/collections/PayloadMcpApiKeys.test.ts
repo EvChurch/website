@@ -14,10 +14,14 @@ const collection = restrictMcpApiKeyCollection({
 })
 
 describe('Payload MCP API key access', () => {
-  it('exposes every application collection and global', () => {
+  it('exposes application content but excludes the capability-token store', () => {
     expect(Object.keys(mcpCollections).sort()).toEqual(
-      applicationCollections.map(({ slug }) => slug).sort(),
+      applicationCollections
+        .map(({ slug }) => slug)
+        .filter((slug) => slug !== 'leader-resource-shares')
+        .sort(),
     )
+    expect(mcpCollections).not.toHaveProperty('leader-resource-shares')
     expect(Object.keys(mcpGlobals).sort()).toEqual(
       applicationGlobals.map(({ slug }) => slug).sort(),
     )

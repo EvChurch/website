@@ -5,6 +5,7 @@ import { leaderResourceMedia } from '@/lib/members/leader-resource-media'
 
 import { formatResourceDates } from './LeaderResourceCard'
 import { LeaderResourceVideoButton } from './LeaderResourceVideoButton'
+import { LeaderResourceShareButton } from './LeaderResourceShareButton'
 import Image from 'next/image'
 
 const BIBLE_BOOKS = [
@@ -157,6 +158,12 @@ function ResourceActions({ resource, inverted = false, audience = 'leader' }: {
           <FileIcon /> {inverted ? 'Study' : 'Member study'}
         </a>
       )}
+      {audience === 'leader' && (video || resource.hasLeaderNotes) && (
+        <LeaderResourceShareButton
+          rockId={resource.rockId}
+          className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border px-4 py-2.5 text-sm font-bold transition-colors ${secondaryClass}`}
+        />
+      )}
       {audience === 'leader' && !video && !resource.hasLeaderNotes && !resource.hasMemberStudy && (
         <Link
           href={`/members/connect-group-leader-resources/${resource.rockId}`}
@@ -246,6 +253,9 @@ function TimelineRows({ resources }: { resources: MemberLeaderResource[] }) {
               )}
               {resource.hasMemberStudy && (
                 <a href={`/members/connect-group-leader-resources/${resource.rockId}/files/member-study`} rel="nofollow" className="hover:underline">Study</a>
+              )}
+              {(video || resource.hasLeaderNotes) && (
+                <LeaderResourceShareButton rockId={resource.rockId} className="inline-flex items-center gap-1 hover:underline" />
               )}
               {!video && !resource.hasLeaderNotes && !resource.hasMemberStudy && (
                 <Link href={`/members/connect-group-leader-resources/${resource.rockId}`} rel="nofollow" className="hover:underline">Open</Link>

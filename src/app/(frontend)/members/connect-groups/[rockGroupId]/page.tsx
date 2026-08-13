@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { notFound, redirect } from 'next/navigation'
+import { redirect } from 'next/navigation'
 import { HiCheckCircle, HiClipboardDocumentCheck } from 'react-icons/hi2'
 
 import { LeaderResourceThisWeek } from '@/components/members/LeaderResourceTimeline'
@@ -15,6 +15,7 @@ import {
   getMemberGroupDetail,
   getMemberPortalHome,
 } from '@/lib/members/data'
+import { trackedNotFound } from '@/lib/tracked-not-found'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
@@ -37,7 +38,9 @@ export default async function ConnectGroupDetailPage({
     getMemberGroupDetail(Number(rawRockGroupId)),
   ])
   if (!home || !detail) redirect(`/auth/login?returnTo=${returnTo}`)
-  if (detail.access === 'denied') notFound()
+  if (detail.access === 'denied') {
+    trackedNotFound('members', 'connect-groups', rawRockGroupId)
+  }
 
   const audience = home.canAccessLeaderResources ? 'leader' : 'member'
   const resources = await getGroupCurrentResources(

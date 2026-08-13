@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ find: vi.fn() }))
+const mocks = vi.hoisted(() => ({ find: vi.fn(), track: vi.fn() }))
 
 vi.mock('@/lib/payload', () => ({
   getPayloadClient: vi.fn(async () => ({ find: mocks.find })),
 }))
+vi.mock('@/lib/tracked-not-found', () => ({ trackNotFound: mocks.track }))
 
 import { GET } from './route'
 
@@ -64,6 +65,7 @@ describe('campus service calendar', () => {
     })
 
     expect(response.status).toBe(404)
+    expect(mocks.track).toHaveBeenCalledWith('campus', 'missing', 'calendar.ics')
   })
 
   it('maps other weekdays and falls back to the managed location label', async () => {
@@ -125,5 +127,6 @@ describe('campus service calendar', () => {
     })
 
     expect(response.status).toBe(404)
+    expect(mocks.track).toHaveBeenCalledWith('campus', 'north', 'calendar.ics')
   })
 })

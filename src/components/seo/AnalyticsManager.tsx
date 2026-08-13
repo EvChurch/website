@@ -88,10 +88,19 @@ function initializePostHog(): boolean {
 export function AnalyticsManager() {
   const pathname = usePathname()
   const mayTrack = canTrackAnalyticsPath(pathname)
+  const isCapabilityRoute = pathname === '/shared' || pathname.startsWith('/shared/')
 
   useEffect(() => {
     if (GA_ID) {
       ;(window as unknown as Record<string, unknown>)[`ga-disable-${GA_ID}`] = !mayTrack
+    }
+
+    if (isCapabilityRoute) {
+      if (postHogInitialized) {
+        posthog.stopSessionRecording()
+        posthog.stopExceptionAutocapture()
+      }
+      return
     }
 
     if (!initializePostHog()) return
@@ -100,7 +109,7 @@ export function AnalyticsManager() {
       $current_url: `${window.location.origin}${pathname}`,
       $pathname: pathname,
     })
-  }, [mayTrack, pathname])
+  }, [isCapabilityRoute, mayTrack, pathname])
 
   return mayTrack ? <GoogleAnalytics pagePath={pathname} /> : null
 }

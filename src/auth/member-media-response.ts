@@ -1,9 +1,12 @@
+import { trackNotFound } from '@/lib/tracked-not-found'
+
 export const privateMemberMediaHeaders = {
   'Cache-Control': 'private, no-store',
   'X-Content-Type-Options': 'nosniff',
 }
 
-export function memberMediaNotFound() {
+export function memberMediaNotFound(...pathSegments: string[]) {
+  trackNotFound(...pathSegments)
   return new Response(null, { status: 404, headers: privateMemberMediaHeaders })
 }
 
