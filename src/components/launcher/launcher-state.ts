@@ -91,17 +91,23 @@ export function campusFromPathname(pathname: string): string | null {
 
 export function chooseInitialCampus({
   pathname,
+  memberCampus,
   storedCampus,
+  fallbackCampus = 'central',
   validCampusSlugs,
 }: {
   pathname: string
+  memberCampus?: string | null
   storedCampus: string | null
+  fallbackCampus?: string | null
   validCampusSlugs: readonly string[]
 }): string | null {
   const valid = new Set(validCampusSlugs)
   const routeCampus = campusFromPathname(pathname)
   if (routeCampus && valid.has(routeCampus)) return routeCampus
-  return storedCampus && valid.has(storedCampus) ? storedCampus : null
+  if (storedCampus && valid.has(storedCampus)) return storedCampus
+  if (memberCampus && valid.has(memberCampus)) return memberCampus
+  return fallbackCampus && valid.has(fallbackCampus) ? fallbackCampus : null
 }
 
 export function launcherItemMatches(

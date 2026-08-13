@@ -17,6 +17,7 @@ import {
   HiArrowsPointingIn,
   HiArrowsPointingOut,
   HiMagnifyingGlass,
+  HiChevronDown,
   HiRocketLaunch,
   HiXMark,
 } from "react-icons/hi2";
@@ -41,6 +42,7 @@ export interface NextStepsLauncherProps {
   campuses: LauncherCampus[];
   items: LauncherItem[] | null;
   initialPathname?: string;
+  memberCampusSlug?: string | null;
 }
 
 const focusableSelector = [
@@ -146,6 +148,7 @@ export function NextStepsLauncher({
   campuses,
   items,
   initialPathname,
+  memberCampusSlug,
 }: NextStepsLauncherProps) {
   const currentPathname = usePathname();
   const pathname = initialPathname ?? currentPathname ?? "/";
@@ -153,6 +156,7 @@ export function NextStepsLauncher({
     createLauncherState(),
   );
   const [campusReady, setCampusReady] = useState(false);
+  const [campusMenuOpen, setCampusMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isCloseMotionActive, setIsCloseMotionActive] = useState(false);
@@ -181,16 +185,18 @@ export function NextStepsLauncher({
   useEffect(() => {
     const routeOrStoredCampus = chooseInitialCampus({
       pathname,
+      memberCampus: memberCampusSlug,
       storedCampus: window.localStorage.getItem(LAUNCHER_CAMPUS_STORAGE_KEY),
       validCampusSlugs: campuses.map((campus) => campus.slug),
     });
     dispatch({ type: "setCampus", campusSlug: routeOrStoredCampus });
     setCampusReady(true);
-  }, [campuses, pathname]);
+  }, [campuses, memberCampusSlug, pathname]);
 
   useEffect(() => {
     if (previousPathnameRef.current === pathname) return;
     previousPathnameRef.current = pathname;
+    setCampusMenuOpen(false);
     dispatch({ type: "close" });
   }, [pathname]);
 
@@ -199,12 +205,14 @@ export function NextStepsLauncher({
     closeTimerRef.current = null;
     setIsClosing(false);
     setIsCloseMotionActive(false);
+    setCampusMenuOpen(false);
     dispatch({ type: "close" });
   }, []);
 
   const close = useCallback(() => {
     if (isClosing) return;
     restoreTriggerFocusRef.current = true;
+    setCampusMenuOpen(false);
     if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
       completeClose();
       return;
@@ -243,6 +251,10 @@ export function NextStepsLauncher({
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
+        if (campusMenuOpen) {
+          setCampusMenuOpen(false);
+          return;
+        }
         close();
         return;
       }
@@ -272,7 +284,7 @@ export function NextStepsLauncher({
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [close, state.presentation]);
+  }, [campusMenuOpen, close, state.presentation]);
 
   useEffect(() => {
     if (state.presentation !== "fullscreen") return;
@@ -396,24 +408,56 @@ export function NextStepsLauncher({
 
   const renderCatalogue = () => (
     <div className="space-y-5">
-      <label
-        className="block animate-fade-in text-sm font-semibold text-brand-black motion-reduce:animate-none"
+      <div
+        className="relative animate-fade-in text-sm font-semibold text-brand-black motion-reduce:animate-none"
         style={{ animationDelay: "140ms" }}
       >
-        Campus
-        <select
-          className="mt-2 w-full rounded-xl border border-warm-grey bg-white px-4 py-3 text-base text-brand-black focus:border-rich-red focus:outline-none focus:ring-2 focus:ring-rich-red/20"
-          value={state.campusSlug || ""}
-          onChange={(event) => selectCampus(event.target.value)}
+        <span>Campus</span>
+        <button
+          type="button"
+          className="mt-2 flex w-full items-center justify-between rounded-2xl border border-warm-grey/70 bg-white px-5 py-4 text-left text-base font-semibold text-brand-black shadow-sm transition hover:border-rich-red/35 hover:shadow-md focus-visible:ring-2 focus-visible:ring-rich-red"
+          aria-haspopup="listbox"
+          aria-expanded={campusMenuOpen}
+          onClick={() => setCampusMenuOpen((open) => !open)}
         >
-          <option value="">Choose a campus…</option>
-          {campuses.map((campus) => (
-            <option key={campus.slug} value={campus.slug}>
-              {campus.name}
-            </option>
-          ))}
-        </select>
-      </label>
+          {campuses.find((campus) => campus.slug === state.campusSlug)?.name ??
+            "Choose a campus…"}
+          <HiChevronDown
+            className={`h-5 w-5 text-rich-red transition ${campusMenuOpen ? "rotate-180" : ""}`}
+            aria-hidden="true"
+          />
+        </button>
+        {campusMenuOpen && (
+          <div
+            role="listbox"
+            aria-label="Campus"
+            className="mt-2 overflow-hidden rounded-2xl border border-warm-grey/70 bg-white p-2 shadow-lg"
+          >
+            {campuses.map((campus) => (
+              <button
+                key={campus.slug}
+                type="button"
+                role="option"
+                aria-selected={campus.slug === state.campusSlug}
+                className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-base transition hover:bg-warm-white ${
+                  campus.slug === state.campusSlug
+                    ? "font-semibold text-rich-red"
+                    : "font-medium text-brand-black"
+                }`}
+                onClick={() => {
+                  selectCampus(campus.slug);
+                  setCampusMenuOpen(false);
+                }}
+              >
+                {campus.name}
+                {campus.slug === state.campusSlug && (
+                  <span className="h-2 w-2 rounded-full bg-rich-red" aria-hidden="true" />
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       <label
         className="relative block animate-fade-in motion-reduce:animate-none"

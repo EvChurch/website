@@ -237,23 +237,47 @@
   }
 
   .prose a[data-launcher-cta="true"] {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
     width: 100%;
-    border-radius: 9999px;
-    background: var(--color-brand-black);
-    padding: 0.875rem 1.5rem;
-    color: white;
-    font-size: 0.875rem;
+    border: 1px solid color-mix(in srgb, var(--color-warm-grey) 70%, transparent);
+    border-radius: 1rem;
+    background: white;
+    padding: 1rem 1.25rem;
+    color: var(--color-brand-black);
+    font-size: 1rem;
     font-weight: 600;
-    letter-spacing: 0.08em;
-    text-align: center;
+    letter-spacing: normal;
     text-decoration: none;
-    text-transform: uppercase;
+    text-transform: none;
+    box-shadow: 0 1px 2px rgb(15 0 4 / 0.08);
   }
 
   .prose a[data-launcher-cta="true"]:hover {
-    background: var(--color-rich-red);
-    color: white;
+    border-color: color-mix(in srgb, var(--color-rich-red) 35%, transparent);
+    color: var(--color-brand-black);
+    box-shadow: 0 4px 10px rgb(15 0 4 / 0.1);
+  }
+
+  .prose a[data-launcher-cta="true"]::after {
+    content: "→";
+    flex: none;
+    color: var(--color-rich-red);
+    font-size: 1.35rem;
+    line-height: 1;
+    transition: transform 150ms;
+  }
+
+  .prose a[data-launcher-cta="true"]:hover::after {
+    transform: translateX(0.25rem);
+  }
+
+  .prose p:has(> a[data-launcher-cta="true"]) {
+    display: grid;
+    gap: 0.75rem;
+    margin-block: 1rem 1.5rem;
   }
 
   /* Focus visible ring */

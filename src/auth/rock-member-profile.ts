@@ -33,6 +33,7 @@ interface RockPersonResponse {
   LastName?: string | null
   Email?: string | null
   PhotoId?: number | null
+  PrimaryCampusId?: number | null
 }
 
 export interface RockMemberProfile {
@@ -40,6 +41,13 @@ export interface RockMemberProfile {
   name: string
   email: string
   photoUrl: string | null
+  campusSlug?: string | null
+}
+
+const CAMPUS_SLUG_BY_ROCK_ID: Record<number, string> = {
+  2: 'north',
+  3: 'central',
+  4: 'unichurch',
 }
 
 export type RockMemberProfileFailureReason =
@@ -201,6 +209,11 @@ function parsePerson(value: unknown, personId: number): RockPersonResponse | nul
       value.PhotoId === undefined ||
       value.PhotoId === null ||
       isPositiveInteger(value.PhotoId)
+    ) ||
+    !(
+      value.PrimaryCampusId === undefined ||
+      value.PrimaryCampusId === null ||
+      isPositiveInteger(value.PrimaryCampusId)
     )
   ) {
     return null
@@ -214,6 +227,7 @@ function parsePerson(value: unknown, personId: number): RockPersonResponse | nul
     LastName: value.LastName as string | null | undefined,
     Email: value.Email as string | null | undefined,
     PhotoId: value.PhotoId as number | null | undefined,
+    PrimaryCampusId: value.PrimaryCampusId as number | null | undefined,
   }
 }
 
@@ -246,7 +260,15 @@ function toProfile(person: RockPersonResponse): RockMemberProfile | null {
     ? `/GetAvatar.ashx?PhotoId=${person.PhotoId}&Size=400`
     : null
 
-  return { personId, name, email, photoUrl }
+  return {
+    personId,
+    name,
+    email,
+    photoUrl,
+    campusSlug: isPositiveInteger(person.PrimaryCampusId)
+      ? CAMPUS_SLUG_BY_ROCK_ID[person.PrimaryCampusId] ?? null
+      : null,
+  }
 }
 
 export async function resolveRockMemberProfile(
@@ -281,7 +303,7 @@ export async function resolveRockMemberProfile(
     endpoint: `People/${login.PersonId}`,
     params: {
       $select:
-        'Id,FullName,FirstName,NickName,LastName,Email,PhotoId',
+        'Id,FullName,FirstName,NickName,LastName,Email,PhotoId,PrimaryCampusId',
     },
   })
   if (!personResponse.ok) {
