@@ -79,6 +79,51 @@ describe('AnalyticsManager', () => {
     expect(container.querySelector('[data-ga-path="/sermons"]')).not.toBeNull()
   })
 
+  it('drops browser-extension rejection noise from exception autocapture', async () => {
+    await act(async () => root.render(<AnalyticsManager />))
+
+    const { before_send: beforeSend } = posthog.init.mock.calls[0][1] as {
+      before_send: (event: unknown) => unknown
+    }
+    const noise = {
+      event: '$exception',
+      properties: {
+        $exception_list: [
+          {
+            value:
+              'Non-Error promise rejection captured with value: Object Not Found Matching Id:3, MethodName:update, ParamCount:4',
+            mechanism: { synthetic: true },
+            stacktrace: { frames: [] },
+          },
+        ],
+      },
+    }
+
+    expect(beforeSend(noise)).toBeNull()
+  })
+
+  it('keeps real exceptions with stack frames', async () => {
+    await act(async () => root.render(<AnalyticsManager />))
+
+    const { before_send: beforeSend } = posthog.init.mock.calls[0][1] as {
+      before_send: (event: unknown) => unknown
+    }
+    const realError = {
+      event: '$exception',
+      properties: {
+        $exception_list: [
+          {
+            value: 'Cannot read properties of undefined',
+            mechanism: { synthetic: false },
+            stacktrace: { frames: [{ filename: 'app.js', lineno: 12 }] },
+          },
+        ],
+      },
+    }
+
+    expect(beforeSend(realError)).toBe(realError)
+  })
+
   it('keeps PostHog off when its UI host is missing', async () => {
     vi.stubEnv('NEXT_PUBLIC_POSTHOG_UI_HOST', '')
 
