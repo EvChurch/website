@@ -142,6 +142,21 @@ describe('Service Guide launcher data', () => {
     ).toEqual({ type: 'content', html: '<p>Hello <a>there</a></p>' })
   })
 
+  it('retains CTA intent without retaining Rock classes or inline styles', () => {
+    expect(
+      resolveLauncherAction(
+        record({
+          content:
+            '<p><a class="link-button" style="background:hotpink" href="https://example.test/apply">Apply</a></p><p><a style="display:block" href="https://example.test/subscribe">Subscribe</a></p>',
+        }),
+      ),
+    ).toEqual({
+      type: 'content',
+      html:
+        '<p><a href="https://example.test/apply" data-launcher-cta="true" target="_blank" rel="noopener noreferrer nofollow">Apply</a></p><p><a href="https://example.test/subscribe" data-launcher-cta="true" target="_blank" rel="noopener noreferrer nofollow">Subscribe</a></p>',
+    })
+  })
+
   it('exposes the 16:9 banner for forms rendered in the launcher', () => {
     const imageUrl = `https://rock.ev.church/GetImage.ashx?Guid=${bannerImageGuid}&w=1200`
 

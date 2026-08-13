@@ -236,6 +236,26 @@
     color: var(--color-deep-red);
   }
 
+  .prose a[data-launcher-cta="true"] {
+    display: block;
+    width: 100%;
+    border-radius: 9999px;
+    background: var(--color-brand-black);
+    padding: 0.875rem 1.5rem;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+  }
+
+  .prose a[data-launcher-cta="true"]:hover {
+    background: var(--color-rich-red);
+    color: white;
+  }
+
   /* Focus visible ring */
   :focus-visible {
     outline: 2px solid var(--color-rich-red);

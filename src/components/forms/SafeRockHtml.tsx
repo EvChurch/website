@@ -38,7 +38,7 @@ export function sanitizeRockHtml(value: string): string {
   }
   const clean = DOMPurify.sanitize(value, {
     ALLOWED_TAGS,
-    ALLOWED_ATTR: ['href'],
+    ALLOWED_ATTR: ['href', 'data-launcher-cta'],
     FORBID_TAGS: ['script', 'style', 'svg', 'math', 'iframe', 'object', 'embed', 'form'],
     FORBID_ATTR: ['style'],
     ALLOW_DATA_ATTR: false,
@@ -57,6 +57,9 @@ export function sanitizeRockHtml(value: string): string {
     if (classification.external) {
       link.setAttribute('target', '_blank')
       link.setAttribute('rel', 'noopener noreferrer nofollow')
+    }
+    if (link.getAttribute('data-launcher-cta') !== 'true') {
+      link.removeAttribute('data-launcher-cta')
     }
   }
   return root.innerHTML
