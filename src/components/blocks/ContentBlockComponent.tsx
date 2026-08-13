@@ -1,4 +1,5 @@
 import { MediaImage } from '@/components/media/MediaImage'
+import type { PayloadMediaImage } from '@/lib/payload-media'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 import RichText from '@/components/blocks/RichTextRenderer'
 
@@ -17,14 +18,7 @@ function renderHighlightedHeading(text: string) {
   })
 }
 
-interface MediaUpload {
-  id: string
-  url: string
-  alt: string
-  width?: number
-  height?: number
-  blurDataURL?: string | null
-}
+type MediaUpload = PayloadMediaImage & { id: string }
 
 interface ContentBlockProps {
   heading?: string | null
@@ -61,6 +55,7 @@ export function ContentBlockComponent({
                 <div className="relative mt-12">
                   <MediaImage
                     media={imageData}
+                    mediaSize="large"
                     width={imageData.width ?? 1200}
                     height={imageData.height ?? 800}
                     sizes="(max-width: 640px) 100vw, 50vw"
@@ -88,6 +83,7 @@ export function ContentBlockComponent({
               <div className="relative lg:[direction:ltr]">
                 <MediaImage
                   media={imageData}
+                  mediaSize="large"
                   width={imageData.width ?? 1200}
                   height={imageData.height ?? 800}
                   sizes="(max-width: 640px) 100vw, 50vw"

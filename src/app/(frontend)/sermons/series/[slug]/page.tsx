@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { MediaImage } from '@/components/media/MediaImage'
+import type { PayloadMediaImage } from '@/lib/payload-media'
 import { getPayloadClient } from '@/lib/payload'
 import { getSermonAudioUrl, getSeriesBannerUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { SermonCard } from '@/components/sermons/SermonCard'
@@ -80,19 +81,18 @@ export default async function SeriesPage({
     depth: 2,
   })
 
-  type MediaObj = { url: string; alt?: string; blurDataURL?: string | null }
   const backgroundMedia =
     typeof series.backgroundImage === 'object' &&
     series.backgroundImage !== null &&
     'url' in series.backgroundImage
-      ? (series.backgroundImage as MediaObj)
+      ? (series.backgroundImage as PayloadMediaImage)
       : null
 
   const bannerMedia =
     typeof series.bannerImage === 'object' &&
     series.bannerImage !== null &&
     'url' in series.bannerImage
-      ? (series.bannerImage as MediaObj)
+      ? (series.bannerImage as PayloadMediaImage)
       : null
 
   const breadcrumbItems = [
@@ -112,6 +112,7 @@ export default async function SeriesPage({
           <>
             <MediaImage
               media={backgroundMedia}
+              mediaSize="hero"
               alt=""
               fill
               sizes="100vw"
@@ -129,6 +130,7 @@ export default async function SeriesPage({
               <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-xl shadow-2xl md:w-72 lg:w-80">
                 <MediaImage
                   media={bannerMedia}
+                  mediaSize="medium"
                   alt={series.title}
                   fill
                   sizes="(max-width: 768px) 100vw, 320px"

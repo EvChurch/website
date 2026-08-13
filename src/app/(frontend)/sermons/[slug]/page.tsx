@@ -3,8 +3,9 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { MediaImage } from '@/components/media/MediaImage'
+import { getPayloadMediaUrl, type PayloadMediaImage } from '@/lib/payload-media'
 import { getPayloadClient } from '@/lib/payload'
-import { getSermonAudioUrl, getSermonVideos } from '@/lib/sermon-utils'
+import { getSeriesBannerUrl, getSermonAudioUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { SermonCard } from '@/components/sermons/SermonCard'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
 import { SermonPlayButton } from './SermonPlayButton'
@@ -64,7 +65,9 @@ export async function generateMetadata({
       ...((() => {
         const s = Array.isArray(sermon.series) && sermon.series[0] ? sermon.series[0] : null
         const bi = s && typeof s === 'object' && 'bannerImage' in s ? s.bannerImage : null
-        const url = bi && typeof bi === 'object' && bi !== null && 'url' in bi ? (bi as { url: string }).url : null
+        const url = bi && typeof bi === 'object' && bi !== null
+          ? getPayloadMediaUrl(bi as PayloadMediaImage, 'large')
+          : null
         return url ? { images: [{ url }] } : {}
       })()),
     },
@@ -82,18 +85,6 @@ function formatDate(dateString: string): string {
     month: 'long',
     year: 'numeric',
   })
-}
-
-/** Extract the series banner image URL from a populated sermon doc */
-function getSeriesBannerUrl(sermon: { series?: unknown }): string | null {
-  const series = Array.isArray(sermon.series) ? sermon.series[0] : null
-  if (!series || typeof series !== 'object') return null
-  const s = series as Record<string, unknown>
-  const banner = s.bannerImage
-  if (banner && typeof banner === 'object' && banner !== null && 'url' in banner) {
-    return (banner as { url: string }).url
-  }
-  return null
 }
 
 function formatDuration(seconds: number): string {
@@ -149,14 +140,13 @@ export default async function SermonPage({
   const seriesDoc = seriesList[0]
     ? await payload.findByID({ collection: 'sermon-series', id: seriesList[0].id, depth: 1 })
     : null
-  type MediaObj = { url: string; alt?: string; blurDataURL?: string | null }
   const seriesBackgroundMedia =
     seriesDoc?.backgroundImage && typeof seriesDoc.backgroundImage === 'object' && 'url' in seriesDoc.backgroundImage
-      ? (seriesDoc.backgroundImage as MediaObj) : null
+      ? (seriesDoc.backgroundImage as PayloadMediaImage) : null
   const seriesBannerMedia =
     seriesDoc?.bannerImage && typeof seriesDoc.bannerImage === 'object' && 'url' in seriesDoc.bannerImage
-      ? (seriesDoc.bannerImage as MediaObj) : null
-  const seriesBannerUrl = seriesBannerMedia?.url ?? null
+      ? (seriesDoc.bannerImage as PayloadMediaImage) : null
+  const seriesBannerUrl = seriesBannerMedia ? getPayloadMediaUrl(seriesBannerMedia, 'medium') : null
 
   const scripturesList = Array.isArray(sermon.scriptures)
     ? sermon.scriptures
@@ -305,6 +295,7 @@ export default async function SermonPage({
           <>
             <MediaImage
               media={heroMedia}
+              mediaSize="hero"
               alt=""
               fill
               sizes="100vw"
@@ -322,6 +313,7 @@ export default async function SermonPage({
               <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-xl shadow-2xl md:w-72 lg:w-80">
                 <MediaImage
                   media={heroBannerMedia}
+                  mediaSize="medium"
                   alt={sermon.title}
                   fill
                   sizes="(max-width: 768px) 100vw, 320px"
@@ -378,7 +370,7 @@ export default async function SermonPage({
                     audioUrl={getSermonAudioUrl(sermon.audio)}
                     speaker={allSpeakers.map((s) => s.name).join(', ') || undefined}
                     seriesTitle={seriesList[0]?.title}
-                    artworkUrl={heroBannerMedia?.url ?? undefined}
+                    artworkUrl={heroBannerMedia ? getPayloadMediaUrl(heroBannerMedia, 'medium') ?? undefined : undefined}
                     artworkBlurDataURL={heroBannerMedia?.blurDataURL ?? undefined}
                     duration={sermon.duration ?? undefined}
                     videos={getSermonVideos(sermon)}

@@ -1,5 +1,6 @@
 import { getPayloadClient } from '@/lib/payload'
 import { getSermonAudioUrl } from '@/lib/sermon-utils'
+import { getPayloadMediaUrl, type PayloadMediaImage } from '@/lib/payload-media'
 
 const SITE_URL = 'https://www.ev.church'
 
@@ -74,9 +75,9 @@ export async function GET() {
         if (
           bannerImage &&
           typeof bannerImage === 'object' &&
-          'url' in bannerImage
+          'sizes' in bannerImage
         ) {
-          artworkUrl = (bannerImage as { url: string }).url
+          artworkUrl = getPayloadMediaUrl(bannerImage as PayloadMediaImage, 'medium') ?? ''
         }
       }
 

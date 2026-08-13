@@ -1,4 +1,5 @@
 import { MediaImage } from '@/components/media/MediaImage'
+import { getPayloadMediaUrl, type PayloadMediaImage } from '@/lib/payload-media'
 import Link from 'next/link'
 import { getPayloadClient } from '@/lib/payload'
 import { getSermonAudioUrl, getSermonVideos } from '@/lib/sermon-utils'
@@ -51,19 +52,17 @@ export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockP
     ? await payload.findByID({ collection: 'sermon-series', id: series.id, depth: 1 })
     : null
 
-  type MediaObj = { url: string; alt?: string; blurDataURL?: string | null }
-
   const bannerMedia =
     seriesDoc?.bannerImage && typeof seriesDoc.bannerImage === 'object' && 'url' in seriesDoc.bannerImage
-      ? (seriesDoc.bannerImage as MediaObj)
+      ? (seriesDoc.bannerImage as PayloadMediaImage)
       : null
 
   const backgroundMedia =
     (seriesDoc?.backgroundImage && typeof seriesDoc.backgroundImage === 'object' && 'url' in seriesDoc.backgroundImage
-      ? (seriesDoc.backgroundImage as MediaObj)
+      ? (seriesDoc.backgroundImage as PayloadMediaImage)
       : null) || bannerMedia
 
-  const bannerUrl = bannerMedia?.url ?? null
+  const bannerUrl = bannerMedia ? getPayloadMediaUrl(bannerMedia, 'medium') : null
 
   const audioUrl = getSermonAudioUrl(sermon.audio)
 
@@ -83,6 +82,7 @@ export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockP
           <>
             <MediaImage
               media={backgroundMedia}
+              mediaSize="hero"
               alt=""
               fill
               sizes="100vw"
@@ -100,6 +100,7 @@ export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockP
           >
             <MediaImage
               media={bannerMedia}
+              mediaSize="medium"
               alt={sermon.title}
               fill
               sizes="100vw"
@@ -118,6 +119,7 @@ export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockP
               >
                 <MediaImage
                   media={bannerMedia}
+                  mediaSize="medium"
                   alt={sermon.title}
                   fill
                   sizes="288px"

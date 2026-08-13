@@ -3,6 +3,8 @@
  * Handles the basic node types produced by the seed script and Payload's Lexical editor.
  */
 
+import { getPayloadMediaDerivative, type PayloadMediaImage } from '@/lib/payload-media'
+
 interface LexicalNode {
   type: string
   text?: string
@@ -113,11 +115,7 @@ function renderNode(node: LexicalNode, index: number): React.ReactNode {
   // Populated upload embedded in rich text
   if (node.type === 'upload' && node.relationTo === 'media') {
     if (!node.value || typeof node.value !== 'object') return null
-    const media = node.value as {
-      url?: string | null
-      alt?: string | null
-      width?: number | null
-      height?: number | null
+    const media = node.value as PayloadMediaImage & {
       mimeType?: string | null
       filename?: string | null
     }
@@ -131,13 +129,16 @@ function renderNode(node: LexicalNode, index: number): React.ReactNode {
       )
     }
 
+    const image = getPayloadMediaDerivative(media, 'large')
+    if (!image?.url) return null
+
     return (
       <figure key={index} className="my-8">
         <img
-          src={media.url}
+          src={image.url}
           alt={media.alt ?? ''}
-          width={media.width ?? undefined}
-          height={media.height ?? undefined}
+          width={image.width ?? undefined}
+          height={image.height ?? undefined}
           className="h-auto w-full"
         />
       </figure>

@@ -8,6 +8,7 @@ import { EventSharing } from '@/components/events/EventSharing'
 import { EventStatus } from '@/components/events/EventStatus'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
 import { EventJsonLd } from '@/components/seo/EventJsonLd'
+import { getPayloadMediaUrl } from '@/lib/payload-media'
 import {
   formatEventDate,
   getCampusName,
@@ -31,6 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     toPlainText(event.summary).slice(0, 155) ||
     `${event.title} at Ev Church in Auckland. Find event dates, location details, and registration information.`
   const image = getEventImage(event)
+  const imageUrl = image ? getPayloadMediaUrl(image, 'large') : null
   const url = `https://www.ev.church/events/${event.slug}`
 
   return {
@@ -44,7 +46,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       siteName: 'Ev Church',
       locale: 'en_NZ',
       type: 'website',
-      ...(image?.url ? { images: [{ url: image.url, alt: image.alt || event.title }] } : {}),
+      ...(imageUrl ? { images: [{ url: imageUrl, alt: image?.alt || event.title }] } : {}),
     },
   }
 }

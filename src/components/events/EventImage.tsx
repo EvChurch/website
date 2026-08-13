@@ -1,5 +1,4 @@
-import Image from 'next/image'
-
+import { MediaImage } from '@/components/media/MediaImage'
 import { getEventImage, type PublicEvent } from '@/lib/events'
 
 interface EventImageProps {
@@ -12,10 +11,11 @@ interface EventImageProps {
 export function EventImage({ event, priority = false, sizes, className = '' }: EventImageProps) {
   const image = getEventImage(event)
 
-  if (image?.url) {
+  if (image) {
     return (
-      <Image
-        src={image.url}
+      <MediaImage
+        media={image}
+        mediaSize="large"
         alt={image.alt || event.title}
         fill
         priority={priority}

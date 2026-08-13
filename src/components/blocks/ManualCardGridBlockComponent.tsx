@@ -1,17 +1,12 @@
 import Image from 'next/image'
 import { MediaImage } from '@/components/media/MediaImage'
+import type { PayloadMediaImage } from '@/lib/payload-media'
 import Link from 'next/link'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 import { Button, ArrowRight } from '@/components/ui/Button'
 import { getGoogleMapsEmbedUrl, isGoogleMapsUrl } from '@/lib/google-maps'
 
-interface CardImage {
-  url: string
-  alt: string
-  width?: number
-  height?: number
-  blurDataURL?: string | null
-}
+type CardImage = PayloadMediaImage & { url: string; alt: string }
 
 interface DetailRow {
   label: string
@@ -171,6 +166,7 @@ function ImageOverlayCard({ card, index, priority }: { card: ManualCard; index: 
       {url && card.image && (
         <MediaImage
           media={card.image}
+          mediaSize="medium"
           fill
           priority={priority}
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -223,6 +219,7 @@ function ImageTopCard({ card, index, priority }: { card: ManualCard; index: numb
           {url && card.image ? (
             <MediaImage
               media={card.image}
+              mediaSize="medium"
               width={600}
               height={600}
               priority={priority}
@@ -242,6 +239,7 @@ function ImageTopCard({ card, index, priority }: { card: ManualCard; index: numb
           {url && card.image ? (
             <MediaImage
               media={card.image}
+              mediaSize="medium"
               fill
               priority={priority}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -313,6 +311,7 @@ function AlternatingRowCard({ card, index }: { card: ManualCard; index: number }
             {url && card.image ? (
               <MediaImage
                 media={card.image}
+                mediaSize="large"
                 fill
                 sizes="(max-width: 640px) 100vw, 50vw"
                 className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
