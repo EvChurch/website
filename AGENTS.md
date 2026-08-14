@@ -108,8 +108,8 @@ they are sufficient, then run the build for changes that can affect production.
 - Rich Red: `#E22A30`
 - Brand Black: `#0F0004`
 - Warm White: `#FEFAF4`
-- Primary sans: Proxima Nova
-- Secondary serif: Utopia
+- Primary sans: Albert Sans
+- Secondary serif: Source Serif 4
 - Container maximum: 80rem / 1280px
 - Prefer Tailwind utilities; reserve custom CSS for design tokens and cases that
   utilities cannot express clearly.
