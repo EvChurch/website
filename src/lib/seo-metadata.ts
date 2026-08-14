@@ -1,9 +1,12 @@
+export const DEFAULT_OPEN_GRAPH_IMAGE_ALT =
+  'Ev Church — a community of Christ-followers across Auckland'
+export const DEFAULT_OPEN_GRAPH_IMAGE_SIZE = { width: 1200, height: 630 }
+
 export const DEFAULT_OPEN_GRAPH_IMAGES = [
   {
     url: '/og-image',
-    width: 1200,
-    height: 630,
-    alt: 'Ev Church — a community of Christ-followers across Auckland',
+    ...DEFAULT_OPEN_GRAPH_IMAGE_SIZE,
+    alt: DEFAULT_OPEN_GRAPH_IMAGE_ALT,
   },
 ]
 

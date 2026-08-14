@@ -1,8 +1,12 @@
 import { ImageResponse } from 'next/og'
 
-export const openGraphImageAlt =
-  'Ev Church — a community of Christ-followers across Auckland'
-export const openGraphImageSize = { width: 1200, height: 630 }
+import {
+  DEFAULT_OPEN_GRAPH_IMAGE_ALT,
+  DEFAULT_OPEN_GRAPH_IMAGE_SIZE,
+} from '@/lib/seo-metadata'
+
+export const openGraphImageAlt = DEFAULT_OPEN_GRAPH_IMAGE_ALT
+export const openGraphImageSize = DEFAULT_OPEN_GRAPH_IMAGE_SIZE
 export const openGraphImageContentType = 'image/png'
 
 export function createOpenGraphImageResponse() {
