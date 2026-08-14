@@ -2,8 +2,16 @@ interface CampusSchemaProps {
   name: string
   brandName: string
   slug: string
-  streetAddress: string
-  addressLocality: string
+  address?: {
+    street?: string | null
+    city?: string | null
+    postalCode?: string | null
+  } | null
+  geoPoint?: {
+    lat?: number | null
+    lng?: number | null
+  } | null
+  mapUrl?: string
   serviceDay: string
   serviceOpens: string
   serviceCloses: string
@@ -13,8 +21,9 @@ export function CampusJsonLd({
   name,
   brandName,
   slug,
-  streetAddress,
-  addressLocality,
+  address,
+  geoPoint,
+  mapUrl,
   serviceDay,
   serviceOpens,
   serviceCloses,
@@ -28,11 +37,22 @@ export function CampusJsonLd({
     url: `https://www.ev.church/campus/${slug}`,
     address: {
       '@type': 'PostalAddress',
-      streetAddress,
-      addressLocality,
+      streetAddress: address?.street ?? '',
+      addressLocality: address?.city ?? '',
       addressRegion: 'Auckland',
+      postalCode: address?.postalCode ?? '',
       addressCountry: 'NZ',
     },
+    ...(geoPoint?.lat != null && geoPoint.lng != null
+      ? {
+          geo: {
+            '@type': 'GeoCoordinates',
+            latitude: geoPoint.lat,
+            longitude: geoPoint.lng,
+          },
+        }
+      : {}),
+    ...(mapUrl ? { hasMap: mapUrl } : {}),
     openingHoursSpecification: {
       '@type': 'OpeningHoursSpecification',
       dayOfWeek: serviceDay,

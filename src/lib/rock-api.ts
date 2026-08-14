@@ -195,15 +195,23 @@ export type RockCampus = {
   Description: string
   IsActive: boolean
   Order: number
-  Location?: {
-    Street1?: string
-    City?: string
-    PostalCode?: string
-    GeoPoint?: { Latitude: number; Longitude: number }
-    GooglePlaceId?: string
-  }
+  LocationId?: number | null
+  Location?: RockLocation | null
   ServiceTimes?: string
   AttributeValues?: Record<string, { Value: string }>
+}
+
+export type RockLocation = {
+  Street1?: string | null
+  Street2?: string | null
+  City?: string | null
+  PostalCode?: string | null
+  GeoPoint?:
+    | { Latitude: number; Longitude: number }
+    | { Geography?: { WellKnownText?: string | null } | null }
+    | null
+  GooglePlaceId?: string | null
+  AttributeValues?: Record<string, { Value?: string | null }>
 }
 
 export type RockPerson = {

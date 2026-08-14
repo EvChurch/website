@@ -8,6 +8,7 @@ import type {
   RockEventCalendarItem,
   RockEventItem,
   RockEventItemOccurrence,
+  RockLocation,
   RockPersonAlias,
 } from '@/lib/rock-api'
 import { mapRockCampus } from './mappers/campus'
@@ -59,7 +60,7 @@ export async function runFullSync(options?: { sermonLimit?: number }): Promise<S
   return results
 }
 
-async function syncCampuses(): Promise<SyncResult> {
+export async function syncCampuses(): Promise<SyncResult> {
   const result: SyncResult = { entity: 'campuses', created: 0, updated: 0, deleted: 0, errors: [] }
 
   try {
@@ -71,9 +72,26 @@ async function syncCampuses(): Promise<SyncResult> {
         $orderby: 'Order',
       },
     })
+    const locationIds = [
+      ...new Set(rockCampuses.flatMap(({ LocationId }) => LocationId ? [LocationId] : [])),
+    ]
+    const locations = new Map(
+      await Promise.all(
+        locationIds.map(async (locationId) => [
+          locationId,
+          await rockFetch<RockLocation>({
+            endpoint: `Locations/${locationId}`,
+            params: { loadAttributes: 'simple' },
+          }),
+        ] as const),
+      ),
+    )
 
     for (const rockCampus of rockCampuses) {
-      const mapped = mapRockCampus(rockCampus)
+      const location = rockCampus.LocationId
+        ? locations.get(rockCampus.LocationId)
+        : rockCampus.Location
+      const mapped = mapRockCampus({ ...rockCampus, Location: location })
       const existing = await payload.find({
         collection: 'campuses',
         where: { rockId: { equals: mapped.rockId } },
