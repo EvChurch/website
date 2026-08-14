@@ -13,7 +13,7 @@ import { mapRockConnectGroupParticipant } from './mappers/connect-group-particip
 import { fetchActiveGroupMembers } from './rock-group-members'
 import type { SyncResult } from './sync-runner'
 
-export const CONNECT_GROUP_TYPE_ID = 25
+export const CONNECT_GROUP_TYPE_IDS = [25, 46] as const
 export const CONNECT_GROUP_COACH_SECURITY_GROUP_ID = 33287
 
 const MIN_EXISTING_RECORDS_FOR_DROP_GUARD = 10
@@ -200,7 +200,7 @@ export async function syncConnectGroups(): Promise<SyncResult> {
       endpoint: 'Groups',
       getKey: (group) => requireDurableId(group.Id, 'Rock Connect Group'),
       params: {
-        $filter: `GroupTypeId eq ${CONNECT_GROUP_TYPE_ID} and IsActive eq true`,
+        $filter: `(${CONNECT_GROUP_TYPE_IDS.map((id) => `GroupTypeId eq ${id}`).join(' or ')}) and IsActive eq true`,
         $expand: 'GroupLocations,Campus',
         $orderby: 'Name,Id',
       },
