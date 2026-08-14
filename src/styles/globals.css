@@ -1,9 +1,3 @@
-/*
- * Adobe Fonts (TypeKit) — project qtk2tpw
- * Provides: Proxima Nova (sans) + Utopia (serif)
- */
-@import url('https://use.typekit.net/qtk2tpw.css');
-
 @import 'tailwindcss';
 
 /*
@@ -45,8 +39,8 @@
   --color-gn-gold: #D4940A;
 
   /* Font Families */
-  --font-sans: 'proxima-nova', system-ui, -apple-system, sans-serif;
-  --font-serif: 'utopia-std', 'Georgia Pro', Georgia, serif;
+  --font-sans: var(--font-albert-sans), system-ui, -apple-system, sans-serif;
+  --font-serif: var(--font-source-serif), 'Georgia Pro', Georgia, serif;
 
   /* Type Scale */
   --text-display: clamp(2.75rem, 5vw + 1rem, 3.75rem);

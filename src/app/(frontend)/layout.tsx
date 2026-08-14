@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { headers } from 'next/headers'
 import type { Metadata, Viewport } from 'next'
+import { Albert_Sans, Source_Serif_4 } from 'next/font/google'
 import { SiteHeader } from '@/components/layout/SiteHeader'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
@@ -20,6 +21,21 @@ import { loadLauncherData } from '@/lib/launcher/service-guide'
 import { loadSiteFeedbackSettings } from '@/lib/site-feedback/settings'
 import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
 import '@/styles/globals.css'
+
+const albertSans = Albert_Sans({
+  subsets: ['latin', 'latin-ext'],
+  variable: '--font-albert-sans',
+  display: 'swap',
+})
+
+const sourceSerif = Source_Serif_4({
+  subsets: ['latin', 'latin-ext'],
+  style: ['normal', 'italic'],
+  variable: '--font-source-serif',
+  display: 'swap',
+})
+
+const fontVariables = `${albertSans.variable} ${sourceSerif.variable}`
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.ev.church'),
@@ -82,11 +98,7 @@ export default async function FrontendLayout({ children }: { children: ReactNode
   const isSharedResource = requestHeaders.get('x-ev-shared-resource') === '1'
   if (isSharedResource) {
     return (
-      <html lang="en">
-        <head>
-          <link rel="preconnect" href="https://use.typekit.net" crossOrigin="anonymous" />
-          <link rel="dns-prefetch" href="https://use.typekit.net" />
-        </head>
+      <html lang="en" className={fontVariables}>
         <body className="bg-warm-white font-sans text-brand-black antialiased">
           <Header />
           <main>{children}</main>
@@ -116,11 +128,8 @@ export default async function FrontendLayout({ children }: { children: ReactNode
         }
 
   return (
-    <html lang="en">
+    <html lang="en" className={fontVariables}>
       <head>
-        {/* Adobe Fonts preconnect for faster font loading */}
-        <link rel="preconnect" href="https://use.typekit.net" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://use.typekit.net" />
         <OrganizationJsonLd />
       </head>
       <body className="bg-brand-black font-sans text-brand-black antialiased">

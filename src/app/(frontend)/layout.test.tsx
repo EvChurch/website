@@ -32,6 +32,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock('next/headers', () => ({
   headers: async () => new Headers(mocks.sharedResource ? { 'x-ev-shared-resource': '1' } : undefined),
 }))
+vi.mock('next/font/google', () => ({
+  Albert_Sans: () => ({ variable: 'font-albert-sans' }),
+  Source_Serif_4: () => ({ variable: 'font-source-serif' }),
+}))
 
 vi.mock('@/auth/member-auth0-config', () => ({
   isMemberAuthEnabled: () => mocks.enabled,
@@ -86,8 +90,11 @@ describe('FrontendLayout member account state', () => {
   it('keeps the normal header and footer around shared resources without loading visitor services', async () => {
     mocks.sharedResource = true
 
-    renderToStaticMarkup(await FrontendLayout({ children: <section>Shared resource</section> }))
+    const markup = renderToStaticMarkup(
+      await FrontendLayout({ children: <section>Shared resource</section> }),
+    )
 
+    expect(markup).toContain('class="font-albert-sans font-source-serif"')
     expect(mocks.header).toHaveBeenCalledOnce()
     expect(mocks.footer).toHaveBeenCalledOnce()
     expect(mocks.siteHeader).not.toHaveBeenCalled()
