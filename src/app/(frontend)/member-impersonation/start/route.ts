@@ -23,7 +23,10 @@ export async function POST(request: NextRequest) {
     if (!isAdmin) return notFound()
 
     const auth0 = getAuth0Client()
-    const session = await auth0.getSession(request)
+    const sessionRequest = new NextRequest(request.url, {
+      headers: request.headers,
+    })
+    const session = await auth0.getSession(sessionRequest)
     if (!session) return notFound()
 
     const formData = await request.formData()
@@ -44,7 +47,7 @@ export async function POST(request: NextRequest) {
       new URL('/members', readAuth0Config().appBaseUrl),
       303,
     )
-    await auth0.updateSession(request, response, updatedSession)
+    await auth0.updateSession(sessionRequest, response, updatedSession)
     response.headers.set('Cache-Control', PRIVATE_HEADERS['Cache-Control'])
     return response
   } catch {

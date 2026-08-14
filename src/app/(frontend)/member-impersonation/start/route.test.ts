@@ -74,7 +74,9 @@ describe('start member impersonation route', () => {
 
     expect(response.status).toBe(303)
     expect(response.headers.get('location')).toBe('https://www.ev.church/members')
-    expect(state.updateRequest).toBe(impersonationRequest)
+    expect(state.updateRequest).not.toBe(impersonationRequest)
+    expect(state.updateRequest?.headers.get('origin')).toBe('https://www.ev.church')
+    expect(state.updateRequest?.bodyUsed).toBe(false)
     expect(state.updateResponse).toBe(response)
     expect(state.updated?.user).toEqual({ sub: 'auth0|admin' })
     expect(state.updated?.memberImpersonation).toBeDefined()
