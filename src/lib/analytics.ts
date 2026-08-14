@@ -14,11 +14,19 @@ export interface AnalyticsEvents {
   }
   visit_plan_submit: {
     form_type: 'workflow'
+    source?: 'kids'
   }
   contact_church: {
     topic: 'general' | 'newish'
     method: 'form'
     form_type: 'workflow' | 'connection_opportunity'
+  }
+  connect_group_enquiry_click: {
+    destination_path: '/contact'
+  }
+  ministry_enquiry_click: {
+    ministry: 'kids' | 'youth'
+    destination_path: '/contact' | '/visit'
   }
   faith_exploration_enquiry: {
     journey: 'explaining_christianity'
@@ -36,24 +44,21 @@ export interface SuccessfulFormEvent<Name extends AnalyticsEventName = Analytics
 export function getSuccessfulFormEvent(
   pathname: string,
   formType: 'workflow' | 'connection_opportunity',
+  searchParams = '',
 ): SuccessfulFormEvent | null {
   switch (pathname) {
     case '/visit':
       return formType === 'workflow'
         ? {
             name: 'visit_plan_submit',
-            parameters: { form_type: 'workflow' },
+            parameters: {
+              form_type: 'workflow',
+              ...(new URLSearchParams(searchParams).get('source') === 'kids'
+                ? { source: 'kids' as const }
+                : {}),
+            },
           }
         : null
-    case '/contact':
-      return {
-        name: 'contact_church',
-        parameters: {
-          topic: 'general',
-          method: 'form',
-          form_type: formType,
-        },
-      }
     case '/newish':
       return {
         name: 'contact_church',
@@ -105,7 +110,8 @@ export function trackSuccessfulFormSubmission(
   pathname: string,
   formType: 'workflow' | 'connection_opportunity',
 ): void {
-  const event = getSuccessfulFormEvent(pathname, formType)
+  const searchParams = typeof window === 'undefined' ? '' : window.location.search
+  const event = getSuccessfulFormEvent(pathname, formType, searchParams)
   if (!event) return
 
   trackAnalyticsEvent(event.name, event.parameters)

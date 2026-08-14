@@ -23,14 +23,7 @@ describe('analytics events', () => {
         name: 'visit_plan_submit',
         parameters: { form_type: 'workflow' },
       },
-    ],
-    [
-      '/contact',
-      'workflow',
-      {
-        name: 'contact_church',
-        parameters: { topic: 'general', method: 'form', form_type: 'workflow' },
-      },
+      '',
     ],
     [
       '/newish',
@@ -43,6 +36,7 @@ describe('analytics events', () => {
           form_type: 'connection_opportunity',
         },
       },
+      '',
     ],
     [
       '/explaining-christianity',
@@ -54,13 +48,24 @@ describe('analytics events', () => {
           form_type: 'connection_opportunity',
         },
       },
+      '',
     ],
-  ] as const)('maps a successful %s form', (pathname, formType, expected) => {
-    expect(getSuccessfulFormEvent(pathname, formType)).toEqual(expected)
+    [
+      '/visit',
+      'workflow',
+      {
+        name: 'visit_plan_submit',
+        parameters: { form_type: 'workflow', source: 'kids' },
+      },
+      '?source=kids',
+    ],
+  ] as const)('maps a successful %s form', (pathname, formType, expected, searchParams) => {
+    expect(getSuccessfulFormEvent(pathname, formType, searchParams)).toEqual(expected)
   })
 
   it('does not label unsupported form contexts as meaningful outcomes', () => {
     expect(getSuccessfulFormEvent('/kids', 'workflow')).toBeNull()
+    expect(getSuccessfulFormEvent('/contact', 'workflow')).toBeNull()
     expect(getSuccessfulFormEvent('/visit', 'connection_opportunity')).toBeNull()
   })
 
@@ -86,5 +91,17 @@ describe('analytics events', () => {
     trackSuccessfulFormSubmission('/contact', 'workflow')
 
     expect(window.gtag).not.toHaveBeenCalled()
+  })
+
+  it('uses the current visit source when tracking a successful submission', () => {
+    window.gtag = vi.fn()
+    window.history.replaceState({}, '', '/visit?source=kids')
+
+    trackSuccessfulFormSubmission('/visit', 'workflow')
+
+    expect(window.gtag).toHaveBeenCalledWith('event', 'visit_plan_submit', {
+      form_type: 'workflow',
+      source: 'kids',
+    })
   })
 })
