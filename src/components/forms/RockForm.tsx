@@ -34,6 +34,7 @@ import {
   DEFAULT_FORM_FALLBACK_ACTION,
   type FormFallbackAction,
 } from '@/lib/form-fallback'
+import { trackSuccessfulFormSubmission } from '@/lib/analytics'
 import type {
   RockFormField,
   RockFormSchema,
@@ -826,6 +827,7 @@ export function RockForm({
               window.scrollTo({ top: 0, behavior: 'smooth' })
             }
           } else if (isCompleteResponse(result)) {
+            trackSuccessfulFormSubmission(window.location.pathname, 'workflow')
             if (result.redirectUrl) window.location.assign(result.redirectUrl)
             else {
               setCompleteMessage(

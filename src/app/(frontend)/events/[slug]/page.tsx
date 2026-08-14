@@ -5,6 +5,7 @@ import RichText from '@/components/blocks/RichTextRenderer'
 import { EventImage } from '@/components/events/EventImage'
 import { EventSharing } from '@/components/events/EventSharing'
 import { EventStatus } from '@/components/events/EventStatus'
+import { TrackedAnchor } from '@/components/analytics/TrackedLink'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
 import { EventJsonLd } from '@/components/seo/EventJsonLd'
 import { getPayloadMediaUrl } from '@/lib/payload-media'
@@ -164,14 +165,23 @@ export default async function EventDetailPage({ params }: Props) {
             </dl>
 
             {registrationHref && (
-              <a
+              <TrackedAnchor
                 href={registrationHref}
                 target="_blank"
                 rel="noopener noreferrer"
+                eventName="event_registration_click"
+                eventParameters={{
+                  event_slug: event.slug,
+                  campus: campus?.toLowerCase() || 'all',
+                  destination_host: new URL(
+                    registrationHref,
+                    'https://www.ev.church',
+                  ).hostname,
+                }}
                 className="mt-9 inline-flex min-h-12 w-full items-center justify-center bg-rich-red px-6 text-center text-sm font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-deep-red focus:outline-none focus:ring-4 focus:ring-light-red-2"
               >
                 Continue to registration
-              </a>
+              </TrackedAnchor>
             )}
 
             <EventSharing event={event} />

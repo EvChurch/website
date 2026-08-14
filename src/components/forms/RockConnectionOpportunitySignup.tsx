@@ -16,6 +16,7 @@ import { RockAttributeField } from './RockAttributeField'
 import { formInputClass, formLabelClass } from './form-styles'
 import { SafeRockHtml } from './SafeRockHtml'
 import { TurnstileWidget } from './TurnstileWidget'
+import { trackSuccessfulFormSubmission } from '@/lib/analytics'
 
 export { ROCK_CONNECTION_START_ACTION, ROCK_CONNECTION_SUBMIT_ACTION }
 
@@ -483,6 +484,10 @@ export function RockConnectionOpportunitySignup({
           } else if (!response.ok || data.status !== 'complete' || data.resultType !== 0) {
             dispatch({ type: 'failed', message: data.error || 'Unable to submit this signup right now' })
           } else {
+            trackSuccessfulFormSubmission(
+              window.location.pathname,
+              'connection_opportunity',
+            )
             dispatch({ type: 'succeeded', message: data.message || 'Thanks. Your request has been received.' })
           }
         } catch {
