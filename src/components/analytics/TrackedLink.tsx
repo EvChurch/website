@@ -20,6 +20,35 @@ type TrackedAnchorProps<Name extends AnalyticsEventName> =
       href: string
     }
 
+type ContextualCtaAnchorProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
+  href: string
+}
+
+function contextualCta(pathname: string, href: string) {
+  if (pathname === '/connect-groups' && href === '/contact') {
+    return {
+      href: '/contact?topic=connect-groups',
+      eventName: 'connect_group_enquiry_click' as const,
+      eventParameters: { destination_path: '/contact' as const },
+    }
+  }
+  if (pathname === '/kids' && href === '/visit') {
+    return {
+      href: '/visit?source=kids',
+      eventName: 'ministry_enquiry_click' as const,
+      eventParameters: { ministry: 'kids' as const, destination_path: '/visit' as const },
+    }
+  }
+  if (pathname === '/youth' && href === '/contact') {
+    return {
+      href: '/contact?topic=youth',
+      eventName: 'ministry_enquiry_click' as const,
+      eventParameters: { ministry: 'youth' as const, destination_path: '/contact' as const },
+    }
+  }
+  return null
+}
+
 export function TrackedAnchor<Name extends AnalyticsEventName>({
   eventName,
   eventParameters,
@@ -31,6 +60,27 @@ export function TrackedAnchor<Name extends AnalyticsEventName>({
       {...props}
       onClick={(event) => {
         trackAnalyticsEvent(eventName, eventParameters)
+        onClick?.(event)
+      }}
+    />
+  )
+}
+
+export function ContextualCtaAnchor({
+  href,
+  onClick,
+  ...props
+}: ContextualCtaAnchorProps) {
+  return (
+    <a
+      {...props}
+      href={href}
+      onClick={(event) => {
+        const context = contextualCta(window.location.pathname, href)
+        if (context) {
+          event.currentTarget.setAttribute('href', context.href)
+          trackAnalyticsEvent(context.eventName, context.eventParameters)
+        }
         onClick?.(event)
       }}
     />

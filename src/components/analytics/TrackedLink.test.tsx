@@ -4,7 +4,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { TrackedAnchor } from './TrackedLink'
+import { ContextualCtaAnchor, TrackedAnchor } from './TrackedLink'
 
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean })
   .IS_REACT_ACT_ENVIRONMENT = true
@@ -58,5 +58,42 @@ describe('TrackedAnchor', () => {
       destination_host: 'rock.ev.church',
     })
     expect(onClick).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    [
+      '/connect-groups',
+      '/contact',
+      '/contact?topic=connect-groups',
+      'connect_group_enquiry_click',
+      { destination_path: '/contact' },
+    ],
+    [
+      '/kids',
+      '/visit',
+      '/visit?source=kids',
+      'ministry_enquiry_click',
+      { ministry: 'kids', destination_path: '/visit' },
+    ],
+    [
+      '/youth',
+      '/contact',
+      '/contact?topic=youth',
+      'ministry_enquiry_click',
+      { ministry: 'youth', destination_path: '/contact' },
+    ],
+  ])('tracks the contextual CTA on %s', async (pathname, href, expectedHref, eventName, parameters) => {
+    window.history.replaceState({}, '', pathname)
+
+    await act(async () => root.render(
+      <ContextualCtaAnchor href={href} onClick={(event) => event.preventDefault()}>
+        Continue
+      </ContextualCtaAnchor>,
+    ))
+
+    await act(async () => container.querySelector('a')?.click())
+
+    expect(container.querySelector('a')?.getAttribute('href')).toBe(expectedHref)
+    expect(window.gtag).toHaveBeenCalledWith('event', eventName, parameters)
   })
 })
