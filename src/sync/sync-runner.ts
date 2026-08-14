@@ -72,13 +72,24 @@ export async function syncCampuses(): Promise<SyncResult> {
         $orderby: 'Order',
       },
     })
+    const locationIds = [
+      ...new Set(rockCampuses.flatMap(({ LocationId }) => LocationId ? [LocationId] : [])),
+    ]
+    const locations = new Map(
+      await Promise.all(
+        locationIds.map(async (locationId) => [
+          locationId,
+          await rockFetch<RockLocation>({
+            endpoint: `Locations/${locationId}`,
+            params: { loadAttributes: 'simple' },
+          }),
+        ] as const),
+      ),
+    )
 
     for (const rockCampus of rockCampuses) {
       const location = rockCampus.LocationId
-        ? await rockFetch<RockLocation>({
-            endpoint: `Locations/${rockCampus.LocationId}`,
-            params: { loadAttributes: 'simple' },
-          })
+        ? locations.get(rockCampus.LocationId)
         : rockCampus.Location
       const mapped = mapRockCampus({ ...rockCampus, Location: location })
       const existing = await payload.find({

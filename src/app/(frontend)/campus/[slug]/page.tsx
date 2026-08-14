@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import { trackedNotFound } from '@/lib/tracked-not-found'
 import { cache } from 'react'
 
@@ -9,7 +10,7 @@ import { CampusJsonLd } from '@/components/seo/CampusJsonLd'
 import { Button, type ButtonLinkAction } from '@/components/ui/Button'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 import { getPayloadMediaUrl, type PayloadMediaSize } from '@/lib/payload-media'
-import { getGoogleMapsEmbedUrl } from '@/lib/google-maps'
+import { getGoogleMapsEmbedUrl, isGoogleMapsUrl } from '@/lib/google-maps'
 import { getPayloadClient } from '@/lib/payload'
 import type { Campus, Media } from '@/payload-types'
 
@@ -24,6 +25,8 @@ type CampusPageDocument = Pick<
   | 'name'
   | 'slug'
   | 'address'
+  | 'geoPoint'
+  | 'googlePlaceId'
   | 'description'
   | 'featuredImage'
   | 'slideImages'
@@ -179,6 +182,8 @@ const getCampusBySlug = cache(async (slug: string): Promise<ManagedCampusPage | 
       name: true,
       slug: true,
       address: true,
+      geoPoint: true,
+      googlePlaceId: true,
       description: true,
       featuredImage: true,
       slideImages: true,
@@ -232,6 +237,20 @@ function getAddress(campus: CampusPageDocument): string {
   return [campus.address?.street, campus.address?.city, campus.address?.postalCode]
     .filter((part): part is string => Boolean(part?.trim()))
     .join(', ')
+}
+
+function getGoogleMapsPageUrl(
+  googlePlaceId: string | null | undefined,
+  managedMapUrl: string,
+): string | undefined {
+  const placeId = googlePlaceId?.trim()
+  if (placeId) {
+    const mapUrl = new URL('https://www.google.com/maps/place/')
+    mapUrl.searchParams.set('q', `place_id:${placeId}`)
+    return mapUrl.toString()
+  }
+
+  return isGoogleMapsUrl(managedMapUrl) ? managedMapUrl : undefined
 }
 
 export async function generateStaticParams() {
@@ -295,6 +314,7 @@ export default async function CampusPage({
     address,
     process.env.GOOGLE_MAPS_API_KEY,
   )
+  const mapPageUrl = getGoogleMapsPageUrl(campus.googlePlaceId, content.mapUrl)
   const blocks = (campus.layout ?? []) as unknown as RenderableBlock[]
   const brandHeading = getBrandHeading(content.brandName)
 
@@ -304,8 +324,9 @@ export default async function CampusPage({
         name={campus.name}
         brandName={content.brandName}
         slug={slug}
-        streetAddress={campus.address?.street ?? ''}
-        addressLocality={campus.address?.city ?? ''}
+        address={campus.address}
+        geoPoint={campus.geoPoint}
+        mapUrl={mapPageUrl}
         serviceDay={content.serviceDay}
         serviceOpens={content.serviceOpens}
         serviceCloses={content.serviceCloses}
@@ -315,10 +336,14 @@ export default async function CampusPage({
       <section className="relative flex min-h-[70vh] items-center overflow-hidden bg-brand-black">
         <div className="absolute inset-0">
           {heroImage && (
-            <img
+            <Image
               src={heroImage.src}
               alt={heroImage.alt}
-              className="h-full w-full object-cover"
+              fill
+              fetchPriority="high"
+              loading="eager"
+              sizes="100vw"
+              className="object-cover"
             />
           )}
           <div className="absolute inset-0 bg-gradient-to-r from-brand-black/80 via-brand-black/60 to-brand-black/30" />
@@ -434,11 +459,13 @@ export default async function CampusPage({
             <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {galleryImages.map((image, index) => (
                 <ScrollReveal key={image.src} delay={index * 80}>
-                  <div className="overflow-hidden rounded-lg">
-                    <img
+                  <div className="relative aspect-[4/3] overflow-hidden rounded-lg">
+                    <Image
                       src={image.src}
                       alt={image.alt}
-                      className="aspect-[4/3] w-full object-cover transition-transform duration-500 hover:scale-105"
+                      fill
+                      sizes="(min-width: 1344px) 20rem, (max-width: 639px) 100vw, (max-width: 1023px) 50vw, 25vw"
+                      className="object-cover transition-transform duration-500 hover:scale-105"
                     />
                   </div>
                 </ScrollReveal>

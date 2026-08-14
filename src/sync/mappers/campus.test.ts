@@ -22,7 +22,7 @@ describe('mapRockCampus', () => {
               WellKnownText: 'POINT (174.699985 -36.751087)',
             },
           },
-          GooglePlaceId: null,
+          GooglePlaceId: '  ',
           AttributeValues: {
             GooglePlaceId: { Value: 'ChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U' },
           },

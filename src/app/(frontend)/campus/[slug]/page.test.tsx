@@ -25,6 +25,11 @@ const campus = {
     city: 'Rosedale, Auckland',
     postalCode: '',
   },
+  geoPoint: {
+    lat: -36.751087,
+    lng: 174.699985,
+  },
+  googlePlaceId: 'ChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U',
   description: {
     root: {
       type: 'root',
@@ -59,8 +64,7 @@ const campus = {
         alt: 'Families at Ev Church North',
       },
     ],
-    mapUrl:
-      'https://www.google.com/maps/place/?q=place_id%3AChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U',
+    mapUrl: 'https://www.google.com/maps/place/?q=place_id%3Amanaged-map-value',
     parkingInfo: 'Parking is available on site.',
     actions: [
       {
@@ -117,6 +121,8 @@ describe('Payload-managed campus page', () => {
         name: true,
         slug: true,
         address: true,
+        geoPoint: true,
+        googlePlaceId: true,
         description: true,
         featuredImage: true,
         slideImages: true,
@@ -126,9 +132,14 @@ describe('Payload-managed campus page', () => {
     })
     expect(markup).toContain('Community on the Shore')
     expect(markup).toContain('A warm community on the North Shore.')
-    expect(markup).toContain('/images/homepage/carousel-c645786c.jpg')
+    expect(markup).toContain('/_next/image?url=%2Fimages%2Fhomepage%2Fcarousel-c645786c.jpg')
+    expect(markup).toMatch(/<img[^>]+fetchPriority="high"/)
+    expect(markup).toMatch(/<img[^>]+loading="eager"/)
+    const galleryImageTag = markup.match(/<img[^>]+carousel-3c68ddf1\.jpg[^>]*>/)?.[0]
+    expect(galleryImageTag).toContain('loading="lazy"')
+    expect(markup).toContain('/_next/image?url=%2Fimages%2Fhomepage%2Fcarousel-3c68ddf1.jpg')
     expect(markup).toContain(
-      'src="https://www.google.com/maps/embed/v1/place?key=test-api-key&amp;q=place_id%3AChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U"',
+      'src="https://www.google.com/maps/embed/v1/place?key=test-api-key&amp;q=place_id%3Amanaged-map-value"',
     )
     expect(markup).toContain('title="Map showing Ev North"')
     expect(markup).toContain('href="#campus-map"')
@@ -139,6 +150,11 @@ describe('Payload-managed campus page', () => {
     expect(markup).not.toContain('Message us')
     expect(markup).toContain('Save service time')
     expect(markup).toContain('/campus/north/calendar.ics')
+    expect(markup).toContain('"latitude":-36.751087')
+    expect(markup).toContain('"longitude":174.699985')
+    expect(markup).toContain(
+      '"hasMap":"https://www.google.com/maps/place/?q=place_id%3AChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U"',
+    )
     expect(mocks.renderBlocks).toHaveBeenCalledWith({ blocks: campus.layout }, undefined)
   })
 
@@ -162,6 +178,7 @@ describe('Payload-managed campus page', () => {
       docs: [
         {
           ...campus,
+          googlePlaceId: null,
           pageContent: { ...campus.pageContent, mapUrl },
         },
       ],
@@ -174,6 +191,7 @@ describe('Payload-managed campus page', () => {
     expect(markup).toContain(
       'src="https://www.google.com/maps?q=9-11+Rothwell+Avenue%2C+Rosedale%2C+Auckland&amp;output=embed"',
     )
+    expect(markup).not.toContain(`"hasMap":"${mapUrl}"`)
   })
 
   it('does not publish a campus until its managed page is enabled', async () => {

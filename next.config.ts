@@ -23,6 +23,13 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      // Retired staging host → canonical production host
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'new.ev.church' }],
+        destination: 'https://www.ev.church/:path*',
+        permanent: true,
+      },
       // Old campus URLs → new slug-based URLs
       { source: '/campus/2', destination: '/campus/north', permanent: true },
       {

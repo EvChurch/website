@@ -42,10 +42,9 @@ export function mapRockCampus(rock: RockCampus) {
       postalCode: text(rock.Location?.PostalCode),
     },
     geoPoint: mapGeoPoint(rock.Location?.GeoPoint),
-    googlePlaceId: text(
-      rock.Location?.GooglePlaceId ??
-        rock.Location?.AttributeValues?.GooglePlaceId?.Value,
-    ),
+    googlePlaceId:
+      text(rock.Location?.GooglePlaceId) ||
+      text(rock.Location?.AttributeValues?.GooglePlaceId?.Value),
     serviceTimes: rock.ServiceTimes || '',
     order: rock.Order,
     isActive: rock.IsActive,
