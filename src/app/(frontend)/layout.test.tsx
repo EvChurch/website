@@ -23,6 +23,10 @@ const mocks = vi.hoisted(() => ({
       avatarUrl: string | null
     } | null
   }) => null),
+  launcher: vi.fn((_props: {
+    feedback: unknown
+    signedInEmail?: string
+  }) => null),
 }))
 
 vi.mock('next/headers', () => ({
@@ -48,7 +52,7 @@ vi.mock('@/lib/site-feedback/settings', () => ({
   loadSiteFeedbackSettings: mocks.loadSiteFeedbackSettings,
 }))
 vi.mock('@/components/launcher/NextStepsLauncher', () => ({
-  NextStepsLauncher: () => null,
+  NextStepsLauncher: mocks.launcher,
 }))
 vi.mock('@/components/layout/SiteHeader', () => ({ SiteHeader: mocks.siteHeader }))
 vi.mock('@/components/layout/Header', () => ({ Header: mocks.header }))
@@ -117,6 +121,10 @@ describe('FrontendLayout member account state', () => {
       },
       undefined,
     )
+    expect(mocks.launcher).toHaveBeenCalledWith(
+      expect.objectContaining({ feedback, signedInEmail: undefined }),
+      undefined,
+    )
   })
 
   it('does not read a member session or show account controls when disabled', async () => {
@@ -130,6 +138,13 @@ describe('FrontendLayout member account state', () => {
         impersonation: null,
         memberProfile: undefined,
       },
+      undefined,
+    )
+    expect(mocks.launcher).toHaveBeenCalledWith(
+      expect.objectContaining({
+        feedback: null,
+        signedInEmail: undefined,
+      }),
       undefined,
     )
   })
@@ -163,6 +178,13 @@ describe('FrontendLayout member account state', () => {
     )
     const headerProps = mocks.siteHeader.mock.calls[0]?.[0]
     expect(headerProps).not.toHaveProperty('personId')
+    expect(mocks.launcher).toHaveBeenCalledWith(
+      expect.objectContaining({
+        feedback: null,
+        signedInEmail: 'aroha@example.com',
+      }),
+      undefined,
+    )
   })
 
   it('requests the avatar route once to upgrade a legacy session', async () => {

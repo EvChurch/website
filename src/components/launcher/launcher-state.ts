@@ -3,6 +3,7 @@ export type LauncherPresentation = 'collapsed' | 'compact' | 'fullscreen'
 export type LauncherView =
   | { type: 'home' }
   | { type: 'catalogue' }
+  | { type: 'feedback'; title: string }
   | { type: 'workflow'; workflowTypeGuid: string; imageUrl?: string; title: string }
   | { type: 'connection'; blockGuid: string; imageUrl?: string; title: string }
   | { type: 'content'; html: string; imageUrl?: string; title: string }
