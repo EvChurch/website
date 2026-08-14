@@ -33,6 +33,12 @@ const people = [
   },
 ]
 
+const twentyPeople = Array.from({ length: 20 }, (_, index) => ({
+  Id: index + 1,
+  FirstName: `Person ${index + 1}`,
+  Email: `person${index + 1}@example.com`,
+}))
+
 const auth0Login = (personId: number, overrides: Record<string, unknown> = {}) => ({
   Id: personId + 100,
   EntityTypeId: 19,
@@ -80,6 +86,54 @@ describe('Rock Auth0 member directory', () => {
     expect(mocks.memberRockFetch.mock.calls[1]?.[0].params.$filter).toBe(
       'PersonId eq 42 or PersonId eq 43',
     )
+  })
+
+  it('batches Auth0 login lookups when an email search returns 20 people', async () => {
+    mocks.memberRockFetch
+      .mockResolvedValueOnce(twentyPeople)
+      .mockResolvedValueOnce([auth0Login(1)])
+      .mockResolvedValueOnce([auth0Login(20)])
+
+    await expect(searchRockAuth0MembersByEmail('person')).resolves.toEqual({
+      ok: true,
+      members: [
+        expect.objectContaining({ personId: 1 }),
+        expect.objectContaining({ personId: 20 }),
+      ],
+    })
+
+    expect(mocks.memberRockFetch).toHaveBeenCalledTimes(3)
+    expect(mocks.memberRockFetch.mock.calls[1]?.[0].params.$filter).toBe(
+      Array.from({ length: 16 }, (_, index) => `PersonId eq ${index + 1}`).join(
+        ' or ',
+      ),
+    )
+    expect(mocks.memberRockFetch.mock.calls[2]?.[0].params.$filter).toBe(
+      'PersonId eq 17 or PersonId eq 18 or PersonId eq 19 or PersonId eq 20',
+    )
+  })
+
+  it('fails closed when a later Auth0 login batch fails', async () => {
+    mocks.memberRockFetch
+      .mockResolvedValueOnce(twentyPeople)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({ docs: [] })
+
+    await expect(searchRockAuth0MembersByEmail('person')).resolves.toEqual({
+      ok: false,
+      reason: 'malformed-response',
+    })
+
+    mocks.memberRockFetch.mockReset()
+    mocks.memberRockFetch
+      .mockResolvedValueOnce(twentyPeople)
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(new MemberRockAPIError(503))
+
+    await expect(searchRockAuth0MembersByEmail('person')).resolves.toEqual({
+      ok: false,
+      reason: 'upstream-unavailable',
+    })
   })
 
   it('escapes email search text and rejects broad or malformed queries', async () => {

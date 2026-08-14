@@ -12,6 +12,7 @@ const SEARCH_TIMEOUT_MS = 3_000
 const MAX_EMAIL_LENGTH = 254
 const MIN_EMAIL_SEARCH_LENGTH = 3
 const MAX_SEARCH_RESULTS = 20
+const MAX_PERSON_IDS_PER_LOGIN_REQUEST = 16
 const controlCharacters = /[\u0000-\u001f\u007f]/u
 
 export type RockMemberDirectoryFailureReason =
@@ -72,17 +73,26 @@ async function peopleByEmail(query: string) {
 }
 
 async function auth0LoginsForPersonIds(personIds: number[]) {
-  return memberRockFetch<unknown>({
-    endpoint: 'UserLogins',
-    params: {
-      $expand: 'EntityType',
-      $filter: personIds.map((personId) => `PersonId eq ${personId}`).join(' or '),
-      $select:
-        'Id,EntityTypeId,PersonId,UserName,EntityType/Id,EntityType/Guid',
-      $top: String(MAX_SEARCH_RESULTS * 2),
-    },
-    timeoutMs: SEARCH_TIMEOUT_MS,
-  })
+  const requests = []
+  for (let index = 0; index < personIds.length; index += MAX_PERSON_IDS_PER_LOGIN_REQUEST) {
+    const batch = personIds.slice(index, index + MAX_PERSON_IDS_PER_LOGIN_REQUEST)
+    requests.push(
+      memberRockFetch<unknown>({
+        endpoint: 'UserLogins',
+        params: {
+          $expand: 'EntityType',
+          $filter: batch.map((personId) => `PersonId eq ${personId}`).join(' or '),
+          $select:
+            'Id,EntityTypeId,PersonId,UserName,EntityType/Id,EntityType/Guid',
+          $top: String(MAX_SEARCH_RESULTS * 2),
+        },
+        timeoutMs: SEARCH_TIMEOUT_MS,
+      }),
+    )
+  }
+
+  const responses = await Promise.all(requests)
+  return responses.every(Array.isArray) ? responses.flat() : null
 }
 
 export async function searchRockAuth0MembersByEmail(

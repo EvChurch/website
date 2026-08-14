@@ -21,6 +21,11 @@ export async function POST(request: NextRequest) {
   try {
     const isAdmin = await isCurrentPayloadAdmin(request.headers)
     if (!isAdmin) return notFound()
+
+    const auth0 = getAuth0Client()
+    const session = await auth0.getSession(request)
+    if (!session) return notFound()
+
     const formData = await request.formData()
 
     const rawPersonId = formData.get('personId')
@@ -29,10 +34,6 @@ export async function POST(request: NextRequest) {
     }
     const personId = Number(rawPersonId)
     if (!Number.isSafeInteger(personId) || personId <= 0) return notFound()
-
-    const auth0 = getAuth0Client()
-    const session = await auth0.getSession(request)
-    if (!session) return notFound()
 
     const target = await findRockAuth0MemberByPersonId(personId)
     if (!target.ok) return notFound()

@@ -24,7 +24,10 @@ vi.mock('@/auth/payload-admin-session', () => ({
 }))
 vi.mock('@/auth/auth0-client', () => ({
   getAuth0Client: () => ({
-    getSession: vi.fn(async () => state.session),
+    getSession: vi.fn(async (request?: NextRequest) => {
+      request?.clone()
+      return state.session
+    }),
     updateSession: vi.fn(async (session) => { state.updated = session }),
   }),
 }))
