@@ -1,10 +1,12 @@
 import type { Metadata } from 'next'
+import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
 
 export const metadata: Metadata = {
   title: 'Privacy Policy | Ev Church Auckland',
   description:
-    'Privacy policy for Ev Church. Learn how we collect, use, and protect your personal information.',
+    'Read the Ev Church privacy policy to understand what personal information we collect, how we use and protect it, and the choices available to you.',
   openGraph: {
+    images: DEFAULT_OPEN_GRAPH_IMAGES,
     title: 'Privacy Policy | Ev Church Auckland',
     description: 'Privacy policy for Ev Church.',
     url: 'https://www.ev.church/privacy',

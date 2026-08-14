@@ -28,9 +28,11 @@ export function EventJsonLd({ event }: { event: PublicEvent }) {
     location: {
       '@type': 'Place',
       name: locationName,
-      ...(event.location?.address
-        ? { address: { '@type': 'PostalAddress', streetAddress: event.location.address } }
-        : {}),
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: event.location?.address?.trim() || locationName,
+        addressCountry: 'NZ',
+      },
     },
     organizer: {
       '@type': 'Organization',

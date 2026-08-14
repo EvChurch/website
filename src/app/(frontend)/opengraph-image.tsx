@@ -1,49 +1,14 @@
-import { ImageResponse } from 'next/og'
+import {
+  createOpenGraphImageResponse,
+  openGraphImageAlt,
+  openGraphImageContentType,
+  openGraphImageSize,
+} from '@/components/seo/OpenGraphImage'
 
-export const alt = 'Ev Church — a community of Christ-followers across Auckland'
-export const size = { width: 1200, height: 630 }
-export const contentType = 'image/png'
+export const alt = openGraphImageAlt
+export const size = openGraphImageSize
+export const contentType = openGraphImageContentType
 
 export default function OpenGraphImage() {
-  return new ImageResponse(
-    <div
-      style={{
-        alignItems: 'center',
-        background: '#0F0004',
-        color: '#FEFAF4',
-        display: 'flex',
-        height: '100%',
-        justifyContent: 'center',
-        position: 'relative',
-        width: '100%',
-      }}
-    >
-      <div
-        style={{
-          background: '#E22A30',
-          height: 18,
-          left: 0,
-          position: 'absolute',
-          right: 0,
-          top: 0,
-        }}
-      />
-      <div
-        style={{
-          alignItems: 'center',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 24,
-        }}
-      >
-        <div style={{ fontSize: 104, fontWeight: 800, letterSpacing: -5 }}>
-          ev.church
-        </div>
-        <div style={{ color: '#FEFAF4', fontSize: 34 }}>
-          A community of Christ-followers across Auckland
-        </div>
-      </div>
-    </div>,
-    size,
-  )
+  return createOpenGraphImageResponse()
 }

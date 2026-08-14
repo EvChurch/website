@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { getPayloadClient } from '@/lib/payload'
 import { trackedNotFound } from '@/lib/tracked-not-found'
 import { isRetiredPageSlug } from '@/lib/public-pages'
+import { DEFAULT_OPEN_GRAPH_IMAGES, truncateMetaDescription } from '@/lib/seo-metadata'
 import { RenderBlocks } from '@/components/blocks/RenderBlocks'
 import { BreadcrumbJsonLd, buildBreadcrumbs } from '@/components/seo/BreadcrumbJsonLd'
 
@@ -48,9 +49,10 @@ export async function generateMetadata({
     ? { absolute: seo.metaTitle }
     : `${page.title} | Ev Church`
   const displayTitle = seo?.metaTitle ?? `${page.title} | Ev Church`
-  const description =
+  const description = truncateMetaDescription(
     seo?.metaDescription ??
-    `Learn about ${page.title} at Ev Church, a Christian community across Auckland, Tamaki Makaurau.`
+      `Learn about ${page.title} at Ev Church, a Christian community across Auckland, Tamaki Makaurau. Find practical details, helpful resources, and ways to connect with us.`,
+  )
 
   const ogImage = seo?.ogImage
   const images = ogImage
@@ -67,7 +69,7 @@ export async function generateMetadata({
       siteName: 'Ev Church',
       locale: 'en_NZ',
       type: 'website',
-      ...(images && { images }),
+      images: images ?? DEFAULT_OPEN_GRAPH_IMAGES,
     },
     twitter: {
       card: 'summary_large_image',

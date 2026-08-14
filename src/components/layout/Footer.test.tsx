@@ -9,6 +9,7 @@ describe('Footer social links', () => {
 
     expect(markup).toContain('href="/sitemap"')
     expect(markup).toContain('>Sitemap<')
+    expect(markup).toContain('>Blog<')
   })
 
   it('places campus service times on a visible line below each campus link', () => {

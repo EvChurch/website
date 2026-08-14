@@ -3,6 +3,7 @@ import Link from 'next/link'
 
 import { MediaImage } from '@/components/media/MediaImage'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
+import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
 import {
   formatBlogDate,
   getBlogImage,
@@ -14,8 +15,9 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
   title: 'Blog | Ev Church Auckland',
   description:
-    'Stories and reflections from Ev Church Auckland. Faith, community, and life in Tamaki Makaurau.',
+    'Read stories and reflections from Ev Church Auckland about Christian faith, church community, and following Jesus in everyday life across Tamaki Makaurau.',
   openGraph: {
+    images: DEFAULT_OPEN_GRAPH_IMAGES,
     title: 'Blog | Ev Church Auckland',
     description: 'Stories, reflections, and updates from Ev Church Auckland.',
     url: 'https://www.ev.church/blog',

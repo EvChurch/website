@@ -1,12 +1,14 @@
 import type { Metadata } from 'next'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 import { Button } from '@/components/ui/Button'
+import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
 
 export const metadata: Metadata = {
   title: 'Health & Safety | Ev Church Auckland',
   description:
     'Ev Church is committed to providing a safe environment for everyone. Learn about our health and safety policies and resources.',
   openGraph: {
+    images: DEFAULT_OPEN_GRAPH_IMAGES,
     title: 'Health & Safety | Ev Church Auckland',
     description: 'Health and safety information for Ev Church Auckland.',
     url: 'https://www.ev.church/hs',

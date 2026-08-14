@@ -11,6 +11,7 @@ import { SermonFilters } from '@/components/sermons/SermonFilters'
 import { SermonHeroClient } from './SermonHeroClient'
 import { ContinueListening } from '@/components/sermons/ContinueListening'
 import { ListenedBadge } from '@/components/sermons/ListenedBadge'
+import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
 import { SiApplepodcasts, SiSpotify } from 'react-icons/si'
 import { HiRss } from 'react-icons/hi2'
 
@@ -24,8 +25,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: 'Sermons',
     description:
-      'Listen to sermons from Ev Church Auckland. Browse by series, speaker, topic, or scripture.',
+      'Watch or listen to sermons from Ev Church Auckland. Browse Bible teaching by series, speaker, topic, or scripture and discover messages for life and faith.',
     openGraph: {
+      images: DEFAULT_OPEN_GRAPH_IMAGES,
       title: 'Sermons | Ev Church',
       description:
         'Listen to sermons from Ev Church Auckland. Browse by series, speaker, topic, or scripture.',

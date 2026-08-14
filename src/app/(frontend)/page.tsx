@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { getPayloadClient } from '@/lib/payload'
+import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
 import {
   RenderBlocks,
   type RenderableBlock,
@@ -60,7 +61,7 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName: 'Ev Church',
       locale: 'en_NZ',
       type: 'website',
-      ...(images && { images }),
+      images: images ?? DEFAULT_OPEN_GRAPH_IMAGES,
     },
     twitter: {
       card: 'summary_large_image',

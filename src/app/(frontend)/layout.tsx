@@ -16,6 +16,7 @@ import { getCurrentMemberProfileState } from '@/auth/member-session'
 import { NextStepsLauncher } from '@/components/launcher/NextStepsLauncher'
 import { loadLauncherData } from '@/lib/launcher/service-guide'
 import { loadSiteFeedbackSettings } from '@/lib/site-feedback/settings'
+import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
 import '@/styles/globals.css'
 
 export const metadata: Metadata = {
@@ -46,6 +47,7 @@ export const metadata: Metadata = {
     googleBot: { index: true, follow: true },
   },
   openGraph: {
+    images: DEFAULT_OPEN_GRAPH_IMAGES,
     type: 'website',
     locale: 'en_NZ',
     url: 'https://www.ev.church',

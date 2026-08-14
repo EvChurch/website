@@ -59,11 +59,6 @@ export function CampusJsonLd({
       opens: serviceOpens,
       closes: serviceCloses,
     },
-    parentOrganization: {
-      '@type': 'Church',
-      '@id': 'https://www.ev.church/#organization',
-      name: 'Ev Church',
-    },
     isAccessibleForFree: true,
     publicAccess: true,
   }

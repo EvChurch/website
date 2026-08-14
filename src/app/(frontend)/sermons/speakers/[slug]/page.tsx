@@ -4,6 +4,7 @@ import { trackedNotFound } from '@/lib/tracked-not-found'
 import { getSermonAudioUrl, getSeriesBannerUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { SermonCard } from '@/components/sermons/SermonCard'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
+import { DEFAULT_OPEN_GRAPH_IMAGES, truncateMetaDescription } from '@/lib/seo-metadata'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,8 +35,11 @@ export async function generateMetadata({
 
   return {
     title: `Sermons by ${speaker.name}`,
-    description: `Listen to sermons by ${speaker.name} from Ev Church Auckland.`,
+    description: truncateMetaDescription(
+      `Listen to sermons by ${speaker.name} from Ev Church Auckland. Browse their Bible teaching, sermon series, and messages from across our church community.`,
+    ),
     openGraph: {
+      images: DEFAULT_OPEN_GRAPH_IMAGES,
       title: `Sermons by ${speaker.name} | Ev Church`,
       description: `Listen to sermons by ${speaker.name} from Ev Church Auckland.`,
       url: `https://www.ev.church/sermons/speakers/${speaker.slug}`,
