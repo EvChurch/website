@@ -77,6 +77,17 @@ describe('start member impersonation route', () => {
     expect(state.updated).toBeNull()
   })
 
+  it('does not parse the request body before authorizing the admin', async () => {
+    state.admin = false
+    const rejectedRequest = request()
+    const formData = vi.spyOn(rejectedRequest, 'formData')
+
+    const response = await POST(rejectedRequest)
+
+    expect(response.status).toBe(404)
+    expect(formData).not.toHaveBeenCalled()
+  })
+
   it('rejects cross-site and malformed requests', async () => {
     const crossSite = await POST(request('42', { origin: 'https://evil.example' }))
     const malformed = await POST(request('not-a-number'))

@@ -19,11 +19,9 @@ export async function POST(request: NextRequest) {
   if (!isTrustedAuthRequest(request.headers)) return notFound()
 
   try {
-    const [isAdmin, formData] = await Promise.all([
-      isCurrentPayloadAdmin(request.headers),
-      request.formData(),
-    ])
+    const isAdmin = await isCurrentPayloadAdmin(request.headers)
     if (!isAdmin) return notFound()
+    const formData = await request.formData()
 
     const rawPersonId = formData.get('personId')
     if (typeof rawPersonId !== 'string' || !/^\d+$/u.test(rawPersonId)) {

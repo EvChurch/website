@@ -93,6 +93,20 @@ export function getMemberProfileFromSession(
   )
 }
 
+export function getMemberProfileStateFromSession(
+  session: unknown,
+): CurrentMemberProfileState | null {
+  const currentProfile = getMemberProfileFromSession(session)
+  if (currentProfile) return { profile: currentProfile, needsRefresh: false }
+
+  const legacyProfile = LEGACY_MEMBER_PROFILE_MARKER_VERSIONS
+    .map((version) => getMemberProfileFromSessionVersion(session, version))
+    .find((profile) => profile !== null) ?? null
+  return legacyProfile
+    ? { profile: legacyProfile, needsRefresh: true }
+    : null
+}
+
 function getMemberProfileFromSessionVersion(
   session: unknown,
   version:
@@ -127,17 +141,10 @@ async function readCurrentMemberSession() {
   const { getAuth0Client } = await import('./auth0-client')
   const auth0 = getAuth0Client()
   const session: SessionData | null = await auth0.getSession()
-  const currentProfile = getMemberProfileFromSession(session)
-  if (currentProfile && session) {
-    return { auth0, session, profile: currentProfile, needsRefresh: false }
-  }
+  const profileState = getMemberProfileStateFromSession(session)
+  if (!profileState || !session || !session.user.sub) return null
 
-  const legacyProfile = LEGACY_MEMBER_PROFILE_MARKER_VERSIONS
-    .map((version) => getMemberProfileFromSessionVersion(session, version))
-    .find((profile) => profile !== null) ?? null
-  if (!legacyProfile || !session || !session.user.sub) return null
-
-  return { auth0, session, profile: legacyProfile, needsRefresh: true }
+  return { auth0, session, ...profileState }
 }
 
 export async function getCurrentMemberProfileState(): Promise<CurrentMemberProfileState | null> {

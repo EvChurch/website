@@ -5,6 +5,7 @@ import {
   createResolvedMemberMarker,
   createUnresolvedMemberMarker,
   getMemberProfileFromSession,
+  getMemberProfileStateFromSession,
 } from './member-session'
 
 const IMPERSONATION_VERSION = 1 as const
@@ -37,8 +38,10 @@ function normalizedOriginalRockProfile(session: SessionData) {
     return { had: false, marker: null }
   }
 
-  const profile = getMemberProfileFromSession(session)
-  if (profile) return { had: true, marker: createResolvedMemberMarker(profile) }
+  const profileState = getMemberProfileStateFromSession(session)
+  if (profileState) {
+    return { had: true, marker: createResolvedMemberMarker(profileState.profile) }
+  }
 
   const raw = session.rockProfile
   if (

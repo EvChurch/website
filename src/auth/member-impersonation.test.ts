@@ -65,6 +65,7 @@ describe('member impersonation session state', () => {
           name: 'Real Admin',
           email: 'admin@example.com',
           photoUrl: null,
+          campusSlug: null,
         },
       },
     ],
@@ -76,7 +77,9 @@ describe('member impersonation session state', () => {
     expect(restored.user).toEqual(original.user)
     expect(getMemberImpersonationFromSession(restored)).toBeNull()
     expect(getMemberProfileFromSession(restored)).toEqual(
-      getMemberProfileFromSession(original),
+      originalMarker && 'profile' in originalMarker
+        ? originalMarker.profile
+        : getMemberProfileFromSession(original),
     )
     if (originalMarker === undefined) expect('rockProfile' in restored).toBe(false)
   })
