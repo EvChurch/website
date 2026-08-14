@@ -142,6 +142,8 @@ export default async function FrontendLayout({ children }: { children: ReactNode
             campuses={launcher.campuses}
             items={launcher.available ? launcher.items : null}
             memberCampusSlug={rockProfileState?.profile.campusSlug ?? null}
+            feedback={feedback}
+            signedInEmail={memberProfile?.email}
           />
         </MediaPlayerProvider>
       </body>

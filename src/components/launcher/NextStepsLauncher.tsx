@@ -24,12 +24,14 @@ import {
 import { RockConnectionOpportunitySignup } from "@/components/forms/RockConnectionOpportunitySignup";
 import { RockForm } from "@/components/forms/RockForm";
 import { SafeRockHtml } from "@/components/forms/SafeRockHtml";
+import { FeedbackStrip } from "@/components/layout/FeedbackStrip";
 import {
   CONNECT_CARD_WORKFLOW_GUID,
   LAUNCHER_CAMPUS_STORAGE_KEY,
   PLAN_A_VISIT_WORKFLOW_GUID,
 } from "@/lib/launcher/constants";
 import type { LauncherCampus, LauncherItem } from "@/lib/launcher/types";
+import type { PublicSiteFeedbackSettings } from "@/lib/site-feedback/settings";
 import {
   chooseInitialCampus,
   createLauncherState,
@@ -43,6 +45,8 @@ export interface NextStepsLauncherProps {
   items: LauncherItem[] | null;
   initialPathname?: string;
   memberCampusSlug?: string | null;
+  feedback?: PublicSiteFeedbackSettings | null;
+  signedInEmail?: string;
 }
 
 const focusableSelector = [
@@ -65,6 +69,7 @@ function viewTitle(view: LauncherView): string {
       return "Your next step";
     case "catalogue":
       return "More next steps";
+    case "feedback":
     case "workflow":
     case "connection":
     case "content":
@@ -149,6 +154,8 @@ export function NextStepsLauncher({
   items,
   initialPathname,
   memberCampusSlug,
+  feedback,
+  signedInEmail,
 }: NextStepsLauncherProps) {
   const currentPathname = usePathname();
   const pathname = initialPathname ?? currentPathname ?? "/";
@@ -631,10 +638,28 @@ export function NextStepsLauncher({
               animationDelay={360}
               onClick={() => pushView({ type: "catalogue" })}
             />
+            {feedback && (
+              <LauncherActionButton
+                title="New website feedback"
+                animationDelay={415}
+                onClick={() =>
+                  pushView({ type: "feedback", title: feedback.modalTitle })
+                }
+              />
+            )}
           </div>
         );
       case "catalogue":
         return renderCatalogue();
+      case "feedback":
+        return feedback ? (
+          <FeedbackStrip
+            embedded
+            settings={feedback}
+            signedInEmail={signedInEmail}
+            onEmbeddedClose={() => dispatch({ type: "back" })}
+          />
+        ) : null;
       case "workflow":
         return (
           <div className="animate-fade-in motion-reduce:animate-none">

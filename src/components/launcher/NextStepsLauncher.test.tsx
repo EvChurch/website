@@ -31,6 +31,7 @@ import {
   PLAN_A_VISIT_WORKFLOW_GUID,
 } from "@/lib/launcher/constants";
 import type { LauncherItem } from "@/lib/launcher/types";
+import type { PublicSiteFeedbackSettings } from "@/lib/site-feedback/settings";
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
@@ -58,6 +59,15 @@ const items: LauncherItem[] = [
     action: { type: "directLink", href: "https://example.com/kids" },
   },
 ];
+
+const feedback: PublicSiteFeedbackSettings = {
+  bannerCopy: "Help us improve the new ev.church.",
+  ctaLabel: "Share feedback.",
+  modalTitle: "Share your feedback",
+  modalIntro: "Tell us what is working well or what we could improve.",
+  dismissalVersion: "v1",
+  turnstileSiteKey: "site-key",
+};
 
 function button(container: HTMLElement, name: string) {
   return Array.from(
@@ -285,6 +295,29 @@ describe("NextStepsLauncher", () => {
         `input[aria-label="Workflow ${CONNECT_CARD_WORKFLOW_GUID}"]`,
       ),
     ).not.toBeNull();
+  });
+
+  it("opens site feedback inside the launcher when feedback is enabled", async () => {
+    await act(async () => {
+      root.render(
+        <NextStepsLauncher
+          campuses={campuses}
+          items={items}
+          feedback={feedback}
+          signedInEmail="aroha@example.com"
+        />,
+      );
+    });
+    await act(async () => button(container, "Open next steps")?.click());
+    await act(async () => button(container, "New website feedback")?.click());
+
+    expect(container.textContent).toContain("Share your feedback");
+    expect(container.textContent).toContain(feedback.modalIntro);
+    expect(container.querySelector('textarea[name="comment"]')).not.toBeNull();
+    expect(container.querySelector('input[name="email"]')).toBeNull();
+
+    await act(async () => button(container, "Back")?.click());
+    expect(button(container, "New website feedback")).toBeTruthy();
   });
 
   it("preserves an active form through full screen and clears it on close", async () => {
