@@ -207,10 +207,12 @@ function MobileMenu({
   open,
   onClose,
   memberProfile,
+  adminHref,
 }: {
   open: boolean
   onClose: () => void
   memberProfile?: MemberDisplayProfile | null
+  adminHref?: string
 }) {
   const [expandedItem, setExpandedItem] = useState<string | null>(null)
 
@@ -311,12 +313,13 @@ function MobileMenu({
             </div>
           ))}
 
-          {memberProfile !== undefined && (
+          {(memberProfile !== undefined || adminHref) && (
             <div className="border-b border-cool-grey/60">
               <MemberAccountControl
-                profile={memberProfile}
+                profile={memberProfile ?? null}
                 variant="drawer"
                 active={open}
+                adminHref={adminHref}
               />
             </div>
           )}
@@ -348,9 +351,11 @@ function MobileMenu({
 export function Header({
   memberProfile,
   topOffset = 0,
+  adminHref,
 }: {
   memberProfile?: MemberDisplayProfile | null
   topOffset?: number
+  adminHref?: string
 }) {
   const pathname = usePathname()
   const [scrolled, setScrolled] = useState(false)
@@ -507,22 +512,24 @@ export function Header({
             >
               Give
             </Link>
-            {memberProfile !== undefined && (
+            {(memberProfile !== undefined || adminHref) && (
               <MemberAccountControl
-                profile={memberProfile}
+                profile={memberProfile ?? null}
                 variant="desktop"
                 tone={darkTone ? 'dark' : 'light'}
+                adminHref={adminHref}
               />
             )}
           </div>
 
           <div className="flex items-center gap-1 lg:hidden">
-            {memberProfile !== undefined && (
+            {(memberProfile !== undefined || adminHref) && (
               <MemberAccountControl
-                profile={memberProfile}
+                profile={memberProfile ?? null}
                 variant="mobile-icon"
                 tone={darkTone ? 'dark' : 'light'}
                 active={!mobileOpen}
+                adminHref={adminHref}
               />
             )}
 
@@ -559,6 +566,7 @@ export function Header({
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
         memberProfile={memberProfile}
+        adminHref={adminHref}
       />
     </>
   )

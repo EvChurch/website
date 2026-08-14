@@ -13,6 +13,7 @@ import { AudioPlayerBar } from '@/components/audio/AudioPlayerBar'
 import { AudioPlayerSpacer } from '@/components/audio/AudioPlayerSpacer'
 import { isMemberAuthEnabled } from '@/auth/member-auth0-config'
 import { getCurrentMemberProfileState } from '@/auth/member-session'
+import { isCurrentPayloadAdmin } from '@/auth/payload-admin-session'
 import { NextStepsLauncher } from '@/components/launcher/NextStepsLauncher'
 import { loadLauncherData } from '@/lib/launcher/service-guide'
 import { loadSiteFeedbackSettings } from '@/lib/site-feedback/settings'
@@ -74,7 +75,8 @@ export const viewport: Viewport = {
 }
 
 export default async function FrontendLayout({ children }: { children: ReactNode }) {
-  const isSharedResource = (await headers()).get('x-ev-shared-resource') === '1'
+  const requestHeaders = await headers()
+  const isSharedResource = requestHeaders.get('x-ev-shared-resource') === '1'
   if (isSharedResource) {
     return (
       <html lang="en">
@@ -90,10 +92,11 @@ export default async function FrontendLayout({ children }: { children: ReactNode
       </html>
     )
   }
-  const [launcher, feedback, rockProfileState] = await Promise.all([
+  const [launcher, feedback, rockProfileState, payloadAdmin] = await Promise.all([
     loadLauncherData(),
     loadSiteFeedbackSettings(),
     isMemberAuthEnabled() ? getCurrentMemberProfileState() : undefined,
+    isCurrentPayloadAdmin(requestHeaders),
   ])
   const memberProfile = rockProfileState === undefined
     ? undefined
@@ -120,7 +123,11 @@ export default async function FrontendLayout({ children }: { children: ReactNode
         <MediaPlayerProvider>
           <AnalyticsManager />
           <AnnouncementBanner />
-          <SiteHeader feedback={feedback} memberProfile={memberProfile} />
+          <SiteHeader
+            feedback={feedback}
+            memberProfile={memberProfile}
+            adminHref={payloadAdmin ? '/admin/impersonate' : undefined}
+          />
           <main>{children}</main>
           <Footer />
           <AudioPlayerSpacer />

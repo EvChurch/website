@@ -59,11 +59,26 @@ describe('MemberAccountControl', () => {
     expect(container.textContent).not.toContain('Aroha')
   })
 
+  it('offers Admin to exact admins even without a resolved Rock profile', async () => {
+    await act(async () => root.render(
+      <MemberAccountControl
+        profile={null}
+        variant="desktop"
+        tone="dark"
+        adminHref="/admin/impersonate"
+      />,
+    ))
+
+    expect(container.querySelector('a[href="/admin/impersonate"]')?.textContent)
+      .toContain('Admin')
+    expect(container.querySelector('a[aria-label="Sign in"]')).toBeNull()
+  })
+
   it('renders a hover menu for desktop and mobile-icon variants', async () => {
     await act(async () => root.render(
       <>
-        <MemberAccountControl profile={member} variant="desktop" tone="dark" />
-        <MemberAccountControl profile={member} variant="mobile-icon" tone="dark" />
+        <MemberAccountControl profile={member} variant="desktop" tone="dark" adminHref="/admin/impersonate" />
+        <MemberAccountControl profile={member} variant="mobile-icon" tone="dark" adminHref="/admin/impersonate" />
       </>,
     ))
 
@@ -90,6 +105,7 @@ describe('MemberAccountControl', () => {
     expect(menu?.querySelector('img')).not.toBeNull()
     expect(menu?.textContent).toContain('Overview')
     expect(menu?.textContent).toContain('Connect Group')
+    expect(menu?.textContent).toContain('Admin')
     expect(menu?.textContent).toContain('Log out')
     expect(menu?.textContent).not.toContain('personId')
     expect(menu?.textContent).not.toContain('Auth0')
@@ -99,6 +115,7 @@ describe('MemberAccountControl', () => {
       .map((link) => link.getAttribute('href'))
     expect(links).toContain('/members')
     expect(links).toContain('/members/connect-groups')
+    expect(links).toContain('/admin/impersonate')
     expect(links.some(l => l?.startsWith('/auth/logout'))).toBe(true)
     const privateLinks = [...container.querySelectorAll<HTMLAnchorElement>(
       'a[href^="/auth/"], a[href="/members"], a[href^="/members/"]',

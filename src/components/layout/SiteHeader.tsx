@@ -8,9 +8,10 @@ import type { MemberDisplayProfile } from './MemberAccountControl'
 
 const dismissalKey = (version: string) => `evchurch:site-feedback-dismissed:${version}`
 
-export function SiteHeader({ feedback, memberProfile }: {
+export function SiteHeader({ feedback, memberProfile, adminHref }: {
   feedback: PublicSiteFeedbackSettings | null
   memberProfile?: MemberDisplayProfile | null
+  adminHref?: string
 }) {
   const [dismissed, setDismissed] = useState(true)
   const [stripHeight, setStripHeight] = useState(0)
@@ -41,7 +42,7 @@ export function SiteHeader({ feedback, memberProfile }: {
   const visible = feedback !== null && !dismissed
   return <>
     {visible && <div className="fixed left-0 right-0 top-0 z-[52]"><FeedbackStrip stripRef={stripRef} settings={feedback} signedInEmail={memberProfile?.email} onDismiss={dismiss} /></div>}
-    <Header memberProfile={memberProfile} topOffset={visible ? stripHeight : 0} />
+    <Header memberProfile={memberProfile} adminHref={adminHref} topOffset={visible ? stripHeight : 0} />
     {visible && (
       <div
         aria-hidden="true"

@@ -1,0 +1,108 @@
+.member-impersonation-nav-link {
+  display: block;
+  margin: 0 calc(var(--base) * 0.5) calc(var(--base) * 0.5);
+  padding: calc(var(--base) * 0.5) calc(var(--base) * 0.75);
+  border-radius: 4px;
+  color: var(--theme-elevation-800);
+  text-decoration: none;
+
+  &:hover {
+    background: var(--theme-elevation-100);
+  }
+}
+
+.member-impersonation-view {
+  max-width: 720px;
+  padding-bottom: var(--gutter-h);
+
+  > p {
+    color: var(--theme-elevation-700);
+  }
+
+  &__search {
+    margin-top: calc(var(--base) * 1.5);
+
+    label {
+      display: block;
+      margin-bottom: calc(var(--base) * 0.35);
+      font-weight: 600;
+    }
+
+    > div {
+      display: flex;
+      gap: calc(var(--base) * 0.5);
+    }
+
+    input {
+      min-width: 0;
+      flex: 1;
+      padding: calc(var(--base) * 0.55);
+      border: 1px solid var(--theme-elevation-300);
+      border-radius: 4px;
+      background: var(--theme-input-bg);
+      color: var(--theme-text);
+      font: inherit;
+    }
+
+    button,
+    + button {
+      padding: calc(var(--base) * 0.55) var(--base);
+      border: 0;
+      border-radius: 4px;
+      background: var(--theme-success-500);
+      color: var(--theme-success-50);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 600;
+    }
+  }
+
+  &__status {
+    margin-top: var(--base);
+  }
+
+  &__results {
+    display: grid;
+    gap: calc(var(--base) * 0.5);
+    margin: var(--base) 0 0;
+    padding: 0;
+    list-style: none;
+
+    li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--base);
+      padding: calc(var(--base) * 0.75);
+      border: 1px solid var(--theme-elevation-200);
+      border-radius: 6px;
+    }
+
+    span {
+      display: block;
+      margin-top: calc(var(--base) * 0.15);
+      color: var(--theme-elevation-700);
+    }
+
+    button {
+      padding: calc(var(--base) * 0.45) calc(var(--base) * 0.75);
+      border: 0;
+      border-radius: 4px;
+      background: var(--theme-success-500);
+      color: var(--theme-success-50);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 600;
+    }
+  }
+}
+
+@media (max-width: 600px) {
+  .member-impersonation-view {
+    &__search > div,
+    &__results li {
+      align-items: stretch;
+      flex-direction: column;
+    }
+  }
+}
