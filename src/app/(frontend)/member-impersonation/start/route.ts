@@ -40,11 +40,11 @@ export async function POST(request: NextRequest) {
     const updatedSession = startMemberImpersonation(session, target.profile)
     if (!updatedSession) return notFound()
 
-    await auth0.updateSession(updatedSession)
     const response = NextResponse.redirect(
       new URL('/members', readAuth0Config().appBaseUrl),
       303,
     )
+    await auth0.updateSession(request, response, updatedSession)
     response.headers.set('Cache-Control', PRIVATE_HEADERS['Cache-Control'])
     return response
   } catch {

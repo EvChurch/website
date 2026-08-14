@@ -127,7 +127,7 @@ export default buildConfig({
     },
     components: {
       beforeLogin: ['@/components/admin/Auth0BeforeLogin'],
-      beforeNavLinks: ['@/components/admin/MemberImpersonationNavLink'],
+      afterNavLinks: ['@/components/admin/MemberImpersonationNavLink'],
       logout: {
         Button: '@/components/admin/Auth0LogoutButton',
       },

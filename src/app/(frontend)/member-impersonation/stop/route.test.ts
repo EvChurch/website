@@ -4,12 +4,18 @@ import { NextRequest } from 'next/server'
 const state = vi.hoisted(() => ({
   session: null as null | Record<string, unknown>,
   updated: null as null | Record<string, unknown>,
+  updateRequest: null as NextRequest | null,
+  updateResponse: null as Response | null,
 }))
 
 vi.mock('@/auth/auth0-client', () => ({
   getAuth0Client: () => ({
     getSession: vi.fn(async () => state.session),
-    updateSession: vi.fn(async (session) => { state.updated = session }),
+    updateSession: vi.fn(async (request, response, session) => {
+      state.updateRequest = request
+      state.updateResponse = response
+      state.updated = session
+    }),
   }),
 }))
 vi.mock('@/auth/auth0-config', () => ({
@@ -31,16 +37,21 @@ describe('stop member impersonation route', () => {
       },
     )
     state.updated = null
+    state.updateRequest = null
+    state.updateResponse = null
   })
 
   it('returns to the real account without requiring the admin role again', async () => {
-    const response = await POST(new NextRequest(
+    const stopRequest = new NextRequest(
       'https://www.ev.church/member-impersonation/stop',
       { method: 'POST', headers: { origin: 'https://www.ev.church' } },
-    ))
+    )
+    const response = await POST(stopRequest)
 
     expect(response.status).toBe(303)
     expect(response.headers.get('location')).toBe('https://www.ev.church/')
+    expect(state.updateRequest).toBe(stopRequest)
+    expect(state.updateResponse).toBe(response)
     expect(state.updated?.user).toEqual({ sub: 'auth0|admin' })
     expect(state.updated?.memberImpersonation).toBeUndefined()
   })

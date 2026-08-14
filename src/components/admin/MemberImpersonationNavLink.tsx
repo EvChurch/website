@@ -1,6 +1,6 @@
 'use client'
 
-import { useAuth } from '@payloadcms/ui'
+import { Link, useAuth } from '@payloadcms/ui'
 
 import type { User } from '@/payload-types'
 
@@ -9,8 +9,8 @@ export default function MemberImpersonationNavLink() {
   if (!user?.roles?.includes('admin')) return null
 
   return (
-    <a className="member-impersonation-nav-link" href="/admin/impersonate">
-      Impersonate user
-    </a>
+    <Link className="nav__link" href="/admin/impersonate" prefetch={false}>
+      <span className="nav__link-label">Impersonate user</span>
+    </Link>
   )
 }
