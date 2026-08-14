@@ -166,4 +166,28 @@ describe('SiteHeader geometry and dismissal', () => {
 
     expect(container.querySelector('input[name="email"]')).toBeNull()
   })
+
+  it('replaces feedback with a persistent impersonation strip', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockReturnValue({ height: 48 } as DOMRect)
+
+    await act(async () => root.render(
+      <SiteHeader
+        feedback={settings}
+        impersonation={{ personId: 42, name: 'Alex Member', email: 'alex@example.com' }}
+      />,
+    ))
+
+    expect(container.querySelector('[data-member-impersonation-strip]')?.textContent)
+      .toContain('Impersonating Alex Member')
+    expect(container.querySelector('[data-site-feedback-strip]')).toBeNull()
+    expect(container.querySelector('[data-feedback-trigger]')).toBeNull()
+    expect(container.querySelector('form[action="/member-impersonation/stop"]'))
+      .not.toBeNull()
+    expect(container.querySelector('[aria-label="Dismiss feedback prompt"]'))
+      .toBeNull()
+    expect(container.querySelector('[data-header-offset="48"]')).not.toBeNull()
+    expect(container.querySelector<HTMLElement>('[data-member-impersonation-spacer]')?.style.height)
+      .toBe('48px')
+  })
 })

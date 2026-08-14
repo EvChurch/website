@@ -13,6 +13,7 @@ import { AudioPlayerBar } from '@/components/audio/AudioPlayerBar'
 import { AudioPlayerSpacer } from '@/components/audio/AudioPlayerSpacer'
 import { isMemberAuthEnabled } from '@/auth/member-auth0-config'
 import { getCurrentMemberProfileState } from '@/auth/member-session'
+import { getCurrentMemberImpersonation } from '@/auth/member-impersonation'
 import { isCurrentPayloadAdmin } from '@/auth/payload-admin-session'
 import { NextStepsLauncher } from '@/components/launcher/NextStepsLauncher'
 import { loadLauncherData } from '@/lib/launcher/service-guide'
@@ -92,11 +93,12 @@ export default async function FrontendLayout({ children }: { children: ReactNode
       </html>
     )
   }
-  const [launcher, feedback, rockProfileState, payloadAdmin] = await Promise.all([
+  const [launcher, feedback, rockProfileState, payloadAdmin, impersonation] = await Promise.all([
     loadLauncherData(),
     loadSiteFeedbackSettings(),
     isMemberAuthEnabled() ? getCurrentMemberProfileState() : undefined,
     isCurrentPayloadAdmin(requestHeaders),
+    getCurrentMemberImpersonation(),
   ])
   const memberProfile = rockProfileState === undefined
     ? undefined
@@ -127,6 +129,7 @@ export default async function FrontendLayout({ children }: { children: ReactNode
             feedback={feedback}
             memberProfile={memberProfile}
             adminHref={payloadAdmin ? '/admin/impersonate' : undefined}
+            impersonation={impersonation}
           />
           <main>{children}</main>
           <Footer />

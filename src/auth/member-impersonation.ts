@@ -97,6 +97,16 @@ export function getMemberImpersonationFromSession(
     : null
 }
 
+export async function getCurrentMemberImpersonation() {
+  try {
+    const { getAuth0Client } = await import('./auth0-client')
+    const session = await getAuth0Client().getSession()
+    return getMemberImpersonationFromSession(session)
+  } catch {
+    return null
+  }
+}
+
 export function startMemberImpersonation(
   session: SessionData,
   target: RockMemberProfile,
