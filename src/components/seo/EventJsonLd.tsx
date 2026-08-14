@@ -1,4 +1,5 @@
 import {
+  getCampusAddress,
   getCampusName,
   getEventImage,
   getRegistrationHref,
@@ -13,7 +14,11 @@ export function EventJsonLd({ event }: { event: PublicEvent }) {
   const imageUrl = image ? getPayloadMediaUrl(image, 'large') : null
   const registrationHref = getRegistrationHref(event)
   const past = isPastEvent(event)
-  const locationName = event.location?.name ?? getCampusName(event) ?? 'Ev Church'
+  const locationName = event.location?.name?.trim() || getCampusName(event) || 'Ev Church'
+  const explicitAddress = event.location?.address?.trim()
+  const address = explicitAddress
+    || getCampusAddress(event)
+    || (/\d/u.test(locationName) ? locationName : null)
 
   const data = {
     '@context': 'https://schema.org',
@@ -28,8 +33,14 @@ export function EventJsonLd({ event }: { event: PublicEvent }) {
     location: {
       '@type': 'Place',
       name: locationName,
-      ...(event.location?.address
-        ? { address: { '@type': 'PostalAddress', streetAddress: event.location.address } }
+      ...(address
+        ? {
+            address: {
+              '@type': 'PostalAddress',
+              streetAddress: address,
+              addressCountry: 'NZ',
+            },
+          }
         : {}),
     },
     organizer: {

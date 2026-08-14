@@ -2,14 +2,16 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { getSitemapSections } from '@/lib/sitemap'
+import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
 
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'Sitemap | Ev Church Auckland',
-  description: 'Browse every public page on the Ev Church website.',
+  description: 'Browse the Ev Church sitemap to find every public page, including campuses, events, sermons, ministries, Christian resources, and ways to connect.',
   alternates: { canonical: '/sitemap' },
   openGraph: {
+    images: DEFAULT_OPEN_GRAPH_IMAGES,
     title: 'Sitemap | Ev Church Auckland',
     description: 'Browse every public page on the Ev Church website.',
     url: '/sitemap',

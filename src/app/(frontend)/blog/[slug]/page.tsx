@@ -4,6 +4,7 @@ import Link from 'next/link'
 import RichText from '@/components/blocks/RichTextRenderer'
 import { MediaImage } from '@/components/media/MediaImage'
 import { getPayloadMediaUrl } from '@/lib/payload-media'
+import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
 import { trackedNotFound } from '@/lib/tracked-not-found'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 import {
@@ -42,7 +43,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       type: 'article',
       publishedTime: post.publishedDate,
       authors: [post.author],
-      ...(imageUrl ? { images: [{ url: imageUrl, alt: image?.alt || post.title }] } : {}),
+      images: imageUrl
+        ? [{ url: imageUrl, alt: image?.alt || post.title }]
+        : DEFAULT_OPEN_GRAPH_IMAGES,
     },
     alternates: { canonical: url },
   }

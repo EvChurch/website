@@ -12,6 +12,7 @@ import { ScrollReveal } from '@/components/ui/ScrollReveal'
 import { getPayloadMediaUrl, type PayloadMediaSize } from '@/lib/payload-media'
 import { getGoogleMapsEmbedUrl, isGoogleMapsUrl } from '@/lib/google-maps'
 import { getPayloadClient } from '@/lib/payload'
+import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
 import type { Campus, Media } from '@/payload-types'
 
 interface CampusImage {
@@ -278,6 +279,7 @@ export async function generateMetadata({
     title: { absolute: title },
     description,
     openGraph: {
+      images: DEFAULT_OPEN_GRAPH_IMAGES,
       title: `${campus.name} Campus | Ev Church`,
       description: `Services every ${serviceTimeLabel} at ${locationLabel}. Everyone is welcome.`,
       url: `https://www.ev.church/campus/${slug}`,

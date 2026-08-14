@@ -27,6 +27,11 @@ export interface PublicEvent {
 export interface PublicCampus {
   name: string
   slug: string
+  address?: {
+    street?: string | null
+    city?: string | null
+    postalCode?: string | null
+  } | null
 }
 
 export type PublicMedia = PayloadMediaImage
@@ -125,6 +130,19 @@ export function getCampusName(event: PublicEvent): string | null {
   if (!event.campus || typeof event.campus !== 'object') return null
   const campus = event.campus as Partial<PublicCampus>
   return typeof campus.name === 'string' ? campus.name : null
+}
+
+export function getCampusAddress(event: PublicEvent): string | null {
+  if (!event.campus || typeof event.campus !== 'object') return null
+  const campus = event.campus as Partial<PublicCampus>
+  const address = campus.address
+  if (!address) return null
+
+  const parts = [address.street, address.city, address.postalCode]
+    .map((part) => part?.trim())
+    .filter((part): part is string => Boolean(part))
+
+  return parts.length > 0 ? parts.join(', ') : null
 }
 
 export function getDisplayLocation(event: PublicEvent): string | null {

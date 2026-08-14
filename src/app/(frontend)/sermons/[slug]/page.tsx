@@ -8,6 +8,7 @@ import { getPayloadClient } from '@/lib/payload'
 import { getSeriesBannerUrl, getSermonAudioUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { SermonCard } from '@/components/sermons/SermonCard'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
+import { DEFAULT_OPEN_GRAPH_IMAGES, truncateMetaDescription } from '@/lib/seo-metadata'
 import { SermonPlayButton } from './SermonPlayButton'
 import { ListenedBadge } from '@/components/sermons/ListenedBadge'
 
@@ -48,9 +49,11 @@ export async function generateMetadata({
       ? (sermon.audioSpeaker.name as string)
       : null
 
-  const description = speakerName
-    ? `Listen to "${sermon.title}" by ${speakerName} from Ev Church Auckland.`
-    : `Listen to "${sermon.title}" from Ev Church Auckland.`
+  const description = truncateMetaDescription(
+    speakerName
+      ? `Listen to "${sermon.title}" by ${speakerName} from Ev Church Auckland. Watch or listen online and explore related Bible teaching from our sermon library.`
+      : `Listen to "${sermon.title}" from Ev Church Auckland. Watch or listen online and explore related Bible teaching from our sermon library.`,
+  )
 
   return {
     title: `${sermon.title} | Sermons`,
@@ -68,7 +71,7 @@ export async function generateMetadata({
         const url = bi && typeof bi === 'object' && bi !== null
           ? getPayloadMediaUrl(bi as PayloadMediaImage, 'large')
           : null
-        return url ? { images: [{ url }] } : {}
+        return { images: url ? [{ url }] : DEFAULT_OPEN_GRAPH_IMAGES }
       })()),
     },
     alternates: {

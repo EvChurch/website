@@ -8,6 +8,7 @@ import { EventStatus } from '@/components/events/EventStatus'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
 import { EventJsonLd } from '@/components/seo/EventJsonLd'
 import { getPayloadMediaUrl } from '@/lib/payload-media'
+import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
 import { trackedNotFound } from '@/lib/tracked-not-found'
 import {
   formatEventDate,
@@ -46,7 +47,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       siteName: 'Ev Church',
       locale: 'en_NZ',
       type: 'website',
-      ...(imageUrl ? { images: [{ url: imageUrl, alt: image?.alt || event.title }] } : {}),
+      images: imageUrl
+        ? [{ url: imageUrl, alt: image?.alt || event.title }]
+        : DEFAULT_OPEN_GRAPH_IMAGES,
     },
   }
 }
