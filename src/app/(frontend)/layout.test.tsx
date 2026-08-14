@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   enabled: false,
   getCurrentMemberProfileState: vi.fn(),
+  getCurrentMemberImpersonation: vi.fn().mockResolvedValue(null),
+  isCurrentPayloadAdmin: vi.fn().mockResolvedValue(false),
   loadLauncherData: vi.fn().mockResolvedValue({
     available: false,
     campuses: [],
@@ -32,6 +34,12 @@ vi.mock('@/auth/member-auth0-config', () => ({
 }))
 vi.mock('@/auth/member-session', () => ({
   getCurrentMemberProfileState: mocks.getCurrentMemberProfileState,
+}))
+vi.mock('@/auth/member-impersonation', () => ({
+  getCurrentMemberImpersonation: mocks.getCurrentMemberImpersonation,
+}))
+vi.mock('@/auth/payload-admin-session', () => ({
+  isCurrentPayloadAdmin: mocks.isCurrentPayloadAdmin,
 }))
 vi.mock('@/lib/launcher/service-guide', () => ({
   loadLauncherData: mocks.loadLauncherData,
@@ -82,6 +90,8 @@ describe('FrontendLayout member account state', () => {
     expect(mocks.loadSiteFeedbackSettings).not.toHaveBeenCalled()
     expect(mocks.loadLauncherData).not.toHaveBeenCalled()
     expect(mocks.getCurrentMemberProfileState).not.toHaveBeenCalled()
+    expect(mocks.getCurrentMemberImpersonation).not.toHaveBeenCalled()
+    expect(mocks.isCurrentPayloadAdmin).not.toHaveBeenCalled()
   })
 
   it('loads visitor-facing feedback settings into the composed header', async () => {
@@ -99,7 +109,12 @@ describe('FrontendLayout member account state', () => {
 
     expect(mocks.loadSiteFeedbackSettings).toHaveBeenCalledOnce()
     expect(mocks.siteHeader).toHaveBeenCalledWith(
-      { feedback, memberProfile: undefined },
+      {
+        adminHref: undefined,
+        feedback,
+        impersonation: null,
+        memberProfile: undefined,
+      },
       undefined,
     )
   })
@@ -109,7 +124,12 @@ describe('FrontendLayout member account state', () => {
 
     expect(mocks.getCurrentMemberProfileState).not.toHaveBeenCalled()
     expect(mocks.siteHeader).toHaveBeenCalledWith(
-      { feedback: null, memberProfile: undefined },
+      {
+        adminHref: undefined,
+        feedback: null,
+        impersonation: null,
+        memberProfile: undefined,
+      },
       undefined,
     )
   })
@@ -131,6 +151,8 @@ describe('FrontendLayout member account state', () => {
     expect(mocks.siteHeader).toHaveBeenCalledWith(
       {
         feedback: null,
+        adminHref: undefined,
+        impersonation: null,
         memberProfile: {
           name: 'Aroha Ngata',
           email: 'aroha@example.com',
@@ -160,6 +182,8 @@ describe('FrontendLayout member account state', () => {
     expect(mocks.siteHeader).toHaveBeenCalledWith(
       {
         feedback: null,
+        adminHref: undefined,
+        impersonation: null,
         memberProfile: {
           name: 'Aroha Ngata',
           email: 'aroha@example.com',

@@ -24,6 +24,7 @@ interface MemberAccountControlProps {
   variant: MemberAccountVariant
   tone?: MemberAccountTone
   active?: boolean
+  adminHref?: string
 }
 
 function PersonIcon({ className = 'h-8 w-8' }: { className?: string }) {
@@ -138,6 +139,7 @@ export function MemberAccountControl({
   variant,
   tone = 'light',
   active = true,
+  adminHref,
 }: MemberAccountControlProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -211,6 +213,23 @@ export function MemberAccountControl({
     : 'text-white hover:bg-white/10'
 
   if (!profile) {
+    if (adminHref) {
+      return (
+        <a
+          href={adminHref}
+          rel="nofollow"
+          aria-label="Admin"
+          data-header-account-control={!isDrawer ? true : undefined}
+          className={isDrawer
+            ? 'flex min-h-12 w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold text-brand-black transition-colors hover:bg-warm-white'
+            : `flex min-h-10 min-w-10 items-center justify-center rounded-full transition-colors ${iconTone}`}
+        >
+          <PersonIcon />
+          <span className={isDrawer ? '' : 'sr-only'}>Admin</span>
+        </a>
+      )
+    }
+
     return (
       <a
         href={`/auth/login?returnTo=${returnTo}`}
@@ -279,6 +298,15 @@ export function MemberAccountControl({
               >
                 Connect Group
               </a>
+              {adminHref && (
+                <a
+                  href={adminHref}
+                  rel="nofollow"
+                  className="block py-2.5 text-sm text-mid-grey transition-colors hover:text-rich-red"
+                >
+                  Admin
+                </a>
+              )}
               <div className="my-1 border-t border-warm-grey/30" />
               <a
                 href={`/auth/logout?returnTo=${returnTo}`}
@@ -309,6 +337,7 @@ export function MemberAccountControl({
       rootRef={rootRef}
       triggerRef={triggerRef}
       popoverId={popoverId}
+      adminHref={adminHref}
     />
   )
 }
@@ -328,6 +357,7 @@ function MemberAccountHoverMenu({
   rootRef,
   triggerRef,
   popoverId,
+  adminHref,
 }: {
   profile: MemberDisplayProfile
   tone: MemberAccountTone
@@ -341,6 +371,7 @@ function MemberAccountHoverMenu({
   rootRef: React.RefObject<HTMLDivElement | null>
   triggerRef: React.RefObject<HTMLButtonElement | null>
   popoverId: string
+  adminHref?: string
 }) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(null)
   const isHoveringRef = useRef(false)
@@ -357,8 +388,9 @@ function MemberAccountHoverMenu({
     () => [
       { label: 'Overview', href: '/members' },
       { label: 'Connect Group', href: '/members/connect-groups' },
+      ...(adminHref ? [{ label: 'Admin', href: adminHref }] : []),
     ],
-    [],
+    [adminHref],
   )
 
   const clearCloseTimer = useCallback(() => {

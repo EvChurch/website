@@ -7,8 +7,14 @@ export function hasPayloadAdminRole(user: Pick<User, 'roles'> | null | undefined
   return Boolean(user?.roles?.some((role) => payloadAdminRoles.includes(role)))
 }
 
+export function hasExactPayloadAdminRole(
+  user: Pick<User, 'roles'> | null | undefined,
+) {
+  return Boolean(user?.roles?.includes('admin'))
+}
+
 export const isAdmin: Access = ({ req: { user } }) => {
-  return Boolean((user as User | null)?.roles?.includes('admin'))
+  return hasExactPayloadAdminRole(user as User | null)
 }
 
 export const isContentLead: Access = ({ req: { user } }) => {
@@ -34,5 +40,5 @@ export const publishedOnly: Access = ({ req: { user } }) => {
 }
 
 export const adminOnlyField: FieldAccess = ({ req: { user } }) => {
-  return Boolean((user as User | null)?.roles?.includes('admin'))
+  return hasExactPayloadAdminRole(user as User | null)
 }
