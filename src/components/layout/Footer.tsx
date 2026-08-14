@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { SiFacebook, SiInstagram, SiYoutube, SiSpotify, SiApplepodcasts } from 'react-icons/si'
 
@@ -90,10 +91,20 @@ export function Footer() {
       <div className="mx-auto max-w-[80rem] px-5 pt-16 pb-10 lg:px-8">
         {/* Top: Logo + tagline */}
         <div className="mb-12 lg:mb-16">
-          <span className="text-lg font-black tracking-tight text-brand-black">
-            ev.church
-          </span>
-          <p className="mt-2 max-w-xs text-sm leading-relaxed text-mid-grey">
+          <Link
+            href="/"
+            className="group inline-flex items-center"
+            aria-label="Ev Church, return to home"
+          >
+            <Image
+              src="/images/global/ev-church-logo.png"
+              alt="Ev Church"
+              width={44}
+              height={44}
+              className="transition-opacity group-hover:opacity-80"
+            />
+          </Link>
+          <p className="mt-3 w-full text-base leading-relaxed text-mid-grey lg:whitespace-nowrap">
             A community of Christ-followers across Auckland, New Zealand.
           </p>
         </div>

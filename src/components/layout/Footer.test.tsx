@@ -4,6 +4,15 @@ import { describe, expect, it } from 'vitest'
 import { Footer } from './Footer'
 
 describe('Footer social links', () => {
+  it('uses the Ev Church logo and gives the tagline the full desktop width', () => {
+    const markup = renderToStaticMarkup(<Footer />)
+
+    expect(markup).toContain('ev-church-logo.png')
+    expect(markup).toContain('aria-label="Ev Church, return to home"')
+    expect(markup).toContain('lg:whitespace-nowrap')
+    expect(markup).not.toContain('max-w-xs')
+  })
+
   it('links to the public HTML sitemap', () => {
     const markup = renderToStaticMarkup(<Footer />)
 
