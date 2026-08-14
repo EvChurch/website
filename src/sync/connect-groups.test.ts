@@ -78,7 +78,7 @@ describe('syncConnectGroups', () => {
       endpoint: 'Groups',
       getKey: expect.any(Function),
       params: {
-        $filter: 'GroupTypeId eq 25 and IsActive eq true',
+        $filter: '(GroupTypeId eq 25 or GroupTypeId eq 46) and IsActive eq true',
         $expand: 'GroupLocations,Campus',
         $orderby: 'Name,Id',
       },
