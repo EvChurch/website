@@ -69,10 +69,10 @@ describe('Rock Auth0 member directory', () => {
     expect(mocks.memberRockFetch).toHaveBeenNthCalledWith(1, {
       endpoint: 'People',
       params: {
-        $filter: "contains(Email,'ADA@example')",
+        $filter: "indexof(tolower(Email),'ada@example') ge 0",
         $orderby: 'Email',
         $select:
-          'Id,FullName,FirstName,NickName,LastName,Email,PhotoId,PrimaryCampusId',
+          'Id,FirstName,NickName,LastName,Email,PhotoId,PrimaryCampusId',
         $top: '20',
       },
       timeoutMs: 3_000,
@@ -87,7 +87,7 @@ describe('Rock Auth0 member directory', () => {
 
     await searchRockAuth0MembersByEmail("o'hara@example.com")
     expect(mocks.memberRockFetch.mock.calls[0]?.[0].params.$filter).toBe(
-      "contains(Email,'o''hara@example.com')",
+      "indexof(tolower(Email),'o''hara@example.com') ge 0",
     )
 
     for (const value of ['', 'ab', 'x'.repeat(255), 'a\nb@example.com']) {

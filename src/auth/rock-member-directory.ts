@@ -57,13 +57,14 @@ function requestFailure(error: unknown): RockMemberDirectoryFailureReason {
 }
 
 async function peopleByEmail(query: string) {
+  const normalizedQuery = escapeODataStringLiteral(query.toLowerCase())
   return memberRockFetch<unknown>({
     endpoint: 'People',
     params: {
-      $filter: `contains(Email,'${escapeODataStringLiteral(query)}')`,
+      $filter: `indexof(tolower(Email),'${normalizedQuery}') ge 0`,
       $orderby: 'Email',
       $select:
-        'Id,FullName,FirstName,NickName,LastName,Email,PhotoId,PrimaryCampusId',
+        'Id,FirstName,NickName,LastName,Email,PhotoId,PrimaryCampusId',
       $top: String(MAX_SEARCH_RESULTS),
     },
     timeoutMs: SEARCH_TIMEOUT_MS,
