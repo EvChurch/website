@@ -8,6 +8,7 @@ import RichText from '@/components/blocks/RichTextRenderer'
 import { BreadcrumbJsonLd, buildBreadcrumbs } from '@/components/seo/BreadcrumbJsonLd'
 import { CampusJsonLd } from '@/components/seo/CampusJsonLd'
 import { Button, type ButtonLinkAction } from '@/components/ui/Button'
+import { TrackedButtonLink } from '@/components/analytics/TrackedLink'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 import { getPayloadMediaUrl, type PayloadMediaSize } from '@/lib/payload-media'
 import { getGoogleMapsEmbedUrl, isGoogleMapsUrl } from '@/lib/google-maps'
@@ -317,6 +318,10 @@ export default async function CampusPage({
     process.env.GOOGLE_MAPS_API_KEY,
   )
   const mapPageUrl = getGoogleMapsPageUrl(campus.googlePlaceId, content.mapUrl)
+  const analyticsCampus =
+    slug === 'north' || slug === 'central' || slug === 'unichurch'
+      ? slug
+      : null
   const blocks = (campus.layout ?? []) as unknown as RenderableBlock[]
   const brandHeading = getBrandHeading(content.brandName)
 
@@ -503,14 +508,30 @@ export default async function CampusPage({
               {content.actions.length > 0 && (
                 <div className="mt-8 flex flex-wrap gap-4">
                   {content.actions.map((action) => (
-                    <Button
-                      key={`${action.label}-${action.href}`}
-                      href={action.href}
-                      external={action.external ?? false}
-                      variant={action.variant ?? 'text'}
-                    >
-                      {action.label}
-                    </Button>
+                    isGoogleMapsUrl(action.href) && analyticsCampus ? (
+                      <TrackedButtonLink
+                        key={`${action.label}-${action.href}`}
+                        href={action.href}
+                        external={action.external ?? false}
+                        variant={action.variant ?? 'text'}
+                        eventName="get_directions"
+                        eventParameters={{
+                          campus: analyticsCampus,
+                          destination_host: new URL(action.href).hostname,
+                        }}
+                      >
+                        {action.label}
+                      </TrackedButtonLink>
+                    ) : (
+                      <Button
+                        key={`${action.label}-${action.href}`}
+                        href={action.href}
+                        external={action.external ?? false}
+                        variant={action.variant ?? 'text'}
+                      >
+                        {action.label}
+                      </Button>
+                    )
                   ))}
                 </div>
               )}
