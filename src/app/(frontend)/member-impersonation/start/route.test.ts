@@ -6,6 +6,8 @@ const state = vi.hoisted(() => ({
   session: null as null | Record<string, unknown>,
   target: null as null | Record<string, unknown>,
   updated: null as null | Record<string, unknown>,
+  updateRequest: null as NextRequest | null,
+  updateResponse: null as Response | null,
 }))
 
 vi.mock('@/auth/member-impersonation', async () => {
@@ -28,7 +30,11 @@ vi.mock('@/auth/auth0-client', () => ({
       request?.clone()
       return state.session
     }),
-    updateSession: vi.fn(async (session) => { state.updated = session }),
+    updateSession: vi.fn(async (request, response, session) => {
+      state.updateRequest = request
+      state.updateResponse = response
+      state.updated = session
+    }),
   }),
 }))
 vi.mock('@/auth/auth0-config', () => ({
@@ -58,13 +64,18 @@ describe('start member impersonation route', () => {
       photoUrl: null,
     }
     state.updated = null
+    state.updateRequest = null
+    state.updateResponse = null
   })
 
   it('starts impersonation for an exact Payload admin', async () => {
-    const response = await POST(request())
+    const impersonationRequest = request()
+    const response = await POST(impersonationRequest)
 
     expect(response.status).toBe(303)
     expect(response.headers.get('location')).toBe('https://www.ev.church/members')
+    expect(state.updateRequest).toBe(impersonationRequest)
+    expect(state.updateResponse).toBe(response)
     expect(state.updated?.user).toEqual({ sub: 'auth0|admin' })
     expect(state.updated?.memberImpersonation).toBeDefined()
   })
