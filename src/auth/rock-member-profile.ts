@@ -271,6 +271,35 @@ function toProfile(person: RockPersonResponse): RockMemberProfile | null {
   }
 }
 
+export function memberProfileFromRockPerson(
+  value: unknown,
+  personId: number,
+): RockMemberProfile | null {
+  const person = parsePerson(value, personId)
+  return person ? toProfile(person) : null
+}
+
+export function auth0LoginPersonId(value: unknown): number | null {
+  const login = parseLogin(value)
+  if (!login) return null
+
+  const subject = login.UserName?.startsWith('AUTH0_')
+    ? login.UserName.slice('AUTH0_'.length)
+    : null
+
+  return (
+    isPositiveInteger(login.Id) &&
+    isPositiveInteger(login.PersonId) &&
+    isPositiveInteger(login.EntityTypeId) &&
+    isPositiveInteger(login.EntityType?.Id) &&
+    login.EntityTypeId === login.EntityType.Id &&
+    login.EntityType.Guid.toUpperCase() === AUTH0_ROCK_ENTITY_TYPE_GUID &&
+    isValidSubject(subject)
+  )
+    ? login.PersonId
+    : null
+}
+
 export async function resolveRockMemberProfile(
   subject: unknown,
 ): Promise<RockMemberProfileResolution> {
@@ -310,7 +339,6 @@ export async function resolveRockMemberProfile(
     return fail(personResponse.reason, personResponse.status)
   }
 
-  const person = parsePerson(personResponse.value, login.PersonId)
-  const profile = person ? toProfile(person) : null
+  const profile = memberProfileFromRockPerson(personResponse.value, login.PersonId)
   return profile ? { ok: true, profile } : fail('profile-invalid')
 }
