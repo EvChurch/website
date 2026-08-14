@@ -10,6 +10,7 @@ const feedback = {
   id: 42,
   comment: '<script>alert("x")</script> Please add & improve filters.',
   email: 'visitor@example.com',
+  postHogReplayUrl: 'https://us.posthog.com/project/123/replay/session-id?t=1',
   sourceUrl: 'https://www.ev.church/events?campus=central&view=all',
   createdAt: '2026-08-13T01:02:03.000Z',
   notificationRecipient: 'tataihono@ev.church',
@@ -28,10 +29,18 @@ describe('site feedback notification message', () => {
     })
     expect(message.text).toContain(feedback.comment)
     expect(message.text).toContain(feedback.sourceUrl)
+    expect(message.text).toContain(`Session replay: ${feedback.postHogReplayUrl}`)
+    expect(message.text).toContain(
+      'Open in Payload: https://www.ev.church/admin/collections/feedback-submissions/42',
+    )
     expect(message.text).toContain('13 August 2026')
     expect(message.html).toContain('&lt;script&gt;')
     expect(message.html).toContain('&amp;view=all')
     expect(message.html).not.toContain('<script>')
+    expect(message.html).toContain('>View session replay</a>')
+    expect(message.html).toContain(
+      'href="https://www.ev.church/admin/collections/feedback-submissions/42">Open in Payload</a>',
+    )
     expect(JSON.stringify(message)).not.toContain('clientAddressDigest')
     expect(JSON.stringify(message)).not.toContain('userAgent')
   })
@@ -41,6 +50,19 @@ describe('site feedback notification message', () => {
 
     expect(message).not.toHaveProperty('replyTo')
     expect(message.text).not.toContain('Visitor email')
+    expect(message.text).toContain('Session replay:')
+    expect(message.text).toContain('Open in Payload:')
+  })
+
+  it('omits the session replay link when no replay was captured', () => {
+    const message = buildSiteFeedbackNotification({
+      ...feedback,
+      postHogReplayUrl: null,
+    })
+
+    expect(message.text).not.toContain('Session replay:')
+    expect(message.html).not.toContain('View session replay')
+    expect(message.text).toContain('Open in Payload:')
   })
 
   it('calls Resend with a stable idempotency key and bounded request', async () => {

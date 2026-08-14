@@ -1,5 +1,6 @@
 const RESEND_EMAILS_URL = 'https://api.resend.com/emails'
 const DEFAULT_TIMEOUT_MS = 10_000
+const SITE_ORIGIN = 'https://www.ev.church'
 
 export const SITE_FEEDBACK_NOTIFICATION_WINDOW_MS = 24 * 60 * 60 * 1_000
 
@@ -7,6 +8,7 @@ export type SiteFeedbackNotificationSource = {
   id: number | string
   comment: string
   email?: null | string
+  postHogReplayUrl?: null | string
   sourceUrl: string
   createdAt: string
   notificationRecipient: string
@@ -61,6 +63,8 @@ export function buildSiteFeedbackNotification(
 ): SiteFeedbackNotificationMessage {
   const submissionTime = formatSubmissionTime(feedback.createdAt)
   const visitorEmail = feedback.email?.trim() || null
+  const replayUrl = feedback.postHogReplayUrl?.trim() || null
+  const adminUrl = `${SITE_ORIGIN}/admin/collections/feedback-submissions/${encodeURIComponent(String(feedback.id))}`
   const textLines = [
     'New site feedback',
     '',
@@ -69,6 +73,8 @@ export function buildSiteFeedbackNotification(
     `Page: ${feedback.sourceUrl}`,
     `Submitted: ${submissionTime}`,
     ...(visitorEmail ? [`Visitor email: ${visitorEmail}`] : []),
+    ...(replayUrl ? [`Session replay: ${replayUrl}`] : []),
+    `Open in Payload: ${adminUrl}`,
   ]
 
   return {
@@ -84,7 +90,7 @@ export function buildSiteFeedbackNotification(
       visitorEmail
         ? `<br><strong>Visitor email:</strong> ${escapeHtml(visitorEmail)}`
         : '',
-      '</p>',
+      `</p><p>${replayUrl ? `<a href="${escapeHtml(replayUrl)}">View session replay</a> &middot; ` : ''}<a href="${escapeHtml(adminUrl)}">Open in Payload</a></p>`,
     ].join(''),
   }
 }

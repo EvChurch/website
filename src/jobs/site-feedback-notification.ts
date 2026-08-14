@@ -96,6 +96,7 @@ export function createPayloadSiteFeedbackNotificationStore(
           "id",
           "comment",
           "email",
+          "post_hog_replay_url",
           "source_url",
           "created_at",
           "notification_recipient"
@@ -104,6 +105,7 @@ export function createPayloadSiteFeedbackNotificationStore(
         id: number | string
         comment: string
         email: null | string
+        post_hog_replay_url: null | string
         source_url: string
         created_at: Date | string
         notification_recipient: string
@@ -116,6 +118,7 @@ export function createPayloadSiteFeedbackNotificationStore(
           id: row.id,
           comment: row.comment,
           email: row.email,
+          postHogReplayUrl: row.post_hog_replay_url,
           sourceUrl: row.source_url,
           createdAt:
             row.created_at instanceof Date
