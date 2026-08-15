@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
 import { OrganizationJsonLd } from './OrganizationJsonLd'
+import { UNICHURCH_SCHEMA_ADDRESS } from '@/lib/seo-addresses'
 
 describe('OrganizationJsonLd', () => {
   it('publishes the verified Ev Church profiles', () => {
@@ -12,6 +13,7 @@ describe('OrganizationJsonLd', () => {
     const data = JSON.parse(json!)
 
     expect(data).not.toHaveProperty('areaServed')
+    expect(data.address[2]).toEqual(UNICHURCH_SCHEMA_ADDRESS)
     expect(data.sameAs).toEqual([
       'https://www.facebook.com/aucklandev.co.nz',
       'https://www.instagram.com/aucklandev.church',

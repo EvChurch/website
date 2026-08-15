@@ -1,3 +1,5 @@
+import { UNICHURCH_SCHEMA_ADDRESS } from '@/lib/seo-addresses'
+
 interface CampusSchemaProps {
   name: string
   brandName: string
@@ -28,6 +30,18 @@ export function CampusJsonLd({
   serviceOpens,
   serviceCloses,
 }: CampusSchemaProps) {
+  const schemaAddress =
+    slug === 'unichurch'
+      ? UNICHURCH_SCHEMA_ADDRESS
+      : {
+          '@type': 'PostalAddress',
+          streetAddress: address?.street ?? '',
+          addressLocality: address?.city ?? '',
+          addressRegion: 'Auckland',
+          postalCode: address?.postalCode ?? '',
+          addressCountry: 'NZ',
+        }
+
   const data = {
     '@context': 'https://schema.org',
     '@type': 'Church',
@@ -35,14 +49,7 @@ export function CampusJsonLd({
     name: `Ev Church ${name}`,
     alternateName: brandName,
     url: `https://www.ev.church/campus/${slug}`,
-    address: {
-      '@type': 'PostalAddress',
-      streetAddress: address?.street ?? '',
-      addressLocality: address?.city ?? '',
-      addressRegion: 'Auckland',
-      postalCode: address?.postalCode ?? '',
-      addressCountry: 'NZ',
-    },
+    address: schemaAddress,
     ...(geoPoint?.lat != null && geoPoint.lng != null
       ? {
           geo: {
