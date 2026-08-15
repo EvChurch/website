@@ -1,4 +1,6 @@
 import { getPayloadClient } from '@/lib/payload'
+import { unstable_cache } from 'next/cache'
+import { CACHE_TAGS } from '@/lib/cache-tags'
 import { isGuid } from '@/lib/rock-forms/constants'
 
 import { classifyLauncherHref, launcherPlainText, sanitizeLauncherHtml } from './sanitize'
@@ -293,7 +295,7 @@ async function findEligibleServiceGuideRecords(
     )
 }
 
-export async function loadLauncherData(now = new Date()): Promise<LauncherData> {
+async function loadLauncherDataAt(now: Date): Promise<LauncherData> {
   try {
     const payload = (await getPayloadClient()) as unknown as LauncherPayloadClient
     const [records, campusResult, available] = await Promise.all([
@@ -322,6 +324,19 @@ export async function loadLauncherData(now = new Date()): Promise<LauncherData> 
   } catch {
     return { available: false, campuses: [], items: [] }
   }
+}
+
+const getCachedLauncherData = unstable_cache(
+  () => loadLauncherDataAt(new Date()),
+  ['launcher-data'],
+  {
+    tags: [CACHE_TAGS.serviceGuide, CACHE_TAGS.campuses, CACHE_TAGS.events],
+    revalidate: 600,
+  },
+)
+
+export async function loadLauncherData(now?: Date): Promise<LauncherData> {
+  return now ? loadLauncherDataAt(now) : getCachedLauncherData()
 }
 
 async function hasWinningAction(

@@ -1,26 +1,15 @@
 import type { Metadata } from 'next'
-import { getPayloadClient } from '@/lib/payload'
+import { getTopicPageData } from '@/lib/sermon-pages'
 import { trackedNotFound } from '@/lib/tracked-not-found'
 import { getSermonAudioUrl, getSeriesBannerUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { SermonCard } from '@/components/sermons/SermonCard'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
 import { DEFAULT_OPEN_GRAPH_IMAGES, truncateMetaDescription } from '@/lib/seo-metadata'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 86400
 
 export async function generateStaticParams() {
   return []
-}
-
-async function getTopicBySlug(slug: string) {
-  const payload = await getPayloadClient()
-  const result = await payload.find({
-    collection: 'topics',
-    where: { slug: { equals: slug } },
-    depth: 1,
-    limit: 1,
-  })
-  return result.docs[0] ?? null
 }
 
 export async function generateMetadata({
@@ -29,7 +18,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
   const { slug } = await params
-  const topic = await getTopicBySlug(slug)
+  const { topic } = await getTopicPageData(slug)
 
   if (!topic) return {}
 
@@ -59,24 +48,10 @@ export default async function TopicPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const payload = await getPayloadClient()
-  const topic = await getTopicBySlug(slug)
+  const { topic, sermonsResult } = await getTopicPageData(slug)
 
   if (!topic) trackedNotFound('sermons', 'topics', slug)
-
-  // Fetch sermons with this topic
-  const sermonsResult = await payload.find({
-    collection: 'sermons',
-    where: {
-      and: [
-        { isPublished: { equals: true } },
-        { topics: { contains: topic.id } },
-      ],
-    },
-    sort: '-publishedAt',
-    limit: 200,
-    depth: 2,
-  })
+  if (!sermonsResult) trackedNotFound('sermons', 'topics', slug)
 
   // Extract category name if populated
   const categoryName =

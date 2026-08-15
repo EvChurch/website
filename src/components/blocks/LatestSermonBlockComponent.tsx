@@ -1,7 +1,7 @@
 import { MediaImage } from '@/components/media/MediaImage'
 import { getPayloadMediaUrl, type PayloadMediaImage } from '@/lib/payload-media'
 import Link from 'next/link'
-import { getPayloadClient } from '@/lib/payload'
+import { getLatestSermonWithSeries } from '@/lib/latest-sermon'
 import { getSermonAudioUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { LatestSermonPlayButton } from './LatestSermonPlayButton'
 import { ListenedBadge } from '@/components/sermons/ListenedBadge'
@@ -11,18 +11,9 @@ interface LatestSermonBlockProps {
 }
 
 export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockProps) {
-  const payload = await getPayloadClient()
-
-  const result = await payload.find({
-    collection: 'sermons',
-    where: { isPublished: { equals: true } },
-    sort: '-publishedAt',
-    limit: 1,
-    depth: 1,
-  })
-
-  const sermon = result.docs[0]
-  if (!sermon) return null
+  const data = await getLatestSermonWithSeries()
+  if (!data) return null
+  const { sermon, seriesDoc } = data
 
   // Extract audio speaker info
   const audioSpeaker =
@@ -45,11 +36,6 @@ export async function LatestSermonBlockComponent({ heading }: LatestSermonBlockP
   // Extract series info
   const series = Array.isArray(sermon.series) && sermon.series[0] && typeof sermon.series[0] === 'object'
     ? sermon.series[0] as { id: number; title: string; slug: string }
-    : null
-
-  // Fetch series with populated images
-  const seriesDoc = series
-    ? await payload.findByID({ collection: 'sermon-series', id: series.id, depth: 1 })
     : null
 
   const bannerMedia =

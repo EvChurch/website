@@ -1,5 +1,7 @@
 import type { MetadataRoute } from 'next'
+import { unstable_cache } from 'next/cache'
 
+import { CACHE_TAGS } from '@/lib/cache-tags'
 import { getPayloadClient } from '@/lib/payload'
 import { isRetiredPageSlug } from '@/lib/public-pages'
 
@@ -38,7 +40,7 @@ function link(
   }
 }
 
-export async function getSitemapSections(): Promise<SitemapSection[]> {
+async function fetchSitemapSections(): Promise<SitemapSection[]> {
   const payload = await getPayloadClient()
 
   const [pages, campuses, events, blogPosts, sermons, sermonSeries, speakers, topics, scriptures] = await Promise.all([
@@ -188,6 +190,25 @@ export async function getSitemapSections(): Promise<SitemapSection[]> {
     },
   ]
 }
+
+export const getSitemapSections = unstable_cache(
+  fetchSitemapSections,
+  ['public-sitemap-sections'],
+  {
+    tags: [
+      CACHE_TAGS.pages,
+      CACHE_TAGS.campuses,
+      CACHE_TAGS.events,
+      CACHE_TAGS.blogPosts,
+      CACHE_TAGS.sermons,
+      CACHE_TAGS.sermonSeries,
+      CACHE_TAGS.speakers,
+      CACHE_TAGS.topics,
+      CACHE_TAGS.scriptures,
+    ],
+    revalidate: 300,
+  },
+)
 
 export async function getXmlSitemap(): Promise<MetadataRoute.Sitemap> {
   const sections = await getSitemapSections()

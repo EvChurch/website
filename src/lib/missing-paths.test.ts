@@ -1,5 +1,17 @@
 import { describe, expect, it, vi } from 'vitest'
 
+const mocks = vi.hoisted(() => ({
+  cachedLookup: vi.fn(),
+  getPayloadClient: vi.fn(),
+  unstableCache: vi.fn((callback: unknown) => (...args: unknown[]) => {
+    mocks.cachedLookup(...args)
+    return (callback as (...callbackArgs: unknown[]) => unknown)(...args)
+  }),
+}))
+
+vi.mock('next/cache', () => ({ unstable_cache: mocks.unstableCache }))
+vi.mock('@/lib/payload', () => ({ getPayloadClient: mocks.getPayloadClient }))
+
 import { findMissingPathRedirect, recordMissingPublicPath } from './missing-paths'
 
 function payload(overrides: Record<string, unknown> = {}) {
@@ -12,6 +24,23 @@ function payload(overrides: Record<string, unknown> = {}) {
 }
 
 describe('missing path services', () => {
+  it('caches normalized redirect reads under the missing-path tag', () => {
+    expect(mocks.unstableCache).toHaveBeenCalledWith(
+      expect.any(Function),
+      ['missing-path-redirect'],
+      { tags: ['missing-paths'], revalidate: 86_400 },
+    )
+  })
+
+  it('uses the normalized path as the production cache argument', async () => {
+    mocks.cachedLookup.mockClear()
+    mocks.getPayloadClient.mockResolvedValue(payload())
+
+    await findMissingPathRedirect('/old/?campaign=x')
+
+    expect(mocks.cachedLookup).toHaveBeenCalledWith('/old')
+  })
+
   it('looks up an exact normalized source with a narrow query', async () => {
     const find = vi.fn().mockResolvedValue({ docs: [{ destination: '/kids' }] })
     await expect(findMissingPathRedirect('/old/', payload({ find }))).resolves.toBe('/kids')

@@ -1,14 +1,15 @@
 import type { Metadata } from 'next'
+import { unstable_cache } from 'next/cache'
+import { cache } from 'react'
 import { getPayloadClient } from '@/lib/payload'
+import { CACHE_TAGS } from '@/lib/cache-tags'
 import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
 import {
   RenderBlocks,
   type RenderableBlock,
 } from '@/components/blocks/RenderBlocks'
 
-export const dynamic = 'force-dynamic'
-
-async function getHomePage() {
+async function fetchHomePage() {
   const payload = await getPayloadClient()
 
   const result = await payload.find({
@@ -20,6 +21,14 @@ async function getHomePage() {
 
   return result.docs[0] ?? null
 }
+
+const getCachedHomePage = unstable_cache(
+  fetchHomePage,
+  ['home-page'],
+  { tags: [CACHE_TAGS.pages], revalidate: 86_400 },
+)
+
+const getHomePage = cache(getCachedHomePage)
 
 export async function generateMetadata(): Promise<Metadata> {
   const page = await getHomePage()

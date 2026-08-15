@@ -15,6 +15,8 @@ import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
 import { SiApplepodcasts, SiSpotify } from 'react-icons/si'
 import { HiRss } from 'react-icons/hi2'
 
+// Free-text search and cross-filter counts are request-dependent and have an
+// unbounded key space, so this index intentionally remains dynamic.
 export const dynamic = 'force-dynamic'
 
 export async function generateStaticParams() {

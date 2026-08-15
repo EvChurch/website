@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import {
   MemberAccountControl,
   type MemberDisplayProfile,
@@ -315,12 +315,14 @@ function MobileMenu({
 
           {(memberProfile !== undefined || adminHref) && (
             <div className="border-b border-cool-grey/60">
-              <MemberAccountControl
-                profile={memberProfile ?? null}
-                variant="drawer"
-                active={open}
-                adminHref={adminHref}
-              />
+              <Suspense fallback={<span aria-hidden className="block h-[65px]" />}>
+                <MemberAccountControl
+                  profile={memberProfile ?? null}
+                  variant="drawer"
+                  active={open}
+                  adminHref={adminHref}
+                />
+              </Suspense>
             </div>
           )}
 
@@ -513,24 +515,28 @@ export function Header({
               Give
             </Link>
             {(memberProfile !== undefined || adminHref) && (
-              <MemberAccountControl
-                profile={memberProfile ?? null}
-                variant="desktop"
-                tone={darkTone ? 'dark' : 'light'}
-                adminHref={adminHref}
-              />
+              <Suspense fallback={<span aria-hidden className="h-9 w-9" />}>
+                <MemberAccountControl
+                  profile={memberProfile ?? null}
+                  variant="desktop"
+                  tone={darkTone ? 'dark' : 'light'}
+                  adminHref={adminHref}
+                />
+              </Suspense>
             )}
           </div>
 
           <div className="flex items-center gap-1 lg:hidden">
             {(memberProfile !== undefined || adminHref) && (
-              <MemberAccountControl
-                profile={memberProfile ?? null}
-                variant="mobile-icon"
-                tone={darkTone ? 'dark' : 'light'}
-                active={!mobileOpen}
-                adminHref={adminHref}
-              />
+              <Suspense fallback={<span aria-hidden className="h-10 w-10" />}>
+                <MemberAccountControl
+                  profile={memberProfile ?? null}
+                  variant="mobile-icon"
+                  tone={darkTone ? 'dark' : 'light'}
+                  active={!mobileOpen}
+                  adminHref={adminHref}
+                />
+              </Suspense>
             )}
 
             {/* Mobile Hamburger */}

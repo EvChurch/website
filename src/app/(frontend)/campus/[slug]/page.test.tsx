@@ -1,10 +1,15 @@
 import { renderToStaticMarkup } from 'react-dom/server'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   find: vi.fn(),
   renderBlocks: vi.fn(() => null),
+  unstableCache: vi.fn((callback: unknown) => callback),
 }))
+
+vi.mock('next/cache', () => ({ unstable_cache: mocks.unstableCache }))
 
 vi.mock('@/lib/payload', () => ({
   getPayloadClient: vi.fn(async () => ({ find: mocks.find })),
@@ -98,7 +103,8 @@ const campus = {
 
 describe('Payload-managed campus page', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    mocks.find.mockReset()
+    mocks.renderBlocks.mockClear()
     vi.stubEnv('GOOGLE_MAPS_API_KEY', 'test-api-key')
     mocks.find.mockResolvedValue({ docs: [campus] })
   })
@@ -222,5 +228,20 @@ describe('Payload-managed campus page', () => {
 
     expect(markup).toContain('>Unichurch</span>')
     expect(markup).not.toContain('Ev Unichurch')
+  })
+
+  it('uses the tagged campus source cache and a long ISR fallback', () => {
+    expect(mocks.unstableCache).toHaveBeenCalledWith(
+      expect.any(Function),
+      ['managed-campus-by-slug'],
+      { tags: ['campuses', 'pages'], revalidate: 86_400 },
+    )
+
+    const source = readFileSync(
+      join(process.cwd(), 'src/app/(frontend)/campus/[slug]/page.tsx'),
+      'utf8',
+    )
+    expect(source).toContain('export const revalidate = 86400')
+    expect(source).not.toContain("export const dynamic = 'force-dynamic'")
   })
 })

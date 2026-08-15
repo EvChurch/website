@@ -1,10 +1,23 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+const mocks = vi.hoisted(() => ({
+  unstableCache: vi.fn((callback: unknown) => callback),
+}))
+
+vi.mock('next/cache', () => ({
+  unstable_cache: mocks.unstableCache,
+}))
+
+vi.mock('@/lib/payload', () => ({
+  getPayloadClient: vi.fn(),
+}))
 
 import {
   filterUpcomingEvents,
   filterEventsByCampus,
   getCampusSlug,
   getDisplayLocation,
+  getEventBySlug,
   getRegistrationHref,
   isPastEvent,
   prepareEventsListing,
@@ -31,6 +44,31 @@ const baseEvent: PublicEvent = {
 }
 
 describe('event helpers', () => {
+  it('caches the raw public event catalogue with its invalidation tag', () => {
+    expect(mocks.unstableCache).toHaveBeenCalledWith(
+      expect.any(Function),
+      ['public-events'],
+      { tags: ['events'], revalidate: 300 },
+    )
+  })
+
+  it('caches event detail reads with the same short invalidation contract', () => {
+    expect(mocks.unstableCache).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Function),
+      ['public-event-by-slug'],
+      { tags: ['events'], revalidate: 300 },
+    )
+  })
+
+  it('returns null when a cached event slug has no match', async () => {
+    const find = vi.fn().mockResolvedValue({ docs: [] })
+    const { getPayloadClient } = await import('@/lib/payload')
+    vi.mocked(getPayloadClient).mockResolvedValue({ find } as never)
+
+    await expect(getEventBySlug('missing')).resolves.toBeNull()
+  })
+
   it('orders upcoming and currently-running events chronologically', () => {
     const now = new Date('2026-08-10T07:00:00.000Z')
     const later = { ...baseEvent, id: 2, slug: 'later', startDate: '2026-08-11T06:00:00.000Z' }

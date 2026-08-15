@@ -7,6 +7,7 @@ import {
 } from '@/lib/rock-sync-lock'
 import { destroyPayloadClient } from '@/lib/payload'
 import { notifyHeartbeat } from '@/lib/better-stack-heartbeat'
+import { CACHE_TAGS, type CacheTag } from '@/lib/cache-tags'
 import { runFullSync, type SyncResult } from '@/sync/sync-runner'
 
 const MAX_RUNTIME_MS = 14 * 60 * 1000
@@ -23,6 +24,57 @@ type LockRunner = (
 type WorkerDependencies = {
   runSync?: () => Promise<SyncResult[]>
   withLock?: LockRunner
+  notifyWebsite?: (results: SyncResult[]) => Promise<void>
+}
+
+const SYNC_ENTITY_CACHE_TAGS: Readonly<Partial<Record<string, CacheTag>>> = {
+  campuses: CACHE_TAGS.campuses,
+  events: CACHE_TAGS.events,
+  'team-members': CACHE_TAGS.teamMembers,
+  'sermon-series': CACHE_TAGS.sermonSeries,
+  sermons: CACHE_TAGS.sermons,
+  speakers: CACHE_TAGS.speakers,
+  topics: CACHE_TAGS.topics,
+  categories: CACHE_TAGS.categories,
+  scriptures: CACHE_TAGS.scriptures,
+  'connect-groups': CACHE_TAGS.connectGroups,
+  'daily-bible-readings': CACHE_TAGS.dailyBibleReadings,
+  'service-guide-items': CACHE_TAGS.serviceGuide,
+}
+
+export function cacheTagsForSyncResults(results: SyncResult[]): CacheTag[] {
+  const tags = results.flatMap((result) => {
+    const changed = result.created + result.updated + result.deleted > 0
+    const tag = SYNC_ENTITY_CACHE_TAGS[result.entity]
+    return changed && tag ? [tag] : []
+  })
+  return [...new Set(tags)]
+}
+
+export async function notifyWebsiteCache(
+  results: SyncResult[],
+  fetcher: typeof fetch = fetch,
+): Promise<void> {
+  const tags = cacheTagsForSyncResults(results)
+  if (tags.length === 0) return
+
+  const appBaseUrl = process.env.APP_BASE_URL
+  const cronSecret = process.env.CRON_SECRET
+  if (!appBaseUrl || !cronSecret) {
+    throw new Error('APP_BASE_URL and CRON_SECRET are required for cache revalidation')
+  }
+
+  const response = await fetcher(new URL('/api/internal/cache/revalidate', appBaseUrl), {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${cronSecret}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ tags }),
+  })
+  if (!response.ok) {
+    throw new Error(`Website cache revalidation failed with status ${response.status}`)
+  }
 }
 
 export async function notifyCompletedWorker(
@@ -40,6 +92,7 @@ export async function notifyCompletedWorker(
 export async function runRockSyncWorker({
   runSync = runFullSync,
   withLock = withRockSyncLock,
+  notifyWebsite = notifyWebsiteCache,
 }: WorkerDependencies = {}): Promise<WorkerResult> {
   const lockResult = await withLock(runSync)
   if (!lockResult.acquired) {
@@ -55,6 +108,8 @@ export async function runRockSyncWorker({
   if (errors.length > 0) {
     throw new Error(`Sync completed with errors: ${errors.join('; ')}`)
   }
+
+  await notifyWebsite(lockResult.value)
 
   return { status: 'completed', results: lockResult.value }
 }

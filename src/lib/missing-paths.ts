@@ -1,6 +1,8 @@
 import { sql } from '@payloadcms/db-postgres'
+import { unstable_cache } from 'next/cache'
 import type { Payload } from 'payload'
 
+import { CACHE_TAGS } from '@/lib/cache-tags'
 import { getPayloadClient } from '@/lib/payload'
 import {
   isEligiblePublicPath,
@@ -9,13 +11,7 @@ import {
   parseInternalRedirectDestination,
 } from '@/lib/public-paths'
 
-export async function findMissingPathRedirect(
-  input: string,
-  payload?: Payload,
-): Promise<string | null> {
-  const path = normalizePublicPath(input)
-  if (!path || !isEligiblePublicPath(path)) return null
-  const client = payload ?? await getPayloadClient()
+async function queryMissingPathRedirect(path: string, client: Payload): Promise<string | null> {
   const { docs } = await client.find({
     collection: 'missing-paths',
     depth: 0,
@@ -29,6 +25,27 @@ export async function findMissingPathRedirect(
   return typeof destination === 'string'
     ? parseInternalRedirectDestination(destination)
     : null
+}
+
+async function fetchMissingPathRedirect(path: string): Promise<string | null> {
+  return queryMissingPathRedirect(path, await getPayloadClient())
+}
+
+const getCachedMissingPathRedirect = unstable_cache(
+  fetchMissingPathRedirect,
+  ['missing-path-redirect'],
+  { tags: [CACHE_TAGS.missingPaths], revalidate: 86_400 },
+)
+
+export async function findMissingPathRedirect(
+  input: string,
+  payload?: Payload,
+): Promise<string | null> {
+  const path = normalizePublicPath(input)
+  if (!path || !isEligiblePublicPath(path)) return null
+  return payload
+    ? queryMissingPathRedirect(path, payload)
+    : getCachedMissingPathRedirect(path)
 }
 
 export type MissingPathRecordResult =

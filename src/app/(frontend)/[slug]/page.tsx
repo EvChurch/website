@@ -1,14 +1,17 @@
 import type { Metadata } from 'next'
+import { unstable_cache } from 'next/cache'
+import { cache } from 'react'
 import { getPayloadClient } from '@/lib/payload'
+import { CACHE_TAGS } from '@/lib/cache-tags'
 import { trackedNotFound } from '@/lib/tracked-not-found'
 import { isRetiredPageSlug } from '@/lib/public-pages'
 import { DEFAULT_OPEN_GRAPH_IMAGES, truncateMetaDescription } from '@/lib/seo-metadata'
 import { RenderBlocks } from '@/components/blocks/RenderBlocks'
 import { BreadcrumbJsonLd, buildBreadcrumbs } from '@/components/seo/BreadcrumbJsonLd'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 86400
 
-async function getPageBySlug(slug: string) {
+async function fetchPageBySlug(slug: string) {
   const payload = await getPayloadClient()
 
   const result = await payload.find({
@@ -20,6 +23,14 @@ async function getPageBySlug(slug: string) {
 
   return result.docs[0] ?? null
 }
+
+const getCachedPageBySlug = unstable_cache(
+  fetchPageBySlug,
+  ['public-page-by-slug'],
+  { tags: [CACHE_TAGS.pages], revalidate: 86_400 },
+)
+
+const getPageBySlug = cache(getCachedPageBySlug)
 
 export async function generateStaticParams() {
   return []
