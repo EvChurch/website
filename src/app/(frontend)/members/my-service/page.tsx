@@ -13,6 +13,7 @@ import { VolunteerSchedule } from '@/components/members/VolunteerSchedule'
 import { getMemberPortalHomeForProfile } from '@/lib/members/data'
 import {
   getVolunteerSchedule,
+  getVolunteerScheduleDeclineReasons,
   type VolunteerScheduleResult,
 } from '@/lib/members/volunteer-scheduling'
 
@@ -43,9 +44,10 @@ export default async function MyServicePage() {
   }
   const impersonation = getMemberImpersonationFromSession(session)
 
-  const [home, schedule] = await Promise.all([
+  const [home, schedule, declineReasons] = await Promise.all([
     getMemberPortalHomeForProfile(profileState.profile),
     getVolunteerSchedule(profileState.profile.personId).catch(() => unavailableSchedule),
+    getVolunteerScheduleDeclineReasons(),
   ])
 
   return (
@@ -62,6 +64,7 @@ export default async function MyServicePage() {
 
         <VolunteerSchedule
           schedule={schedule}
+          declineReasons={declineReasons}
           isImpersonating={impersonation !== null}
         />
       </div>

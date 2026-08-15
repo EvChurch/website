@@ -34,6 +34,11 @@ const declined = {
   title: 'Sunday Gatherings — Prayer Team',
 }
 
+const declineReasons = [
+  { id: 728, label: 'Family Emergency' },
+  { id: 729, label: 'Have to Work' },
+]
+
 describe('VolunteerSchedule', () => {
   let container: HTMLDivElement
   let root: Root
@@ -203,13 +208,17 @@ describe('VolunteerSchedule', () => {
     window.removeEventListener('member-notifications:refresh', notificationRefresh)
   })
 
-  it('requires confirmation before handing a decline to Rock', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch')
+  it('requires a reason before declining through the member API', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
+      JSON.stringify({ status: 'declined' }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    ))
     await act(async () => root.render(
       <VolunteerSchedule
         schedule={{
           status: 'available', requests: [request], upcoming: [], declined: [],
         }}
+        declineReasons={declineReasons}
         isImpersonating={false}
       />,
     ))
@@ -222,17 +231,30 @@ describe('VolunteerSchedule', () => {
     expect(container.querySelector('[role="dialog"]')?.getAttribute('aria-modal')).toBe('true')
     expect(document.documentElement.style.overflow).toBe('hidden')
 
-    const continueLink = container.querySelector<HTMLAnchorElement>('a[href="https://rock.ev.church/ScheduleToolbox"]')
-    expect(continueLink?.textContent).toBe('Continue in Rock')
-    expect(continueLink?.rel).toBe('nofollow')
-    expect(fetchMock).not.toHaveBeenCalled()
+    const confirm = [...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent === 'Yes, decline')!
+    expect(confirm.disabled).toBe(true)
+    const reason = container.querySelector<HTMLSelectElement>('select')!
+    await act(async () => {
+      reason.value = '729'
+      reason.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    expect(confirm.disabled).toBe(false)
+    await act(async () => confirm.click())
+    expect(fetchMock).toHaveBeenCalledWith('/api/member-service/respond', expect.objectContaining({
+      body: JSON.stringify({ assignmentId: request.id, response: 'decline', declineReasonId: 729 }),
+    }))
   })
 
-  it('allows a confirmed upcoming commitment to start the Rock decline handoff', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch')
+  it('allows a confirmed upcoming commitment to be declined with a reason', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
+      JSON.stringify({ status: 'declined' }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    ))
     await act(async () => root.render(
       <VolunteerSchedule
         schedule={{ status: 'available', requests: [], upcoming: [confirmed], declined: [] }}
+        declineReasons={declineReasons}
         isImpersonating={false}
       />,
     ))
@@ -244,8 +266,16 @@ describe('VolunteerSchedule', () => {
       .toContain('Decline this commitment?')
     expect(fetchMock).not.toHaveBeenCalled()
 
-    expect(container.querySelector('a[href="https://rock.ev.church/ScheduleToolbox"]')).not.toBeNull()
-    expect(fetchMock).not.toHaveBeenCalled()
+    const reason = container.querySelector<HTMLSelectElement>('select')!
+    await act(async () => {
+      reason.value = '728'
+      reason.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent === 'Yes, decline')!.click())
+    expect(fetchMock).toHaveBeenCalledWith('/api/member-service/respond', expect.objectContaining({
+      body: JSON.stringify({ assignmentId: confirmed.id, response: 'decline', declineReasonId: 728 }),
+    }))
   })
 
   it('queues the post-response refresh behind an earlier focus refresh', async () => {

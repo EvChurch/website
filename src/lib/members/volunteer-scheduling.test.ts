@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   __resetVolunteerScheduleLoadProtectionForTests,
   getVolunteerSchedule,
+  getVolunteerScheduleDeclineReasons,
   respondToVolunteerSchedule,
 } from './volunteer-scheduling'
 
@@ -594,6 +595,7 @@ describe('volunteer scheduling adapter', () => {
     expect(Object.keys(module).sort()).toEqual([
       '__resetVolunteerScheduleLoadProtectionForTests',
       'getVolunteerSchedule',
+      'getVolunteerScheduleDeclineReasons',
       'respondToVolunteerSchedule',
     ])
 
@@ -606,15 +608,7 @@ describe('volunteer scheduling adapter', () => {
     expect(fetchMock.mock.calls.every(([, init]) => init?.body === undefined)).toBe(true)
   })
 
-  it.each([
-    ['accept', 'ScheduledPersonConfirm', { ScheduledToAttend: true, RSVP: 1 }, 'accepted'],
-    ['decline', 'ScheduledPersonDecline', { ScheduledToAttend: false, RSVP: 0 }, 'declined'],
-  ] as const)('uses Rock canonical %s action once and verifies the read-back', async (
-    action,
-    endpoint,
-    canonicalState,
-    expectedStatus,
-  ) => {
+  it('uses Rock canonical accept action once and verifies the read-back', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch')
     queueDeployedRead(fetchMock, [{ Id: 142, PersonId: 42 }], [attendance()])
     fetchMock
@@ -622,18 +616,18 @@ describe('volunteer scheduling adapter', () => {
       .mockResolvedValueOnce(response([attendance()]))
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(response([{ Id: 142, PersonId: 42 }]))
-      .mockResolvedValueOnce(response([attendance(canonicalState)]))
+      .mockResolvedValueOnce(response([attendance({ ScheduledToAttend: true, RSVP: 1 })]))
 
     await expect(respondToVolunteerSchedule(
       42,
       `rock-schedule:${GUIDS.pending}`,
-      action,
+      'accept',
       new Date('2026-08-15T00:00:00Z'),
-    )).resolves.toEqual({ status: expectedStatus })
+    )).resolves.toEqual({ status: 'accepted' })
 
     const writes = fetchMock.mock.calls.filter(([, init]) => init?.method === 'PUT')
     expect(writes).toHaveLength(1)
-    expect(new URL(String(writes[0]?.[0])).pathname).toBe(`/api/Attendances/${endpoint}`)
+    expect(new URL(String(writes[0]?.[0])).pathname).toBe('/api/Attendances/ScheduledPersonConfirm')
     expect(new URL(String(writes[0]?.[0])).searchParams.get('attendanceId')).toBe('901')
     expect(writes[0]?.[1]).toMatchObject({ redirect: 'error' })
     expect(writes[0]?.[1]?.body).toBeUndefined()
@@ -644,23 +638,61 @@ describe('volunteer scheduling adapter', () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch')
     queueDeployedRead(fetchMock, [{ Id: 142, PersonId: 42 }], [confirmedAttendance])
     fetchMock
+      .mockResolvedValueOnce(response([{
+        Id: 76,
+        Guid: '70c9f9c4-20cc-43dd-888d-9243853a0e52',
+      }]))
+      .mockResolvedValueOnce(response([{
+        Id: 728,
+        Value: 'Family Emergency',
+        IsActive: true,
+      }]))
       .mockResolvedValueOnce(response([{ Id: 142, PersonId: 42 }]))
       .mockResolvedValueOnce(response([confirmedAttendance]))
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(response([{ Id: 142, PersonId: 42 }]))
-      .mockResolvedValueOnce(response([attendance({ ScheduledToAttend: false, RSVP: 0 })]))
+      .mockResolvedValueOnce(response([attendance({
+        ScheduledToAttend: false,
+        RSVP: 0,
+        DeclineReasonValueId: 728,
+      })]))
 
     await expect(respondToVolunteerSchedule(
       42,
       `rock-schedule:${GUIDS.pending}`,
       'decline',
       new Date('2026-08-15T00:00:00Z'),
+      728,
     )).resolves.toEqual({ status: 'declined' })
 
-    const writes = fetchMock.mock.calls.filter(([, init]) => init?.method === 'PUT')
+    const writes = fetchMock.mock.calls.filter(([, init]) => init?.method === 'PATCH')
     expect(writes).toHaveLength(1)
     expect(new URL(String(writes[0]?.[0])).pathname)
-      .toBe('/api/Attendances/ScheduledPersonDecline')
+      .toBe('/api/Attendances/901')
+    expect(JSON.parse(String(writes[0]?.[1]?.body))).toEqual({
+      ScheduledToAttend: false,
+      RSVPDateTime: '2026-08-15T00:00:00.000Z',
+      RSVP: 0,
+      DeclineReasonValueId: 728,
+    })
+  })
+
+  it('loads active Rock schedule decline reasons for the member page', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(response([{
+        Id: 76,
+        Guid: '70c9f9c4-20cc-43dd-888d-9243853a0e52',
+      }]))
+      .mockResolvedValueOnce(response([
+        { Id: 728, Value: 'Family Emergency', IsActive: true },
+        { Id: 729, Value: 'Have to Work', IsActive: true },
+      ]))
+
+    await expect(getVolunteerScheduleDeclineReasons()).resolves.toEqual([
+      { id: 728, label: 'Family Emergency' },
+      { id: 729, label: 'Have to Work' },
+    ])
+    expect(fetchMock.mock.calls.every(([, init]) => (init?.method ?? 'GET') === 'GET')).toBe(true)
   })
 
   it('reconfirms an owned future declined assignment', async () => {
@@ -799,6 +831,7 @@ describe('volunteer scheduling adapter', () => {
       `rock-schedule:${GUIDS.other}`,
       'decline',
       new Date('2026-08-15T00:00:00Z'),
+      728,
     )).resolves.toEqual({ status: 'busy' })
 
     resolveAliases(response([]))

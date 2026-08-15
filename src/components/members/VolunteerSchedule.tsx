@@ -7,6 +7,7 @@ import { HiCheck, HiXMark } from 'react-icons/hi2'
 import { MEMBER_NOTIFICATIONS_REFRESH_EVENT } from '@/lib/member-notification-contract'
 import type {
   VolunteerScheduleAssignment,
+  VolunteerScheduleDeclineReason,
   VolunteerScheduleResult,
 } from '@/lib/members/volunteer-scheduling'
 
@@ -225,9 +226,11 @@ function ResponseControls({
 
 export function VolunteerSchedule({
   schedule,
+  declineReasons = [],
   isImpersonating,
 }: {
   schedule: VolunteerScheduleResult
+  declineReasons?: VolunteerScheduleDeclineReason[]
   isImpersonating: boolean
 }) {
   const router = useRouter()
@@ -253,6 +256,7 @@ export function VolunteerSchedule({
   const [refreshAnnouncement, setRefreshAnnouncement] = useState('')
   const [respondingId, setRespondingId] = useState<string | null>(null)
   const [confirmDeclineId, setConfirmDeclineId] = useState<string | null>(null)
+  const [declineReasonId, setDeclineReasonId] = useState<number | null>(null)
   const [responseError, setResponseError] = useState<ScheduleResponseError | null>(null)
   const [assignmentStateOverrides, setAssignmentStateOverrides] = useState<Map<string, AssignmentState>>(
     () => new Map(),
@@ -261,6 +265,7 @@ export function VolunteerSchedule({
   const closeDeclineDialog = useCallback(() => {
     const trigger = declineTriggerRef.current
     setConfirmDeclineId(null)
+    setDeclineReasonId(null)
     window.requestAnimationFrame(() => trigger?.focus())
   }, [])
 
@@ -426,6 +431,7 @@ export function VolunteerSchedule({
   const respond = useCallback(async (
     assignment: VolunteerScheduleAssignment,
     response: 'accept' | 'decline',
+    selectedDeclineReasonId?: number,
   ) => {
     if (respondingRef.current) return
     respondingRef.current = true
@@ -443,7 +449,11 @@ export function VolunteerSchedule({
           Accept: 'application/json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ assignmentId: assignment.id, response }),
+        body: JSON.stringify({
+          assignmentId: assignment.id,
+          response,
+          ...(response === 'decline' ? { declineReasonId: selectedDeclineReasonId } : {}),
+        }),
         signal: AbortSignal.any([controller.signal, AbortSignal.timeout(RESPONSE_TIMEOUT_MS)]),
       })
       const result = await providerResponse.json().catch(() => null) as { status?: unknown } | null
@@ -602,6 +612,7 @@ export function VolunteerSchedule({
                   onAccept={() => void respond(assignment, 'accept')}
                   onRequestDecline={(trigger) => {
                     declineTriggerRef.current = trigger
+                    setDeclineReasonId(null)
                     setConfirmDeclineId(assignment.id)
                   }}
                 />
@@ -642,9 +653,25 @@ export function VolunteerSchedule({
               You’re declining {declineAssignment.title} on{' '}
               {occurrenceFormatter.format(new Date(declineAssignment.occurrenceStart))}.
             </p>
-            <p className="mt-3 text-sm leading-6 text-dark-grey">
-              Rock requires a reason for this response. Continue to the existing Schedule Toolbox to choose it and complete your decline.
-            </p>
+            <label className="mt-5 block text-sm font-bold text-brand-black" htmlFor={`${declineDialogTitleId}-reason`}>
+              Why can’t you serve?
+            </label>
+            <select
+              id={`${declineDialogTitleId}-reason`}
+              value={declineReasonId ?? ''}
+              onChange={(event) => setDeclineReasonId(Number(event.target.value) || null)}
+              className="mt-2 min-h-11 w-full rounded-lg border border-warm-grey bg-white px-3 py-2 text-sm text-brand-black focus:border-rich-red focus:outline-none focus:ring-2 focus:ring-light-red-2"
+            >
+              <option value="">Select a reason</option>
+              {declineReasons.map((reason) => (
+                <option key={reason.id} value={reason.id}>{reason.label}</option>
+              ))}
+            </select>
+            {declineReasons.length === 0 && (
+              <p role="alert" className="mt-2 text-sm text-rich-red">
+                Decline reasons are temporarily unavailable. Refresh the page and try again.
+              </p>
+            )}
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
                 ref={declineCancelRef}
@@ -655,13 +682,18 @@ export function VolunteerSchedule({
               >
                 Keep {declineIsRequest ? 'request' : 'commitment'}
               </button>
-              <a
-                href="https://rock.ev.church/ScheduleToolbox"
-                rel="nofollow"
-                className="flex min-h-11 items-center justify-center rounded-full bg-rich-red px-5 py-2 text-sm font-bold text-white transition-colors hover:bg-brand-black"
+              <button
+                type="button"
+                disabled={respondingId !== null || declineReasonId === null}
+                onClick={() => declineReasonId !== null && void respond(
+                  declineAssignment,
+                  'decline',
+                  declineReasonId,
+                )}
+                className="min-h-11 rounded-full bg-rich-red px-5 py-2 text-sm font-bold text-white transition-colors hover:bg-brand-black disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Continue in Rock
-              </a>
+                {respondingId === declineAssignment.id ? 'Declining…' : 'Yes, decline'}
+              </button>
             </div>
           </section>
         </div>

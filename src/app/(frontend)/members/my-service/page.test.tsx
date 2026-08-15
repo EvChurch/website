@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   getMemberPortalHomeForProfile: vi.fn(),
   getVolunteerSchedule: vi.fn(),
+  getVolunteerScheduleDeclineReasons: vi.fn(),
   redirect: vi.fn((url: string) => {
     throw new Error(`NEXT_REDIRECT:${url}`)
   }),
@@ -15,6 +16,7 @@ vi.mock('@/auth/auth0-client', () => ({ getAuth0Client: () => ({ getSession: moc
 vi.mock('@/lib/members/data', () => ({ getMemberPortalHomeForProfile: mocks.getMemberPortalHomeForProfile }))
 vi.mock('@/lib/members/volunteer-scheduling', () => ({
   getVolunteerSchedule: mocks.getVolunteerSchedule,
+  getVolunteerScheduleDeclineReasons: mocks.getVolunteerScheduleDeclineReasons,
 }))
 vi.mock('@/components/members/MemberPortalChrome', () => ({
   memberConnectGroupHref: () => '/members/connect-groups',
@@ -24,10 +26,11 @@ vi.mock('@/components/members/MemberPortalChrome', () => ({
   },
 }))
 vi.mock('@/components/members/VolunteerSchedule', () => ({
-  VolunteerSchedule: ({ schedule, isImpersonating }: {
+  VolunteerSchedule: ({ schedule, isImpersonating, declineReasons }: {
     schedule: { status: string }
     isImpersonating: boolean
-  }) => <p>{schedule.status}:{isImpersonating ? 'read-only' : 'interactive'}</p>,
+    declineReasons: Array<{ id: number }>
+  }) => <p>{schedule.status}:{isImpersonating ? 'read-only' : 'interactive'}:{declineReasons.length}</p>,
 }))
 vi.mock('next/navigation', () => ({ redirect: mocks.redirect }))
 
@@ -62,6 +65,9 @@ describe('MyServicePage', () => {
       upcoming: [],
       declined: [],
     })
+    mocks.getVolunteerScheduleDeclineReasons.mockResolvedValue([
+      { id: 728, label: 'Family Emergency' },
+    ])
   })
 
   it('is non-indexable and loads the signed-in person schedule', async () => {
@@ -74,7 +80,7 @@ describe('MyServicePage', () => {
     expect(mocks.getVolunteerSchedule).toHaveBeenCalledWith(42)
     expect(markup).toContain('<h1')
     expect(markup).toContain('My Service')
-    expect(markup).toContain('available:interactive')
+    expect(markup).toContain('available:interactive:1')
     expect(mocks.memberPortalActive).toHaveBeenCalledWith('service')
   })
 

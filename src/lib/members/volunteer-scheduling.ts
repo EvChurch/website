@@ -13,6 +13,7 @@ const PERSON_THROTTLE_WINDOW_MS = 10_000
 const THROTTLE_RETENTION_MS = 60_000
 const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
 const PLACEHOLDER_PATTERN = /change-me|replace-me|generate-with/i
+const GROUP_SCHEDULE_DECLINE_REASON_GUID = '70c9f9c4-20cc-43dd-888d-9243853a0e52'
 
 interface SchedulingConfig {
   apiUrl: string
@@ -33,6 +34,7 @@ interface RockAttendance {
   didAttend: boolean | null
   rsvp: 'unknown' | 'yes' | 'no' | 'maybe'
   declined: boolean
+  declineReasonValueId: number | null
   occurrenceStart: string
   occurrenceId: number
 }
@@ -59,6 +61,13 @@ type SchedulingEndpoint =
   | 'Groups'
   | 'Schedules'
   | 'Locations'
+  | 'DefinedTypes'
+  | 'DefinedValues'
+
+export interface VolunteerScheduleDeclineReason {
+  id: number
+  label: string
+}
 
 export interface VolunteerScheduleAssignment {
   id: string
@@ -194,6 +203,37 @@ async function schedulingWrite(
   if (!response.ok) throw new RockSchedulingWriteError(response.status)
 }
 
+async function schedulingPatchDecline(
+  config: SchedulingConfig,
+  attendanceId: number,
+  declineReasonValueId: number,
+  now: Date,
+  operationSignal: AbortSignal,
+) {
+  const response = await fetch(`${config.apiUrl}/Attendances/${attendanceId}`, {
+    method: 'PATCH',
+    redirect: 'error',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'Authorization-Token': config.apiKey,
+    },
+    body: JSON.stringify({
+      ScheduledToAttend: false,
+      RSVPDateTime: now.toISOString(),
+      RSVP: 0,
+      DeclineReasonValueId: declineReasonValueId,
+    }),
+    signal: AbortSignal.any([
+      operationSignal,
+      AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    ]),
+    next: { revalidate: 0 },
+  })
+  await response.body?.cancel()
+  if (!response.ok) throw new RockSchedulingWriteError(response.status)
+}
+
 async function readPages(
   config: SchedulingConfig,
   endpoint: SchedulingEndpoint,
@@ -297,8 +337,52 @@ function parseAttendance(value: unknown): RockAttendance | null {
     didAttend: value.DidAttend,
     rsvp,
     declined: isPositiveInteger(value.DeclineReasonValueId),
+    declineReasonValueId: isPositiveInteger(value.DeclineReasonValueId)
+      ? value.DeclineReasonValueId
+      : null,
     occurrenceStart,
     occurrenceId: value.OccurrenceId,
+  }
+}
+
+async function loadDeclineReasons(
+  config: SchedulingConfig,
+  operationSignal: AbortSignal,
+): Promise<VolunteerScheduleDeclineReason[]> {
+  const definedTypes = await readPages(config, 'DefinedTypes', {
+    $filter: `Guid eq guid'${GROUP_SCHEDULE_DECLINE_REASON_GUID}'`,
+    $select: 'Id,Guid',
+  }, operationSignal)
+  if (
+    definedTypes.length !== 1 ||
+    !isRecord(definedTypes[0]) ||
+    !isPositiveInteger(definedTypes[0].Id) ||
+    String(definedTypes[0].Guid).toLowerCase() !== GROUP_SCHEDULE_DECLINE_REASON_GUID
+  ) throw new MalformedRockResponseError('Rock omitted the schedule decline reason type')
+
+  const values = await readPages(config, 'DefinedValues', {
+    $filter: `DefinedTypeId eq ${definedTypes[0].Id} and IsActive eq true`,
+    $orderby: 'Order,Id',
+    $select: 'Id,Value,IsActive',
+  }, operationSignal)
+  return values.map((value) => {
+    if (!isRecord(value) || !isPositiveInteger(value.Id) || value.IsActive !== true) {
+      throw new MalformedRockResponseError('Rock returned an invalid decline reason')
+    }
+    const label = optionalName(value.Value)
+    if (!label) throw new MalformedRockResponseError('Rock returned an unnamed decline reason')
+    return { id: value.Id, label }
+  })
+}
+
+export async function getVolunteerScheduleDeclineReasons(): Promise<VolunteerScheduleDeclineReason[]> {
+  try {
+    return await loadDeclineReasons(
+      readSchedulingConfig(),
+      AbortSignal.timeout(OPERATION_TIMEOUT_MS),
+    )
+  } catch {
+    return []
   }
 }
 
@@ -676,11 +760,13 @@ function isDeclinedAttendance(attendance: RockAttendance) {
 function hasExpectedResponse(
   attendance: RockAttendance | null,
   response: VolunteerScheduleResponse,
+  declineReasonValueId?: number,
 ) {
   if (!attendance) return false
   return response === 'accept'
     ? attendance.scheduledToAttend === true && attendance.rsvp === 'yes' && !attendance.declined
-    : attendance.scheduledToAttend === false && attendance.rsvp === 'no'
+    : attendance.scheduledToAttend === false && attendance.rsvp === 'no' &&
+      attendance.declineReasonValueId === declineReasonValueId
 }
 
 export async function respondToVolunteerSchedule(
@@ -688,12 +774,15 @@ export async function respondToVolunteerSchedule(
   assignmentId: string,
   response: VolunteerScheduleResponse,
   now = new Date(),
+  declineReasonValueId?: number,
 ): Promise<VolunteerScheduleResponseResult> {
   if (
     !isPositiveInteger(personId) ||
     typeof assignmentId !== 'string' ||
     (response !== 'accept' && response !== 'decline') ||
-    !Number.isFinite(now.getTime())
+    !Number.isFinite(now.getTime()) ||
+    (response === 'decline' && !isPositiveInteger(declineReasonValueId)) ||
+    (response === 'accept' && declineReasonValueId !== undefined)
   ) return { status: 'invalid-request' }
 
   const guid = assignmentGuid(assignmentId)
@@ -728,6 +817,12 @@ export async function respondToVolunteerSchedule(
 
     const config = readSchedulingConfig()
     const preflightSignal = AbortSignal.timeout(OPERATION_TIMEOUT_MS)
+    if (response === 'decline') {
+      const declineReasons = await loadDeclineReasons(config, preflightSignal)
+      if (!declineReasons.some(({ id }) => id === declineReasonValueId)) {
+        return { status: 'invalid-request' }
+      }
+    }
     const attendance = await readOwnedAttendance(config, personId, guid, preflightSignal)
     const canRespond = attendance && (
       isPendingAttendance(attendance) ||
@@ -738,12 +833,17 @@ export async function respondToVolunteerSchedule(
 
     let writeError: unknown = null
     try {
-      await schedulingWrite(
-        config,
-        response === 'accept' ? 'ScheduledPersonConfirm' : 'ScheduledPersonDecline',
-        attendance.id,
-        preflightSignal,
-      )
+      if (response === 'accept') {
+        await schedulingWrite(config, 'ScheduledPersonConfirm', attendance.id, preflightSignal)
+      } else {
+        await schedulingPatchDecline(
+          config,
+          attendance.id,
+          declineReasonValueId as number,
+          now,
+          preflightSignal,
+        )
+      }
     } catch (error) {
       writeError = error
     }
@@ -759,7 +859,7 @@ export async function respondToVolunteerSchedule(
     } catch {
       return { status: 'outcome-unknown' }
     }
-    if (hasExpectedResponse(canonical, response)) {
+    if (hasExpectedResponse(canonical, response, declineReasonValueId)) {
       return { status: response === 'accept' ? 'accepted' : 'declined' }
     }
     if (writeError instanceof RockSchedulingWriteError && writeError.status < 500 && writeError.status !== 429) {

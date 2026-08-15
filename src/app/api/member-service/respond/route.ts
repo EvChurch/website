@@ -35,16 +35,28 @@ function json(body: unknown, status: number, extraHeaders?: Record<string, strin
 function parseInput(value: unknown): {
   assignmentId: string
   response: VolunteerScheduleResponse
+  declineReasonId?: number
 } | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const input = value as Record<string, unknown>
   if (
-    Object.keys(input).some((key) => key !== 'assignmentId' && key !== 'response') ||
+    Object.keys(input).some((key) =>
+      key !== 'assignmentId' && key !== 'response' && key !== 'declineReasonId') ||
     typeof input.assignmentId !== 'string' ||
     !ASSIGNMENT_ID_PATTERN.test(input.assignmentId) ||
-    input.response !== 'accept'
+    (input.response !== 'accept' && input.response !== 'decline') ||
+    (input.response === 'accept' && input.declineReasonId !== undefined) ||
+    (input.response === 'decline' && (
+      typeof input.declineReasonId !== 'number' ||
+      !Number.isSafeInteger(input.declineReasonId) ||
+      input.declineReasonId <= 0
+    ))
   ) return null
-  return { assignmentId: input.assignmentId, response: input.response }
+  return {
+    assignmentId: input.assignmentId,
+    response: input.response,
+    ...(input.response === 'decline' ? { declineReasonId: input.declineReasonId as number } : {}),
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -84,6 +96,8 @@ export async function POST(request: NextRequest) {
     personId,
     input.assignmentId,
     input.response,
+    new Date(),
+    input.declineReasonId,
   )
   if (result.status === 'accepted' || result.status === 'declined') return json(result, 200)
   if (result.status === 'invalid-request') return json(result, 400)

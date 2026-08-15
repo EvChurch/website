@@ -29,11 +29,11 @@ EV's Serving Team group type requires a reason when a volunteer declines. Rock's
 
 - Calling the stock decline action directly is incomplete because its public contract has no reason field.
 - Treating Rock's Obsidian block action as an integration API is unsafe because it depends on the rendered block, page configuration, and Rock user context.
-- A generic attendance patch would duplicate Rock scheduling behavior and can omit configured response communications.
+- Calling the reasonless purpose action and then patching the reason would create two partial saves and trigger workflows against incomplete state.
 
 ## Solution
 
-Keep accept and reconfirm on the server-only website route, where ownership and current state are checked before invoking Rock's purpose action. For decline, show the website confirmation dialog and hand off to Rock's existing `/ScheduleToolbox` page. Reject decline payloads at the website mutation route so an authenticated caller cannot bypass the required-reason rule.
+Keep accept and reconfirm on the server-only website route, where ownership and current state are checked before invoking Rock's purpose action. For decline, load the active values from Rock's `Group Schedule Decline Reason` defined type, require one in the website modal, revalidate it server-side, and use Rock's stock generic Attendance PATCH endpoint to save the RSVP state and reason together.
 
 The relevant boundaries are implemented in:
 
@@ -43,13 +43,13 @@ The relevant boundaries are implemented in:
 
 ## Why This Works
 
-Rock remains responsible for collecting and validating the decline reason and for running its configured toolbox side effects. The website still provides direct accept and reconfirm actions without pretending the narrower public decline endpoint has parity with the native workflow.
+The member never has to enter Rock. The website uses only supported stock Rock API surfaces, rejects inactive or invented reason IDs, and persists the decline fields in one Rock save so the attendance save hook sees a complete declined state.
 
 ## Prevention
 
 - Before exposing a Rock purpose action, compare its public REST signature with the corresponding native block workflow and the live group-type configuration.
-- Reject unsupported state transitions at the website API boundary, even when the UI does not currently send them.
-- Keep a focused route test proving decline payloads are rejected.
+- Validate reason IDs against the active Rock defined values at mutation time rather than trusting the browser.
+- Keep focused tests proving a reason is required and written in the same PATCH as the RSVP state.
 
 ## Related Issues
 
