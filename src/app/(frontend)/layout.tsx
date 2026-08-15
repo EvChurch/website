@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { Metadata, Viewport } from 'next'
 import { Albert_Sans, Source_Serif_4 } from 'next/font/google'
 import { AnnouncementBanner } from '@/components/layout/AnnouncementBanner'
+import { Footer } from '@/components/layout/Footer'
 import { PublicChrome } from '@/components/layout/PublicChrome'
 import { OrganizationJsonLd } from '@/components/seo/OrganizationJsonLd'
 import { loadLauncherData } from '@/lib/launcher/service-guide'
@@ -94,6 +95,7 @@ export default async function FrontendLayout({ children }: { children: ReactNode
           launcher={launcher}
           feedback={feedback}
           announcement={<AnnouncementBanner />}
+          footer={<Footer />}
         >
           {children}
         </PublicChrome>

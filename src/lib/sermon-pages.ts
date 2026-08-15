@@ -38,20 +38,16 @@ async function fetchSermonPageData(slug: string) {
     : null
   const primarySeriesId = primarySeries?.id ?? null
 
-  const seriesDoc = primarySeriesId
-    ? await payload.findByID({
+  const seriesDocPromise = primarySeriesId
+    ? payload.findByID({
         collection: 'sermon-series',
         id: primarySeriesId,
         depth: 1,
       })
-    : null
+    : Promise.resolve(null)
 
-  let prevSermon: { title: string; slug: string } | null = null
-  let nextSermon: { title: string; slug: string } | null = null
-
-  if (primarySeriesId && sermon.publishedAt) {
-    const [prevResult, nextResult] = await Promise.all([
-      payload.find({
+  const previousPromise = primarySeriesId && sermon.publishedAt
+    ? payload.find({
         collection: 'sermons',
         where: {
           and: [
@@ -64,8 +60,10 @@ async function fetchSermonPageData(slug: string) {
         limit: 1,
         depth: 0,
         select: { title: true, slug: true },
-      }),
-      payload.find({
+      })
+    : Promise.resolve({ docs: [] })
+  const nextPromise = primarySeriesId && sermon.publishedAt
+    ? payload.find({
         collection: 'sermons',
         where: {
           and: [
@@ -78,17 +76,10 @@ async function fetchSermonPageData(slug: string) {
         limit: 1,
         depth: 0,
         select: { title: true, slug: true },
-      }),
-    ])
-
-    const previous = prevResult.docs[0]
-    const next = nextResult.docs[0]
-    prevSermon = previous ? { title: previous.title, slug: previous.slug } : null
-    nextSermon = next ? { title: next.title, slug: next.slug } : null
-  }
-
-  const moreBySeriesResult = primarySeriesId
-    ? await payload.find({
+      })
+    : Promise.resolve({ docs: [] })
+  const moreBySeriesPromise = primarySeriesId
+    ? payload.find({
         collection: 'sermons',
         where: {
           and: [
@@ -101,13 +92,22 @@ async function fetchSermonPageData(slug: string) {
         limit: 3,
         depth: 1,
       })
-    : { docs: [] }
+    : Promise.resolve({ docs: [] })
+
+  const [seriesDoc, previousResult, nextResult, moreBySeriesResult] = await Promise.all([
+    seriesDocPromise,
+    previousPromise,
+    nextPromise,
+    moreBySeriesPromise,
+  ])
+  const previous = previousResult.docs[0]
+  const next = nextResult.docs[0]
 
   return {
     sermon,
     seriesDoc,
-    prevSermon,
-    nextSermon,
+    prevSermon: previous ? { title: previous.title, slug: previous.slug } : null,
+    nextSermon: next ? { title: next.title, slug: next.slug } : null,
     moreBySeries: moreBySeriesResult.docs,
   }
 }

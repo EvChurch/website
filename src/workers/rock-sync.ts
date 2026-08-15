@@ -38,7 +38,6 @@ const SYNC_ENTITY_CACHE_TAGS: Readonly<Partial<Record<string, CacheTag>>> = {
   categories: CACHE_TAGS.categories,
   scriptures: CACHE_TAGS.scriptures,
   'connect-groups': CACHE_TAGS.connectGroups,
-  registrations: CACHE_TAGS.registrations,
   'daily-bible-readings': CACHE_TAGS.dailyBibleReadings,
   'service-guide-items': CACHE_TAGS.serviceGuide,
 }

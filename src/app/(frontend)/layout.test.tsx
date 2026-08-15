@@ -77,6 +77,7 @@ describe('FrontendLayout public rendering boundary', () => {
         announcement: expect.anything(),
         children: expect.anything(),
         feedback,
+        footer: expect.anything(),
         launcher,
       },
       undefined,

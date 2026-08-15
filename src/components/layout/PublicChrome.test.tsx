@@ -50,7 +50,7 @@ describe('PublicChrome', () => {
 
   it('keeps anonymous HTML signed out and contains no private member data', () => {
     const markup = renderToStaticMarkup(
-      <PublicChrome launcher={launcher} feedback={null} announcement={null}><p>Page</p></PublicChrome>,
+      <PublicChrome launcher={launcher} feedback={null} announcement={null} footer={<div data-footer />}><p>Page</p></PublicChrome>,
     )
 
     expect(markup).toContain('signed-out')
@@ -70,7 +70,7 @@ describe('PublicChrome', () => {
     const root = createRoot(container)
 
     await act(async () => root.render(
-      <PublicChrome launcher={launcher} feedback={null} announcement={null}><p>Page</p></PublicChrome>,
+      <PublicChrome launcher={launcher} feedback={null} announcement={null} footer={<div data-footer />}><p>Page</p></PublicChrome>,
     ))
 
     expect(fetch).toHaveBeenCalledWith('/api/member-chrome', {
@@ -93,7 +93,7 @@ describe('PublicChrome', () => {
     const root = createRoot(container)
 
     await act(async () => root.render(
-      <PublicChrome launcher={launcher} feedback={null} announcement={null}><p>Shared</p></PublicChrome>,
+      <PublicChrome launcher={launcher} feedback={null} announcement={null} footer={<div data-footer />}><p>Shared</p></PublicChrome>,
     ))
 
     expect(container.querySelector('[data-basic-header]')).not.toBeNull()

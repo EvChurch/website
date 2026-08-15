@@ -10,80 +10,33 @@ import { MediaPlayerProvider } from '@/components/media/MediaPlayerProvider'
 import { VideoContainer } from '@/components/media/VideoContainer'
 import { AnalyticsManager } from '@/components/seo/AnalyticsManager'
 import type { LauncherData } from '@/lib/launcher/types'
+import {
+  ANONYMOUS_MEMBER_CHROME,
+  isAnonymousMemberChrome,
+  parseMemberChromeState,
+  type MemberChromeState,
+} from '@/lib/member-chrome'
+import { matchesPathPrefix } from '@/lib/public-paths'
 import type { PublicSiteFeedbackSettings } from '@/lib/site-feedback/settings'
-import { Footer } from './Footer'
 import { Header } from './Header'
-import type { MemberDisplayProfile } from './MemberAccountControl'
 import { SiteHeader } from './SiteHeader'
-
-interface MemberChromeState {
-  memberProfile: MemberDisplayProfile | null
-  memberCampusSlug: string | null
-  adminHref: string | null
-  impersonation: {
-    personId: number
-    name: string
-    email: string
-  } | null
-}
-
-const ANONYMOUS_CHROME: MemberChromeState = {
-  memberProfile: null,
-  memberCampusSlug: null,
-  adminHref: null,
-  impersonation: null,
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function memberChromeState(value: unknown): MemberChromeState | null {
-  if (!isRecord(value)) return null
-
-  const profile = value.memberProfile
-  const impersonation = value.impersonation
-  if (
-    profile !== null &&
-    (!isRecord(profile) ||
-      typeof profile.name !== 'string' ||
-      typeof profile.email !== 'string' ||
-      !(typeof profile.avatarUrl === 'string' || profile.avatarUrl === null))
-  ) return null
-  if (
-    impersonation !== null &&
-    (!isRecord(impersonation) ||
-      typeof impersonation.personId !== 'number' ||
-      typeof impersonation.name !== 'string' ||
-      typeof impersonation.email !== 'string')
-  ) return null
-  if (
-    !(typeof value.memberCampusSlug === 'string' || value.memberCampusSlug === null) ||
-    !(typeof value.adminHref === 'string' || value.adminHref === null)
-  ) return null
-
-  return value as unknown as MemberChromeState
-}
-
-function isSharedLeaderResource(pathname: string) {
-  return pathname === '/shared/leader-resources' ||
-    pathname.startsWith('/shared/leader-resources/')
-}
 
 export function PublicChrome({
   children,
   feedback,
   launcher,
   announcement,
+  footer,
 }: {
   children: ReactNode
   feedback: PublicSiteFeedbackSettings | null
   launcher: LauncherData
   announcement: ReactNode
+  footer: ReactNode
 }) {
   const pathname = usePathname()
-  const sharedResource = isSharedLeaderResource(pathname)
-  const [memberChrome, setMemberChrome] = useState(ANONYMOUS_CHROME)
+  const sharedResource = matchesPathPrefix(pathname, '/shared/leader-resources')
+  const [memberChrome, setMemberChrome] = useState<MemberChromeState>(ANONYMOUS_MEMBER_CHROME)
 
   useEffect(() => {
     if (sharedResource) return
@@ -92,10 +45,16 @@ export function PublicChrome({
     void fetch('/api/member-chrome', {
       cache: 'no-store',
       credentials: 'same-origin',
-    })
-      .then(async (response) => response.ok ? memberChromeState(await response.json()) : null)
+      })
+      .then(async (response) => response.ok ? parseMemberChromeState(await response.json()) : null)
       .then((state) => {
-        if (!cancelled && state) setMemberChrome(state)
+        if (!cancelled && state) {
+          setMemberChrome((current) =>
+            isAnonymousMemberChrome(current) && isAnonymousMemberChrome(state)
+              ? current
+              : state,
+          )
+        }
       })
       .catch(() => {
         // Anonymous chrome is the safe fallback when private state is unavailable.
@@ -108,7 +67,7 @@ export function PublicChrome({
     return <div className="bg-warm-white text-brand-black">
       <Header />
       <main>{children}</main>
-      <Footer />
+      {footer}
     </div>
   }
 
@@ -123,7 +82,7 @@ export function PublicChrome({
         impersonation={memberChrome.impersonation}
       />
       <main>{children}</main>
-      <Footer />
+      {footer}
       <AudioPlayerSpacer />
       <AudioPlayerBar />
       <VideoContainer />
