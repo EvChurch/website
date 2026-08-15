@@ -4,34 +4,17 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { MediaImage } from '@/components/media/MediaImage'
 import { getPayloadMediaUrl, type PayloadMediaImage } from '@/lib/payload-media'
-import { getPayloadClient } from '@/lib/payload'
+import { getSermonPageData } from '@/lib/sermon-pages'
 import { getSeriesBannerUrl, getSermonAudioUrl, getSermonVideos } from '@/lib/sermon-utils'
-import { SermonCard } from '@/components/sermons/SermonCard'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
 import { DEFAULT_OPEN_GRAPH_IMAGES, truncateMetaDescription } from '@/lib/seo-metadata'
 import { SermonPlayButton } from './SermonPlayButton'
 import { ListenedBadge } from '@/components/sermons/ListenedBadge'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 86400
 
 export async function generateStaticParams() {
   return []
-}
-
-async function getSermonBySlug(slug: string) {
-  const payload = await getPayloadClient()
-  const result = await payload.find({
-    collection: 'sermons',
-    where: {
-      and: [
-        { slug: { equals: slug } },
-        { isPublished: { equals: true } },
-      ],
-    },
-    depth: 1,
-    limit: 1,
-  })
-  return result.docs[0] ?? null
 }
 
 export async function generateMetadata({
@@ -40,7 +23,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
   const { slug } = await params
-  const sermon = await getSermonBySlug(slug)
+  const { sermon } = await getSermonPageData(slug)
 
   if (!sermon) return {}
 
@@ -102,8 +85,13 @@ export default async function SermonPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const payload = await getPayloadClient()
-  const sermon = await getSermonBySlug(slug)
+  const {
+    sermon,
+    seriesDoc,
+    prevSermon,
+    nextSermon,
+    moreBySeries,
+  } = await getSermonPageData(slug)
 
   if (!sermon) trackedNotFound('sermons', slug)
 
@@ -139,17 +127,12 @@ export default async function SermonPage({
         .filter((s): s is { id: number; title: string; slug: string } => s !== null)
     : []
 
-  // Fetch the series doc with images (depth: 1 to populate Media relations)
-  const seriesDoc = seriesList[0]
-    ? await payload.findByID({ collection: 'sermon-series', id: seriesList[0].id, depth: 1 })
-    : null
   const seriesBackgroundMedia =
     seriesDoc?.backgroundImage && typeof seriesDoc.backgroundImage === 'object' && 'url' in seriesDoc.backgroundImage
       ? (seriesDoc.backgroundImage as PayloadMediaImage) : null
   const seriesBannerMedia =
     seriesDoc?.bannerImage && typeof seriesDoc.bannerImage === 'object' && 'url' in seriesDoc.bannerImage
       ? (seriesDoc.bannerImage as PayloadMediaImage) : null
-  const seriesBannerUrl = seriesBannerMedia ? getPayloadMediaUrl(seriesBannerMedia, 'medium') : null
 
   const scripturesList = Array.isArray(sermon.scriptures)
     ? sermon.scriptures
@@ -177,70 +160,8 @@ export default async function SermonPage({
       ? (sermon.blogPost as { slug: string }).slug
       : null
 
-  // Fetch next/prev sermon in same series
-  let prevSermon: { title: string; slug: string } | null = null
-  let nextSermon: { title: string; slug: string } | null = null
-
-  if (seriesList.length > 0 && sermon.publishedAt) {
-    const [prevResult, nextResult] = await Promise.all([
-      payload.find({
-        collection: 'sermons',
-        where: {
-          and: [
-            { isPublished: { equals: true } },
-            { series: { contains: seriesList[0].id } },
-            { publishedAt: { less_than: sermon.publishedAt } },
-          ],
-        },
-        sort: '-publishedAt',
-        limit: 1,
-        depth: 0,
-        select: { title: true, slug: true },
-      }),
-      payload.find({
-        collection: 'sermons',
-        where: {
-          and: [
-            { isPublished: { equals: true } },
-            { series: { contains: seriesList[0].id } },
-            { publishedAt: { greater_than: sermon.publishedAt } },
-          ],
-        },
-        sort: 'publishedAt',
-        limit: 1,
-        depth: 0,
-        select: { title: true, slug: true },
-      }),
-    ])
-
-    if (prevResult.docs[0]) {
-      prevSermon = { title: prevResult.docs[0].title, slug: prevResult.docs[0].slug }
-    }
-    if (nextResult.docs[0]) {
-      nextSermon = { title: nextResult.docs[0].title, slug: nextResult.docs[0].slug }
-    }
-  }
-
-  // Fetch "More from this series" sermons
-  const primarySeriesId = seriesList[0]?.id ?? null
+  // Render "More from this series" sermons from the same cached snapshot.
   const primarySeriesTitle = seriesList[0]?.title ?? null
-
-  const moreBySeriesResult = primarySeriesId
-    ? await payload.find({
-        collection: 'sermons',
-        where: {
-          and: [
-            { isPublished: { equals: true } },
-            { series: { contains: primarySeriesId } },
-            { id: { not_equals: sermon.id } },
-          ],
-        },
-        sort: '-publishedAt',
-        limit: 3,
-        depth: 1,
-      })
-    : { docs: [] as typeof sermon[] }
-  const moreBySeries = moreBySeriesResult.docs
 
   // Structured data
   const breadcrumbItems = [
