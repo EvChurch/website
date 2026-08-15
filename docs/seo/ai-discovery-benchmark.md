@@ -74,12 +74,12 @@ The remaining eight prompts and the other providers are pending. Current prerequ
 
 ## Google Business Profile baseline
 
-All three profiles are verified and grouped under the managed Auckland Ev Church account. Public details were checked directly in Google Maps on 15 August 2026.
+All three profiles are verified and grouped under the managed Auckland Ev Church account. Public details were checked directly in Google Maps on 16 August 2026.
 
 | Profile | Address | Sunday hours | Website | Phone | Reviews | Finding |
 |---|---|---|---|---|---|---|
-| Auckland Ev Church - Central | 80 Olsen Avenue, Hillsborough, Auckland 1042 | Opens 10:15 am | `https://www.ev.church/` | 09 393 0060 | 4.9 from 52 | Campus URL submitted on 15 August; Google shows it as pending review |
-| Auckland Ev Church - North | 9-11 Rothwell Avenue, Rosedale, Auckland 0632 | Opens 10:15 am | `https://www.ev.church/` | 09 393 0060 | 5.0 from 16 | Campus URL submitted on 15 August; Google shows it as pending review |
+| Auckland Ev Church - Central | 80 Olsen Avenue, Hillsborough, Auckland 1042 | Opens 10:15 am | `https://www.ev.church/campus/central` | 09 393 0060 | 4.9 from 52 | Campus URL is current |
+| Auckland Ev Church - North | 9-11 Rothwell Avenue, Rosedale, Auckland 0632 | Opens 10:15 am | `https://www.ev.church/campus/north` | 09 393 0060 | 5.0 from 16 | Campus URL is current |
 | Auckland Ev Church - Unichurch | Old Government House, 24 Princes Street, Auckland CBD 1010 | Opens 5:15 pm | `https://www.ev.church/campus/unichurch` | 09 393 0060 | 5.0 from 9 | Campus URL is current; removal of the incorrect Sir Owen G Glenn Building relationship was submitted and acknowledged on 15 August, but is not yet live |
 
 Do not rename profiles solely for SEO. Confirm the current real-world signage and Google naming policy before changing the established `Auckland Ev Church - ...` names.
@@ -89,7 +89,7 @@ Do not rename profiles solely for SEO. Confirm the current real-world signage an
 | Priority | Source | Current issue | Correction |
 |---|---|---|---|
 | High | Google Business Profile: Unichurch | Incorrect `Located in: Sir Owen G Glenn Building` relationship | Submitted to Google on 15 August; recheck after review |
-| Medium | Google Business Profiles | Central and North still show the homepage while edits are pending | Recheck the submitted campus URLs after Google review; Unichurch is already current |
+| Completed | Google Business Profiles | All three website buttons previously pointed to the homepage | Google accepted the canonical campus URLs for Central, North, and Unichurch by 16 August |
 | Medium | Mapcarta | Former Edendale School / 419 Sandringham Road location | Update to current campuses or retire the obsolete place record |
 | Medium | 10 Day Challenge church directory | Former Edendale and Oteha Valley Road venues | Replace with the current Central, North, and Unichurch details |
 | Low | GracesList | Current Central address and phone, but obsolete `aucklandev.co.nz` URL | Replace with `https://www.ev.church/campus/central` |
