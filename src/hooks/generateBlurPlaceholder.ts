@@ -31,7 +31,9 @@ export const generateBlurPlaceholder: CollectionAfterChangeHook = async ({
     let buffer: Buffer
     const bucket = process.env.S3_BUCKET
 
-    if (bucket && doc.filename) {
+    if (req.file?.data) {
+      buffer = req.file.data
+    } else if (bucket && doc.filename) {
       const prefix = doc.prefix as string | undefined
       const key = prefix ? `${prefix}/${doc.filename}` : doc.filename
       const s3 = getS3Client()
