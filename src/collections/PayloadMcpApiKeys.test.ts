@@ -4,6 +4,7 @@ import {
   applicationCollections,
   applicationGlobals,
   mcpCollections,
+  mcpExcludedCollectionSlugs,
   mcpGlobals,
   restrictMcpApiKeyCollection,
 } from '../../payload.config'
@@ -18,10 +19,18 @@ describe('Payload MCP API key access', () => {
     expect(Object.keys(mcpCollections).sort()).toEqual(
       applicationCollections
         .map(({ slug }) => slug)
-        .filter((slug) => slug !== 'leader-resource-shares')
+        .filter((slug) => !mcpExcludedCollectionSlugs.has(slug))
         .sort(),
     )
     expect(mcpCollections).not.toHaveProperty('leader-resource-shares')
+    expect([...mcpExcludedCollectionSlugs].sort()).toEqual([
+      'blinkpay-webhook-events', 'giving-checkouts', 'giving-consents',
+      'giving-e2e-runs', 'giving-funds', 'giving-gifts', 'giving-givers',
+      'giving-provider-operations', 'giving-schedules', 'leader-resource-shares',
+    ])
+    for (const slug of mcpExcludedCollectionSlugs) {
+      expect(mcpCollections).not.toHaveProperty(slug)
+    }
     expect(Object.keys(mcpGlobals).sort()).toEqual(
       applicationGlobals.map(({ slug }) => slug).sort(),
     )

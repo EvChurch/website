@@ -1,0 +1,5 @@
+import type { CollectionConfig } from 'payload'
+import { denyExternalMutation, isAdmin } from '@/access/roles'
+export const GivingE2ERuns: CollectionConfig = { slug: 'giving-e2e-runs', admin: { useAsTitle: 'runId' }, access: { read: isAdmin, create: denyExternalMutation, update: denyExternalMutation, delete: denyExternalMutation }, fields: [
+  { name: 'runId', type: 'text', required: true, unique: true, index: true, admin: { readOnly: true } }, { name: 'contextKey', type: 'text', required: true, unique: true, index: true, admin: { readOnly: true } }, { name: 'environment', type: 'select', required: true, defaultValue: 'sandbox', options: ['sandbox'], admin: { readOnly: true } }, { name: 'synthetic', type: 'checkbox', required: true, defaultValue: true, admin: { readOnly: true } }, { name: 'actor', type: 'relationship', relationTo: 'users', required: true, index: true, admin: { readOnly: true } }, { name: 'tokenDigest', type: 'text', required: true, unique: true, admin: { readOnly: true } }, { name: 'expiresAt', type: 'date', required: true, index: true, admin: { readOnly: true } }, { name: 'revokedAt', type: 'date', admin: { readOnly: true } },
+] }

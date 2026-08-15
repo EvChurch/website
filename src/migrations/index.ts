@@ -31,6 +31,7 @@ import * as migration_20260813_230000_feedback_triage_assessment from './2026081
 import * as migration_20260813_site_feedback_email_notifications from './20260813_site_feedback_email_notifications';
 import * as migration_20260814_leader_resource_shares from './20260814_leader_resource_shares';
 import * as migration_20260814_143000_fix_leader_resource_share_lock_relation from './20260814_143000_fix_leader_resource_share_lock_relation';
+import * as migration_20260815_170000_giving_pilot from './20260815_170000_giving_pilot';
 
 export const migrations = [
   {
@@ -197,5 +198,10 @@ export const migrations = [
     up: migration_20260814_143000_fix_leader_resource_share_lock_relation.up,
     down: migration_20260814_143000_fix_leader_resource_share_lock_relation.down,
     name: '20260814_143000_fix_leader_resource_share_lock_relation',
+  },
+  {
+    up: migration_20260815_170000_giving_pilot.up,
+    down: migration_20260815_170000_giving_pilot.down,
+    name: '20260815_170000_giving_pilot',
   },
 ];
