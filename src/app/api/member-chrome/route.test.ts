@@ -73,7 +73,9 @@ describe('member chrome route', () => {
     })
     mocks.isCurrentPayloadAdmin.mockResolvedValue(true)
 
-    const memberRequest = request()
+    const memberRequest = request(
+      '__Host-ev_admin_session__0=chunk-a; __Host-ev_admin_session__1=chunk-b',
+    )
     const response = await GET(memberRequest)
 
     expect(mocks.getSession).toHaveBeenCalledWith(memberRequest)
