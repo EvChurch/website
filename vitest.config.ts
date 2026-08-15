@@ -1,8 +1,9 @@
 import { fileURLToPath } from 'node:url'
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
+    exclude: [...configDefaults.exclude, 'e2e/**'],
     // Giving migration suites intentionally share one guarded disposable database.
     fileParallelism: !process.env.GIVING_MIGRATION_TEST_DATABASE_URL,
   },

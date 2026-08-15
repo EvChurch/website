@@ -4,7 +4,7 @@ import type { Pool, PoolClient } from 'pg'
 
 import type { GivingFrequency } from '@/components/giving/giving-state'
 import type { GivingIdentityInput, ResolvedGivingIdentity } from './rock-identity'
-import type { GivingContext, ProviderOperationAction, ProviderOperationStatus } from './contracts'
+import type { GivingCheckoutStatus, GivingContext, ProviderOperationAction, ProviderOperationStatus } from './contracts'
 import type {
   BlinkPayAmount,
   BlinkPayConsent,
@@ -371,7 +371,7 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
         if (!checkout) throw new GivingCheckoutError('unavailable')
       }
       const state = checkout.status === 'completed' ? 'verified' : checkout.status === 'failed' ? checkout.resultCode ?? 'rejected' : checkout.status === 'unknown' ? 'unknown' : 'processing'
-      return { state, retryAllowed: checkout.status === 'failed', kind: checkout.frequency === 'one-off' ? 'one-off' : 'recurring' } as const
+      return { state, retryAllowed: checkout.status === 'failed', kind: checkout.frequency === 'one-off' ? 'one-off' : 'recurring' } satisfies GivingCheckoutStatus
     },
   }
 }

@@ -2,6 +2,8 @@
 
 This runbook covers everyday tracing, reconciliation, cancellation and exceptions for the giving pilot. It is not a production-release checklist. Production giving remains blocked until the separate certification and controlled real-money gates are complete.
 
+Release evidence and activation gates are tracked separately in [Giving release gates](./giving-release.md).
+
 Only a Payload user with the exact `admin` role may view giving records, manage funds or cancel a schedule. Never copy credentials, capability values, raw webhook bodies or personal details into chat, tickets or logs.
 
 ## Real records and TEST DATA

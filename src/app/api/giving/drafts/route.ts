@@ -89,6 +89,27 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PUT(request:NextRequest){
+  try{
+    if(!isSameOriginRequest(request))return response({error:'Draft unavailable'},403)
+    if(request.headers.get('content-type')?.split(';',1)[0]?.trim().toLowerCase()!=='application/json')return response({error:'Draft unavailable'},415)
+    const answers=validateGivingDraftAnswers(await boundedJson(request))
+    const memberSubject=await currentSubject()
+    const{secure,names}=cookiePolicy(request)
+    const existingNonce=request.cookies.get(names.guest)?.value
+    const nonce=existingNonce||randomBytes(32).toString('base64url')
+    const binding:GivingDraftBinding=memberSubject?{audience:'member',subject:memberSubject}:{audience:'guest',nonce}
+    const draftService=await service()
+    const session=await draftService.createSession({answers,binding})
+    const prior=request.cookies.get(names.resume)?.value
+    if(prior)await draftService.revokeSession(prior)
+    const result=new NextResponse(null,{status:204,headers:GIVING_PRIVATE_HEADERS})
+    if(!memberSubject&&!existingNonce)result.cookies.set(names.guest,nonce,{httpOnly:true,secure,sameSite:'lax',path:'/',maxAge:15*60})
+    result.cookies.set(names.resume,session.token,{httpOnly:true,secure,sameSite:'strict',path:'/',maxAge:15*60})
+    return result
+  }catch{return response({error:'Draft unavailable'},400)}
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { names } = cookiePolicy(request)

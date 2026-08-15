@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 const state = vi.hoisted(() => ({
   subject: null as string | null,
   create: vi.fn(async () => ({ token: 'abcdefghijklmnopqrstuvwxyz0123456789_ABCDEF' })),
+  createSession: vi.fn(async()=>({token:'SESSIONabcdefghijklmnopqrstuvwxyz0123456789'})),
   readSession: vi.fn(async () => ({ amountMinor: 5000 })),
   revokeSession: vi.fn(async () => undefined),
 }))
@@ -19,13 +20,14 @@ vi.mock('@/lib/giving/drafts', async (importOriginal) => {
     createPayloadGivingDraftStore: () => ({}),
     createGivingDraftService: () => ({
       create: state.create,
+      createSession:state.createSession,
       readSession: state.readSession,
       revokeSession: state.revokeSession,
     }),
   }
 })
 
-import { DELETE, GET, POST } from './route'
+import { DELETE, GET, POST, PUT } from './route'
 
 const answers = {
   amountMinor: 5000,
@@ -45,6 +47,7 @@ function post(body: unknown, headers: Record<string, string> = {}) {
     body: JSON.stringify(body),
   })
 }
+function put(body:unknown,headers:Record<string,string>={}){return new NextRequest('https://www.ev.church/api/giving/drafts',{method:'PUT',headers:{origin:'https://www.ev.church','content-type':'application/json',...headers},body:JSON.stringify(body)})}
 
 describe('giving drafts route', () => {
   beforeEach(() => {
@@ -73,6 +76,28 @@ describe('giving drafts route', () => {
     const response = await POST(post(answers))
     expect(state.create).toHaveBeenCalledWith({ answers, binding: { audience: 'member', subject: 'auth0|member' } })
     expect(response.headers.get('set-cookie')).toBeNull()
+  })
+
+  it('replaces the strict checkout recovery session without a resume-page fetch',async()=>{
+    const request=put(answers,{cookie:'__Host-ev_giving_guest=guest-nonce; __Host-ev_giving_resume=prior-session'})
+    const result=await PUT(request)
+    expect(result.status).toBe(204)
+    expect(state.createSession).toHaveBeenCalledWith({answers,binding:{audience:'guest',nonce:'guest-nonce'}})
+    expect(state.revokeSession).toHaveBeenCalledWith('prior-session')
+    expect(result.headers.get('set-cookie')).toContain('__Host-ev_giving_resume=SESSION')
+    expect(result.headers.get('set-cookie')).toContain('SameSite=strict')
+  })
+
+  it('fails closed before replacing a draft session for cross-origin, oversized or altered input',async()=>{
+    for(const request of [put(answers,{origin:'https://evil.test'}),put(answers,{'content-length':'9000'}),put({...answers,environment:'sandbox'})])expect((await PUT(request)).status).toBeGreaterThanOrEqual(400)
+    expect(state.createSession).not.toHaveBeenCalled()
+  })
+
+  it('does not install the replacement cookie when prior-session revocation fails',async()=>{
+    state.revokeSession.mockRejectedValueOnce(new Error('database unavailable'))
+    const result=await PUT(put(answers,{cookie:'__Host-ev_giving_guest=guest-nonce; __Host-ev_giving_resume=prior-session'}))
+    expect(result.status).toBe(400)
+    expect(result.headers.get('set-cookie')).toBeNull()
   })
 
   it.each([

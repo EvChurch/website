@@ -89,6 +89,7 @@ vi.mock('@/components/giving/GivingFlow', () => ({ GivingFlow: mocks.givingFlow 
 vi.mock('@/lib/giving/funds', () => ({
   getCachedActiveGivingFunds: mocks.getCachedActiveGivingFunds,
 }))
+vi.mock('@/lib/giving/availability',()=>({resolveGivingRuntimeConfiguration:({protectedE2E=false}:{protectedE2E?:boolean}={})=>protectedE2E?{eligibility:'protected-e2e',gatewayOrigins:['https://sandbox.debit.blinkpay.co.nz'],synthetic:true}:process.env.BLINKPAY_PRODUCTION_ENABLED==='true'?{eligibility:'production',gatewayOrigins:['https://merchant-gateway.example.nz'],synthetic:false}:null}))
 vi.mock('@/components/layout/SiteHeader', () => ({ SiteHeader: mocks.siteHeader }))
 vi.mock('@/components/layout/Header', () => ({ Header: mocks.header }))
 vi.mock('@/components/layout/Footer', () => ({ Footer: mocks.footer }))

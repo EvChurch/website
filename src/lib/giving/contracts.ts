@@ -39,3 +39,13 @@ export interface PublicGivingFund {
   sortOrder: number
   isDefault: boolean
 }
+
+export const GIVING_CHECKOUT_STATUS_STATES = ['processing','cancelled','rejected','expired','unknown','verified'] as const
+export type GivingCheckoutStatusState = typeof GIVING_CHECKOUT_STATUS_STATES[number]
+export interface GivingCheckoutStatus { state:GivingCheckoutStatusState;retryAllowed:boolean;kind:'one-off'|'recurring' }
+export function parseGivingCheckoutStatus(value:unknown):GivingCheckoutStatus {
+  if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid giving checkout status')
+  const item=value as Record<string,unknown>
+  if(Object.keys(item).sort().join(',')!=='kind,retryAllowed,state'||!GIVING_CHECKOUT_STATUS_STATES.includes(item.state as GivingCheckoutStatusState)||typeof item.retryAllowed!=='boolean'||!['one-off','recurring'].includes(String(item.kind)))throw new Error('Invalid giving checkout status')
+  return item as unknown as GivingCheckoutStatus
+}

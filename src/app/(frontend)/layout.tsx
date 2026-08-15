@@ -19,11 +19,12 @@ import { isCurrentPayloadAdmin } from '@/auth/payload-admin-session'
 import { NextStepsLauncher } from '@/components/launcher/NextStepsLauncher'
 import { GivingExperienceProvider } from '@/components/giving/GivingExperienceProvider'
 import { GivingFlow } from '@/components/giving/GivingFlow'
-import { resolveGivingServerEligibility } from '@/lib/giving/availability'
+import { resolveGivingRuntimeConfiguration } from '@/lib/giving/availability'
 import { getCachedActiveGivingFunds } from '@/lib/giving/funds'
 import { createGivingRockClient } from '@/lib/giving/rock-client'
 import { resolveCurrentGivingMemberIdentity } from '@/auth/giving-member-identity'
 import { givingCapabilityCookieNames } from '@/lib/giving/drafts'
+import { getTurnstileSiteKey } from '@/lib/rock-forms/config'
 import { createGivingE2ESessionService, createPayloadGivingE2ESessionStore, GIVING_E2E_COOKIE } from '@/lib/giving/e2e-session'
 import { getPayloadClient } from '@/lib/payload'
 import { getAuth0Client } from '@/auth/auth0-client'
@@ -128,7 +129,8 @@ export default async function FrontendLayout({ children }: { children: ReactNode
       protectedE2E = false
     }
   }
-  const initialGivingEligibility = resolveGivingServerEligibility({ protectedE2E })
+  const givingRuntime = resolveGivingRuntimeConfiguration({ protectedE2E })
+  const initialGivingEligibility = givingRuntime?.eligibility ?? null
   const [launcher, feedback, rockProfileState, payloadAdmin, impersonation, givingFunds] = await Promise.all([
     loadLauncherData(),
     loadSiteFeedbackSettings(),
@@ -184,7 +186,7 @@ export default async function FrontendLayout({ children }: { children: ReactNode
           <GivingExperienceProvider
             serverEligibility={givingEligibility}
             resumeRequested={resumeRequested}
-            givingExperience={givingEligibility && givingFunds.length > 0 ? <GivingFlow funds={givingFunds} identity={givingIdentity} resumeRequested={resumeRequested} /> : null}
+            givingExperience={givingEligibility && givingFunds.length > 0 && givingRuntime ? <GivingFlow funds={givingFunds} identity={givingIdentity} resumeRequested={resumeRequested} turnstileSiteKey={getTurnstileSiteKey()} synthetic={givingRuntime.synthetic} gatewayOrigins={givingRuntime.gatewayOrigins} /> : null}
           >
             <AnalyticsManager />
             <AnnouncementBanner />
