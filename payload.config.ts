@@ -52,7 +52,7 @@ import {
   notificationJobConfigs,
   SITE_FEEDBACK_NOTIFICATION_AUTO_RUN,
 } from '@/jobs/site-feedback-notification'
-import { givingJobConfigs } from '@/jobs/giving'
+import { givingJobConfigs, GIVING_LIFECYCLE_AUTO_RUN } from '@/jobs/giving'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -283,6 +283,7 @@ export default buildConfig({
     ],
     autoRun: [
       SITE_FEEDBACK_NOTIFICATION_AUTO_RUN,
+      GIVING_LIFECYCLE_AUTO_RUN,
       { cron: '*/15 * * * *', queue: 'default', limit: 10 },
       { cron: '0 6 * * 1', queue: 'pipeline', limit: 5 },
     ],

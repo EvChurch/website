@@ -34,6 +34,7 @@ import * as migration_20260814_143000_fix_leader_resource_share_lock_relation fr
 import * as migration_20260815_170000_giving_pilot from './20260815_170000_giving_pilot';
 import * as migration_20260815_210000_giving_drafts from './20260815_210000_giving_drafts';
 import * as migration_20260815_230000_giving_checkout_orchestration from './20260815_230000_giving_checkout_orchestration';
+import * as migration_20260816_000000_giving_webhook_jobs from './20260816_000000_giving_webhook_jobs';
 
 export const migrations = [
   {
@@ -215,5 +216,10 @@ export const migrations = [
     up: migration_20260815_230000_giving_checkout_orchestration.up,
     down: migration_20260815_230000_giving_checkout_orchestration.down,
     name: '20260815_230000_giving_checkout_orchestration',
+  },
+  {
+    up: migration_20260816_000000_giving_webhook_jobs.up,
+    down: migration_20260816_000000_giving_webhook_jobs.down,
+    name: '20260816_000000_giving_webhook_jobs',
   },
 ];
