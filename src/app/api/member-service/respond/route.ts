@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuth0Client } from '@/auth/auth0-client'
 import { getMemberImpersonationFromSession } from '@/auth/member-impersonation'
 import { getMemberProfileStateFromSession } from '@/auth/member-session'
+import { isSameOriginRequest } from '@/lib/request-origin'
 import {
   respondToVolunteerSchedule,
   type VolunteerScheduleResponse,
@@ -61,7 +62,7 @@ function parseInput(value: unknown): {
 
 export async function POST(request: NextRequest) {
   if (
-    request.headers.get('origin') !== request.nextUrl.origin ||
+    !isSameOriginRequest(request) ||
     !request.headers.get('content-type')?.toLowerCase().startsWith('application/json')
   ) return json({ status: 'invalid-request' }, 400)
   if (!hasSessionCookie(request)) return json({ status: 'auth-required' }, 401)

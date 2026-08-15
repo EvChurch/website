@@ -108,21 +108,49 @@ function AssignmentStatus({ state }: { state: AssignmentState }) {
   )
 }
 
+interface ScheduleResponseError {
+  id: string
+  message: string
+  signIn?: boolean
+}
+
+function ResponseErrorMessage({ error }: { error: ScheduleResponseError }) {
+  return (
+    <div role="alert" className="mt-2 rounded-lg border border-rich-red/20 bg-rich-red/5 px-4 py-3 text-sm leading-relaxed text-rich-red">
+      <p>{error.message}</p>
+      {error.signIn && (
+        <a
+          href="/auth/login?returnTo=%2Fmembers%2Fmy-service"
+          rel="nofollow"
+          className="mt-2 inline-block min-h-11 py-2 font-bold underline"
+        >
+          Sign in again
+        </a>
+      )}
+    </div>
+  )
+}
+
 function ServiceCard({
   group,
+  responseError,
   renderActions,
 }: {
   group: AssignmentGroup
+  responseError: ScheduleResponseError | null
   renderActions: (assignment: VolunteerScheduleAssignment, state: AssignmentState) => React.ReactNode
 }) {
   const serviceName = group.scheduleName?.replace(LEADING_WEEKDAY_PATTERN, '') ?? null
   const serviceDetails = [serviceName, group.locationName]
     .filter((value): value is string => Boolean(value))
 
+  const groupError = responseError && group.assignments.some(
+    ({ assignment }) => assignment.id === responseError.id,
+  ) ? responseError : null
+
   return (
-    <article
-      className="rounded-xl border border-warm-grey bg-white shadow-sm shadow-brand-black/5"
-    >
+    <div className="min-w-0">
+      <article className="rounded-xl border border-warm-grey bg-white shadow-sm shadow-brand-black/5">
       <header className="px-4 pb-3 pt-4 sm:px-5 sm:pt-5">
         <time dateTime={group.occurrenceStart} className="block text-base font-bold text-brand-black">
           {occurrenceDateFormatter.format(new Date(group.occurrenceStart))}
@@ -149,14 +177,10 @@ function ServiceCard({
           </div>
         ))}
       </div>
-    </article>
+      </article>
+      {groupError && <ResponseErrorMessage error={groupError} />}
+    </div>
   )
-}
-
-interface ScheduleResponseError {
-  id: string
-  message: string
-  signIn?: boolean
 }
 
 function ResponseControls({
@@ -165,7 +189,6 @@ function ResponseControls({
   allowDecline,
   disabled,
   respondingId,
-  responseError,
   onAccept,
   onRequestDecline,
 }: {
@@ -174,26 +197,11 @@ function ResponseControls({
   allowDecline: boolean
   disabled: boolean
   respondingId: string | null
-  responseError: ScheduleResponseError | null
   onAccept: () => void
   onRequestDecline: (trigger: HTMLButtonElement) => void
 }) {
   return (
     <div className="shrink-0">
-      {responseError?.id === assignment.id && (
-        <div role="alert" className="mb-2 max-w-52 text-right text-xs leading-snug text-rich-red">
-          <p>{responseError.message}</p>
-          {responseError.signIn && (
-            <a
-              href="/auth/login?returnTo=%2Fmembers%2Fmy-service"
-              rel="nofollow"
-              className="mt-2 inline-block min-h-11 py-2 font-bold underline"
-            >
-              Sign in again
-            </a>
-          )}
-        </div>
-      )}
       <div className="flex gap-2">
         {acceptLabel && (
           <button
@@ -499,6 +507,13 @@ export function VolunteerSchedule({
         refreshCanonicalSchedule(true)
         return
       }
+      if (providerResponse.status === 400 && result?.status === 'invalid-request') {
+        setResponseError({
+          id: assignment.id,
+          message: 'Your response could not be submitted. Refresh the page and try again.',
+        })
+        return
+      }
       if (providerResponse.status === 401 && result?.status === 'auth-required') {
         setResponseError({
           id: assignment.id,
@@ -617,6 +632,7 @@ export function VolunteerSchedule({
             <ServiceCard
               key={group.key}
               group={group}
+              responseError={responseError}
               renderActions={(assignment, state) => !isImpersonating && (
                 <ResponseControls
                   assignment={assignment}
@@ -624,7 +640,6 @@ export function VolunteerSchedule({
                   allowDecline={state !== 'declined'}
                   disabled={responseDisabled}
                   respondingId={respondingId}
-                  responseError={responseError}
                   onAccept={() => void respond(assignment, 'accept')}
                   onRequestDecline={(trigger) => {
                     declineTriggerRef.current = trigger
