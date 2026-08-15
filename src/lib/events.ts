@@ -1,5 +1,7 @@
 import { getPayloadClient } from '@/lib/payload'
 import type { PayloadMediaImage } from '@/lib/payload-media'
+import { unstable_cache } from 'next/cache'
+import { CACHE_TAGS } from '@/lib/cache-tags'
 
 export type RegistrationStatus = 'open' | 'full' | 'closed' | 'coming-soon' | null
 
@@ -42,7 +44,7 @@ function asPublicEvent(value: unknown): PublicEvent {
   return value as PublicEvent
 }
 
-export async function getAllEvents(): Promise<PublicEvent[]> {
+async function fetchAllEvents(): Promise<PublicEvent[]> {
   const payload = await getPayloadClient()
   const result = await payload.find({
     collection: 'events',
@@ -53,6 +55,12 @@ export async function getAllEvents(): Promise<PublicEvent[]> {
 
   return result.docs.map(asPublicEvent)
 }
+
+export const getAllEvents = unstable_cache(
+  fetchAllEvents,
+  ['public-events'],
+  { tags: [CACHE_TAGS.events], revalidate: 300 },
+)
 
 export async function getUpcomingEvents(campusSlug?: string): Promise<PublicEvent[]> {
   const events = filterUpcomingEvents(await getAllEvents())

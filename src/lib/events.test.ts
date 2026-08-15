@@ -1,4 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+const mocks = vi.hoisted(() => ({
+  unstableCache: vi.fn((callback: unknown) => callback),
+}))
+
+vi.mock('next/cache', () => ({
+  unstable_cache: mocks.unstableCache,
+}))
 
 import {
   filterUpcomingEvents,
@@ -31,6 +39,14 @@ const baseEvent: PublicEvent = {
 }
 
 describe('event helpers', () => {
+  it('caches the raw public event catalogue with its invalidation tag', () => {
+    expect(mocks.unstableCache).toHaveBeenCalledWith(
+      expect.any(Function),
+      ['public-events'],
+      { tags: ['events'], revalidate: 300 },
+    )
+  })
+
   it('orders upcoming and currently-running events chronologically', () => {
     const now = new Date('2026-08-10T07:00:00.000Z')
     const later = { ...baseEvent, id: 2, slug: 'later', startDate: '2026-08-11T06:00:00.000Z' }

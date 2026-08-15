@@ -1,5 +1,7 @@
 import { getTurnstileSiteKey } from '@/lib/rock-forms/config'
 import { getPayloadClient } from '@/lib/payload'
+import { unstable_cache } from 'next/cache'
+import { CACHE_TAGS } from '@/lib/cache-tags'
 
 export const DEFAULT_FEEDBACK_BANNER_COPY =
   'Help us improve the new ev.church.'
@@ -37,8 +39,8 @@ function normalizedText(value: unknown, fallback: string): string {
   return typeof value === 'string' && value.trim() ? value.trim() : fallback
 }
 
-export async function loadSiteFeedbackSettings(
-  now = new Date(),
+async function loadSiteFeedbackSettingsAt(
+  now: Date,
 ): Promise<PublicSiteFeedbackSettings | null> {
   try {
     const payload = await getPayloadClient()
@@ -89,4 +91,18 @@ export async function loadSiteFeedbackSettings(
   } catch {
     return null
   }
+}
+
+const getCachedSiteFeedbackSettings = unstable_cache(
+  () => loadSiteFeedbackSettingsAt(new Date()),
+  ['public-site-feedback-settings'],
+  { tags: [CACHE_TAGS.siteSettings], revalidate: 300 },
+)
+
+export async function loadSiteFeedbackSettings(
+  now?: Date,
+): Promise<PublicSiteFeedbackSettings | null> {
+  return now
+    ? loadSiteFeedbackSettingsAt(now)
+    : getCachedSiteFeedbackSettings()
 }

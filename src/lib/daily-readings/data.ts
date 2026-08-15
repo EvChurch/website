@@ -1,5 +1,7 @@
 import { cache } from 'react'
+import { unstable_cache } from 'next/cache'
 
+import { CACHE_TAGS } from '@/lib/cache-tags'
 import { getPayloadClient } from '@/lib/payload'
 
 export interface DailyReadingView {
@@ -53,7 +55,7 @@ function toView(reading: {
   }
 }
 
-export async function getPublishedDailyReadings(limit = 400): Promise<DailyReadingView[]> {
+async function fetchPublishedDailyReadings(limit: number): Promise<DailyReadingView[]> {
   const payload = await getPayloadClient()
   const result = await payload.find({
     collection: 'daily-bible-readings',
@@ -76,11 +78,21 @@ export async function getPublishedDailyReadings(limit = 400): Promise<DailyReadi
   return result.docs.map(toView)
 }
 
+const getCachedPublishedDailyReadings = unstable_cache(
+  fetchPublishedDailyReadings,
+  ['published-daily-readings'],
+  { tags: [CACHE_TAGS.dailyBibleReadings], revalidate: 3_600 },
+)
+
+export async function getPublishedDailyReadings(limit = 400): Promise<DailyReadingView[]> {
+  return getCachedPublishedDailyReadings(limit)
+}
+
 export async function getLatestDailyReading(): Promise<DailyReadingView | null> {
   return (await getPublishedDailyReadings(1))[0] ?? null
 }
 
-export const getDailyReadingByRockId = cache(async (rockId: number): Promise<DailyReadingView | null> => {
+async function fetchDailyReadingByRockId(rockId: number): Promise<DailyReadingView | null> {
   const payload = await getPayloadClient()
   const result = await payload.find({
     collection: 'daily-bible-readings',
@@ -111,7 +123,15 @@ export const getDailyReadingByRockId = cache(async (rockId: number): Promise<Dai
 
   const reading = result.docs[0]
   return reading ? toView(reading) : null
-})
+}
+
+const getCachedDailyReadingByRockId = unstable_cache(
+  fetchDailyReadingByRockId,
+  ['daily-reading-by-rock-id'],
+  { tags: [CACHE_TAGS.dailyBibleReadings], revalidate: 3_600 },
+)
+
+export const getDailyReadingByRockId = cache(getCachedDailyReadingByRockId)
 
 export function formatReadingDate(value: string, options?: { weekday?: boolean }): string {
   return new Date(value).toLocaleDateString('en-NZ', {
