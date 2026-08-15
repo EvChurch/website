@@ -12,14 +12,22 @@ const PRIVATE_HEADERS = {
   Vary: 'Cookie',
 }
 
+const SESSION_COOKIE_NAMES = ['__Host-ev_admin_session', 'ev_admin_session'] as const
+
+function hasSessionCookie(request: NextRequest) {
+  return request.cookies.getAll().some(({ name }) =>
+    SESSION_COOKIE_NAMES.some((sessionName) =>
+      name === sessionName || name.startsWith(`${sessionName}__`),
+    ),
+  )
+}
+
 function anonymousResponse() {
   return NextResponse.json(ANONYMOUS_MEMBER_CHROME, { headers: PRIVATE_HEADERS })
 }
 
 export async function GET(request: NextRequest) {
-  const hasSessionCookie = request.cookies.has('__Host-ev_admin_session') ||
-    request.cookies.has('ev_admin_session')
-  if (!hasSessionCookie) return anonymousResponse()
+  if (!hasSessionCookie(request)) return anonymousResponse()
 
   try {
     const session = await getAuth0Client().getSession(request)
