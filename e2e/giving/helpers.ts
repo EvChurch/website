@@ -5,17 +5,22 @@ export const productionOriginEnabled = Boolean(process.env.GIVING_E2E_PRODUCTION
 
 export async function mockGivingContracts(page: Page, statuses: Array<{state:string;retryAllowed:boolean;kind:'one-off'|'recurring'}>) {
   let statusIndex = 0
+  const checkoutBodies: Array<Record<string, unknown>> = []
   await page.route('**/api/giving/drafts', async (route) => {
     if (route.request().method() === 'POST') await route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({resumePath:'/give/resume/mock-draft'})})
     else await route.fulfill({status:204,body:''})
   })
-  await page.route('**/api/giving/checkouts', (route) => route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({gatewayRedirectUri:'https://sandbox.debit.blinkpay.co.nz/gateway/mock'})}))
+  await page.route('**/api/giving/checkouts', async (route) => {
+    checkoutBodies.push(route.request().postDataJSON() as Record<string, unknown>)
+    await route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({gatewayRedirectUri:'https://sandbox.debit.blinkpay.co.nz/gateway/mock'})})
+  })
   await page.route('https://sandbox.debit.blinkpay.co.nz/gateway/mock', (route) => route.fulfill({status:200,contentType:'text/html',body:'<h1>Mock hosted gateway</h1>'}))
   await page.route('**/api/giving/checkouts/current/status', (route) => {
     const status = statuses[Math.min(statusIndex, statuses.length - 1)]
     statusIndex += 1
     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(status)})
   })
+  return { checkoutBodies }
 }
 
 export async function openGiving(page: Page) {

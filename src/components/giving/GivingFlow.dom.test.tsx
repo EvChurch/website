@@ -10,7 +10,16 @@ import { GIVING_STATUS_POLL_LIMIT, GivingFlow, givingCheckoutPresentation, givin
 vi.mock('@/components/forms/TurnstileWidget', () => ({ TurnstileWidget: ({ onToken }: { onToken: (token: string) => void }) => <button type="button" data-turnstile onClick={() => onToken('turnstile-token')}>Pass security check</button> }))
 const trackGivingEvent=vi.hoisted(()=>vi.fn())
 vi.mock('@/lib/giving/analytics',()=>({trackGivingEvent}))
-vi.mock('./GivingExperienceProvider',()=>({useGivingExperience:()=>({givingViewActive:true,registerGivingBackHandler:()=>()=>undefined})}))
+const givingContext=vi.hoisted(()=>({
+  active:true,
+  back:null as (()=>boolean)|null,
+  close:null as (()=>boolean)|null,
+}))
+vi.mock('./GivingExperienceProvider',()=>({useGivingExperience:()=>({
+  givingViewActive:givingContext.active,
+  registerGivingBackHandler:(handler:()=>boolean)=>{givingContext.back=handler;return()=>{if(givingContext.back===handler)givingContext.back=null}},
+  registerGivingCloseHandler:(handler:()=>boolean)=>{givingContext.close=handler;return()=>{if(givingContext.close===handler)givingContext.close=null}},
+})}))
 
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -28,6 +37,12 @@ function change(input: HTMLInputElement, value: string) {
   Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set?.call(input, value)
   input.dispatchEvent(new Event('input', { bubbles: true }))
 }
+async function reachSignedInReview(container: HTMLElement, root: Root) {
+  await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
+  await act(async()=>change(container.querySelector('input')!,'25'))
+  await act(async()=>button(container,'Continue')?.click())
+  await act(async()=>button(container,'One-off gift')?.click())
+}
 
 describe('GivingFlow', () => {
   let container: HTMLDivElement
@@ -37,10 +52,13 @@ describe('GivingFlow', () => {
     document.body.appendChild(container)
     root = createRoot(container)
     vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 204 })))
+    givingContext.active=true
+    givingContext.back=null
+    givingContext.close=null
     window.history.replaceState(null, '', '/')
     trackGivingEvent.mockClear()
   })
-  afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.unstubAllGlobals() })
+  afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.useRealTimers(); vi.unstubAllGlobals() })
 
   it('completes a monthly signed-in path with General and separate Name and Email review rows', async () => {
     await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{ signedIn: true, firstName: 'Alex', lastName: 'Taylor', email: 'alex@example.com' }} />))
@@ -147,6 +165,61 @@ describe('GivingFlow', () => {
     expect(vi.mocked(fetch).mock.calls.some(([input])=>String(input).startsWith('/give/resume/'))).toBe(false)
   })
 
+  it('requires a fresh Turnstile token after leaving Review or editing an answer', async () => {
+    await reachSignedInReview(container, root)
+    await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    expect(button(container,'Continue to secure')?.disabled).toBe(false)
+    await act(async()=>button(container,'Amount')?.click())
+    await act(async()=>change(container.querySelector('input')!,'30'))
+    await act(async()=>button(container,'Continue')?.click())
+    expect(container.textContent).toContain('Review your gift')
+    expect(button(container,'Continue to secure')?.disabled).toBe(true)
+    await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    expect(button(container,'Continue to secure')?.disabled).toBe(false)
+  })
+
+  it('consumes Back and Close while checkout submission is pending and preserves its draft on unmount', async () => {
+    let resolveDraft: ((response: Response) => void) | undefined
+    let checkoutCalls=0
+    vi.mocked(fetch).mockImplementation((input,init) => {
+      const url=String(input)
+      if(url==='/api/giving/drafts'&&init?.method==='PUT')return new Promise<Response>((resolve)=>{resolveDraft=resolve})
+      if(url==='/api/giving/checkouts'){checkoutCalls+=1;return Promise.resolve(new Response(null,{status:500}))}
+      return Promise.resolve(new Response(null,{status:204}))
+    })
+    await reachSignedInReview(container, root)
+    await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    await act(async()=>button(container,'Continue to secure')?.click())
+    expect(givingContext.back?.()).toBe(true)
+    expect(givingContext.close?.()).toBe(true)
+    expect(container.textContent).toContain('Please wait')
+    await act(async()=>root.unmount())
+    root=createRoot(container)
+    await act(async()=>resolveDraft?.(new Response(null,{status:204})))
+    expect(checkoutCalls).toBe(0)
+    expect(vi.mocked(fetch).mock.calls.some(([input,init])=>String(input)==='/api/giving/drafts'&&init?.method==='DELETE')).toBe(false)
+  })
+
+  it('does not redirect when the giving view closes during an in-flight checkout', async () => {
+    let resolveCheckout: ((response: Response) => void) | undefined
+    vi.mocked(fetch).mockImplementation((input,init) => {
+      const url=String(input)
+      if(url==='/api/giving/drafts'&&init?.method==='PUT')return Promise.resolve(new Response(null,{status:204}))
+      if(url==='/api/giving/checkouts')return new Promise<Response>((resolve)=>{resolveCheckout=resolve})
+      return Promise.resolve(new Response(null,{status:204}))
+    })
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
+    await act(async()=>change(container.querySelector('input')!,'25'))
+    await act(async()=>button(container,'Continue')?.click())
+    await act(async()=>button(container,'One-off gift')?.click())
+    await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    await act(async()=>button(container,'Continue to secure')?.click())
+    givingContext.active=false
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
+    await act(async()=>resolveCheckout?.(new Response(JSON.stringify({gatewayRedirectUri:'https://sandbox.debit.blinkpay.co.nz/gateway/mock'}),{status:201,headers:{'content-type':'application/json'}})))
+    expect(window.location.href).toBe('http://localhost:3000/')
+  })
+
   it('enters no-retry unknown status for an ambiguous 202 without resetting the saved flow', async () => {
     let checkoutCalls=0
     vi.mocked(fetch).mockImplementation(async (input,init) => {
@@ -176,6 +249,80 @@ describe('GivingFlow', () => {
     expect([0,1,2,3,4,5,6,7].map(givingStatusPollDelay)).toEqual([2_000,2_000,2_000,2_000,4_000,8_000,16_000,30_000])
     expect(givingStatusPollDelay(20)).toBe(30_000)
     expect(GIVING_STATUS_POLL_LIMIT).toBe(12)
+  })
+
+  it('schedules real status polls at the backoff delay and stops after a terminal result',async()=>{
+    vi.useFakeTimers()
+    window.history.replaceState(null,'','/?giving=return')
+    let statusCalls=0
+    vi.mocked(fetch).mockImplementation(async(input)=>{
+      if(String(input)==='/api/giving/checkouts/current/status'){
+        statusCalls+=1
+        const state=statusCalls<3?'processing':'verified'
+        return new Response(JSON.stringify({state,retryAllowed:false,kind:'recurring'}),{status:200,headers:{'content-type':'application/json'}})
+      }
+      return new Response(null,{status:204})
+    })
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested/>))
+    expect(statusCalls).toBe(1)
+    await act(async()=>vi.advanceTimersByTimeAsync(1_999))
+    expect(statusCalls).toBe(1)
+    await act(async()=>vi.advanceTimersByTimeAsync(1))
+    expect(statusCalls).toBe(2)
+    await act(async()=>vi.advanceTimersByTimeAsync(2_000))
+    expect(statusCalls).toBe(3)
+    expect(container.textContent).toContain('schedule is active')
+    await act(async()=>vi.advanceTimersByTimeAsync(60_000))
+    expect(statusCalls).toBe(3)
+  })
+
+  it('cancels an in-flight status poll on unmount and never schedules another',async()=>{
+    vi.useFakeTimers()
+    window.history.replaceState(null,'','/?giving=return')
+    let statusCalls=0
+    let resolveStatus: ((response: Response) => void) | undefined
+    vi.mocked(fetch).mockImplementation((input)=>{
+      if(String(input)==='/api/giving/checkouts/current/status'){
+        statusCalls+=1
+        return new Promise<Response>((resolve)=>{resolveStatus=resolve})
+      }
+      return Promise.resolve(new Response(null,{status:204}))
+    })
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested/>))
+    expect(statusCalls).toBe(1)
+    await act(async()=>root.unmount())
+    root=createRoot(container)
+    await act(async()=>resolveStatus?.(new Response(JSON.stringify({state:'processing',retryAllowed:false,kind:'one-off'}),{status:200,headers:{'content-type':'application/json'}})))
+    await act(async()=>vi.advanceTimersByTimeAsync(60_000))
+    expect(statusCalls).toBe(1)
+  })
+
+  it('does not stay restoring when draft restoration throws',async()=>{
+    vi.mocked(fetch).mockImplementation((input,init)=>{
+      if(String(input)==='/api/giving/drafts'&&!init?.method)return Promise.reject(new Error('offline'))
+      return Promise.resolve(new Response(null,{status:204}))
+    })
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested/>))
+    await act(async()=>Promise.resolve())
+    expect(container.textContent).not.toContain('Restoring your gift')
+    expect(container.textContent).toContain('could not restore your saved gift')
+  })
+
+  it('returns to a usable configuration when retry restoration throws',async()=>{
+    window.history.replaceState(null,'','/?giving=return')
+    let statusRead=false
+    vi.mocked(fetch).mockImplementation((input,init)=>{
+      const url=String(input)
+      if(url==='/api/giving/checkouts/current/status'&&!statusRead){statusRead=true;return Promise.resolve(new Response(JSON.stringify({state:'cancelled',retryAllowed:true,kind:'one-off'}),{status:200,headers:{'content-type':'application/json'}}))}
+      if(url==='/api/giving/drafts'&&!init?.method)return Promise.reject(new Error('offline'))
+      return Promise.resolve(new Response(null,{status:204}))
+    })
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested/>))
+    await act(async()=>Promise.resolve())
+    await act(async()=>button(container,'Return to your saved gift')?.click())
+    expect(container.textContent).not.toContain('Restoring your gift')
+    expect(container.textContent).toContain('could not restore your saved gift')
+    expect(container.textContent).toContain('How much would you like to give')
   })
 
   it('auto-opens an unknown return with synthetic warning and no retry',async()=>{

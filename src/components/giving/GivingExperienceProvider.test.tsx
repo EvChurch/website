@@ -26,6 +26,7 @@ function Probe() {
     <button type="button" data-disable onClick={() => giving.setFlagState('disabled')}>disable</button>
     <button type="button" data-fail onClick={() => giving.setFlagState('failed')}>fail</button>
     <button type="button" data-giving-back onClick={() => giving.handleGivingBack()}>giving back</button>
+    <button type="button" data-giving-close onClick={() => giving.handleGivingClose()}>giving close</button>
   </>
 }
 
@@ -128,5 +129,20 @@ describe('GivingExperienceProvider', () => {
     await act(async () => root.render(<GivingExperienceProvider serverEligibility="production"><Registration /></GivingExperienceProvider>))
     await act(async () => container.querySelector<HTMLButtonElement>('[data-giving-back]')?.click())
     expect(back).toHaveBeenCalledOnce()
+  })
+
+  it('delegates launcher Close to the registered giving submit guard and cleans it up', async () => {
+    const close = vi.fn(() => true)
+    function Registration({ active }: { active: boolean }) {
+      const giving = useGivingExperience()
+      useEffect(() => active ? giving.registerGivingCloseHandler(close) : undefined, [active, giving.registerGivingCloseHandler])
+      return <Probe />
+    }
+    await act(async () => root.render(<GivingExperienceProvider serverEligibility="production"><Registration active /></GivingExperienceProvider>))
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-giving-close]')?.click())
+    expect(close).toHaveBeenCalledOnce()
+    await act(async () => root.render(<GivingExperienceProvider serverEligibility="production"><Registration active={false} /></GivingExperienceProvider>))
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-giving-close]')?.click())
+    expect(close).toHaveBeenCalledOnce()
   })
 })

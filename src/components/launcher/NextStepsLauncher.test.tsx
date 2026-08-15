@@ -145,6 +145,18 @@ function GivingHistoryProbe() {
   return <output data-giving-step>{step}</output>;
 }
 
+function GivingSubmitGuardProbe() {
+  const giving = useGivingExperience();
+  useEffect(() => giving.registerGivingBackHandler(() => true), [giving.registerGivingBackHandler]);
+  useEffect(() => giving.registerGivingCloseHandler(() => true), [giving.registerGivingCloseHandler]);
+  return <output data-giving-submit-guard data-active={giving.givingViewActive}>Submitting</output>;
+}
+
+function GivingActiveProbe() {
+  const giving = useGivingExperience();
+  return <output data-giving-active>{String(giving.givingViewActive)}</output>;
+}
+
 describe("NextStepsLauncher", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -383,6 +395,42 @@ describe("NextStepsLauncher", () => {
     await act(async () => button(container, "Back")?.click());
     expect(container.querySelector('[data-giving-private]')).toBeNull();
     expect(container.textContent).toContain('Take your next step here');
+  });
+
+  it("keeps the giving view open when a checkout submit consumes Back, Close, and Escape", async () => {
+    await act(async () => root.render(
+      <GivingExperienceProvider serverEligibility="production" givingExperience={<GivingSubmitGuardProbe />}>
+        <EnableGiving />
+        <NextStepsLauncher campuses={campuses} items={items} />
+      </GivingExperienceProvider>,
+    ));
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-enable-giving]")?.click());
+    await act(async () => button(container, "Open next steps")?.click());
+    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="https://give.ev.church"]')?.click());
+    expect(container.querySelector('[data-giving-submit-guard]')?.getAttribute('data-active')).toBe('true');
+
+    await act(async () => button(container, "Back")?.click());
+    expect(container.querySelector('[data-giving-submit-guard]')).not.toBeNull();
+    await act(async () => button(container, "Close next steps")?.click());
+    expect(container.querySelector('[data-giving-submit-guard]')).not.toBeNull();
+    await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+    expect(container.querySelector('[data-giving-submit-guard]')).not.toBeNull();
+  });
+
+  it("marks giving inactive as soon as an allowed launcher close begins", async () => {
+    await act(async () => root.render(
+      <GivingExperienceProvider serverEligibility="production" givingExperience={<GivingActiveProbe />}>
+        <EnableGiving />
+        <NextStepsLauncher campuses={campuses} items={items} />
+      </GivingExperienceProvider>,
+    ));
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-enable-giving]")?.click());
+    await act(async () => button(container, "Open next steps")?.click());
+    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="https://give.ev.church"]')?.click());
+    expect(container.querySelector('[data-giving-active]')?.textContent).toBe('true');
+    await act(async () => button(container, "Close next steps")?.click());
+    expect(container.querySelector('[data-giving-active]')?.textContent).toBe('false');
+    expect(container.querySelector('[aria-label="Next steps launcher"]')).not.toBeNull();
   });
 
   it("preserves the real giving anchor for disabled and modified clicks", async () => {

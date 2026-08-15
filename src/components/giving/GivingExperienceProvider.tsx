@@ -29,6 +29,8 @@ interface GivingExperienceContextValue {
   setGivingViewActive: (active: boolean) => void
   handleGivingBack: () => boolean
   registerGivingBackHandler: (handler: () => boolean) => () => void
+  handleGivingClose: () => boolean
+  registerGivingCloseHandler: (handler: () => boolean) => () => void
 }
 
 const disabledContext: GivingExperienceContextValue = {
@@ -44,6 +46,8 @@ const disabledContext: GivingExperienceContextValue = {
   setGivingViewActive: () => undefined,
   handleGivingBack: () => false,
   registerGivingBackHandler: () => () => undefined,
+  handleGivingClose: () => false,
+  registerGivingCloseHandler: () => () => undefined,
 }
 
 const GivingExperienceContext = createContext(disabledContext)
@@ -65,6 +69,7 @@ export function GivingExperienceProvider({
   const consumedRequestId = useRef(0)
   const resumedFromCleanUrl = useRef(false)
   const givingBackHandler = useRef<(() => boolean) | null>(null)
+  const givingCloseHandler = useRef<(() => boolean) | null>(null)
   const givingEnabled = serverEligibility !== null && flagState === 'enabled'
   const rendererReady = givingExperience !== null
 
@@ -102,6 +107,13 @@ export function GivingExperienceProvider({
       if (givingBackHandler.current === handler) givingBackHandler.current = null
     }
   }, [])
+  const handleGivingClose = useCallback(() => givingCloseHandler.current?.() ?? false, [])
+  const registerGivingCloseHandler = useCallback((handler: () => boolean) => {
+    givingCloseHandler.current = handler
+    return () => {
+      if (givingCloseHandler.current === handler) givingCloseHandler.current = null
+    }
+  }, [])
 
   const consumeGivingRequest = useCallback((requestId: number) => {
     if (requestId <= consumedRequestId.current || requestId !== givingRequestId) {
@@ -120,8 +132,10 @@ export function GivingExperienceProvider({
     consumeGivingRequest,
     handleGivingLinkClick,
     handleGivingBack,
+    handleGivingClose,
     openGiving,
     registerGivingBackHandler,
+    registerGivingCloseHandler,
     setFlagState,
     setGivingViewActive,
   }), [
@@ -133,8 +147,10 @@ export function GivingExperienceProvider({
     givingViewActive,
     handleGivingLinkClick,
     handleGivingBack,
+    handleGivingClose,
     openGiving,
     registerGivingBackHandler,
+    registerGivingCloseHandler,
   ])
 
   return (

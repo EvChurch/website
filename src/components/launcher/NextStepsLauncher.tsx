@@ -228,10 +228,10 @@ export function NextStepsLauncher({
   }, [giving.consumeGivingRequest, giving.givingRequestId, isMobile]);
 
   useEffect(() => {
-    const active = state.presentation !== "collapsed" && state.view.type === "giving";
+    const active = state.presentation !== "collapsed" && !isClosing && state.view.type === "giving";
     giving.setGivingViewActive(active);
     return () => giving.setGivingViewActive(false);
-  }, [giving.setGivingViewActive, state.presentation, state.view.type]);
+  }, [giving.setGivingViewActive, isClosing, state.presentation, state.view.type]);
 
   const completeClose = useCallback(() => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
@@ -244,6 +244,7 @@ export function NextStepsLauncher({
 
   const close = useCallback(() => {
     if (isClosing) return;
+    if (state.view.type === "giving" && giving.handleGivingClose()) return;
     restoreTriggerFocusRef.current = true;
     setCampusMenuOpen(false);
     if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
@@ -255,7 +256,7 @@ export function NextStepsLauncher({
       completeClose,
       LAUNCHER_CLOSE_FALLBACK_MS,
     );
-  }, [completeClose, isClosing]);
+  }, [completeClose, giving.handleGivingClose, isClosing, state.view.type]);
 
   useEffect(
     () => () => {
