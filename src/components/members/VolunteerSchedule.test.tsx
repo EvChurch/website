@@ -208,6 +208,26 @@ describe('VolunteerSchedule', () => {
     window.removeEventListener('member-notifications:refresh', notificationRefresh)
   })
 
+  it('places a response failure beneath the complete service card', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
+      JSON.stringify({ status: 'rock-unavailable' }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } },
+    ))
+    await act(async () => root.render(
+      <VolunteerSchedule
+        schedule={{ status: 'available', requests: [request], upcoming: [], declined: [] }}
+        isImpersonating={false}
+      />,
+    ))
+
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent === 'Accept')!.click())
+
+    const alert = container.querySelector<HTMLElement>('[role="alert"]')!
+    expect(alert.textContent).toContain('Rock could not save your response')
+    expect(alert.previousElementSibling?.tagName).toBe('ARTICLE')
+  })
+
   it('requires a reason before declining through the member API', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
       JSON.stringify({ status: 'declined' }),

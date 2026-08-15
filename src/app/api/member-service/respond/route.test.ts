@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
@@ -62,6 +62,18 @@ function request(body: unknown, withCookie = true) {
   })
 }
 
+function proxiedRequest(body: unknown) {
+  return new NextRequest('http://0.0.0.0:3000/api/member-service/respond', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: 'https://www.ev.church',
+      cookie: '__Host-ev_admin_session=one',
+    },
+    body: JSON.stringify(body),
+  })
+}
+
 function expectPrivate(response: Response) {
   expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0')
   expect(response.headers.get('pragma')).toBe('no-cache')
@@ -73,6 +85,10 @@ describe('member service response route', () => {
     vi.clearAllMocks()
     mocks.getSession.mockResolvedValue(session())
     mocks.respondToVolunteerSchedule.mockResolvedValue({ status: 'accepted' })
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   it('exports only the POST mutation handler', () => {
@@ -92,6 +108,16 @@ describe('member service response route', () => {
       undefined,
     )
     await expect(response.json()).resolves.toEqual({ status: 'accepted' })
+  })
+
+  it('accepts the canonical public origin behind the Railway proxy', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'www.ev.church')
+
+    const response = await POST(proxiedRequest({ assignmentId, response: 'accept' }))
+
+    expect(response.status).toBe(200)
+    expect(mocks.respondToVolunteerSchedule).toHaveBeenCalledOnce()
   })
 
   it('rejects anonymous and impersonated mutations before calling Rock', async () => {
