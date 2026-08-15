@@ -43,6 +43,30 @@ describe('MembersPage Connect Group navigation', () => {
 
     expect(markup).toContain('href="/members/connect-groups/10"')
     expect(markup).toContain('href="/members/daily-readings"')
+    expect(markup).toContain('href="/members/my-service"')
+    expect(markup).toContain('My Service')
+    expect(markup).toContain('requests')
+    expect(markup).toContain('confirmed')
     expect(markup).toContain('Hebrews 5:11-14')
+  })
+
+  it('shows My Service without assignments or scheduling data', async () => {
+    mocks.getLatestDailyReading.mockResolvedValue(null)
+    mocks.getMemberPortalHome.mockResolvedValue({
+      profile: {
+        personId: 42,
+        name: 'Aroha Ngata',
+        email: 'aroha@example.com',
+        avatarUrl: null,
+      },
+      groups: [],
+      canAccessLeaderResources: false,
+    })
+
+    const markup = renderToStaticMarkup(await MembersPage())
+
+    expect(markup).toContain('href="/members/my-service"')
+    expect(markup).toContain('rel="nofollow"')
+    expect(markup).toContain('My Service')
   })
 })
