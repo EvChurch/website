@@ -1,4 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -59,5 +61,14 @@ describe('HTML sitemap page', () => {
 
     expect(markup).toContain('Pages</h2>')
     expect(markup).not.toContain('Events</h2>')
+  })
+
+  it('uses the short mixed-content ISR fallback without forcing dynamic rendering', () => {
+    const source = readFileSync(
+      join(process.cwd(), 'src/app/(frontend)/sitemap/page.tsx'),
+      'utf8',
+    )
+    expect(source).toContain('export const revalidate = 300')
+    expect(source).not.toContain("export const dynamic = 'force-dynamic'")
   })
 })

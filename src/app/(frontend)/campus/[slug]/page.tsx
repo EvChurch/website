@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { unstable_cache } from 'next/cache'
 import Image from 'next/image'
 import { trackedNotFound } from '@/lib/tracked-not-found'
 import { cache } from 'react'
@@ -13,6 +14,7 @@ import { ScrollReveal } from '@/components/ui/ScrollReveal'
 import { getPayloadMediaUrl, type PayloadMediaSize } from '@/lib/payload-media'
 import { getGoogleMapsEmbedUrl, isGoogleMapsUrl } from '@/lib/google-maps'
 import { getPayloadClient } from '@/lib/payload'
+import { CACHE_TAGS } from '@/lib/cache-tags'
 import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
 import type { Campus, Media } from '@/payload-types'
 
@@ -70,7 +72,7 @@ interface BrandHeading {
   highlight: string
 }
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 86400
 
 function asRequiredText(value: string | null | undefined): string | null {
   const text = value?.trim()
@@ -173,7 +175,7 @@ function getManagedPageContent(campus: CampusPageDocument): ManagedPageContent |
   }
 }
 
-const getCampusBySlug = cache(async (slug: string): Promise<ManagedCampusPage | null> => {
+async function fetchCampusBySlug(slug: string): Promise<ManagedCampusPage | null> {
   const payload = await getPayloadClient()
   const result = await payload.find({
     collection: 'campuses',
@@ -199,7 +201,15 @@ const getCampusBySlug = cache(async (slug: string): Promise<ManagedCampusPage | 
 
   const content = getManagedPageContent(campus)
   return content ? { campus, content } : null
-})
+}
+
+const getCachedCampusBySlug = unstable_cache(
+  fetchCampusBySlug,
+  ['managed-campus-by-slug'],
+  { tags: [CACHE_TAGS.campuses, CACHE_TAGS.pages], revalidate: 86_400 },
+)
+
+const getCampusBySlug = cache(getCachedCampusBySlug)
 
 function getMediaImage(
   value: number | Media | null | undefined,

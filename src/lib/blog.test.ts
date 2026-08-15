@@ -2,10 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   find: vi.fn(),
+  unstableCache: vi.fn((callback: unknown) => callback),
 }))
 
 vi.mock('next/cache', () => ({
-  unstable_cache: (callback: unknown) => callback,
+  unstable_cache: mocks.unstableCache,
 }))
 
 vi.mock('@/lib/payload', () => ({
@@ -15,7 +16,7 @@ vi.mock('@/lib/payload', () => ({
 import { getBlogPostBySlug, getPublishedBlogPosts } from './blog'
 
 describe('blog data', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => mocks.find.mockReset())
 
   it('lists published posts newest first', async () => {
     mocks.find.mockResolvedValue({ docs: [{ id: 1, title: 'Real post' }] })
@@ -60,5 +61,20 @@ describe('blog data', () => {
     mocks.find.mockResolvedValue({ docs: [] })
 
     await expect(getBlogPostBySlug('missing')).resolves.toBeNull()
+  })
+
+  it('uses long tagged caches for list and detail reads', () => {
+    expect(mocks.unstableCache).toHaveBeenNthCalledWith(
+      1,
+      expect.any(Function),
+      ['published-blog-posts'],
+      { tags: ['blog-posts'], revalidate: 86_400 },
+    )
+    expect(mocks.unstableCache).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Function),
+      ['published-blog-post-by-slug'],
+      { tags: ['blog-posts'], revalidate: 86_400 },
+    )
   })
 })

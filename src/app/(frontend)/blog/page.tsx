@@ -10,7 +10,7 @@ import {
   getPublishedBlogPosts,
 } from '@/lib/blog'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 86400
 
 export const metadata: Metadata = {
   title: 'Blog | Ev Church Auckland',

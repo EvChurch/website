@@ -77,13 +77,13 @@ async function fetchBlogPostBySlug(slug: string): Promise<PublicBlogPost | null>
 export const getPublishedBlogPosts = unstable_cache(
   fetchPublishedBlogPosts,
   ['published-blog-posts'],
-  { tags: [CACHE_TAGS.blogPosts], revalidate: 300 },
+  { tags: [CACHE_TAGS.blogPosts], revalidate: 86_400 },
 )
 
 const getCachedBlogPostBySlug = unstable_cache(
   fetchBlogPostBySlug,
   ['published-blog-post-by-slug'],
-  { tags: [CACHE_TAGS.blogPosts], revalidate: 300 },
+  { tags: [CACHE_TAGS.blogPosts], revalidate: 86_400 },
 )
 
 export const getBlogPostBySlug = cache(getCachedBlogPostBySlug)

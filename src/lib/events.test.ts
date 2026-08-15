@@ -8,11 +8,16 @@ vi.mock('next/cache', () => ({
   unstable_cache: mocks.unstableCache,
 }))
 
+vi.mock('@/lib/payload', () => ({
+  getPayloadClient: vi.fn(),
+}))
+
 import {
   filterUpcomingEvents,
   filterEventsByCampus,
   getCampusSlug,
   getDisplayLocation,
+  getEventBySlug,
   getRegistrationHref,
   isPastEvent,
   prepareEventsListing,
@@ -45,6 +50,23 @@ describe('event helpers', () => {
       ['public-events'],
       { tags: ['events'], revalidate: 300 },
     )
+  })
+
+  it('caches event detail reads with the same short invalidation contract', () => {
+    expect(mocks.unstableCache).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Function),
+      ['public-event-by-slug'],
+      { tags: ['events'], revalidate: 300 },
+    )
+  })
+
+  it('returns null when a cached event slug has no match', async () => {
+    const find = vi.fn().mockResolvedValue({ docs: [] })
+    const { getPayloadClient } = await import('@/lib/payload')
+    vi.mocked(getPayloadClient).mockResolvedValue({ find } as never)
+
+    await expect(getEventBySlug('missing')).resolves.toBeNull()
   })
 
   it('orders upcoming and currently-running events chronologically', () => {

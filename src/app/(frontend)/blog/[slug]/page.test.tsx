@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -86,5 +88,14 @@ describe('blog post page', () => {
     expect(markup).toContain('AI-assisted and reviewed.')
     expect(markup).not.toContain('Lorem ipsum')
     expect(mocks.notFound).not.toHaveBeenCalled()
+  })
+
+  it('uses a long ISR fallback without forcing dynamic rendering', () => {
+    const source = readFileSync(
+      join(process.cwd(), 'src/app/(frontend)/blog/[slug]/page.tsx'),
+      'utf8',
+    )
+    expect(source).toContain('export const revalidate = 86400')
+    expect(source).not.toContain("export const dynamic = 'force-dynamic'")
   })
 })
