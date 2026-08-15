@@ -73,9 +73,10 @@ describe('member chrome route', () => {
     })
     mocks.isCurrentPayloadAdmin.mockResolvedValue(true)
 
-    const response = await GET(request())
+    const memberRequest = request()
+    const response = await GET(memberRequest)
 
-    expect(mocks.getSession).toHaveBeenCalledOnce()
+    expect(mocks.getSession).toHaveBeenCalledWith(memberRequest)
     expect(mocks.isCurrentPayloadAdmin).toHaveBeenCalledOnce()
     await expect(response.json()).resolves.toEqual({
       memberProfile: {

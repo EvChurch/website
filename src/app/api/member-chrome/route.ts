@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   if (!hasSessionCookie) return anonymousResponse()
 
   try {
-    const session = await getAuth0Client().getSession()
+    const session = await getAuth0Client().getSession(request)
     if (!session?.user.sub) return anonymousResponse()
 
     const profileState = getMemberProfileStateFromSession(session)
