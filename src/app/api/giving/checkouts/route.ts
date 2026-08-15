@@ -9,7 +9,7 @@ import { createPayloadGivingE2ESessionStore, createGivingE2ESessionService, GIVI
 import { createGivingRockClient } from '@/lib/giving/rock-client'
 import { createGivingIdentityRepository, resolveGivingIdentity } from '@/lib/giving/rock-identity'
 import { createPostgresGivingRateLimitStore, enforceGivingRateLimits, GivingRateLimitError, trustedGivingClientAddress, type GivingRateLimitStore } from '@/lib/giving/rate-limit'
-import { createGivingCheckoutService, createPostgresGivingCheckoutRepository, GivingCheckoutError, validateGivingCheckoutSubmission, type GivingCheckoutSubmission } from '@/lib/giving/service'
+import { createGivingCheckoutService, createPostgresGivingCheckoutRepository, GivingCheckoutError, validateGivingCheckoutSubmission, type GivingCheckoutStartResult, type GivingCheckoutSubmission } from '@/lib/giving/service'
 import { getPayloadClient } from '@/lib/payload'
 import { verifyTurnstileToken } from '@/lib/turnstile'
 
@@ -32,7 +32,7 @@ export interface GivingCheckoutRouteDependencies {
   authority(request: NextRequest): Promise<Authority>
   rateLimitStore: GivingRateLimitStore
   verifyTurnstile(input: { token: string; remoteIp: string; expectedHostname: string | null; expectedAction: string }): Promise<void>
-  startCheckout(authority: GivingContext, submission: GivingCheckoutSubmission, request: NextRequest): Promise<{ gatewayRedirectUri: string; statusToken: string; correlationKey: string; reused: boolean }>
+  startCheckout(authority: GivingContext, submission: GivingCheckoutSubmission, request: NextRequest): Promise<GivingCheckoutStartResult>
 }
 
 function response(value: unknown, status: number, retryAfter?: number) {
@@ -83,10 +83,23 @@ function poolFromPayload(payload: Awaited<ReturnType<typeof getPayloadClient>>) 
 async function defaultAuthority(request: NextRequest): Promise<Authority> {
   const payload = await getPayloadClient()
   const token = request.cookies.get(GIVING_E2E_COOKIE)?.value
-  const e2e = await createGivingE2ESessionService(createPayloadGivingE2ESessionStore(payload)).read(token)
-  if (e2e) return e2e
-  if (process.env.BLINKPAY_PRODUCTION_ENABLED !== 'true') return null
-  try { return productionGivingCheckoutAuthority(loadBlinkPayConfig('production')) } catch { return null }
+  return resolveGivingCheckoutAuthority({
+    e2eToken: token,
+    readE2E: (candidate) => createGivingE2ESessionService(createPayloadGivingE2ESessionStore(payload)).read(candidate),
+    productionEnabled: process.env.BLINKPAY_PRODUCTION_ENABLED,
+    loadProduction: () => loadBlinkPayConfig('production'),
+  })
+}
+
+export async function resolveGivingCheckoutAuthority(input: {
+  e2eToken?: string
+  readE2E(token: string): Promise<GivingContext | null>
+  productionEnabled?: string
+  loadProduction(): ReturnType<typeof loadBlinkPayConfig>
+}): Promise<Authority> {
+  if (input.e2eToken !== undefined) return input.readE2E(input.e2eToken)
+  if (input.productionEnabled !== 'true') return null
+  try { return productionGivingCheckoutAuthority(input.loadProduction()) } catch { return null }
 }
 
 async function defaultStart(authority: GivingContext, submission: GivingCheckoutSubmission, _request: NextRequest) {
@@ -143,7 +156,9 @@ export async function handleGivingCheckoutPost(request: NextRequest, dependencie
     await enforceGivingRateLimits({ address, email: submission.email, store: dependencies.rateLimitStore })
     await dependencies.verifyTurnstile({ token: submission.turnstileToken, remoteIp: address, expectedHostname: process.env.NODE_ENV === 'production' ? 'www.ev.church' : null, expectedAction: GIVING_CHECKOUT_TURNSTILE_ACTION })
     const result = await dependencies.startCheckout(authority, submission, request)
-    const output = response({ gatewayRedirectUri: result.gatewayRedirectUri, correlationKey: result.correlationKey, reused: result.reused }, 201)
+    const output = result.outcome === 'redirect'
+      ? response({ outcome: result.outcome, gatewayRedirectUri: result.gatewayRedirectUri, correlationKey: result.correlationKey, reused: result.reused }, 201)
+      : response({ outcome: result.outcome, retryAllowed: result.retryAllowed, correlationKey: result.correlationKey, reused: result.reused }, 202)
     output.cookies.set('__Host-ev_giving_checkout', result.statusToken, { httpOnly: true, secure: true, sameSite: 'strict', path: '/', maxAge: 30 * 60 })
     return output
   } catch (error) {

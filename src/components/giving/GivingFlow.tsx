@@ -176,7 +176,11 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     try {
       await persistDraft('PUT')
       const response = await fetch('/api/giving/checkouts', { method:'POST',headers:{'content-type':'application/json','x-ev-giving-request':'checkout-v1'},body:JSON.stringify({submissionKey:flowSubmissionKey.current,amountMinor:state.answers.amountMinor,fundId:state.answers.fund.id,frequency:state.answers.frequency,firstPaymentDate:state.answers.frequency==='one-off'?null:state.answers.startDate,firstName:state.answers.firstName,lastName:state.answers.lastName,email:state.answers.email,turnstileToken}) })
-      const value = await response.json() as { gatewayRedirectUri?: unknown }
+      const value = await response.json() as { outcome?: unknown; retryAllowed?: unknown; gatewayRedirectUri?: unknown }
+      if(response.status===202&&value.outcome==='unknown'&&value.retryAllowed===false){
+        setCheckout({type:'status',status:{state:'unknown',retryAllowed:false,kind:state.answers.frequency==='one-off'?'one-off':'recurring'},delayed:true})
+        return
+      }
       const redirect = response.ok ? safeGivingGatewayRedirect(value.gatewayRedirectUri,gatewayOrigins) : null
       if (!redirect) throw new Error('checkout unavailable')
       leavingFlow.current = true

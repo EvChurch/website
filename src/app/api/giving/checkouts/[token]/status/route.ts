@@ -18,6 +18,6 @@ async function defaultRead(token:string){
 }
 
 export async function handleGivingStatusGet(request:NextRequest,context:{params:Promise<{token:string}>},dependencies:GivingStatusDependencies={read:defaultRead}){
-  try{const{token}=await context.params;if(token!=='current')return json({error:'Status unavailable'},404);const capability=request.cookies.get('__Host-ev_giving_checkout')?.value;if(!capability)return json({error:'Status unavailable'},404);return json(parseGivingCheckoutStatus(await dependencies.read(capability)),200)}catch{return json({error:'Status unavailable'},404)}
+  try{const{token}=await context.params;if(token!=='current')return json({error:'Status unavailable'},404);const capability=request.cookies.get('__Host-ev_giving_checkout')?.value;if(!capability)return json({error:'Status unavailable'},404);const status=parseGivingCheckoutStatus(await dependencies.read(capability));const output=json(status,200);if(['verified','cancelled','rejected','expired'].includes(status.state))output.cookies.set('__Host-ev_giving_checkout','',{httpOnly:true,secure:true,sameSite:'strict',path:'/',maxAge:0});return output}catch{return json({error:'Status unavailable'},404)}
 }
 export async function GET(request:NextRequest,context:{params:Promise<{token:string}>}){return handleGivingStatusGet(request,context)}

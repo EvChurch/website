@@ -147,6 +147,31 @@ describe('GivingFlow', () => {
     expect(vi.mocked(fetch).mock.calls.some(([input])=>String(input).startsWith('/give/resume/'))).toBe(false)
   })
 
+  it('enters no-retry unknown status for an ambiguous 202 without resetting the saved flow', async () => {
+    let checkoutCalls=0
+    vi.mocked(fetch).mockImplementation(async (input,init) => {
+      const url=String(input)
+      if(url==='/api/giving/drafts'&&init?.method==='PUT')return new Response(null,{status:204})
+      if(url==='/api/giving/checkouts'){
+        checkoutCalls+=1
+        return new Response(JSON.stringify({outcome:'unknown',retryAllowed:false,correlationKey:'correlation',reused:false}),{status:202,headers:{'content-type':'application/json'}})
+      }
+      return new Response(null,{status:204})
+    })
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
+    await act(async()=>change(container.querySelector('input')!,'25'))
+    await act(async()=>button(container,'Continue')?.click())
+    await act(async()=>button(container,'One-off gift')?.click())
+    await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    await act(async()=>button(container,'Continue to secure')?.click())
+    expect(checkoutCalls).toBe(1)
+    expect(container.textContent).toContain('still checking the outcome')
+    expect(container.textContent).toContain('Do not try again')
+    expect(container.textContent).not.toContain('gift details are saved; please try again')
+    expect(button(container,'Return to your saved gift')).toBeUndefined()
+    expect(container.querySelector('[data-turnstile]')).toBeNull()
+  })
+
   it('backs status polling off after the safe-close threshold and caps the delay',()=>{
     expect([0,1,2,3,4,5,6,7].map(givingStatusPollDelay)).toEqual([2_000,2_000,2_000,2_000,4_000,8_000,16_000,30_000])
     expect(givingStatusPollDelay(20)).toBe(30_000)

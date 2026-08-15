@@ -2,6 +2,7 @@ import { Pool } from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { createPostgresGivingRateLimitStore } from '../lib/giving/rate-limit'
+import { createPostgresGivingLifecycleStore } from '../lib/giving/reconciliation'
 import { createPostgresGivingCheckoutRepository, GivingCheckoutError } from '../lib/giving/service'
 import { GIVING_PILOT_UP_SQL } from '../migrations/20260815_170000_giving_pilot'
 import { GIVING_CHECKOUT_ORCHESTRATION_UP_SQL } from '../migrations/20260815_230000_giving_checkout_orchestration'
@@ -53,6 +54,7 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
       correlationKey: `correlation-${runId}-${overrides.keyDigest ?? 'default'}`,
       returnCapabilityDigest: overrides.returnDigest ?? `return-${runId}`,
       returnCapabilityExpiresAt: new Date(Date.now() + 60_000),
+      currentTime: new Date(),
     }
   }
 
@@ -90,7 +92,7 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     const run = await seedRun('rotate')
     const initial = await repository.createOrReuse(input('rotate', run, { returnDigest: 'return-initial' }))
     const rotated = await repository.createOrReuse(input('rotate', run, { returnDigest: 'return-rotated' }))
-    expect(rotated.canStart).toBe(true)
+    expect(rotated.disposition).toBe('start')
     expect((await pool.query('SELECT return_capability_digest FROM giving_checkouts WHERE id=$1', [initial.checkout.id])).rows[0].return_capability_digest).toBe('return-rotated')
 
     await bindGiver(initial.checkout.id, 'rotate', run, 123)
@@ -100,9 +102,74 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     })
     await repository.markSubmitted(operation.id)
     const blocked = await repository.createOrReuse(input('rotate', run, { returnDigest: 'return-must-not-rotate' }))
-    expect(blocked.canStart).toBe(false)
+    expect(blocked.disposition).toBe('recover')
     expect(blocked.checkout.status).toBe('unknown')
     expect((await pool.query('SELECT return_capability_digest FROM giving_checkouts WHERE id=$1', [checkout.id])).rows[0].return_capability_digest).toBe('return-rotated')
+  })
+
+  it('keeps a live hosted return capability and recovers instead of rotating after consumption', async () => {
+    const repository = createPostgresGivingCheckoutRepository(pool)
+    const run = await seedRun('hosted-reuse')
+    const initialInput = input('hosted-reuse', run, { returnDigest: 'return-hosted-original' })
+    const created = await repository.createOrReuse(initialInput)
+    await bindGiver(created.checkout.id, 'hosted-reuse', run, 125)
+    const checkout = (await repository.get(created.checkout.id))!
+    const operation = await repository.prepareOperation(checkout, 'blinkpay.create-payment', 'hosted-request', {
+      requestId: 'request-key-hosted-0001', idempotencyKey: 'idempotency-hosted-0001',
+    })
+    await repository.markSubmitted(operation.id)
+    await repository.recordHostedSuccess({ checkout, operation, providerId: 'provider-hosted', gatewayRedirectUri: 'https://sandbox.debit.blinkpay.co.nz/gateway/original' })
+
+    const reused = await repository.createOrReuse({ ...initialInput, returnCapabilityDigest: 'return-hosted-retry', currentTime: new Date() })
+    expect(reused.disposition).toBe('redirect')
+    expect((await pool.query('SELECT return_capability_digest FROM giving_checkouts WHERE id=$1',[checkout.id])).rows[0].return_capability_digest).toBe('return-hosted-original')
+
+    const now = new Date()
+    await repository.consumeReturn('return-hosted-original', 'provider-hosted', now, 'status-hosted', 'status-hosted', new Date(now.getTime()+60_000))
+    const consumed = await repository.createOrReuse({ ...initialInput, returnCapabilityDigest: 'return-hosted-must-not-rotate', currentTime: new Date() })
+    expect(consumed.disposition).toBe('recover')
+    expect((await pool.query('SELECT return_capability_digest FROM giving_checkouts WHERE id=$1',[checkout.id])).rows[0].return_capability_digest).toBe('return-hosted-original')
+
+    const expiredRun = await seedRun('hosted-expired')
+    const expiredInput = input('hosted-expired', expiredRun, { returnDigest: 'return-hosted-expired-original' })
+    const expiredCreated = await repository.createOrReuse(expiredInput)
+    await bindGiver(expiredCreated.checkout.id, 'hosted-expired', expiredRun, 128)
+    const expiredCheckout = (await repository.get(expiredCreated.checkout.id))!
+    const expiredOperation = await repository.prepareOperation(expiredCheckout, 'blinkpay.create-payment', 'hosted-expired-request', { requestId:'request-key-hosted-0002',idempotencyKey:'idempotency-hosted-0002' })
+    await repository.markSubmitted(expiredOperation.id)
+    await repository.recordHostedSuccess({ checkout:expiredCheckout,operation:expiredOperation,providerId:'provider-hosted-expired',gatewayRedirectUri:'https://sandbox.debit.blinkpay.co.nz/gateway/expired' })
+    await pool.query("UPDATE giving_checkouts SET return_capability_expires_at=now()-interval '1 second' WHERE id=$1",[expiredCheckout.id])
+    const expired = await repository.createOrReuse({ ...expiredInput,returnCapabilityDigest:'return-hosted-expired-must-not-rotate',currentTime:new Date() })
+    expect(expired.disposition).toBe('recover')
+    expect((await pool.query('SELECT return_capability_digest FROM giving_checkouts WHERE id=$1',[expiredCheckout.id])).rows[0].return_capability_digest).toBe('return-hosted-expired-original')
+  })
+
+  it('persists an accepted unknown provider ID and exposes it to authoritative reconciliation', async () => {
+    const repository = createPostgresGivingCheckoutRepository(pool)
+    const run = await seedRun('accepted-unknown')
+    const created = await repository.createOrReuse(input('accepted-unknown', run))
+    await bindGiver(created.checkout.id, 'accepted-unknown', run, 126)
+    const checkout = (await repository.get(created.checkout.id))!
+    const operation = await repository.prepareOperation(checkout, 'blinkpay.create-payment', 'accepted-request', {
+      requestId: 'request-key-accepted-0001', idempotencyKey: 'idempotency-accepted-0001',
+    })
+    await repository.markSubmitted(operation.id)
+    await repository.recordAcceptedUnknown({ checkoutId: checkout.id, operationId: operation.id, action: operation.action, providerId: 'provider-accepted', providerRequestId: 'provider-request-accepted', code: 'provider-accepted-binding-failed' })
+    expect((await pool.query('SELECT status,provider_id,provider_request_id FROM giving_provider_operations WHERE id=$1',[operation.id])).rows[0]).toMatchObject({ status:'unknown',provider_id:'provider-accepted',provider_request_id:'provider-request-accepted' })
+    expect(await createPostgresGivingLifecycleStore(pool).nonterminalCheckoutIdsWithProviderIds()).toContain(checkout.id)
+  })
+
+  it('preserves terminal consent state and newer observations against stale Authorised reads', async () => {
+    const repository = createPostgresGivingCheckoutRepository(pool)
+    const run = await seedRun('consent-order')
+    const created = await repository.createOrReuse(input('consent-order', run))
+    const giverId = await bindGiver(created.checkout.id, 'consent-order', run, 127)
+    const checkout = (await repository.get(created.checkout.id))!
+    const newer = new Date('2026-08-15T12:00:00Z')
+    await pool.query(`INSERT INTO giving_consents(context_key,environment,synthetic,e2e_run_id,checkout_id,giver_id,provider_consent_id,status,provider_observed_at,provider_request_id) VALUES($1,'sandbox',true,$2,$3,$4,'consent-terminal','failed',$5,'newer-request')`,[checkout.contextKey,run,checkout.id,giverId,newer])
+    const id = await repository.recordConsentAuthorised(checkout,'consent-terminal',new Date('2026-08-15T11:00:00Z'),'stale-request')
+    expect(id).toBeNull()
+    expect((await pool.query("SELECT status,provider_observed_at,provider_request_id FROM giving_consents WHERE provider_consent_id='consent-terminal'")).rows[0]).toMatchObject({ status:'failed',provider_observed_at:newer,provider_request_id:'newer-request' })
   })
 
   it('validates a returned provider alias before consuming the capability', async () => {

@@ -314,7 +314,7 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
           AND operation.provider = 'blinkpay'
           AND operation.action IN ('blinkpay.create-payment', 'blinkpay.create-consent')
           AND operation.provider_id IS NOT NULL
-          AND operation.status = 'succeeded'
+          AND operation.status IN ('succeeded','unknown')
         ORDER BY checkout.id
         LIMIT $1
       `, [limit])
