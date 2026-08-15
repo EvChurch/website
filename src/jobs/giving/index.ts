@@ -11,7 +11,7 @@ export const GIVING_LIFECYCLE_AUTO_RUN = {
 
 interface GivingJobRunners {
   processEvent(eventId: number, payload: Payload): Promise<{ status: 'skipped' | 'processed' | 'retry' }>
-  reconcile(payload: Payload): Promise<{ events: number; eventFailures: number; verifications: number; verificationFailures: number; continuations: number; continuationFailures: number; cancellations: number; cancellationFailures: number }>
+  reconcile(payload: Payload): Promise<{ events: number; eventFailures: number; verifications: number; verificationFailures: number; continuations: number; continuationFailures: number; cancellations: number; cancellationFailures: number; draftsDeleted: number }>
 }
 
 export function createGivingJobConfigs(runners: GivingJobRunners) {
@@ -22,7 +22,7 @@ export function createGivingJobConfigs(runners: GivingJobRunners) {
     outputSchema: [{ name: 'status', type: 'text', required: true }],
     handler: async ({ input, req }) => ({ output: await runners.processEvent(input.eventId, req.payload) }),
   }
-  const reconcile: TaskConfig<{ input: Record<string, never>; output: { events: number; eventFailures: number; verifications: number; verificationFailures: number; continuations: number; continuationFailures: number; cancellations: number; cancellationFailures: number } }> = {
+  const reconcile: TaskConfig<{ input: Record<string, never>; output: { events: number; eventFailures: number; verifications: number; verificationFailures: number; continuations: number; continuationFailures: number; cancellations: number; cancellationFailures: number; draftsDeleted: number } }> = {
     slug: RECONCILE_GIVING_LIFECYCLE_TASK,
     retries: 1,
     inputSchema: [],
@@ -35,6 +35,7 @@ export function createGivingJobConfigs(runners: GivingJobRunners) {
       { name: 'continuationFailures', type: 'number', required: true },
       { name: 'cancellations', type: 'number', required: true },
       { name: 'cancellationFailures', type: 'number', required: true },
+      { name: 'draftsDeleted', type: 'number', required: true },
     ],
     schedule: [{ cron: '*/5 * * * *', queue: GIVING_LIFECYCLE_QUEUE }],
     handler: async ({ req }) => ({ output: await runners.reconcile(req.payload) }),

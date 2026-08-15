@@ -2,10 +2,11 @@ import { Pool } from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createGivingCancellationService, createPostgresGivingCancellationStore } from '../lib/giving/cancellation'
 import { createPostgresGivingLifecycleStore, createUnknownCancellationReconciler } from '../lib/giving/reconciliation'
-import { GIVING_PILOT_UP_SQL } from '../migrations/20260815_170000_giving_pilot'
-import { GIVING_CHECKOUT_ORCHESTRATION_UP_SQL } from '../migrations/20260815_230000_giving_checkout_orchestration'
-import { GIVING_WEBHOOK_JOBS_UP_SQL } from '../migrations/20260816_000000_giving_webhook_jobs'
-import { GIVING_ADMINISTRATION_UP_SQL } from '../migrations/20260816_010000_giving_administration'
+import { GIVING_PILOT_DOWN_SQL, GIVING_PILOT_UP_SQL } from '../migrations/20260815_170000_giving_pilot'
+import { GIVING_DRAFTS_DOWN_SQL, GIVING_DRAFTS_UP_SQL } from '../migrations/20260815_210000_giving_drafts'
+import { GIVING_CHECKOUT_ORCHESTRATION_DOWN_SQL, GIVING_CHECKOUT_ORCHESTRATION_UP_SQL } from '../migrations/20260815_230000_giving_checkout_orchestration'
+import { GIVING_WEBHOOK_JOBS_DOWN_SQL, GIVING_WEBHOOK_JOBS_UP_SQL } from '../migrations/20260816_000000_giving_webhook_jobs'
+import { GIVING_ADMINISTRATION_DOWN_SQL, GIVING_ADMINISTRATION_UP_SQL } from '../migrations/20260816_010000_giving_administration'
 
 const databaseUrl = process.env.GIVING_MIGRATION_TEST_DATABASE_URL
 function assertDisposable(value: string) {
@@ -29,6 +30,32 @@ describe.skipIf(!databaseUrl)('giving administration PostgreSQL concurrency', ()
     await pool.query("INSERT INTO giving_funds(name,code,accounting_key,is_default) VALUES('Missions','MIS','missions',true)")
     await pool.query(GIVING_ADMINISTRATION_UP_SQL)
     expect((await pool.query('SELECT name,code,is_default FROM giving_funds')).rows).toEqual([{name:'Missions',code:'MIS',is_default:true}])
+  })
+
+  it('rolls the pristine full giving chain down after removing only its exact seed', async () => {
+    await pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public; CREATE TYPE enum_payload_jobs_log_task_slug AS ENUM(\'inline\'); CREATE TYPE enum_payload_jobs_task_slug AS ENUM(\'inline\'); CREATE TABLE users(id serial PRIMARY KEY); CREATE TABLE payload_locked_documents_rels(id serial PRIMARY KEY);')
+    await pool.query(GIVING_PILOT_UP_SQL)
+    await pool.query(GIVING_DRAFTS_UP_SQL)
+    await pool.query(GIVING_CHECKOUT_ORCHESTRATION_UP_SQL)
+    await pool.query(GIVING_WEBHOOK_JOBS_UP_SQL)
+    await pool.query(GIVING_ADMINISTRATION_UP_SQL)
+    expect((await pool.query("SELECT code FROM giving_funds")).rows).toEqual([{code:'GEN'}])
+    await pool.query(GIVING_ADMINISTRATION_DOWN_SQL)
+    await pool.query(GIVING_WEBHOOK_JOBS_DOWN_SQL)
+    await pool.query(GIVING_CHECKOUT_ORCHESTRATION_DOWN_SQL)
+    await pool.query(GIVING_DRAFTS_DOWN_SQL)
+    await pool.query(GIVING_PILOT_DOWN_SQL)
+    expect((await pool.query("SELECT to_regclass('giving_funds') name")).rows[0].name).toBeNull()
+  })
+
+  it('rejects cancellation schedule provenance from a different checkout', async () => {
+    const giver=(await pool.query("INSERT INTO giving_givers(context_key,environment,synthetic,rock_person_alias_id,bank_reference,name,email) VALUES('production','production',false,10,'EV10','Ada','ada@example.com') RETURNING id")).rows[0]
+    const first=(await pool.query("INSERT INTO giving_checkouts(context_key,environment,synthetic,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,frequency,correlation_key,status,submission_key_digest,submission_digest) VALUES('production','production',false,$1,1,'General','GEN','general',2500,'monthly','first-correlation','completed','first-key','first-digest') RETURNING id",[giver.id])).rows[0]
+    const second=(await pool.query("INSERT INTO giving_checkouts(context_key,environment,synthetic,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,frequency,correlation_key,status,submission_key_digest,submission_digest) VALUES('production','production',false,$1,1,'General','GEN','general',2500,'monthly','second-correlation','completed','second-key','second-digest') RETURNING id",[giver.id])).rows[0]
+    const consent=(await pool.query("INSERT INTO giving_consents(context_key,environment,synthetic,checkout_id,giver_id,provider_consent_id,status) VALUES('production','production',false,$1,$2,'provenance-consent','authorised') RETURNING id",[first.id,giver.id])).rows[0]
+    const schedule=(await pool.query("INSERT INTO giving_schedules(context_key,environment,synthetic,checkout_id,giver_id,consent_id,provider_schedule_id,status,frequency,amount_minor) VALUES('production','production',false,$1,$2,$3,'provenance-schedule','active','monthly',2500) RETURNING id",[first.id,giver.id,consent.id])).rows[0]
+    await expect(pool.query(`INSERT INTO giving_provider_operations(context_key,environment,synthetic,checkout_id,schedule_id,actor_id,reason,provider,action,logical_version,request_digest,correlation_key,request_id,idempotency_key,status)
+      VALUES('production','production',false,$1,$2,1,'Donor request','blinkpay','blinkpay.cancel-schedule',1,'mismatch-digest','mismatch-correlation','mismatch-request','mismatch-idempotency','submitted')`,[second.id,schedule.id])).rejects.toMatchObject({code:'23503'})
   })
 
   it('serializes concurrent default swaps and retains exactly one active default', async () => {

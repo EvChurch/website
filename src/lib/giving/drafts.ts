@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 
 import type { Payload } from 'payload'
+import type { Pool } from 'pg'
 import { sql } from '@payloadcms/db-postgres'
 
 import type { GivingFrequency } from '@/components/giving/giving-state'
@@ -11,6 +12,7 @@ export const GIVING_DRAFT_PURPOSE = 'giving-draft-resume-v1' as const
 export const GIVING_DRAFT_SESSION_PURPOSE = 'giving-draft-session-v1' as const
 export type GivingDraftPurpose = typeof GIVING_DRAFT_PURPOSE | typeof GIVING_DRAFT_SESSION_PURPOSE
 export const GIVING_DRAFT_TTL_MS = 15 * 60 * 1000
+export const GIVING_DRAFT_CLEANUP_LIMIT = 500
 export function givingCapabilityCookieNames(secure: boolean) {
   return secure
     ? { guest: '__Host-ev_giving_guest', resume: '__Host-ev_giving_resume' }
@@ -220,6 +222,19 @@ export function createPayloadGivingDraftStore(payload: Payload): GivingDraftStor
       `)
     },
   }
+}
+
+export async function cleanupGivingDrafts(pool: Pick<Pool, 'query'>, now = new Date()): Promise<number> {
+  const result = await pool.query<{ deleted: number }>(`WITH candidates AS (
+      SELECT id FROM giving_drafts
+      WHERE consumed_at IS NOT NULL OR expires_at <= $1
+      ORDER BY COALESCE(consumed_at,expires_at),id
+      LIMIT $2 FOR UPDATE SKIP LOCKED
+    ), deleted AS (
+      DELETE FROM giving_drafts draft USING candidates
+      WHERE draft.id=candidates.id RETURNING draft.id
+    ) SELECT count(*)::int deleted FROM deleted`, [now,GIVING_DRAFT_CLEANUP_LIMIT])
+  return Number(result.rows[0]?.deleted ?? 0)
 }
 
 function rowToRecord(value: unknown): GivingDraftRecord | null {

@@ -3,6 +3,7 @@ import type { Payload } from 'payload'
 import { createBlinkPayClient } from '@/lib/giving/blinkpay/client'
 import { loadBlinkPayConfig } from '@/lib/giving/blinkpay/config'
 import type { GivingEnvironment } from '@/lib/giving/contracts'
+import { cleanupGivingDrafts } from '@/lib/giving/drafts'
 import { createGivingLifecycleProcessor, createPostgresGivingLifecycleStore, createUnknownCancellationReconciler, runGivingReconciliation } from '@/lib/giving/reconciliation'
 import { createGivingCheckoutService, createPostgresGivingCheckoutRepository } from '@/lib/giving/service'
 
@@ -37,11 +38,13 @@ export async function processGivingLifecycleEvent(eventId: number, payload: Payl
 
 export async function reconcileGivingLifecycle(payload: Payload) {
   const dependencies = runtime(payload)
-  return runGivingReconciliation({
+  const reconciliation = await runGivingReconciliation({
     store: dependencies.store,
     processEvent: (eventId) => dependencies.processor.process(eventId),
     verifyCheckout: dependencies.verifyCheckout,
     continueRecurringCheckout: dependencies.continueRecurringCheckout,
     reconcileCancellation: dependencies.reconcileCancellation,
   })
+  const draftsDeleted = await cleanupGivingDrafts(poolFromPayload(payload))
+  return { ...reconciliation, draftsDeleted }
 }

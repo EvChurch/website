@@ -1,7 +1,8 @@
-import { Client } from 'pg'
+import { Client, Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { GIVING_DRAFTS_UP_SQL } from '../migrations/20260815_210000_giving_drafts'
+import { cleanupGivingDrafts, GIVING_DRAFT_CLEANUP_LIMIT } from '../lib/giving/drafts'
 
 const databaseUrl = process.env.GIVING_MIGRATION_TEST_DATABASE_URL
 
@@ -48,5 +49,21 @@ describe.skipIf(!databaseUrl)('giving draft capability redemption on PostgreSQL'
     const results = await Promise.all([redeem(first), redeem(second)])
     expect(results.map(({ rowCount }) => rowCount).sort()).toEqual([0, 1])
     expect((await first.query('SELECT count(*)::int AS count FROM giving_drafts WHERE consumed_at IS NOT NULL')).rows[0].count).toBe(1)
+  })
+
+  it('deletes a bounded batch of consumed or expired PII while preserving a live draft', async () => {
+    await first.query('DELETE FROM giving_drafts')
+    const answers = JSON.stringify({ firstName:'Ada',lastName:'Lovelace',email:'ada@example.com' })
+    await first.query(`INSERT INTO giving_drafts(token_digest,binding_digest,purpose,audience,answers,expires_at,consumed_at)
+      SELECT 'expired-'||value,'binding','giving-draft-resume-v1','guest',$1,now()-interval '1 minute',NULL
+      FROM generate_series(1,$2) value`, [answers,GIVING_DRAFT_CLEANUP_LIMIT+1])
+    await first.query(`INSERT INTO giving_drafts(token_digest,binding_digest,purpose,audience,answers,expires_at,consumed_at) VALUES
+      ('consumed','binding','giving-draft-resume-v1','guest',$1,now()+interval '10 minutes',now()),
+      ('live','binding','giving-draft-resume-v1','guest',$1,now()+interval '10 minutes',NULL)`, [answers])
+    const pool = new Pool({ connectionString:databaseUrl,max:1 })
+    try { expect(await cleanupGivingDrafts(pool,new Date())).toBe(GIVING_DRAFT_CLEANUP_LIMIT) }
+    finally { await pool.end() }
+    expect((await first.query("SELECT token_digest FROM giving_drafts WHERE token_digest='live'")).rows).toEqual([{token_digest:'live'}])
+    expect((await first.query("SELECT count(*)::int count FROM giving_drafts WHERE consumed_at IS NOT NULL OR expires_at<=now()")).rows[0].count).toBe(2)
   })
 })

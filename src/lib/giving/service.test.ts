@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createGivingCheckoutService, GivingCheckoutError, type GivingCheckoutOperation, type GivingCheckoutRecord, type GivingCheckoutRepository } from './service'
+import { createGivingCheckoutService, GivingCheckoutError, type GivingCheckoutBlinkPayClient, type GivingCheckoutOperation, type GivingCheckoutRecord, type GivingCheckoutRepository } from './service'
+import type { ResolvedGivingIdentity } from './rock-identity'
 
 const context = { contextKey: 'sandbox:e2e:run-1', environment: 'sandbox' as const, synthetic: true, e2eRunId: 7 }
 const baseSubmission = { submissionKey: 'A'.repeat(43), amountMinor: 2500, fundId: 1, frequency: 'one-off' as const, firstPaymentDate: null, firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.com', turnstileToken: 'turnstile' }
@@ -58,7 +59,7 @@ function repository(): GivingCheckoutRepository & { checkouts: GivingCheckoutRec
   }
 }
 
-function service(repo = repository(), overrides: Record<string, unknown> = {}, resolveIdentity?: () => Promise<any>) {
+function service(repo = repository(), overrides: Partial<GivingCheckoutBlinkPayClient> = {}, resolveIdentity?: () => Promise<ResolvedGivingIdentity>) {
   let uuid = 0
   const blinkPay = {
     createQuickPayment: vi.fn(async (_input, keys) => ({ outcome: 'succeeded' as const, value: { quick_payment_id: 'quick-1', redirect_uri: 'https://sandbox.debit.blinkpay.co.nz/gateway/quick' }, metadata: keys })),
@@ -68,9 +69,9 @@ function service(repo = repository(), overrides: Record<string, unknown> = {}, r
     createFixedRecurringPayment: vi.fn(async (_input,keys) => ({ outcome: 'succeeded' as const, value: { fixed_recurring_payment_id: 'schedule-1' }, metadata: keys })),
     getFixedRecurringPayment: vi.fn(async () => ({ fixed_recurring_payment_id: 'schedule-1', consent_id: 'consent-1', status: 'active', start_date: '2026-09-01', next_payment_date: '2026-09-01', amount: { total: '25.00', currency: 'NZD' as const }, pcr: { particulars: 'GEN' }, retry_strategy: 'same_day' as const, creation_timestamp: '2026-08-15T00:00:02Z' })),
     isPaymentSettled: (value: { status: string }) => value.status === 'AcceptedSettlementCompleted', isConsentAuthorised: (value: { status: string }) => value.status === 'Authorised', isFixedRecurringPaymentActive: (value: { status: string }) => value.status === 'active',
-    ...overrides,
-  }
-  const checkout = createGivingCheckoutService({ repository: repo, blinkPay: blinkPay as any, digestSecret: 's'.repeat(32), now: () => new Date('2026-08-15T00:00:00Z'), randomBytes: () => Buffer.alloc(32, 1), uuid: () => `00000000-0000-4000-8000-${String(++uuid).padStart(12,'0')}`, resolveIdentity: resolveIdentity ?? (async () => { repo.checkouts[0].giverId=9; repo.checkouts[0].bankReference='EV123'; return { giverId:9,personAliasId:123,bankReference:'EV123',firstName:'Ada',lastName:'Lovelace',email:'ada@example.com' } }) })
+  } satisfies GivingCheckoutBlinkPayClient
+  const client: GivingCheckoutBlinkPayClient = { ...blinkPay, ...overrides }
+  const checkout = createGivingCheckoutService({ repository: repo, blinkPay: client, digestSecret: 's'.repeat(32), now: () => new Date('2026-08-15T00:00:00Z'), randomBytes: () => Buffer.alloc(32, 1), uuid: () => `00000000-0000-4000-8000-${String(++uuid).padStart(12,'0')}`, resolveIdentity: resolveIdentity ?? (async () => { repo.checkouts[0].giverId=9; repo.checkouts[0].bankReference='EV123'; return { giverId:9,personAliasId:123,bankReference:'EV123',firstName:'Ada',lastName:'Lovelace',email:'ada@example.com' } }) })
   return { checkout, blinkPay, repo }
 }
 

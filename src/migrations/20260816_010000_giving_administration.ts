@@ -35,10 +35,12 @@ CREATE TABLE IF NOT EXISTS giving_cancellation_nonces (
 );
 CREATE INDEX IF NOT EXISTS giving_cancellation_nonces_lookup_idx ON giving_cancellation_nonces(actor_id,schedule_id,expires_at) WHERE consumed_at IS NULL;
 
+DO $$ BEGIN ALTER TABLE giving_schedules ADD CONSTRAINT giving_schedules_id_checkout_context_unique UNIQUE(id,checkout_id,context_key); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 ALTER TABLE giving_provider_operations
-  ADD COLUMN IF NOT EXISTS schedule_id integer REFERENCES giving_schedules(id) ON DELETE RESTRICT,
+  ADD COLUMN IF NOT EXISTS schedule_id integer,
   ADD COLUMN IF NOT EXISTS actor_id integer REFERENCES users(id) ON DELETE RESTRICT,
   ADD COLUMN IF NOT EXISTS reason varchar;
+DO $$ BEGIN ALTER TABLE giving_provider_operations ADD CONSTRAINT giving_provider_operations_schedule_provenance_fk FOREIGN KEY(schedule_id,checkout_id,context_key) REFERENCES giving_schedules(id,checkout_id,context_key) ON DELETE RESTRICT; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 ALTER TABLE giving_provider_operations ADD CONSTRAINT giving_provider_cancel_audit_valid CHECK(
   action <> 'blinkpay.cancel-schedule' OR (schedule_id IS NOT NULL AND actor_id IS NOT NULL AND char_length(reason) BETWEEN 3 AND 500)
 );
@@ -54,11 +56,28 @@ DO $$ BEGIN
     RAISE EXCEPTION 'Cannot roll back giving administration after cancellation audit data exists';
   END IF;
 END $$;
+DELETE FROM giving_funds
+WHERE name='General' AND code='GEN' AND accounting_key='general'
+  AND description='General giving' AND active AND is_default AND sort_order=0
+  AND (SELECT count(*) FROM giving_funds)=1
+  AND NOT EXISTS(SELECT 1 FROM giving_e2e_runs)
+  AND NOT EXISTS(SELECT 1 FROM giving_givers)
+  AND NOT EXISTS(SELECT 1 FROM giving_checkouts)
+  AND NOT EXISTS(SELECT 1 FROM giving_gifts)
+  AND NOT EXISTS(SELECT 1 FROM giving_consents)
+  AND NOT EXISTS(SELECT 1 FROM giving_schedules)
+  AND NOT EXISTS(SELECT 1 FROM giving_provider_operations)
+  AND NOT EXISTS(SELECT 1 FROM blinkpay_webhook_events)
+  AND NOT EXISTS(SELECT 1 FROM giving_drafts)
+  AND NOT EXISTS(SELECT 1 FROM giving_checkout_rate_limits)
+  AND NOT EXISTS(SELECT 1 FROM giving_cancellation_nonces);
 DROP INDEX IF EXISTS giving_provider_operations_actor_idx;
 DROP INDEX IF EXISTS giving_provider_operations_schedule_idx;
 ALTER TABLE giving_provider_operations DROP CONSTRAINT IF EXISTS giving_provider_cancel_audit_valid;
+ALTER TABLE giving_provider_operations DROP CONSTRAINT IF EXISTS giving_provider_operations_schedule_provenance_fk;
 ALTER TABLE giving_provider_operations DROP COLUMN IF EXISTS reason, DROP COLUMN IF EXISTS actor_id, DROP COLUMN IF EXISTS schedule_id;
 DROP TABLE IF EXISTS giving_cancellation_nonces;
+ALTER TABLE giving_schedules DROP CONSTRAINT IF EXISTS giving_schedules_id_checkout_context_unique;
 DROP TRIGGER IF EXISTS giving_funds_serialize_default ON giving_funds;
 DROP FUNCTION IF EXISTS giving_funds_serialize_default();
 `

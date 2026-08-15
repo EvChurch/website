@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { createGivingE2ESessionService, GivingE2ESessionError, type GivingE2ESessionStore } from './e2e-session'
 
 function memoryStore(): GivingE2ESessionStore {
-  const rows: any[] = []
+  type Row = NonNullable<Awaited<ReturnType<GivingE2ESessionStore['find']>>>
+  const rows: Row[] = []
   return {
     async create(record) { const row = { ...record, id: rows.length + 1, e2eRunId: rows.length + 1, revokedAt: null }; rows.push(row); return row },
     async find(tokenDigest) { return rows.find((row) => row.tokenDigest === tokenDigest) ?? null },
