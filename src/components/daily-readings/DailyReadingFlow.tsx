@@ -146,7 +146,7 @@ export function DailyReadingFlow({ reading }: { reading: DailyReadingView }) {
               </h1>
               <p className="mt-5 text-lg leading-relaxed text-dark-grey">{step.content}</p>
               <blockquote className="mt-7 max-w-2xl">
-                <p className="font-serif text-xl leading-[1.85] text-dark-grey sm:text-[1.35rem]">
+                <p className="font-sans text-xl leading-[1.85] text-dark-grey sm:text-[1.35rem]">
                   Because of the Lord’s faithful love we do not perish, for his mercies never end. They are new every morning; great is your faithfulness!
                 </p>
                 <cite className="mt-3 block text-xs font-bold not-italic uppercase tracking-[0.14em] text-mid-grey">
@@ -172,7 +172,7 @@ export function DailyReadingFlow({ reading }: { reading: DailyReadingView }) {
           </h1>
           {step.stage === 'read' ? (
             <div className="mt-4">
-              <p className="whitespace-pre-line font-serif text-xl leading-[1.85] text-dark-grey sm:text-[1.35rem]">
+              <p className="whitespace-pre-line font-sans text-xl leading-[1.85] text-dark-grey sm:text-[1.35rem]">
                 {parsePassageText(step.content).map((segment, index) => (
                   segment.type === 'verse' ? (
                     <sup
@@ -202,7 +202,7 @@ export function DailyReadingFlow({ reading }: { reading: DailyReadingView }) {
           ) : (
             <div className="mt-4 space-y-4">
               {step.content.split(/\n\s*\n/u).map((content, index) => (
-                <p key={index} className="font-serif text-xl leading-[1.85] text-dark-grey sm:text-[1.35rem]">
+                <p key={index} className="font-sans text-xl leading-[1.85] text-dark-grey sm:text-[1.35rem]">
                   {content}
                 </p>
               ))}

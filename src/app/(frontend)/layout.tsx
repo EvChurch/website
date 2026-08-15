@@ -30,7 +30,7 @@ const albertSans = Albert_Sans({
 
 const sourceSerif = Source_Serif_4({
   subsets: ['latin', 'latin-ext'],
-  style: ['normal', 'italic'],
+  style: 'italic',
   variable: '--font-source-serif',
   display: 'swap',
 })

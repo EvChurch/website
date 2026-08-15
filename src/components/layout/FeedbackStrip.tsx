@@ -160,7 +160,7 @@ export function FeedbackStrip({
 
   const content = complete ? (
     <div className="py-8 text-center" role="status">
-      <h3 className="font-serif text-2xl text-brand-black">Thank you for your feedback</h3>
+      <h3 className="text-2xl text-brand-black">Thank you for your feedback</h3>
       <p className="mt-3 text-sm text-dark-grey">We appreciate you helping us improve ev.church.</p>
       <button type="button" className="mt-6 rounded-full bg-rich-red px-6 py-3 text-sm font-semibold text-white hover:bg-deep-red" onClick={close}>Close</button>
     </div>
@@ -190,7 +190,7 @@ export function FeedbackStrip({
     {open && <div className="fixed inset-0 z-[80] flex items-center justify-center bg-brand-black/65 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) close() }}>
       <section role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId} className="relative max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl bg-warm-white p-6 shadow-2xl sm:p-8">
         <button type="button" aria-label="Close feedback dialog" className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full text-brand-black/60 hover:bg-brand-black/5 sm:right-4 sm:top-4" onClick={close}><span aria-hidden="true" className="text-3xl leading-none">×</span></button>
-        <h2 id={titleId} className="pr-14 font-serif text-3xl text-brand-black">{settings.modalTitle}</h2>
+        <h2 id={titleId} className="pr-14 text-3xl text-brand-black">{settings.modalTitle}</h2>
         <p id={descriptionId} className="mt-2 text-sm leading-6 text-dark-grey">{settings.modalIntro}</p>
         {content}
       </section>

@@ -21,7 +21,7 @@ export async function DailyReadingBlockComponent({
               {eyebrow && <p className="text-xs font-bold uppercase tracking-[0.2em] text-hero-eyebrow">{eyebrow}</p>}
               {heading && <h2 className="mt-4 max-w-xl text-[clamp(2.25rem,5vw,4.5rem)] leading-[1] tracking-[-0.045em] text-warm-white">{heading}</h2>}
             </div>
-            <blockquote className="relative mt-10 max-w-xl border-l-2 border-rich-red pl-5 font-serif text-xl leading-relaxed text-warm-white/80">
+            <blockquote className="relative mt-10 max-w-xl border-l-2 border-rich-red pl-5 font-sans text-xl leading-relaxed text-warm-white/80">
               {reading.openingScripture}
             </blockquote>
           </div>
