@@ -1,5 +1,6 @@
 export const MEMBER_NOTIFICATION_LIST_LIMIT = 5
 export const MEMBER_NOTIFICATIONS_OVERFLOW_HREF = '/members/my-service' as const
+export const MEMBER_NOTIFICATIONS_REFRESH_EVENT = 'member-notifications:refresh'
 
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/u
 

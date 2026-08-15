@@ -49,7 +49,7 @@ function available(requests: unknown[] = []) {
     status: 'available',
     requests,
     upcoming: [],
-    nativeToolboxUrl: 'https://rock.ev.church/ScheduleToolbox',
+    declined: [],
   }
 }
 
@@ -122,7 +122,7 @@ describe('member notifications route', () => {
       reason: 'rock-unavailable',
       requests: [],
       upcoming: [],
-      nativeToolboxUrl: null,
+      declined: [],
     })
 
     const response = await GET(request())
@@ -144,7 +144,7 @@ describe('member notifications route', () => {
       retryAfterSeconds: 7,
       requests: [],
       upcoming: [],
-      nativeToolboxUrl: null,
+      declined: [],
     })
 
     const response = await GET(request())

@@ -26,9 +26,8 @@ export function MemberPortalChrome({
 }) {
   const links = [
     { key: 'overview' as const, label: 'Overview', href: '/members' },
-    { key: 'service' as const, label: 'My Service', href: '/members/my-service' },
-    { key: 'groups' as const, label: 'Connect Group', href: connectGroupHref },
     { key: 'reading' as const, label: 'Daily Reading', href: '/members/daily-readings' },
+    { key: 'groups' as const, label: 'Connect Group', href: connectGroupHref },
     ...(canAccessLeaderResources
       ? [{
           key: 'resources' as const,
@@ -36,6 +35,7 @@ export function MemberPortalChrome({
           href: '/members/connect-group-leader-resources',
         }]
       : []),
+    { key: 'service' as const, label: 'My Service', href: '/members/my-service' },
   ]
 
   return (

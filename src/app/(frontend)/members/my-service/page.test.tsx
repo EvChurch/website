@@ -60,7 +60,7 @@ describe('MyServicePage', () => {
       status: 'available',
       requests: [],
       upcoming: [],
-      nativeToolboxUrl: 'https://rock.ev.church/ScheduleToolbox',
+      declined: [],
     })
   })
 

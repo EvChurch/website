@@ -27,7 +27,7 @@ const unavailableSchedule: VolunteerScheduleResult = {
   reason: 'rock-unavailable',
   requests: [],
   upcoming: [],
-  nativeToolboxUrl: null,
+  declined: [],
 }
 
 export default async function MyServicePage() {
@@ -57,11 +57,7 @@ export default async function MyServicePage() {
     >
       <div className="mx-auto max-w-5xl">
         <header className="mb-8 sm:mb-10">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-rich-red">Volunteer self service</p>
-          <h1 className="mt-3 text-4xl leading-tight text-brand-black sm:text-5xl">My Service</h1>
-          <p className="mt-4 max-w-2xl text-base leading-relaxed text-mid-grey">
-            See requests that need a response and your confirmed upcoming serving commitments.
-          </p>
+          <h1 className="text-4xl leading-tight text-brand-black sm:text-5xl">My Service</h1>
         </header>
 
         <VolunteerSchedule
