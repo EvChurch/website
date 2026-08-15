@@ -28,8 +28,28 @@ describe('MemberPortalChrome', () => {
     expect(linkText).toBe('Connect Group')
     expect(markup).toContain('href="/members/daily-readings"')
     expect(markup).toContain('Daily Reading')
+    expect(markup).toContain('href="/members/my-service"')
+    expect(markup).toContain('My Service')
     expect(markup).toContain('href="/members"')
     expect(markup).toContain('Overview')
-    expect(markup.match(/rel="nofollow"/gu)).toHaveLength(3)
+    expect(markup).not.toContain('Leader Resources')
+    expect(markup.match(/rel="nofollow"/gu)).toHaveLength(4)
+  })
+
+  it('marks My Service active only for the service section', () => {
+    const markup = renderToStaticMarkup(
+      <MemberPortalChrome
+        active="service"
+        member={{ name: 'Aroha Ngata', email: 'aroha@example.com', avatarUrl: null }}
+        canAccessLeaderResources
+        connectGroupHref="/members/connect-groups"
+      >
+        <p>Content</p>
+      </MemberPortalChrome>,
+    )
+
+    expect(markup).toMatch(/<a[^>]+aria-current="page"[^>]+href="\/members\/my-service"/u)
+    expect(markup).not.toMatch(/<a[^>]+aria-current="page"[^>]+href="\/members"/u)
+    expect(markup).toContain('Leader Resources')
   })
 })
