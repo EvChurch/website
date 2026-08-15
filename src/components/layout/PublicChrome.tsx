@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 
 import { AudioPlayerBar } from '@/components/audio/AudioPlayerBar'
@@ -36,7 +36,26 @@ export function PublicChrome({
 }) {
   const pathname = usePathname()
   const sharedResource = matchesPathPrefix(pathname, '/shared/leader-resources')
+  const initialRoute = useRef(true)
   const [memberChrome, setMemberChrome] = useState<MemberChromeState>(ANONYMOUS_MEMBER_CHROME)
+
+  useLayoutEffect(() => {
+    if (initialRoute.current) {
+      initialRoute.current = false
+      return
+    }
+
+    const root = document.documentElement
+    root.dataset.routeTransition = 'true'
+    const timeout = window.setTimeout(() => {
+      delete root.dataset.routeTransition
+    }, 1_250)
+
+    return () => {
+      window.clearTimeout(timeout)
+      delete root.dataset.routeTransition
+    }
+  }, [pathname])
 
   useEffect(() => {
     if (sharedResource) return

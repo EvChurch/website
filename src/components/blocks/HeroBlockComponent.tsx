@@ -109,14 +109,14 @@ function HeroContent({
     <>
       {eyebrow && semanticH1 ? (
         <h1
-          className={`animate-fade-in-up m-0 font-sans text-xs font-semibold uppercase tracking-[0.2em] drop-shadow-[0_1px_4px_rgba(0,0,0,0.95)] ${eyebrowColorClass}`}
+          className={`route-animate-fade-in-up m-0 font-sans text-xs font-semibold uppercase tracking-[0.2em] drop-shadow-[0_1px_4px_rgba(0,0,0,0.95)] ${eyebrowColorClass}`}
           style={{ animationDelay: '100ms', ...eyebrowColorStyle }}
         >
           {eyebrow}
         </h1>
       ) : eyebrow ? (
         <p
-          className={`animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] drop-shadow-[0_1px_4px_rgba(0,0,0,0.95)] ${eyebrowColorClass}`}
+          className={`route-animate-fade-in-up text-xs font-semibold uppercase tracking-[0.2em] drop-shadow-[0_1px_4px_rgba(0,0,0,0.95)] ${eyebrowColorClass}`}
           style={{ animationDelay: '100ms', ...eyebrowColorStyle }}
         >
           {eyebrow}
@@ -125,14 +125,14 @@ function HeroContent({
 
       {semanticH1 ? (
         <h2
-          className="animate-fade-in-up mt-6 text-display leading-display text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
+          className="route-animate-fade-in-up mt-6 text-display leading-display text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
           style={{ animationDelay: '200ms' }}
         >
           {renderHeading(heading, highlightedText, keyColor)}
         </h2>
       ) : (
         <h1
-          className="animate-fade-in-up mt-6 text-display leading-display text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
+          className="route-animate-fade-in-up mt-6 text-display leading-display text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
           style={{ animationDelay: '200ms' }}
         >
           {renderHeading(heading, highlightedText, keyColor)}
@@ -141,7 +141,7 @@ function HeroContent({
 
       {subtitle && (
         <p
-          className="animate-fade-in-up mt-4 max-w-lg text-base leading-body-lg text-warm-grey/80 md:mt-6 md:text-lg"
+          className="route-animate-fade-in-up mt-4 max-w-lg text-base leading-body-lg text-warm-grey/80 md:mt-6 md:text-lg"
           style={{ animationDelay: '350ms' }}
         >
           {subtitle}
@@ -150,7 +150,7 @@ function HeroContent({
 
       {buttons && buttons.length > 0 && (
         <div
-          className="animate-fade-in-up mt-10 flex flex-wrap items-center gap-4"
+          className="route-animate-fade-in-up mt-10 flex flex-wrap items-center gap-4"
           style={{ animationDelay: '500ms' }}
         >
           {buttons.map((btn) => (
@@ -170,7 +170,7 @@ function HeroContent({
 
       {supportingText && (
         <p
-          className="animate-fade-in-up mt-8 hidden max-w-lg text-sm leading-relaxed text-warm-grey/60 md:block"
+          className="route-animate-fade-in-up mt-8 hidden max-w-lg text-sm leading-relaxed text-warm-grey/60 md:block"
           style={{ animationDelay: '600ms' }}
         >
           {supportingText}
