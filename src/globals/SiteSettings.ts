@@ -1,11 +1,16 @@
 import type { GlobalConfig } from 'payload'
 import { contentLeadOnlyField, isContentLead } from '@/access/roles'
+import { createCacheInvalidationHook } from '@/hooks/revalidateCacheTags'
+import { CACHE_TAGS } from '@/lib/cache-tags'
 
 export const SiteSettings: GlobalConfig = {
   slug: 'site-settings',
   access: {
     read: () => true,
     update: isContentLead,
+  },
+  hooks: {
+    afterChange: [createCacheInvalidationHook(CACHE_TAGS.siteSettings)],
   },
   fields: [
     {

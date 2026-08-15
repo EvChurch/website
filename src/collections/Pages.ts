@@ -20,6 +20,8 @@ import { LatestSermonBlock } from '@/blocks/LatestSermonBlock'
 import { UpcomingEventsBlock } from '@/blocks/UpcomingEventsBlock'
 import { ServiceTimesBlock } from '@/blocks/ServiceTimesBlock'
 import { DailyReadingBlock } from '@/blocks/DailyReadingBlock'
+import { createCacheInvalidationHook } from '@/hooks/revalidateCacheTags'
+import { CACHE_TAGS } from '@/lib/cache-tags'
 
 export const Pages: CollectionConfig = {
   slug: 'pages',
@@ -37,6 +39,10 @@ export const Pages: CollectionConfig = {
     create: isContentLead,
     update: isEditor,
     delete: isContentLead,
+  },
+  hooks: {
+    afterChange: [createCacheInvalidationHook(CACHE_TAGS.pages)],
+    afterDelete: [createCacheInvalidationHook(CACHE_TAGS.pages)],
   },
   fields: [
     {
