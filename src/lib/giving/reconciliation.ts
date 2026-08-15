@@ -87,9 +87,27 @@ export interface GivingReconciliationStore {
   recoverableEventIds(now: Date, limit?: number): Promise<number[]>
   nonterminalCheckoutIdsWithProviderIds(limit?: number): Promise<number[]>
   authorisedConsentsWithoutSchedule(limit?: number): Promise<Array<{ checkout: GivingCheckoutRecord; providerConsentId: string }>>
+  unknownCancellationOperations(limit?: number): Promise<UnknownCancellationOperation[]>
+  recordCancellationObservation(input: { operationId: number; scheduleId: number; providerStatus: string; providerRequestId?: string; observedAt: Date; cancelled: boolean }): Promise<boolean>
 }
 
-export async function runGivingReconciliation(dependencies: { store: GivingReconciliationStore; processEvent(id: number): Promise<unknown>; verifyCheckout(checkoutId: number): Promise<void>; continueRecurringCheckout(checkout: GivingCheckoutRecord, providerConsentId: string): Promise<void>; now?: () => Date }) {
+export interface UnknownCancellationOperation { operationId: number; scheduleId: number; environment: GivingEnvironment; providerScheduleId: string }
+
+export function createUnknownCancellationReconciler(dependencies: { store: GivingReconciliationStore; provider(environment: GivingEnvironment): LifecycleProvider; now?: () => Date }) {
+  return async (candidate: UnknownCancellationOperation) => {
+    const schedule = await dependencies.provider(candidate.environment).getFixedRecurringPayment(candidate.providerScheduleId)
+    return dependencies.store.recordCancellationObservation({
+      operationId: candidate.operationId,
+      scheduleId: candidate.scheduleId,
+      providerStatus: schedule.status,
+      ...(schedule.provider_correlation_id ? { providerRequestId: schedule.provider_correlation_id } : {}),
+      observedAt: (dependencies.now ?? (() => new Date()))(),
+      cancelled: /cancel/iu.test(schedule.status),
+    })
+  }
+}
+
+export async function runGivingReconciliation(dependencies: { store: GivingReconciliationStore; processEvent(id: number): Promise<unknown>; verifyCheckout(checkoutId: number): Promise<void>; continueRecurringCheckout(checkout: GivingCheckoutRecord, providerConsentId: string): Promise<void>; reconcileCancellation(candidate: UnknownCancellationOperation): Promise<unknown>; now?: () => Date }) {
   const ids = await dependencies.store.recoverableEventIds((dependencies.now ?? (() => new Date()))())
   let eventFailures = 0
   for (const id of ids) {
@@ -108,6 +126,12 @@ export async function runGivingReconciliation(dependencies: { store: GivingRecon
     try { await dependencies.continueRecurringCheckout(candidate.checkout, candidate.providerConsentId) }
     catch { continuationFailures += 1 }
   }
+  const cancellations = await dependencies.store.unknownCancellationOperations()
+  let cancellationFailures = 0
+  for (const candidate of cancellations) {
+    try { await dependencies.reconcileCancellation(candidate) }
+    catch { cancellationFailures += 1 }
+  }
   return {
     events: ids.length,
     eventFailures,
@@ -115,6 +139,8 @@ export async function runGivingReconciliation(dependencies: { store: GivingRecon
     verificationFailures,
     continuations: continuations.length,
     continuationFailures,
+    cancellations: cancellations.length,
+    cancellationFailures,
   }
 }
 
@@ -298,6 +324,29 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
       const result = await pool.query(`SELECT c.provider_consent_id,co.id checkout_id,co.context_key,co.environment,co.synthetic,co.e2e_run_id,co.giver_id,g.bank_reference,co.fund_id,co.fund_name,co.fund_code,co.fund_accounting_key,co.amount_minor,co.frequency,co.first_payment_date,co.correlation_key,co.submission_key_digest,co.submission_digest,co.gateway_redirect_uri,co.status checkout_status,co.result_code
         FROM giving_consents c JOIN giving_checkouts co ON co.id=c.checkout_id AND co.context_key=c.context_key JOIN giving_givers g ON g.id=co.giver_id AND g.context_key=co.context_key LEFT JOIN giving_schedules s ON s.consent_id=c.id WHERE c.status='authorised' AND s.id IS NULL ORDER BY c.updated_at LIMIT $1`, [limit])
       return result.rows.map((row) => ({ checkout: checkoutFromRow(row), providerConsentId: String(row.provider_consent_id) }))
+    },
+    async unknownCancellationOperations(limit = 100) {
+      const result = await pool.query(`SELECT operation.id operation_id,schedule.id schedule_id,schedule.environment,schedule.provider_schedule_id
+        FROM giving_provider_operations operation
+        JOIN giving_schedules schedule ON schedule.id=operation.schedule_id AND schedule.context_key=operation.context_key
+        WHERE operation.provider='blinkpay' AND operation.action='blinkpay.cancel-schedule'
+          AND operation.status IN ('submitted','unknown') AND schedule.status IN ('cancel_pending','unknown')
+        ORDER BY operation.updated_at,operation.id LIMIT $1`, [limit])
+      return result.rows.map((row) => ({ operationId:Number(row.operation_id),scheduleId:Number(row.schedule_id),environment:row.environment as GivingEnvironment,providerScheduleId:String(row.provider_schedule_id) }))
+    },
+    recordCancellationObservation(input) {
+      return transaction(pool, async (client) => {
+        const operation = (await client.query(`SELECT id,status,schedule_id FROM giving_provider_operations WHERE id=$1 AND action='blinkpay.cancel-schedule' AND status IN ('submitted','unknown') FOR UPDATE`,[input.operationId])).rows[0]
+        if (!operation || Number(operation.schedule_id) !== input.scheduleId) return false
+        const schedule = (await client.query(`SELECT id,status FROM giving_schedules WHERE id=$1 AND status IN ('cancel_pending','unknown') FOR UPDATE`,[input.scheduleId])).rows[0]
+        if (!schedule) return false
+        const operationStatus = input.cancelled ? 'succeeded' : 'unknown'
+        const scheduleStatus = input.cancelled ? 'cancelled' : 'unknown'
+        await client.query('UPDATE giving_provider_operations SET status=$2,provider_request_id=COALESCE($3,provider_request_id),updated_at=$4 WHERE id=$1',[input.operationId,operationStatus,input.providerRequestId ?? null,input.observedAt])
+        await client.query(`INSERT INTO giving_provider_operation_attempts(operation_id,attempt_number,outcome,provider_request_id,error_code) SELECT $1,COALESCE(MAX(attempt_number),0)+1,$2,$3,$4 FROM giving_provider_operation_attempts WHERE operation_id=$1`,[input.operationId,operationStatus,input.providerRequestId ?? null,input.cancelled ? null : 'cancellation-still-unknown'])
+        await client.query(`UPDATE giving_schedules SET status=$2,provider_status=$3,provider_verified_at=$4,provider_source='reconciliation',provider_observed_at=$4,provider_request_id=COALESCE($5,provider_request_id),updated_at=$4 WHERE id=$1`,[input.scheduleId,scheduleStatus,input.providerStatus,input.observedAt,input.providerRequestId ?? null])
+        return true
+      })
     },
   }
 }

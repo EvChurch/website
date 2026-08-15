@@ -53,4 +53,24 @@ describe('private giving collection access', () => {
       for (const name of names) expect(field(collection, name)).toMatchObject({ admin: { readOnly: true } })
     }
   })
+
+  it('groups giving records and makes every service-owned data field read-only', () => {
+    for (const collection of privateCollections) {
+      expect(collection.admin?.group).toBe('Giving')
+      expect(collection.admin?.defaultColumns).toContain('synthetic')
+      if (collection.slug !== 'giving-e2e-runs') {
+        expect(collection.admin?.baseListFilter?.({req:{query:{}}} as never)).toEqual({synthetic:{equals:false}})
+        expect(collection.admin?.baseListFilter?.({req:{query:{includeSynthetic:'true'}}} as never)).toBeNull()
+      }
+      for (const candidate of collection.fields) {
+        if ('name' in candidate && candidate.type !== 'ui') expect(candidate.admin?.readOnly, `${collection.slug}.${candidate.name}`).toBe(true)
+      }
+    }
+    const synthetic = field(GivingSchedules,'synthetic')
+    expect(synthetic).toMatchObject({ label:'TEST DATA',admin:{readOnly:true} })
+    expect(field(GivingSchedules,'cancelAction')).toMatchObject({type:'ui',admin:{components:{Field:'@/components/admin/GivingScheduleCancelAction'}}})
+    expect(field(GivingSchedules,'providerSource')).toMatchObject({options:['return','webhook','reconciliation','cancellation']})
+    expect(field(GivingE2ERuns,'tokenDigest')).toMatchObject({admin:{hidden:true,readOnly:true}})
+    expect(field(GivingE2ERuns,'csrfDigest')).toMatchObject({admin:{hidden:true,readOnly:true}})
+  })
 })

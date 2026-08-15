@@ -29,10 +29,18 @@ export const swapDefaultGivingFund: CollectionBeforeChangeHook = async ({ data, 
   return data
 }
 
+export const protectSoleDefaultGivingFund: CollectionBeforeChangeHook = ({ data, originalDoc, context }) => {
+  if (context.skipGivingDefaultSwap) return data
+  if (originalDoc?.isDefault && originalDoc.active && (data.isDefault === false || data.active === false)) {
+    throw new Error('Choose another active default fund before deactivating or unsetting the current default')
+  }
+  return data
+}
+
 export const GivingFunds: CollectionConfig = {
-  slug: 'giving-funds', admin: { useAsTitle: 'name', defaultColumns: ['name', 'code', 'active', 'isDefault', 'sortOrder'] },
+  slug: 'giving-funds', admin: { group: 'Giving', useAsTitle: 'name', defaultColumns: ['name', 'code', 'active', 'isDefault', 'sortOrder'], description: 'Exact admins may manage public funds. There must always be one active default fund.' },
   access: { read: publicActiveFunds, create: isAdmin, update: isAdmin, delete: isAdmin },
-  hooks: { afterChange: [() => revalidateTag(CACHE_TAGS.givingFunds, 'default')], afterDelete: [() => revalidateTag(CACHE_TAGS.givingFunds, 'default')], beforeChange: [swapDefaultGivingFund], beforeDelete: [protectReferencedFund] },
+  hooks: { afterChange: [() => revalidateTag(CACHE_TAGS.givingFunds, 'default')], afterDelete: [() => revalidateTag(CACHE_TAGS.givingFunds, 'default')], beforeChange: [protectSoleDefaultGivingFund, swapDefaultGivingFund], beforeDelete: [protectReferencedFund] },
   fields: [
     { name: 'name', type: 'text', required: true }, { name: 'code', type: 'text', required: true, unique: true, index: true },
     { name: 'accountingKey', type: 'text', required: true, access: { read: adminField }, admin: { readOnly: false } },

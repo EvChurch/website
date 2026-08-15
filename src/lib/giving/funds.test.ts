@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { GivingFunds, swapDefaultGivingFund } from '@/collections/GivingFunds'
+import { GivingFunds, protectSoleDefaultGivingFund, swapDefaultGivingFund } from '@/collections/GivingFunds'
 import { getActiveGivingFunds } from './funds'
 
 describe('giving funds', () => {
@@ -27,5 +27,10 @@ describe('giving funds', () => {
       collection: 'giving-funds', data: { isDefault: false }, overrideAccess: true,
       where: { and: [{ isDefault: { equals: true } }, { id: { not_equals: 2 } }] },
     }))
+  })
+
+  it('gives a clear error before removing the sole active default', () => {
+    expect(() => protectSoleDefaultGivingFund({ data:{active:false},originalDoc:{id:1,active:true,isDefault:true},context:{} } as never)).toThrow(/Choose another active default fund/)
+    expect(protectSoleDefaultGivingFund({ data:{isDefault:false},originalDoc:{id:1,active:true,isDefault:true},context:{skipGivingDefaultSwap:true} } as never)).toEqual({isDefault:false})
   })
 })

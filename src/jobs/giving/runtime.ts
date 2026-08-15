@@ -3,7 +3,7 @@ import type { Payload } from 'payload'
 import { createBlinkPayClient } from '@/lib/giving/blinkpay/client'
 import { loadBlinkPayConfig } from '@/lib/giving/blinkpay/config'
 import type { GivingEnvironment } from '@/lib/giving/contracts'
-import { createGivingLifecycleProcessor, createPostgresGivingLifecycleStore, runGivingReconciliation } from '@/lib/giving/reconciliation'
+import { createGivingLifecycleProcessor, createPostgresGivingLifecycleStore, createUnknownCancellationReconciler, runGivingReconciliation } from '@/lib/giving/reconciliation'
 import { createGivingCheckoutService, createPostgresGivingCheckoutRepository } from '@/lib/giving/service'
 
 function poolFromPayload(payload: Payload) {
@@ -28,7 +28,7 @@ function runtime(payload: Payload) {
     digestSecret: process.env.GIVING_CHECKOUT_DIGEST_SECRET ?? '',
     resolveIdentity: async () => { throw new Error('Lifecycle jobs never resolve giver identity') },
   })
-  return { store, processor, verifyCheckout: checkoutService.verify, continueRecurringCheckout: checkoutService.continueRecurring }
+  return { store, processor, verifyCheckout: checkoutService.verify, continueRecurringCheckout: checkoutService.continueRecurring, reconcileCancellation: createUnknownCancellationReconciler({ store, provider }) }
 }
 
 export async function processGivingLifecycleEvent(eventId: number, payload: Payload) {
@@ -42,5 +42,6 @@ export async function reconcileGivingLifecycle(payload: Payload) {
     processEvent: (eventId) => dependencies.processor.process(eventId),
     verifyCheckout: dependencies.verifyCheckout,
     continueRecurringCheckout: dependencies.continueRecurringCheckout,
+    reconcileCancellation: dependencies.reconcileCancellation,
   })
 }
