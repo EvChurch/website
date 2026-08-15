@@ -3,6 +3,7 @@ export type LauncherPresentation = 'collapsed' | 'compact' | 'fullscreen'
 export type LauncherView =
   | { type: 'home' }
   | { type: 'catalogue' }
+  | { type: 'giving' }
   | { type: 'feedback'; title: string }
   | { type: 'workflow'; workflowTypeGuid: string; imageUrl?: string; title: string }
   | { type: 'connection'; blockGuid: string; imageUrl?: string; title: string }
@@ -19,6 +20,7 @@ export interface LauncherState {
 
 export type LauncherAction =
   | { type: 'open'; presentation?: Exclude<LauncherPresentation, 'collapsed'> }
+  | { type: 'openGiving'; presentation: Exclude<LauncherPresentation, 'collapsed'> }
   | { type: 'close' }
   | { type: 'toggleFullscreen' }
   | { type: 'push'; view: LauncherView }
@@ -45,6 +47,13 @@ export function launcherReducer(
   switch (action.type) {
     case 'open':
       return { ...state, presentation: action.presentation ?? 'compact' }
+    case 'openGiving':
+      return {
+        ...state,
+        presentation: action.presentation,
+        view: { type: 'giving' },
+        history: [{ type: 'home' }],
+      }
     case 'close':
       return {
         ...state,

@@ -17,6 +17,8 @@ import { getCurrentMemberProfileState } from '@/auth/member-session'
 import { getCurrentMemberImpersonation } from '@/auth/member-impersonation'
 import { isCurrentPayloadAdmin } from '@/auth/payload-admin-session'
 import { NextStepsLauncher } from '@/components/launcher/NextStepsLauncher'
+import { GivingExperienceProvider } from '@/components/giving/GivingExperienceProvider'
+import { resolveGivingServerEligibility } from '@/lib/giving/availability'
 import { loadLauncherData } from '@/lib/launcher/service-guide'
 import { loadSiteFeedbackSettings } from '@/lib/site-feedback/settings'
 import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
@@ -134,26 +136,32 @@ export default async function FrontendLayout({ children }: { children: ReactNode
       </head>
       <body className="bg-brand-black font-sans text-brand-black antialiased">
         <MediaPlayerProvider>
-          <AnalyticsManager />
-          <AnnouncementBanner />
-          <SiteHeader
-            feedback={feedback}
-            memberProfile={memberProfile}
-            adminHref={payloadAdmin ? '/admin/impersonate' : undefined}
-            impersonation={impersonation}
-          />
-          <main>{children}</main>
-          <Footer />
-          <AudioPlayerSpacer />
-          <AudioPlayerBar />
-          <VideoContainer />
-          <NextStepsLauncher
-            campuses={launcher.campuses}
-            items={launcher.available ? launcher.items : null}
-            memberCampusSlug={rockProfileState?.profile.campusSlug ?? null}
-            feedback={feedback}
-            signedInEmail={memberProfile?.email}
-          />
+          <GivingExperienceProvider
+            serverEligibility={resolveGivingServerEligibility()}
+          >
+            <AnalyticsManager />
+            <AnnouncementBanner />
+            <SiteHeader
+              feedback={feedback}
+              memberProfile={memberProfile}
+              adminHref={payloadAdmin ? '/admin/impersonate' : undefined}
+              impersonation={impersonation}
+            />
+            <main>{children}</main>
+            <Footer />
+            <AudioPlayerSpacer />
+            <AudioPlayerBar />
+            <VideoContainer />
+            <NextStepsLauncher
+              campuses={launcher.campuses}
+              items={launcher.available ? launcher.items : null}
+              memberCampusSlug={rockProfileState?.profile.campusSlug ?? null}
+              feedback={feedback}
+              signedInEmail={memberProfile?.email}
+              memberProfile={memberProfile}
+              adminHref={payloadAdmin ? '/admin/impersonate' : undefined}
+            />
+          </GivingExperienceProvider>
         </MediaPlayerProvider>
       </body>
     </html>

@@ -1,4 +1,5 @@
 import { canTrackAnalyticsPath } from './analytics-privacy'
+import { sanitizeAnalyticsPayload } from './giving/analytics'
 
 type AnalyticsValue = string | number | boolean
 
@@ -92,7 +93,7 @@ export function trackAnalyticsEvent<Name extends AnalyticsEventName>(
   }
 
   const safeParameters: Record<string, AnalyticsValue> = {}
-  for (const [key, value] of Object.entries(parameters) as Array<
+  for (const [key, value] of Object.entries(sanitizeAnalyticsPayload(parameters)) as Array<
     [string, unknown]
   >) {
     if (

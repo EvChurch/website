@@ -8,6 +8,12 @@ const navigation = vi.hoisted(() => ({ pathname: '/sermons' }))
 const posthog = vi.hoisted(() => ({
   capture: vi.fn(),
   init: vi.fn(),
+  isFeatureEnabled: vi.fn(),
+  onFeatureFlags: vi.fn((_callback: (
+    flags: string[],
+    variants: Record<string, string | boolean>,
+    context: { errorsLoading?: boolean },
+  ) => void) => vi.fn()),
   opt_in_capturing: vi.fn(),
   opt_out_capturing: vi.fn(),
   startExceptionAutocapture: vi.fn(),
@@ -30,6 +36,8 @@ vi.mock('./GoogleAnalytics', () => ({
 
 describe('AnalyticsManager', () => {
   let AnalyticsManager: typeof import('./AnalyticsManager').AnalyticsManager
+  let GivingExperienceProvider: typeof import('../giving/GivingExperienceProvider').GivingExperienceProvider
+  let useGivingExperience: typeof import('../giving/GivingExperienceProvider').useGivingExperience
   let container: HTMLDivElement
   let root: Root
 
@@ -41,6 +49,7 @@ describe('AnalyticsManager', () => {
     vi.stubEnv('NEXT_PUBLIC_POSTHOG_UI_HOST', 'https://us.posthog.com')
     navigation.pathname = '/sermons'
     ;({ AnalyticsManager } = await import('./AnalyticsManager'))
+    ;({ GivingExperienceProvider, useGivingExperience } = await import('../giving/GivingExperienceProvider'))
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
@@ -66,7 +75,7 @@ describe('AnalyticsManager', () => {
         person_profiles: 'never',
         respect_dnt: false,
         session_recording: expect.objectContaining({
-          blockSelector: ':not(*)',
+          blockSelector: '[data-giving-private]',
           maskAllInputs: true,
           maskAllElementAttributes: false,
           maskTextSelector: ':not(*)',
@@ -102,7 +111,7 @@ describe('AnalyticsManager', () => {
     expect(beforeSend(noise)).toBeNull()
   })
 
-  it('keeps real exceptions with stack frames', async () => {
+  it('removes raw exception details before sending a real exception event', async () => {
     await act(async () => root.render(<AnalyticsManager />))
 
     const { before_send: beforeSend } = posthog.init.mock.calls[0][1] as {
@@ -121,7 +130,7 @@ describe('AnalyticsManager', () => {
       },
     }
 
-    expect(beforeSend(realError)).toBe(realError)
+    expect(beforeSend(realError)).toEqual({ event: '$exception', properties: {} })
   })
 
   it('keeps PostHog off when its UI host is missing', async () => {
@@ -133,11 +142,38 @@ describe('AnalyticsManager', () => {
     expect(container.querySelector('[data-ga-path="/sermons"]')).not.toBeNull()
   })
 
+  it('subscribes to fresh flag decisions without emitting flag-called events', async () => {
+    function FlagStateProbe() {
+      return <output data-flag-state>{useGivingExperience().flagState}</output>
+    }
+
+    posthog.isFeatureEnabled.mockReturnValue(true)
+    await act(async () => root.render(
+      <GivingExperienceProvider serverEligibility="production">
+        <AnalyticsManager />
+        <FlagStateProbe />
+      </GivingExperienceProvider>,
+    ))
+
+    expect(posthog.onFeatureFlags).toHaveBeenCalledOnce()
+    const callback = posthog.onFeatureFlags.mock.calls[0]?.[0]
+    await act(async () => callback([], {}, { errorsLoading: false }))
+
+    expect(posthog.isFeatureEnabled).toHaveBeenCalledWith(
+      'launcher-giving-pilot',
+      { fresh: true, send_event: false },
+    )
+    expect(container.querySelector('[data-flag-state]')?.textContent).toBe('enabled')
+
+    posthog.isFeatureEnabled.mockReturnValue(undefined)
+    await act(async () => callback([], {}, { errorsLoading: false }))
+    expect(container.querySelector('[data-flag-state]')?.textContent).toBe('failed')
+  })
+
   it.each([
     '/members/connect-groups/123',
     '/auth/pending',
     '/contact/pastoral-care',
-    '/give',
     '/member-sign-in/error',
     '/privacy',
   ])('records PostHog replay on excluded Google Analytics route %s', async (pathname) => {
@@ -164,6 +200,22 @@ describe('AnalyticsManager', () => {
     ).toBe(true)
   })
 
+  it.each([
+    '/give',
+    '/give/return/status',
+    '/giving-e2e/session/status',
+  ])('does not send giving-private route %s to analytics or replay', async (pathname) => {
+    navigation.pathname = pathname
+
+    await act(async () => root.render(<AnalyticsManager />))
+
+    expect(posthog.init).not.toHaveBeenCalled()
+    expect(posthog.capture).not.toHaveBeenCalled()
+    expect(posthog.startSessionRecording).not.toHaveBeenCalled()
+    expect(posthog.startExceptionAutocapture).not.toHaveBeenCalled()
+    expect(container.querySelector('[data-ga-path]')).toBeNull()
+  })
+
   it('continues replay when navigating from a public route to a member route', async () => {
     await act(async () => root.render(<AnalyticsManager />))
     posthog.startSessionRecording.mockClear()
@@ -179,6 +231,39 @@ describe('AnalyticsManager', () => {
     expect(posthog.stopSessionRecording).not.toHaveBeenCalled()
     expect(posthog.stopExceptionAutocapture).not.toHaveBeenCalled()
     expect(container.querySelector('[data-ga-path]')).toBeNull()
+  })
+
+  it('stops replay and exception capture while giving is active, then restarts both', async () => {
+    function GivingStateControl() {
+      const { givingViewActive, setGivingViewActive } = useGivingExperience()
+      return (
+        <button
+          type="button"
+          onClick={() => setGivingViewActive(!givingViewActive)}
+        >
+          toggle giving
+        </button>
+      )
+    }
+
+    await act(async () => root.render(
+      <GivingExperienceProvider serverEligibility="production">
+        <AnalyticsManager />
+        <GivingStateControl />
+      </GivingExperienceProvider>,
+    ))
+    posthog.startSessionRecording.mockClear()
+    posthog.startExceptionAutocapture.mockClear()
+
+    await act(async () => container.querySelector('button')?.click())
+    expect(posthog.stopSessionRecording).toHaveBeenCalledOnce()
+    expect(posthog.stopExceptionAutocapture).toHaveBeenCalledOnce()
+    expect(container.querySelector('[data-ga-path]')).toBeNull()
+
+    await act(async () => container.querySelector('button')?.click())
+    expect(posthog.startSessionRecording).toHaveBeenCalledWith(true)
+    expect(posthog.startExceptionAutocapture).toHaveBeenCalledOnce()
+    expect(container.querySelector('[data-ga-path="/sermons"]')).not.toBeNull()
   })
 
   it('does not send capability URLs to analytics or replay', async () => {

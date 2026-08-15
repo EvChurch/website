@@ -8,6 +8,7 @@ import {
   MemberAccountControl,
   type MemberDisplayProfile,
 } from './MemberAccountControl'
+import { useGivingExperience } from '@/components/giving/GivingExperienceProvider'
 
 type NavItem = { label: string } & (
   | { href: string; children?: never }
@@ -215,6 +216,7 @@ function MobileMenu({
   adminHref?: string
 }) {
   const [expandedItem, setExpandedItem] = useState<string | null>(null)
+  const { handleGivingLinkClick } = useGivingExperience()
 
   return (
     <div
@@ -336,7 +338,10 @@ function MobileMenu({
             <Link
               href="https://give.ev.church"
               className="block w-full rounded-md border border-rich-red py-3.5 text-center text-sm font-semibold text-rich-red transition-colors hover:bg-rich-red hover:text-white"
-              onClick={onClose}
+              onClick={(event) => {
+                handleGivingLinkClick(event)
+                onClose()
+              }}
             >
               Give
             </Link>
@@ -364,6 +369,7 @@ export function Header({
   const hasScrolledRef = useRef(false)
   const darkTone = scrolled || needsDarkHeaderAtTop(pathname)
   const memberPath = isMemberPath(pathname)
+  const { handleGivingLinkClick } = useGivingExperience()
 
   // Set correct initial state without transition
   useEffect(() => {
@@ -504,6 +510,7 @@ export function Header({
             <Link
               href="https://give.ev.church"
               data-header-give
+              onClick={handleGivingLinkClick}
               className={`ml-3 mr-2 rounded-full px-5 py-2 text-[0.8125rem] font-semibold uppercase tracking-wide transition-colors duration-200 ${
                 darkTone
                   ? 'bg-rich-red text-white hover:bg-deep-red'

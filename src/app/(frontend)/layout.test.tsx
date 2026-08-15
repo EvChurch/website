@@ -27,6 +27,10 @@ const mocks = vi.hoisted(() => ({
     feedback: unknown
     signedInEmail?: string
   }) => null),
+  givingProvider: vi.fn((props: {
+    children: React.ReactNode
+    serverEligibility: string | null
+  }) => <div data-giving-eligibility={props.serverEligibility ?? 'disabled'}>{props.children}</div>),
 }))
 
 vi.mock('next/headers', () => ({
@@ -57,6 +61,9 @@ vi.mock('@/lib/site-feedback/settings', () => ({
 }))
 vi.mock('@/components/launcher/NextStepsLauncher', () => ({
   NextStepsLauncher: mocks.launcher,
+}))
+vi.mock('@/components/giving/GivingExperienceProvider', () => ({
+  GivingExperienceProvider: mocks.givingProvider,
 }))
 vi.mock('@/components/layout/SiteHeader', () => ({ SiteHeader: mocks.siteHeader }))
 vi.mock('@/components/layout/Header', () => ({ Header: mocks.header }))
@@ -103,6 +110,22 @@ describe('FrontendLayout member account state', () => {
     expect(mocks.getCurrentMemberProfileState).not.toHaveBeenCalled()
     expect(mocks.getCurrentMemberImpersonation).not.toHaveBeenCalled()
     expect(mocks.isCurrentPayloadAdmin).not.toHaveBeenCalled()
+    expect(mocks.givingProvider).not.toHaveBeenCalled()
+  })
+
+  it('passes only the exact production release gate into the client provider', async () => {
+    vi.stubEnv('BLINKPAY_PRODUCTION_ENABLED', 'TRUE')
+    let markup = renderToStaticMarkup(
+      await FrontendLayout({ children: <main>Page</main> }),
+    )
+    expect(markup).toContain('data-giving-eligibility="disabled"')
+
+    vi.stubEnv('BLINKPAY_PRODUCTION_ENABLED', 'true')
+    markup = renderToStaticMarkup(
+      await FrontendLayout({ children: <main>Page</main> }),
+    )
+    expect(markup).toContain('data-giving-eligibility="production"')
+    vi.unstubAllEnvs()
   })
 
   it('loads visitor-facing feedback settings into the composed header', async () => {

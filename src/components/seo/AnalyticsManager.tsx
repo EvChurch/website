@@ -4,10 +4,19 @@ import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import posthog, { type CaptureResult } from 'posthog-js'
 
-import { canTrackAnalyticsPath } from '@/lib/analytics-privacy'
+import {
+  canTrackAnalyticsPath,
+  mustPauseAnalyticsCapture,
+} from '@/lib/analytics-privacy'
+import { useGivingExperience } from '@/components/giving/GivingExperienceProvider'
+import {
+  GIVING_FLAG_KEY,
+  sanitizeAnalyticsPayload,
+} from '@/lib/giving/analytics'
 import { GA_ID, GoogleAnalytics } from './GoogleAnalytics'
 
 let postHogInitialized = false
+let privateCaptureActive = false
 
 // A browser extension (the known source is an Outlook/Office family one) injects
 // a script that rejects a promise with a plain string. Exception autocapture
@@ -51,6 +60,11 @@ function dropBrowserExtensionExceptions(
   return event
 }
 
+function sanitizePostHogEvent(event: CaptureResult | null): CaptureResult | null {
+  const filtered = dropBrowserExtensionExceptions(event)
+  return filtered ? sanitizeAnalyticsPayload(filtered) : null
+}
+
 function initializePostHog(): boolean {
   const projectToken = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN
   const host = process.env.NEXT_PUBLIC_POSTHOG_HOST
@@ -61,7 +75,7 @@ function initializePostHog(): boolean {
   posthog.init(projectToken, {
     api_host: host,
     ui_host: uiHost,
-    before_send: dropBrowserExtensionExceptions,
+    before_send: sanitizePostHogEvent,
     autocapture: false,
     capture_pageview: false,
     capture_pageleave: false,
@@ -73,43 +87,88 @@ function initializePostHog(): boolean {
     persistence: 'localStorage+cookie',
     respect_dnt: false,
     session_recording: {
-      blockSelector: ':not(*)',
+      blockSelector: '[data-giving-private]',
       maskAllInputs: true,
       maskAllElementAttributes: false,
       maskTextSelector: ':not(*)',
     },
   })
-  posthog.startExceptionAutocapture()
-  posthog.startSessionRecording(true)
   postHogInitialized = true
   return true
 }
 
+function startPrivateCapture() {
+  if (!postHogInitialized || privateCaptureActive) return
+  posthog.startExceptionAutocapture()
+  posthog.startSessionRecording(true)
+  privateCaptureActive = true
+}
+
+function stopPrivateCapture() {
+  if (!postHogInitialized || !privateCaptureActive) return
+  posthog.stopSessionRecording()
+  posthog.stopExceptionAutocapture()
+  privateCaptureActive = false
+}
+
 export function AnalyticsManager() {
   const pathname = usePathname()
+  const { givingViewActive, setFlagState } = useGivingExperience()
   const mayTrack = canTrackAnalyticsPath(pathname)
-  const isCapabilityRoute = pathname === '/shared' || pathname.startsWith('/shared/')
+  const privatePath = mustPauseAnalyticsCapture(pathname)
+  const pausePrivateCapture = givingViewActive || privatePath
+
+  useEffect(() => {
+    if (privatePath) {
+      setFlagState('failed')
+      return
+    }
+    if (!initializePostHog()) {
+      setFlagState('failed')
+      return
+    }
+
+    try {
+      return posthog.onFeatureFlags((_flags, _variants, context) => {
+        if (context?.errorsLoading) {
+          setFlagState('failed')
+          return
+        }
+        try {
+          const enabled = posthog.isFeatureEnabled(GIVING_FLAG_KEY, {
+            fresh: true,
+            send_event: false,
+          })
+          setFlagState(enabled === true ? 'enabled' : enabled === false ? 'disabled' : 'failed')
+        } catch {
+          setFlagState('failed')
+        }
+      })
+    } catch {
+      setFlagState('failed')
+    }
+  }, [privatePath, setFlagState])
 
   useEffect(() => {
     if (GA_ID) {
       ;(window as unknown as Record<string, unknown>)[`ga-disable-${GA_ID}`] = !mayTrack
     }
 
-    if (isCapabilityRoute) {
-      if (postHogInitialized) {
-        posthog.stopSessionRecording()
-        posthog.stopExceptionAutocapture()
-      }
+    if (pausePrivateCapture) {
+      stopPrivateCapture()
       return
     }
 
     if (!initializePostHog()) return
+    startPrivateCapture()
 
     posthog.capture('$pageview', {
       $current_url: `${window.location.origin}${pathname}`,
       $pathname: pathname,
     })
-  }, [isCapabilityRoute, mayTrack, pathname])
+  }, [mayTrack, pathname, pausePrivateCapture])
 
-  return mayTrack ? <GoogleAnalytics pagePath={pathname} /> : null
+  return mayTrack && !givingViewActive
+    ? <GoogleAnalytics pagePath={pathname} />
+    : null
 }

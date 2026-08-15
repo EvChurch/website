@@ -26,6 +26,11 @@ import { RockForm } from "@/components/forms/RockForm";
 import { SafeRockHtml } from "@/components/forms/SafeRockHtml";
 import { FeedbackStrip } from "@/components/layout/FeedbackStrip";
 import {
+  MemberAccountControl,
+  type MemberDisplayProfile,
+} from "@/components/layout/MemberAccountControl";
+import { useGivingExperience } from "@/components/giving/GivingExperienceProvider";
+import {
   CONNECT_CARD_WORKFLOW_GUID,
   LAUNCHER_CAMPUS_STORAGE_KEY,
   PLAN_A_VISIT_WORKFLOW_GUID,
@@ -47,6 +52,8 @@ export interface NextStepsLauncherProps {
   memberCampusSlug?: string | null;
   feedback?: PublicSiteFeedbackSettings | null;
   signedInEmail?: string;
+  memberProfile?: MemberDisplayProfile | null;
+  adminHref?: string;
 }
 
 const focusableSelector = [
@@ -69,6 +76,8 @@ function viewTitle(view: LauncherView): string {
       return "Your next step";
     case "catalogue":
       return "More next steps";
+    case "giving":
+      return "Giving";
     case "feedback":
     case "workflow":
     case "connection":
@@ -156,6 +165,8 @@ export function NextStepsLauncher({
   memberCampusSlug,
   feedback,
   signedInEmail,
+  memberProfile,
+  adminHref,
 }: NextStepsLauncherProps) {
   const currentPathname = usePathname();
   const pathname = initialPathname ?? currentPathname ?? "/";
@@ -167,6 +178,7 @@ export function NextStepsLauncher({
   const [isMobile, setIsMobile] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isCloseMotionActive, setIsCloseMotionActive] = useState(false);
+  const giving = useGivingExperience();
   const launcherRootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -206,6 +218,20 @@ export function NextStepsLauncher({
     setCampusMenuOpen(false);
     dispatch({ type: "close" });
   }, [pathname]);
+
+  useEffect(() => {
+    if (!giving.consumeGivingRequest(giving.givingRequestId)) return;
+    dispatch({
+      type: "openGiving",
+      presentation: isMobile ? "fullscreen" : "compact",
+    });
+  }, [giving.consumeGivingRequest, giving.givingRequestId, isMobile]);
+
+  useEffect(() => {
+    const active = state.presentation !== "collapsed" && state.view.type === "giving";
+    giving.setGivingViewActive(active);
+    return () => giving.setGivingViewActive(false);
+  }, [giving.setGivingViewActive, state.presentation, state.view.type]);
 
   const completeClose = useCallback(() => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
@@ -612,6 +638,7 @@ export function NextStepsLauncher({
               href="https://give.ev.church"
               className="group flex w-full animate-fade-in items-center justify-between gap-4 rounded-2xl border border-warm-grey/70 bg-white px-5 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-rich-red/35 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red motion-reduce:animate-none"
               style={{ animationDelay: "250ms" }}
+              onClick={giving.handleGivingLinkClick}
             >
               <span className="block text-lg font-semibold text-brand-black">
                 Give Now
@@ -651,6 +678,10 @@ export function NextStepsLauncher({
         );
       case "catalogue":
         return renderCatalogue();
+      case "giving":
+        return giving.givingExperience ? (
+          <div data-giving-private>{giving.givingExperience}</div>
+        ) : null;
       case "feedback":
         return feedback ? (
           <FeedbackStrip
@@ -764,8 +795,17 @@ export function NextStepsLauncher({
                   </button>
                 </div>
               )}
-              {!isMobile && (
-                <div className="absolute right-4 top-[max(.75rem,env(safe-area-inset-top))] sm:right-5">
+              <div className="absolute right-4 top-[max(.75rem,env(safe-area-inset-top))] flex items-center gap-1 sm:right-5">
+                {(memberProfile !== undefined || adminHref) && (
+                  <MemberAccountControl
+                    profile={memberProfile ?? null}
+                    variant="mobile-icon"
+                    tone="dark"
+                    active={!isClosing}
+                    adminHref={adminHref}
+                  />
+                )}
+                {!isMobile && (
                   <button
                     type="button"
                     className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-brand-black shadow-sm transition hover:bg-warm-grey/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red"
@@ -788,8 +828,8 @@ export function NextStepsLauncher({
                       />
                     )}
                   </button>
-                </div>
-              )}
+                )}
+              </div>
               {state.view.type !== "home" && (
                 <h2 className="min-w-0 max-w-[calc(100%-7rem)] truncate text-center text-lg font-semibold text-brand-black sm:text-xl">
                   {viewTitle(state.view)}
