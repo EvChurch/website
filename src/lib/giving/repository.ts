@@ -22,6 +22,8 @@ export interface PrepareProviderOperationInput extends GivingContext {
   logicalVersion: number
   requestDigest: string
   correlationKey: string
+  requestId?: string
+  idempotencyKey?: string
 }
 
 export function createIdentityFingerprint(normalisedEmail: string, secret: string): string {
@@ -70,18 +72,18 @@ export async function bindCheckoutGiver(client: PoolClient, checkoutId: number, 
   if (result.rowCount !== 1) throw new Error('Checkout giver binding is stale or crosses giving context')
 }
 
-export interface PreparedProviderOperation { id: number; status: ProviderOperationStatus; providerId: string | null }
+export interface PreparedProviderOperation { id: number; status: ProviderOperationStatus; providerId: string | null; requestId: string | null; idempotencyKey: string | null }
 
 export async function prepareProviderOperation(client: PoolClient, input: PrepareProviderOperationInput): Promise<PreparedProviderOperation> {
   const contextKey = input.contextKey
   await client.query(`INSERT INTO giving_provider_operations
-    (context_key,environment,synthetic,e2e_run_id,checkout_id,provider,action,logical_version,request_digest,correlation_key,status)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'prepared')
-    ON CONFLICT (checkout_id,provider,action,logical_version) DO NOTHING`, [contextKey, input.environment, input.synthetic, input.e2eRunId, input.checkoutId, input.provider, input.action, input.logicalVersion, input.requestDigest, input.correlationKey])
-  const result = await client.query<{ id: number; status: ProviderOperationStatus; provider_id: string | null; request_digest: string; correlation_key: string; context_key: string }>(`SELECT id,status,provider_id,request_digest,correlation_key,context_key FROM giving_provider_operations WHERE checkout_id=$1 AND provider=$2 AND action=$3 AND logical_version=$4 FOR UPDATE`, [input.checkoutId,input.provider,input.action,input.logicalVersion])
+    (context_key,environment,synthetic,e2e_run_id,checkout_id,provider,action,logical_version,request_digest,correlation_key,request_id,idempotency_key,status)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'prepared')
+    ON CONFLICT (checkout_id,provider,action,logical_version) DO NOTHING`, [contextKey, input.environment, input.synthetic, input.e2eRunId, input.checkoutId, input.provider, input.action, input.logicalVersion, input.requestDigest, input.correlationKey, input.requestId ?? null, input.idempotencyKey ?? null])
+  const result = await client.query<{ id: number; status: ProviderOperationStatus; provider_id: string | null; request_digest: string; correlation_key: string; context_key: string; request_id: string | null; idempotency_key: string | null }>(`SELECT id,status,provider_id,request_digest,correlation_key,context_key,request_id,idempotency_key FROM giving_provider_operations WHERE checkout_id=$1 AND provider=$2 AND action=$3 AND logical_version=$4 FOR UPDATE`, [input.checkoutId,input.provider,input.action,input.logicalVersion])
   const operation = result.rows[0]
-  if (!operation || operation.request_digest !== input.requestDigest || operation.correlation_key !== input.correlationKey || operation.context_key !== contextKey) throw new Error('Provider operation does not match the prepared semantic action')
-  return { id: operation.id, status: operation.status, providerId: operation.provider_id }
+  if (!operation || operation.request_digest !== input.requestDigest || operation.correlation_key !== input.correlationKey || operation.context_key !== contextKey || operation.request_id !== (input.requestId ?? null) || operation.idempotency_key !== (input.idempotencyKey ?? null)) throw new Error('Provider operation does not match the prepared semantic action')
+  return { id: operation.id, status: operation.status, providerId: operation.provider_id, requestId: operation.request_id, idempotencyKey: operation.idempotency_key }
 }
 
 export async function markProviderOperation(client: PoolClient, operationId: number, status: Exclude<ProviderOperationStatus, 'prepared'>, attempt: { providerRequestId?: string; providerId?: string; errorCode?: string }): Promise<void> {

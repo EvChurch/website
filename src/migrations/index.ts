@@ -33,6 +33,7 @@ import * as migration_20260814_leader_resource_shares from './20260814_leader_re
 import * as migration_20260814_143000_fix_leader_resource_share_lock_relation from './20260814_143000_fix_leader_resource_share_lock_relation';
 import * as migration_20260815_170000_giving_pilot from './20260815_170000_giving_pilot';
 import * as migration_20260815_210000_giving_drafts from './20260815_210000_giving_drafts';
+import * as migration_20260815_230000_giving_checkout_orchestration from './20260815_230000_giving_checkout_orchestration';
 
 export const migrations = [
   {
@@ -209,5 +210,10 @@ export const migrations = [
     up: migration_20260815_210000_giving_drafts.up,
     down: migration_20260815_210000_giving_drafts.down,
     name: '20260815_210000_giving_drafts',
+  },
+  {
+    up: migration_20260815_230000_giving_checkout_orchestration.up,
+    down: migration_20260815_230000_giving_checkout_orchestration.down,
+    name: '20260815_230000_giving_checkout_orchestration',
   },
 ];

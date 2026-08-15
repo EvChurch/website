@@ -24,6 +24,8 @@ import { getCachedActiveGivingFunds } from '@/lib/giving/funds'
 import { createGivingRockClient } from '@/lib/giving/rock-client'
 import { resolveCurrentGivingMemberIdentity } from '@/auth/giving-member-identity'
 import { givingCapabilityCookieNames } from '@/lib/giving/drafts'
+import { createGivingE2ESessionService, createPayloadGivingE2ESessionStore, GIVING_E2E_COOKIE } from '@/lib/giving/e2e-session'
+import { getPayloadClient } from '@/lib/payload'
 import { getAuth0Client } from '@/auth/auth0-client'
 import { loadLauncherData } from '@/lib/launcher/service-guide'
 import { loadSiteFeedbackSettings } from '@/lib/site-feedback/settings'
@@ -115,7 +117,18 @@ export default async function FrontendLayout({ children }: { children: ReactNode
       </html>
     )
   }
-  const initialGivingEligibility = resolveGivingServerEligibility()
+  const requestCookies = await cookies()
+  let protectedE2E = false
+  const e2eToken = requestCookies.get(GIVING_E2E_COOKIE)?.value
+  if (e2eToken) {
+    try {
+      const payload = await getPayloadClient()
+      protectedE2E = Boolean(await createGivingE2ESessionService(createPayloadGivingE2ESessionStore(payload)).read(e2eToken))
+    } catch {
+      protectedE2E = false
+    }
+  }
+  const initialGivingEligibility = resolveGivingServerEligibility({ protectedE2E })
   const [launcher, feedback, rockProfileState, payloadAdmin, impersonation, givingFunds] = await Promise.all([
     loadLauncherData(),
     loadSiteFeedbackSettings(),
@@ -155,9 +168,11 @@ export default async function FrontendLayout({ children }: { children: ReactNode
       givingEligibility = null
     }
   }
-  const requestCookies = await cookies()
   const secureRequest = process.env.NODE_ENV === 'production'
-  const resumeRequested = Boolean(requestCookies.get(givingCapabilityCookieNames(secureRequest).resume)?.value)
+  const resumeRequested = Boolean(
+    requestCookies.get(givingCapabilityCookieNames(secureRequest).resume)?.value ||
+    requestCookies.get('__Host-ev_giving_checkout')?.value,
+  )
 
   return (
     <html lang="en" className={fontVariables}>

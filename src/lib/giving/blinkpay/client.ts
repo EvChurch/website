@@ -6,6 +6,7 @@ import type {
   BlinkPayFixedRecurringPayment,
   BlinkPayMutationResult,
   BlinkPayOperationMetadata,
+  BlinkPayOperationKeys,
   BlinkPayPayment,
   BlinkPayPcr,
   BlinkPayQuickPayment,
@@ -68,6 +69,8 @@ interface RequestContext {
   idempotencyKey: string
   tokenScope?: string
 }
+
+const OPERATION_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/u
 
 interface RequestResult {
   response: Response
@@ -285,6 +288,13 @@ export function createBlinkPayClient(options: CreateBlinkPayClientOptions) {
     return { requestId: uuid(), idempotencyKey: uuid() }
   }
 
+  function callerOperationContext(keys: BlinkPayOperationKeys): RequestContext {
+    if (!OPERATION_KEY_PATTERN.test(keys.requestId) || !OPERATION_KEY_PATTERN.test(keys.idempotencyKey)) {
+      throw new BlinkPayClientError('configuration-invalid')
+    }
+    return { requestId: keys.requestId, idempotencyKey: keys.idempotencyKey }
+  }
+
   async function request(
     method: 'GET' | 'POST' | 'DELETE',
     endpoint: string,
@@ -368,8 +378,8 @@ export function createBlinkPayClient(options: CreateBlinkPayClientOptions) {
     return value
   }
 
-  async function create<T>(endpoint: string, body: unknown, parse: (value: unknown) => T): Promise<BlinkPayMutationResult<T>> {
-    const context = operationContext()
+  async function create<T>(endpoint: string, body: unknown, keys: BlinkPayOperationKeys, parse: (value: unknown) => T): Promise<BlinkPayMutationResult<T>> {
+    const context = callerOperationContext(keys)
     let result: RequestResult
     try {
       result = await request('POST', endpoint, body, context)
@@ -387,11 +397,11 @@ export function createBlinkPayClient(options: CreateBlinkPayClientOptions) {
     }
   }
 
-  function createQuickPayment(input: CreateQuickPaymentRequest) {
+  function createQuickPayment(input: CreateQuickPaymentRequest, keys: BlinkPayOperationKeys) {
     assertCallbackUri(input.flow.detail.redirect_uri, options.config.callbackOrigin)
     assertAmount(input.amount)
     validatePcr(input.pcr)
-    return create<CreateQuickPaymentResponse>('quick-payments', input, (value) => {
+    return create<CreateQuickPaymentResponse>('quick-payments', input, keys, (value) => {
       if (!record(value)) throw new BlinkPayClientError('response-invalid')
       const redirectUri = requiredString(value.redirect_uri)
       return {
@@ -401,7 +411,7 @@ export function createBlinkPayClient(options: CreateBlinkPayClientOptions) {
     })
   }
 
-  function createEnduringConsent(input: CreateEnduringConsentRequest) {
+  function createEnduringConsent(input: CreateEnduringConsentRequest, keys: BlinkPayOperationKeys) {
     assertCallbackUri(input.flow.detail.redirect_uri, options.config.callbackOrigin)
     const requestNow = now()
     const fromTimestamp = assertConsentFromTimestamp(input.from_timestamp, requestNow)
@@ -422,7 +432,7 @@ export function createBlinkPayClient(options: CreateBlinkPayClientOptions) {
     if (amountMinor(input.maximum_amount_payment) > amountMinor(input.maximum_amount_period)) {
       throw new BlinkPayClientError('configuration-invalid')
     }
-    return create<CreateEnduringConsentResponse>('enduring-consents', input, (value) => {
+    return create<CreateEnduringConsentResponse>('enduring-consents', input, keys, (value) => {
       if (!record(value)) throw new BlinkPayClientError('response-invalid')
       const redirectUri = requiredString(value.redirect_uri)
       return {
@@ -432,7 +442,7 @@ export function createBlinkPayClient(options: CreateBlinkPayClientOptions) {
     })
   }
 
-  function createFixedRecurringPayment(input: CreateFixedRecurringPaymentRequest) {
+  function createFixedRecurringPayment(input: CreateFixedRecurringPaymentRequest, keys: BlinkPayOperationKeys) {
     requiredUuid(input.consent_id)
     assertAmount(input.amount)
     validatePcr(input.pcr)
@@ -458,15 +468,15 @@ export function createBlinkPayClient(options: CreateBlinkPayClientOptions) {
       maximum_amount_period_minor: _maximumAmountPeriodMinor,
       ...body
     } = input
-    return create<CreateFixedRecurringPaymentResponse>('fixed-recurring-payments', body, (value) => {
+    return create<CreateFixedRecurringPaymentResponse>('fixed-recurring-payments', body, keys, (value) => {
       if (!record(value)) throw new BlinkPayClientError('response-invalid')
       return { fixed_recurring_payment_id: requiredUuid(value.fixed_recurring_payment_id) }
     })
   }
 
-  async function cancelFixedRecurringPayment(fixedRecurringPaymentId: string): Promise<BlinkPayMutationResult<undefined>> {
+  async function cancelFixedRecurringPayment(fixedRecurringPaymentId: string, keys: BlinkPayOperationKeys): Promise<BlinkPayMutationResult<undefined>> {
     requiredUuid(fixedRecurringPaymentId)
-    const context = operationContext()
+    const context = callerOperationContext(keys)
     let result: RequestResult
     try {
       result = await request('DELETE', `fixed-recurring-payments/${fixedRecurringPaymentId}`, undefined, context)

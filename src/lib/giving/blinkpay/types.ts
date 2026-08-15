@@ -120,6 +120,11 @@ export interface BlinkPayOperationMetadata {
   tokenScope?: string
 }
 
+export interface BlinkPayOperationKeys {
+  requestId: string
+  idempotencyKey: string
+}
+
 export type BlinkPayMutationResult<T> =
   | { outcome: 'succeeded'; value: T; metadata: BlinkPayOperationMetadata }
   | { outcome: 'unknown'; reason: 'request-ambiguous' | 'response-invalid'; metadata: BlinkPayOperationMetadata }

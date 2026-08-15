@@ -32,6 +32,7 @@ function client(fetchImpl: typeof fetch, overrides: Record<string, unknown> = {}
 const token = { access_token: 'access-token', token_type: 'Bearer', expires_in: 3600, scope: 'view:payment' }
 const amount = { total: '12.34', currency: 'NZD' as const }
 const pcr = { particulars: 'EV123', code: 'GENERAL', reference: 'DONATION' }
+const operationKeys = { requestId: 'test-request-id-0001', idempotencyKey: 'test-idempotency-key-0001' }
 
 describe('BlinkPay configuration', () => {
   it('hard-codes exact environment origins and loads only selected credentials', () => {
@@ -79,6 +80,29 @@ describe('BlinkPay configuration', () => {
 })
 
 describe('BlinkPay client', () => {
+  it('uses caller-owned request and idempotency keys for a financial create', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(json(token))
+      .mockResolvedValueOnce(json({
+        quick_payment_id: '11111111-1111-4111-8111-111111111111',
+        redirect_uri: 'https://sandbox.debit.blinkpay.co.nz/gateway/quick',
+      }, 201))
+    const api = client(fetchImpl as unknown as typeof fetch)
+
+    await api.createQuickPayment({
+      type: 'single',
+      flow: { detail: { type: 'gateway', redirect_uri: 'https://www.ev.church/give/return' } },
+      amount,
+      pcr,
+    }, {
+      requestId: 'checkout-payment-request-0001',
+      idempotencyKey: 'checkout-payment-idempotency-0001',
+    })
+
+    expect(fetchImpl.mock.calls[1][1].headers['request-id']).toBe('checkout-payment-request-0001')
+    expect(fetchImpl.mock.calls[1][1].headers['idempotency-key']).toBe('checkout-payment-idempotency-0001')
+  })
+
   it('single-flights concurrent OAuth and refreshes five minutes before expiry without requesting scope', async () => {
     const fetchImpl = vi.fn(async (url: URL | RequestInfo) => {
       if (String(url).endsWith('/oauth2/token')) return json(token)
@@ -158,13 +182,13 @@ describe('BlinkPay client', () => {
     const fetchCreate = vi.fn().mockResolvedValueOnce(json(token)).mockRejectedValueOnce(new DOMException('timed out', 'TimeoutError'))
     await expect(client(fetchCreate as unknown as typeof fetch).createQuickPayment({
       type: 'single', flow: { detail: { type: 'gateway', redirect_uri: 'https://www.ev.church/give/return' } }, amount, pcr,
-    })).resolves.toMatchObject({ outcome: 'unknown', reason: 'request-ambiguous' })
+    }, operationKeys)).resolves.toMatchObject({ outcome: 'unknown', reason: 'request-ambiguous' })
     expect(fetchCreate).toHaveBeenCalledTimes(2)
 
     const malformed = vi.fn().mockResolvedValueOnce(json(token)).mockResolvedValueOnce(new Response('{bad', { status: 201, headers: { 'content-type': 'application/json' } }))
     await expect(client(malformed as unknown as typeof fetch).createQuickPayment({
       type: 'single', flow: { detail: { type: 'gateway', redirect_uri: 'https://www.ev.church/give/return' } }, amount, pcr,
-    })).resolves.toMatchObject({ outcome: 'unknown', reason: 'response-invalid' })
+    }, operationKeys)).resolves.toMatchObject({ outcome: 'unknown', reason: 'response-invalid' })
     expect(malformed).toHaveBeenCalledTimes(2)
   })
 
@@ -175,14 +199,14 @@ describe('BlinkPay client', () => {
       .mockResolvedValueOnce(json({ consent_id: '22222222-2222-4222-8222-222222222222', redirect_uri: 'https://sandbox.debit.blinkpay.co.nz/gateway/consent' }, 201))
       .mockResolvedValueOnce(json({ fixed_recurring_payment_id: '33333333-3333-4333-8333-333333333333' }, 201))
     const api = client(fetchImpl as unknown as typeof fetch)
-    await api.createQuickPayment({ type: 'single', flow: { detail: { type: 'gateway', redirect_uri: 'https://www.ev.church/give/return' } }, amount, pcr })
-    await api.createEnduringConsent({ type: 'enduring', flow: { detail: { type: 'gateway', redirect_uri: 'https://www.ev.church/give/return' } }, from_timestamp: '2026-08-15T00:00:00Z', period: 'monthly', maximum_amount_period: amount, maximum_amount_payment: amount })
+    await api.createQuickPayment({ type: 'single', flow: { detail: { type: 'gateway', redirect_uri: 'https://www.ev.church/give/return' } }, amount, pcr }, operationKeys)
+    await api.createEnduringConsent({ type: 'enduring', flow: { detail: { type: 'gateway', redirect_uri: 'https://www.ev.church/give/return' } }, from_timestamp: '2026-08-15T00:00:00Z', period: 'monthly', maximum_amount_period: amount, maximum_amount_payment: amount }, operationKeys)
     await api.createFixedRecurringPayment({
       consent_id: '22222222-2222-4222-8222-222222222222', consent_status: 'Authorised',
       period: 'monthly', start_date: '2026-09-01', amount, amount_minor: 1_234,
       maximum_amount_payment_minor: 1_234, maximum_amount_period_minor: 1_234,
       pcr, retry_strategy: 'same_day',
-    })
+    }, operationKeys)
     expect(JSON.parse(fetchImpl.mock.calls[1][1].body)).toMatchObject({ type: 'single', flow: { detail: { type: 'gateway' } }, amount, pcr })
     expect(JSON.parse(fetchImpl.mock.calls[2][1].body)).toMatchObject({ type: 'enduring', period: 'monthly', maximum_amount_period: amount, maximum_amount_payment: amount })
     expect(JSON.parse(fetchImpl.mock.calls[3][1].body)).toEqual({ consent_id: '22222222-2222-4222-8222-222222222222', start_date: '2026-09-01', amount, pcr, retry_strategy: 'same_day' })
@@ -192,14 +216,14 @@ describe('BlinkPay client', () => {
     const quickFetch = vi.fn().mockResolvedValueOnce(json(token)).mockResolvedValueOnce(json({ quick_payment_id: '11111111-1111-4111-8111-111111111111' }, 201))
     await expect(client(quickFetch as unknown as typeof fetch).createQuickPayment({
       type: 'single', flow: { detail: { type: 'gateway', redirect_uri: 'https://www.ev.church/give/return' } }, amount, pcr,
-    })).resolves.toMatchObject({ outcome: 'unknown', reason: 'response-invalid' })
+    }, operationKeys)).resolves.toMatchObject({ outcome: 'unknown', reason: 'response-invalid' })
 
     const consentFetch = vi.fn().mockResolvedValueOnce(json(token)).mockResolvedValueOnce(json({ consent_id: '22222222-2222-4222-8222-222222222222' }, 201))
     await expect(client(consentFetch as unknown as typeof fetch).createEnduringConsent({
       type: 'enduring', flow: { detail: { type: 'gateway', redirect_uri: 'https://www.ev.church/give/return' } },
       from_timestamp: '2026-08-15T00:00:00Z', expiry_timestamp: '2026-09-15T00:00:00Z',
       period: 'monthly', maximum_amount_period: amount, maximum_amount_payment: amount,
-    })).resolves.toMatchObject({ outcome: 'unknown', reason: 'response-invalid' })
+    }, operationKeys)).resolves.toMatchObject({ outcome: 'unknown', reason: 'response-invalid' })
   })
 
   it('rejects invalid enduring limits and expiry before fetching', () => {
@@ -209,14 +233,14 @@ describe('BlinkPay client', () => {
       type: 'enduring', flow: { detail: { type: 'gateway', redirect_uri: 'https://www.ev.church/give/return' } },
       from_timestamp: '2026-08-15T00:00:00Z', expiry_timestamp: '2026-08-14T23:59:59Z',
       period: 'monthly', maximum_amount_period: { total: '10.00', currency: 'NZD' }, maximum_amount_payment: { total: '12.34', currency: 'NZD' },
-    })).toThrow(/configuration/i)
+    }, operationKeys)).toThrow(/configuration/i)
     expect(fetchImpl).not.toHaveBeenCalled()
 
     expect(() => api.createEnduringConsent({
       type: 'enduring', flow: { detail: { type: 'gateway', redirect_uri: 'https://www.ev.church/give/return' } },
       from_timestamp: '2026-08-15T00:00:00Z', expiry_timestamp: '2026-09-15T00:00:00Z',
       period: 'monthly', maximum_amount_period: { total: '10.00', currency: 'NZD' }, maximum_amount_payment: { total: '12.34', currency: 'NZD' },
-    })).toThrow(/configuration/i)
+    }, operationKeys)).toThrow(/configuration/i)
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 
@@ -232,7 +256,7 @@ describe('BlinkPay client', () => {
     expect(() => api.createFixedRecurringPayment({
       consent_id: '22222222-2222-4222-8222-222222222222', consent_status: 'Authorised',
       ...local, amount, pcr, retry_strategy: 'none',
-    })).toThrow()
+    }, operationKeys)).toThrow()
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 
@@ -251,7 +275,7 @@ describe('BlinkPay client', () => {
 
   it('returns unknown cancellation on timeout/5xx and never retries DELETE', async () => {
     const fetchImpl = vi.fn().mockResolvedValueOnce(json(token)).mockResolvedValueOnce(json({ error: 'down' }, 503))
-    await expect(client(fetchImpl as unknown as typeof fetch).cancelFixedRecurringPayment('33333333-3333-4333-8333-333333333333')).resolves.toMatchObject({ outcome: 'unknown', reason: 'request-ambiguous' })
+    await expect(client(fetchImpl as unknown as typeof fetch).cancelFixedRecurringPayment('33333333-3333-4333-8333-333333333333', operationKeys)).resolves.toMatchObject({ outcome: 'unknown', reason: 'request-ambiguous' })
     expect(fetchImpl).toHaveBeenCalledTimes(2)
   })
 
@@ -259,7 +283,7 @@ describe('BlinkPay client', () => {
     const fetchImpl = vi.fn()
       .mockResolvedValueOnce(json(token))
       .mockResolvedValueOnce(new Response(null, { status: 204, headers: { 'x-correlation-id': 'cancel-correlation' } }))
-    const result = await client(fetchImpl as unknown as typeof fetch).cancelFixedRecurringPayment('33333333-3333-4333-8333-333333333333')
+    const result = await client(fetchImpl as unknown as typeof fetch).cancelFixedRecurringPayment('33333333-3333-4333-8333-333333333333', operationKeys)
     expect(result).toMatchObject({ outcome: 'succeeded', metadata: { correlationId: 'cancel-correlation' } })
     expect(new URL(fetchImpl.mock.calls[1][0]).pathname).toBe('/payments/v1/fixed-recurring-payments/33333333-3333-4333-8333-333333333333')
     expect(fetchImpl.mock.calls[1][1].method).toBe('DELETE')
@@ -272,7 +296,7 @@ describe('BlinkPay client', () => {
     expect(String(error)).not.toContain('provider-secret-body')
 
     const poisoned = vi.fn().mockResolvedValueOnce(json(token)).mockResolvedValueOnce(json({ quick_payment_id: '11111111-1111-4111-8111-111111111111', redirect_uri: 'https://sandbox.debit.blinkpay.co.nz.evil.test/gateway' }, 201))
-    await expect(client(poisoned as unknown as typeof fetch).createQuickPayment({ type: 'single', flow: { detail: { type: 'gateway', redirect_uri: 'https://www.ev.church/give/return' } }, amount, pcr })).resolves.toMatchObject({ outcome: 'unknown', reason: 'response-invalid' })
+    await expect(client(poisoned as unknown as typeof fetch).createQuickPayment({ type: 'single', flow: { detail: { type: 'gateway', redirect_uri: 'https://www.ev.church/give/return' } }, amount, pcr }, operationKeys)).resolves.toMatchObject({ outcome: 'unknown', reason: 'response-invalid' })
   })
 
   it('requires bounded JSON for token, read and mutation responses without exposing bodies', async () => {
@@ -293,6 +317,6 @@ describe('BlinkPay client', () => {
       .mockResolvedValueOnce(new Response('mutation-secret-body', { status: 201, headers: { 'content-type': 'text/plain' } }))
     await expect(client(mutationFetch as unknown as typeof fetch).createQuickPayment({
       type: 'single', flow: { detail: { type: 'gateway', redirect_uri: 'https://www.ev.church/give/return' } }, amount, pcr,
-    })).resolves.toMatchObject({ outcome: 'unknown', reason: 'response-invalid' })
+    }, operationKeys)).resolves.toMatchObject({ outcome: 'unknown', reason: 'response-invalid' })
   })
 })
