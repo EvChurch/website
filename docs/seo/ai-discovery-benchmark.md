@@ -90,7 +90,7 @@ Do not rename profiles solely for SEO. Confirm the current real-world signage an
 |---|---|---|---|
 | High | Google Business Profile: Unichurch | Incorrect `Located in: Sir Owen G Glenn Building` relationship | Submitted to Google on 15 August; recheck after review |
 | Completed | Google Business Profiles | All three website buttons previously pointed to the homepage | Google accepted the canonical campus URLs for Central, North, and Unichurch by 16 August |
-| Medium | Mapcarta | Former Edendale School / 419 Sandringham Road location | Update to current campuses or retire the obsolete place record |
+| Medium | Mapcarta / OpenStreetMap | Former Edendale School / 419 Sandringham Road location, sourced from OpenStreetMap node 6569127979 | Source-level removal request filed as [OpenStreetMap note 5457440](https://www.openstreetmap.org/note/5457440); recheck Mapcarta after the node is corrected |
 | Medium | 10 Day Challenge church directory | Former Edendale and Oteha Valley Road venues | Replace with the current Central, North, and Unichurch details |
 | Low | GracesList | Current Central address and phone, but obsolete `aucklandev.co.nz` URL | Replace with `https://www.ev.church/campus/central` |
 | Low | FindMyChurch NZ | Current North address but no service time | Add Sunday 10:15 am and the canonical North campus URL |
