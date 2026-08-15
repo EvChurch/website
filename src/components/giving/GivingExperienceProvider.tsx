@@ -9,6 +9,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useEffect,
 } from 'react'
 
 import type { GivingServerEligibility } from '@/lib/giving/availability'
@@ -26,6 +27,8 @@ interface GivingExperienceContextValue {
   openGiving: () => boolean
   setFlagState: (state: GivingFlagState) => void
   setGivingViewActive: (active: boolean) => void
+  handleGivingBack: () => boolean
+  registerGivingBackHandler: (handler: () => boolean) => () => void
 }
 
 const disabledContext: GivingExperienceContextValue = {
@@ -39,6 +42,8 @@ const disabledContext: GivingExperienceContextValue = {
   openGiving: () => false,
   setFlagState: () => undefined,
   setGivingViewActive: () => undefined,
+  handleGivingBack: () => false,
+  registerGivingBackHandler: () => () => undefined,
 }
 
 const GivingExperienceContext = createContext(disabledContext)
@@ -47,15 +52,19 @@ export function GivingExperienceProvider({
   children,
   givingExperience = null,
   serverEligibility,
+  resumeRequested = false,
 }: {
   children: ReactNode
   givingExperience?: ReactNode
   serverEligibility: GivingServerEligibility
+  resumeRequested?: boolean
 }) {
   const [flagState, setFlagState] = useState<GivingFlagState>('unresolved')
   const [givingRequestId, setGivingRequestId] = useState(0)
   const [givingViewActive, setGivingViewActive] = useState(false)
   const consumedRequestId = useRef(0)
+  const resumedFromCleanUrl = useRef(false)
+  const givingBackHandler = useRef<(() => boolean) | null>(null)
   const givingEnabled = serverEligibility !== null && flagState === 'enabled'
   const rendererReady = givingExperience !== null
 
@@ -64,6 +73,13 @@ export function GivingExperienceProvider({
     setGivingRequestId((requestId) => requestId + 1)
     return true
   }, [givingEnabled, rendererReady])
+
+  useEffect(() => {
+    if (!givingEnabled || !rendererReady || resumedFromCleanUrl.current) return
+    if (!resumeRequested) return
+    resumedFromCleanUrl.current = true
+    setGivingRequestId((requestId) => requestId + 1)
+  }, [givingEnabled, rendererReady, resumeRequested])
 
   const handleGivingLinkClick = useCallback((event: ReactMouseEvent<HTMLAnchorElement>) => {
     const target = event.currentTarget.getAttribute('target')
@@ -78,6 +94,14 @@ export function GivingExperienceProvider({
     event.preventDefault()
     return true
   }, [openGiving])
+
+  const handleGivingBack = useCallback(() => givingBackHandler.current?.() ?? false, [])
+  const registerGivingBackHandler = useCallback((handler: () => boolean) => {
+    givingBackHandler.current = handler
+    return () => {
+      if (givingBackHandler.current === handler) givingBackHandler.current = null
+    }
+  }, [])
 
   const consumeGivingRequest = useCallback((requestId: number) => {
     if (requestId <= consumedRequestId.current || requestId !== givingRequestId) {
@@ -95,7 +119,9 @@ export function GivingExperienceProvider({
     givingViewActive,
     consumeGivingRequest,
     handleGivingLinkClick,
+    handleGivingBack,
     openGiving,
+    registerGivingBackHandler,
     setFlagState,
     setGivingViewActive,
   }), [
@@ -106,7 +132,9 @@ export function GivingExperienceProvider({
     givingRequestId,
     givingViewActive,
     handleGivingLinkClick,
+    handleGivingBack,
     openGiving,
+    registerGivingBackHandler,
   ])
 
   return (

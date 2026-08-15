@@ -41,6 +41,7 @@ import { GivingSchedules } from '@/collections/GivingSchedules'
 import { GivingProviderOperations } from '@/collections/GivingProviderOperations'
 import { GivingE2ERuns } from '@/collections/GivingE2ERuns'
 import { BlinkPayWebhookEvents } from '@/collections/BlinkPayWebhookEvents'
+import { GivingDrafts } from '@/collections/GivingDrafts'
 import { isAdmin } from '@/access/roles'
 
 // Globals
@@ -104,6 +105,7 @@ export const applicationCollections: CollectionConfig[] = [
   GivingProviderOperations,
   GivingE2ERuns,
   BlinkPayWebhookEvents,
+  GivingDrafts,
 ]
 
 export const applicationGlobals: GlobalConfig[] = [
@@ -123,6 +125,7 @@ export const mcpExcludedCollectionSlugs = new Set([
   'giving-provider-operations',
   'giving-e2e-runs',
   'blinkpay-webhook-events',
+  'giving-drafts',
 ])
 
 function enableMcpEntities<T extends { slug: string }>(entities: T[]) {

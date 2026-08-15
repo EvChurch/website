@@ -1,0 +1,6 @@
+import type { GivingIdentityField } from '../giving-state'
+
+const labels: Record<GivingIdentityField, string> = { firstName: 'First name', lastName: 'Last name', email: 'Email' }
+export function IdentityStep({ field, value, onChange, onContinue, onSignIn }: { field: GivingIdentityField; value: string; onChange: (value: string) => void; onContinue: () => void; onSignIn?: () => void }) {
+  return <form onSubmit={(event) => { event.preventDefault(); onContinue() }} className="space-y-6"><label className="block"><span className="mb-3 block text-sm font-semibold">{labels[field]}</span><input autoFocus required type={field === 'email' ? 'email' : 'text'} autoComplete={field === 'email' ? 'email' : field === 'firstName' ? 'given-name' : 'family-name'} className="min-h-14 w-full rounded-2xl border border-warm-grey bg-white px-5 text-lg focus:border-rich-red focus:outline-none focus:ring-2 focus:ring-rich-red/20" value={value} onChange={(event) => onChange(event.target.value)} /></label><button className="min-h-12 w-full rounded-full bg-rich-red px-5 font-semibold text-white" type="submit">Continue</button>{onSignIn && <button className="min-h-11 w-full text-sm font-semibold text-rich-red" type="button" onClick={onSignIn}>Sign in and keep these answers</button>}</form>
+}

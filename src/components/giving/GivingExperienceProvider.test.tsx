@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 
-import { act } from 'react'
+import { act, useEffect } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   GivingExperienceProvider,
@@ -25,6 +25,7 @@ function Probe() {
     }}>consume</button>
     <button type="button" data-disable onClick={() => giving.setFlagState('disabled')}>disable</button>
     <button type="button" data-fail onClick={() => giving.setFlagState('failed')}>fail</button>
+    <button type="button" data-giving-back onClick={() => giving.handleGivingBack()}>giving back</button>
   </>
 }
 
@@ -115,5 +116,17 @@ describe('GivingExperienceProvider', () => {
       </GivingExperienceProvider>,
     ))
     expect(container.textContent).toBe('false:false')
+  })
+
+  it('delegates shared launcher Back to the registered giving history handler', async () => {
+    const back = vi.fn(() => true)
+    function Registration() {
+      const giving = useGivingExperience()
+      useEffect(() => giving.registerGivingBackHandler(back), [giving])
+      return <Probe />
+    }
+    await act(async () => root.render(<GivingExperienceProvider serverEligibility="production"><Registration /></GivingExperienceProvider>))
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-giving-back]')?.click())
+    expect(back).toHaveBeenCalledOnce()
   })
 })

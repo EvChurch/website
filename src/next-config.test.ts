@@ -13,4 +13,14 @@ describe('canonical host redirects', () => {
       permanent: true,
     })
   })
+
+  it('keeps only the exact legacy /give path external so child routes remain local', async () => {
+    const redirects = await nextConfig.redirects?.()
+    expect(redirects).toContainEqual({
+      source: '/give',
+      destination: 'https://give.ev.church',
+      permanent: true,
+    })
+    expect(redirects).not.toContainEqual(expect.objectContaining({ source: '/give/:path*' }))
+  })
 })

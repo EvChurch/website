@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   }),
   loadSiteFeedbackSettings: vi.fn().mockResolvedValue(null),
   sharedResource: false,
+  givingIdentity: { signedIn: false } as { signedIn: boolean; firstName?: string | null; lastName?: string | null; email?: string | null },
+  rejectGivingIdentity: false,
   header: vi.fn(() => null),
   footer: vi.fn(() => null),
   siteHeader: vi.fn((_props: {
@@ -30,11 +32,17 @@ const mocks = vi.hoisted(() => ({
   givingProvider: vi.fn((props: {
     children: React.ReactNode
     serverEligibility: string | null
+    givingExperience?: React.ReactElement | null
   }) => <div data-giving-eligibility={props.serverEligibility ?? 'disabled'}>{props.children}</div>),
+  getCachedActiveGivingFunds: vi.fn().mockResolvedValue([
+    { id: 1, name: 'General', code: 'GENERAL', sortOrder: 0, isDefault: true },
+  ]),
+  givingFlow: vi.fn(() => null),
 }))
 
 vi.mock('next/headers', () => ({
   headers: async () => new Headers(mocks.sharedResource ? { 'x-ev-shared-resource': '1' } : undefined),
+  cookies: async () => ({ get: () => undefined }),
 }))
 vi.mock('next/font/google', () => ({
   Albert_Sans: () => ({ variable: 'font-albert-sans' }),
@@ -47,6 +55,18 @@ vi.mock('@/auth/member-auth0-config', () => ({
 vi.mock('@/auth/member-session', () => ({
   getCurrentMemberProfileState: mocks.getCurrentMemberProfileState,
 }))
+vi.mock('@/auth/giving-member-identity', () => ({
+  resolveCurrentGivingMemberIdentity: vi.fn(async () => {
+    if (mocks.rejectGivingIdentity) throw new Error('Rock unavailable')
+    return mocks.givingIdentity
+  }),
+}))
+vi.mock('@/auth/auth0-client', () => ({
+  getAuth0Client: () => ({
+    getSession: async () => mocks.givingIdentity.signedIn ? { user: { sub: 'auth0|member' } } : null,
+  }),
+}))
+vi.mock('@/lib/giving/rock-client', () => ({ createGivingRockClient: () => ({}) }))
 vi.mock('@/auth/member-impersonation', () => ({
   getCurrentMemberImpersonation: mocks.getCurrentMemberImpersonation,
 }))
@@ -64,6 +84,10 @@ vi.mock('@/components/launcher/NextStepsLauncher', () => ({
 }))
 vi.mock('@/components/giving/GivingExperienceProvider', () => ({
   GivingExperienceProvider: mocks.givingProvider,
+}))
+vi.mock('@/components/giving/GivingFlow', () => ({ GivingFlow: mocks.givingFlow }))
+vi.mock('@/lib/giving/funds', () => ({
+  getCachedActiveGivingFunds: mocks.getCachedActiveGivingFunds,
 }))
 vi.mock('@/components/layout/SiteHeader', () => ({ SiteHeader: mocks.siteHeader }))
 vi.mock('@/components/layout/Header', () => ({ Header: mocks.header }))
@@ -91,7 +115,31 @@ describe('FrontendLayout member account state', () => {
     vi.clearAllMocks()
     mocks.enabled = false
     mocks.sharedResource = false
+    mocks.givingIdentity = { signedIn: false }
+    mocks.rejectGivingIdentity = false
     mocks.loadSiteFeedbackSettings.mockResolvedValue(null)
+  })
+
+  it('uses only fresh giving-specific member identity and fails the giving gate closed when resolution fails', async () => {
+    vi.stubEnv('BLINKPAY_PRODUCTION_ENABLED', 'true')
+    mocks.enabled = true
+    mocks.getCurrentMemberProfileState.mockResolvedValue({
+      profile: { personId: 42, name: 'Do Not Split This', email: 'stale@example.com', photoUrl: null, campusSlug: null },
+      needsRefresh: false,
+    })
+    mocks.givingIdentity = { signedIn: true, firstName: 'Fresh', lastName: null, email: 'fresh@example.com' }
+    renderToStaticMarkup(await FrontendLayout({ children: <main>Page</main> }))
+    const providerProps = mocks.givingProvider.mock.calls.at(-1)?.[0]
+    expect(providerProps).toMatchObject({ serverEligibility: 'production' })
+    const givingExperience = providerProps?.givingExperience as React.ReactElement<{ identity: unknown }>
+    expect(givingExperience.props.identity).toEqual({
+      signedIn: true, firstName: 'Fresh', email: 'fresh@example.com',
+    })
+
+    mocks.rejectGivingIdentity = true
+    renderToStaticMarkup(await FrontendLayout({ children: <main>Page</main> }))
+    expect(mocks.givingProvider.mock.calls.at(-1)?.[0]).toMatchObject({ serverEligibility: null, givingExperience: null })
+    vi.unstubAllEnvs()
   })
 
   it('keeps the normal header and footer around shared resources without loading visitor services', async () => {

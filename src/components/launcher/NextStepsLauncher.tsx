@@ -789,7 +789,10 @@ export function NextStepsLauncher({
                     type="button"
                     className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-brand-black shadow-sm transition hover:bg-warm-grey/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red"
                     aria-label="Back"
-                    onClick={() => dispatch({ type: "back" })}
+                    onClick={() => {
+                      if (state.view.type === "giving" && giving.handleGivingBack()) return;
+                      dispatch({ type: "back" });
+                    }}
                   >
                     <HiArrowLeft className="h-5 w-5" aria-hidden="true" />
                   </button>

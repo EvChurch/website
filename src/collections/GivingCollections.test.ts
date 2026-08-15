@@ -8,6 +8,7 @@ import { GivingProviderOperations } from './GivingProviderOperations'
 import { GivingE2ERuns } from './GivingE2ERuns'
 import { BlinkPayWebhookEvents } from './BlinkPayWebhookEvents'
 import { GivingCheckouts } from './GivingCheckouts'
+import { GivingDrafts } from './GivingDrafts'
 
 const privateCollections: CollectionConfig[] = [GivingGivers,GivingCheckouts,GivingGifts,GivingConsents,GivingSchedules,GivingProviderOperations,GivingE2ERuns,BlinkPayWebhookEvents]
 
@@ -24,6 +25,13 @@ describe('private giving collection access', () => {
       expect(collection.access?.update?.({ req: { user: { roles: ['admin'] } } } as never)).toBe(false)
       expect(collection.access?.delete?.({ req: { user: { roles: ['admin'] } } } as never)).toBe(false)
     }
+  })
+
+  it('keeps draft capabilities completely service-only', () => {
+    for (const operation of ['read', 'create', 'update', 'delete'] as const) {
+      expect(GivingDrafts.access?.[operation]?.({ req: { user: { roles: ['admin'] } } } as never)).toBe(false)
+    }
+    expect(GivingDrafts.admin).toMatchObject({ hidden: true })
   })
 
   it('uses the reviewed checkout, schedule and webhook lifecycle enums', () => {
