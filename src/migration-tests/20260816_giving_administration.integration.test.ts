@@ -48,7 +48,10 @@ describe.skipIf(!databaseUrl)('giving administration PostgreSQL concurrency', ()
     const consent=(await pool.query("INSERT INTO giving_consents(context_key,environment,synthetic,checkout_id,giver_id,provider_consent_id,status) VALUES('production','production',false,$1,$2,'22222222-2222-4222-8222-222222222222','authorised') RETURNING id",[checkout.id,giver.id])).rows[0]
     const schedule=(await pool.query("INSERT INTO giving_schedules(context_key,environment,synthetic,checkout_id,giver_id,consent_id,provider_schedule_id,status,frequency,amount_minor) VALUES('production','production',false,$1,$2,$3,'33333333-3333-4333-8333-333333333333','active','monthly',2500) RETURNING id",[checkout.id,giver.id,consent.id])).rows[0]
     await pool.query(`INSERT INTO giving_provider_operations(context_key,environment,synthetic,checkout_id,provider,action,logical_version,request_digest,correlation_key,request_id,idempotency_key,status,provider_id) VALUES('production','production',false,$1,'blinkpay','blinkpay.create-schedule',1,'create-digest','create-correlation','create-request-0001','create-idempotency-0001','succeeded','33333333-3333-4333-8333-333333333333')`,[checkout.id])
-    const cancelFixedRecurringPayment=vi.fn(async()=>({outcome:'succeeded',value:undefined,metadata:{requestId:'request-key-00000001',idempotencyKey:'idempotency-key-00000001'}} as const))
+    const cancelFixedRecurringPayment=vi.fn(async()=>{
+      await pool.query("UPDATE giving_schedules SET status='cancelled',provider_source='webhook' WHERE id=$1",[schedule.id])
+      return {outcome:'succeeded',value:undefined,metadata:{requestId:'request-key-00000001',idempotencyKey:'idempotency-key-00000001'}} as const
+    })
     let token=0
     const service=createGivingCancellationService({store:createPostgresGivingCancellationStore(pool),provider:()=>({cancelFixedRecurringPayment,getFixedRecurringPayment:vi.fn()}),randomToken:()=>`${++token}`.padEnd(43,'N'),randomId:()=>crypto.randomUUID()})
     const [first,second]=await Promise.all([service.prepare({actorId:1,scheduleId:schedule.id,reason:'Donor request'}),service.prepare({actorId:2,scheduleId:schedule.id,reason:'Donor request'})])
@@ -71,15 +74,23 @@ describe.skipIf(!databaseUrl)('giving administration PostgreSQL concurrency', ()
     const store=createPostgresGivingLifecycleStore(pool)
     const candidates=await store.unknownCancellationOperations()
     expect(candidates).toEqual([{operationId:operation.id,scheduleId:schedule.id,environment:'production',providerScheduleId:'33333333-3333-4333-8333-333333333333'}])
-    const getFixedRecurringPayment=vi.fn().mockResolvedValueOnce({status:'active'}).mockResolvedValueOnce({status:'cancelled'})
+    const getFixedRecurringPayment=vi.fn().mockResolvedValue({status:'active'})
     const reconcile=createUnknownCancellationReconciler({store,provider:()=>({getFixedRecurringPayment} as never),now:()=>new Date('2026-08-15T12:00:00Z')})
     await reconcile(candidates[0])
     expect(getFixedRecurringPayment).toHaveBeenCalledTimes(1)
     expect((await pool.query('SELECT status FROM giving_provider_operations WHERE id=$1',[operation.id])).rows[0].status).toBe('unknown')
     expect((await pool.query('SELECT status,provider_source FROM giving_schedules WHERE id=$1',[schedule.id])).rows[0]).toEqual({status:'unknown',provider_source:'reconciliation'})
+    await pool.query("UPDATE giving_schedules SET status='cancelled',provider_source='webhook' WHERE id=$1",[schedule.id])
     await reconcile((await store.unknownCancellationOperations())[0])
     expect(getFixedRecurringPayment).toHaveBeenCalledTimes(2)
     expect((await pool.query('SELECT status,provider_id FROM giving_provider_operations WHERE id=$1',[operation.id])).rows[0]).toEqual({status:'succeeded',provider_id:null})
     expect((await pool.query('SELECT status,provider_source FROM giving_schedules WHERE id=$1',[schedule.id])).rows[0]).toEqual({status:'cancelled',provider_source:'reconciliation'})
+
+    const raced=(await pool.query(`INSERT INTO giving_provider_operations(context_key,environment,synthetic,checkout_id,schedule_id,actor_id,reason,provider,action,logical_version,request_digest,correlation_key,request_id,idempotency_key,status) VALUES('production','production',false,$1,$2,1,'Donor request','blinkpay','blinkpay.cancel-schedule',2,'cancel-digest-2','cancel-correlation-2','cancel-request-0002','cancel-idempotency-0002','submitted') RETURNING id`,[checkout.id,schedule.id])).rows[0]
+    const event=await store.recordVerifiedEvent({environment:'production',eventId:'evt-cancel-race',eventType:'schedule.changed',referenceType:'schedule',referenceId:'33333333-3333-4333-8333-333333333333',payloadDigest:'c'.repeat(64),payload:{},now:new Date('2026-08-15T12:01:00Z')})
+    const claim=await store.claim(event.eventId,new Date('2026-08-15T12:01:00Z'))
+    expect(await store.finalize({eventId:event.eventId,leaseToken:claim!.leaseToken,observation:{referenceType:'schedule',referenceId:'33333333-3333-4333-8333-333333333333',providerStatus:'Cancelled',statusUpdatedAt:new Date('2026-08-15T12:01:00Z'),verifiedAt:new Date('2026-08-15T12:01:00Z')}})).toBe(true)
+    expect((await pool.query('SELECT status FROM giving_provider_operations WHERE id=$1',[raced.id])).rows[0].status).toBe('succeeded')
+    expect((await pool.query('SELECT outcome FROM giving_provider_operation_attempts WHERE operation_id=$1',[raced.id])).rows).toEqual([{outcome:'succeeded'}])
   })
 })

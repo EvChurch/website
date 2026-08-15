@@ -143,13 +143,17 @@ export function createPostgresGivingCancellationStore(pool: Pool): GivingCancell
     },
     finish(input) {
       return transaction(pool, async (client) => {
-        const operationStatus = input.outcome === 'cancelled' ? 'succeeded' : input.outcome === 'unknown' ? 'unknown' : 'failed'
-        const scheduleStatus = input.outcome === 'cancelled' ? 'cancelled' : input.outcome === 'unknown' ? 'unknown' : 'active'
-        const operation = await client.query(`UPDATE giving_provider_operations SET status=$2::varchar,provider_request_id=COALESCE($3,provider_request_id),updated_at=$4 WHERE id=$1 AND status='submitted' RETURNING id`, [input.target.operationId,operationStatus,input.providerRequestId ?? null,input.now])
-        if (operation.rowCount !== 1) throw new GivingCancellationError('conflict')
+        const operation = (await client.query(`SELECT id,status,schedule_id FROM giving_provider_operations WHERE id=$1 AND action='blinkpay.cancel-schedule' FOR UPDATE`, [input.target.operationId])).rows[0]
+        const schedule = (await client.query('SELECT id,status FROM giving_schedules WHERE id=$1 FOR UPDATE', [input.target.scheduleId])).rows[0]
+        if (!operation || Number(operation.schedule_id) !== input.target.scheduleId || !schedule) throw new GivingCancellationError('conflict')
+        if (operation.status === 'succeeded' && schedule.status === 'cancelled') return
+        if (!['submitted','unknown'].includes(String(operation.status)) || !['cancel_pending','unknown','cancelled'].includes(String(schedule.status))) throw new GivingCancellationError('conflict')
+        const cancelled = input.outcome === 'cancelled' || schedule.status === 'cancelled'
+        const operationStatus = cancelled ? 'succeeded' : input.outcome === 'unknown' ? 'unknown' : 'failed'
+        const scheduleStatus = cancelled ? 'cancelled' : input.outcome === 'unknown' ? 'unknown' : 'active'
+        await client.query(`UPDATE giving_provider_operations SET status=$2::varchar,provider_request_id=COALESCE($3,provider_request_id),updated_at=$4 WHERE id=$1`, [input.target.operationId,operationStatus,input.providerRequestId ?? null,input.now])
         await client.query(`INSERT INTO giving_provider_operation_attempts(operation_id,attempt_number,outcome,provider_request_id,error_code) SELECT $1,COALESCE(MAX(attempt_number),0)+1,$2,$3,$4 FROM giving_provider_operation_attempts WHERE operation_id=$1`, [input.target.operationId,operationStatus,input.providerRequestId ?? null,input.errorCode ?? null])
-        const schedule = await client.query(`UPDATE giving_schedules SET status=$2,provider_status=COALESCE($3,provider_status),provider_verified_at=$4,provider_source='cancellation',provider_observed_at=$4,provider_request_id=COALESCE($5,provider_request_id),updated_at=$4 WHERE id=$1 AND status='cancel_pending' RETURNING id`, [input.target.scheduleId,scheduleStatus,input.providerStatus ?? null,input.now,input.providerRequestId ?? null])
-        if (schedule.rowCount !== 1) throw new GivingCancellationError('conflict')
+        await client.query(`UPDATE giving_schedules SET status=$2,provider_status=COALESCE($3,provider_status),provider_verified_at=$4,provider_source='cancellation',provider_observed_at=$4,provider_request_id=COALESCE($5,provider_request_id),updated_at=$4 WHERE id=$1`, [input.target.scheduleId,scheduleStatus,input.providerStatus ?? null,input.now,input.providerRequestId ?? null])
       })
     },
   }

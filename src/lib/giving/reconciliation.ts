@@ -16,6 +16,7 @@ export interface AuthoritativeObservation {
   statusUpdatedAt: Date
   verifiedAt: Date
   providerRequestId?: string
+  paymentConsentId?: string | null
 }
 
 const TERMINAL_STATUSES: Record<LifecycleReferenceType, readonly string[]> = {
@@ -54,10 +55,15 @@ export interface LifecycleProvider {
   getEnduringConsent(id: string): Promise<BlinkPayConsent>
 }
 
-function observed(value: { status: string; status_updated_timestamp?: string; provider_correlation_id?: string }, referenceType: LifecycleReferenceType, referenceId: string, now: Date): AuthoritativeObservation {
+const PROVIDER_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
+
+function observed(value: { status: string; status_updated_timestamp?: string; provider_correlation_id?: string; detail?: Record<string, unknown> }, referenceType: LifecycleReferenceType, referenceId: string, now: Date): AuthoritativeObservation {
   const timestamp = value.status_updated_timestamp ? new Date(value.status_updated_timestamp) : now
   if (Number.isNaN(timestamp.getTime())) throw new Error('Provider observation timestamp is invalid')
-  return { referenceType, referenceId, providerStatus: value.status, statusUpdatedAt: timestamp, verifiedAt: now, ...(value.provider_correlation_id ? { providerRequestId: value.provider_correlation_id } : {}) }
+  const paymentConsentId = referenceType === 'payment'
+    ? (typeof value.detail?.consent_id === 'string' && PROVIDER_ID_PATTERN.test(value.detail.consent_id) ? value.detail.consent_id : null)
+    : undefined
+  return { referenceType, referenceId, providerStatus: value.status, statusUpdatedAt: timestamp, verifiedAt: now, ...(value.provider_correlation_id ? { providerRequestId: value.provider_correlation_id } : {}), ...(referenceType === 'payment' ? { paymentConsentId } : {}) }
 }
 
 export function createGivingLifecycleProcessor(dependencies: { store: GivingLifecycleStore; provider(environment: GivingEnvironment): LifecycleProvider; now?: () => Date }) {
@@ -182,11 +188,12 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
         const table = input.referenceType === 'payment' ? 'giving_gifts' : input.referenceType === 'schedule' ? 'giving_schedules' : 'giving_consents'
         const column = input.referenceType === 'payment' ? 'provider_payment_id' : input.referenceType === 'schedule' ? 'provider_schedule_id' : 'provider_consent_id'
         const matched = (await client.query(`SELECT context_key,synthetic,e2e_run_id FROM ${table} WHERE environment=$1 AND ${column}=$2`, [input.environment,input.referenceId])).rows[0]
-        const status = matched ? 'pending' : 'quarantined'
+        const unresolvedRecurringPayment = input.referenceType === 'payment' && !matched
+        const status = matched || unresolvedRecurringPayment ? 'pending' : 'quarantined'
         const contextKey = matched?.context_key ?? `${input.environment}:unmatched`
         const inserted = await client.query(`INSERT INTO blinkpay_webhook_events(context_key,environment,synthetic,e2e_run_id,provider_event_id,event_type,provider_reference_type,provider_reference_id,payload_digest,payload,status,next_attempt_at)
-          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`, [contextKey,input.environment,matched ? matched.synthetic : input.environment === 'sandbox',matched?.e2e_run_id ?? null,input.eventId,input.eventType,input.referenceType,input.referenceId,input.payloadDigest,input.payload,status,matched ? input.now : null])
-        return { outcome: matched ? 'inserted' : 'quarantined', eventId: Number(inserted.rows[0].id) }
+          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`, [contextKey,input.environment,matched ? matched.synthetic : input.environment === 'sandbox',matched?.e2e_run_id ?? null,input.eventId,input.eventType,input.referenceType,input.referenceId,input.payloadDigest,input.payload,status,matched || unresolvedRecurringPayment ? input.now : null])
+        return { outcome: matched || unresolvedRecurringPayment ? 'inserted' : 'quarantined', eventId: Number(inserted.rows[0].id) }
       })
     },
     async claim(eventId, now) {
@@ -200,7 +207,7 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
     finalize(input) {
       return transaction(pool, async (client) => {
         const event = (await client.query(`
-          SELECT id, environment, provider_reference_type, provider_reference_id
+          SELECT id, context_key, environment, provider_reference_type, provider_reference_id
           FROM blinkpay_webhook_events
           WHERE id = $1
             AND status = 'processing'
@@ -220,14 +227,77 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
             ? { table: 'giving_schedules', providerColumn: 'provider_schedule_id' }
             : { table: 'giving_consents', providerColumn: 'provider_consent_id' }
 
-        const aggregate = (await client.query(`
+        let aggregate = (await client.query(`
           SELECT id, status, provider_status, provider_status_updated_at
           FROM ${target.table}
           WHERE environment = $1
             AND ${target.providerColumn} = $2
           FOR UPDATE
         `, [event.environment, o.referenceId])).rows[0]
+
+        const quarantine = async (errorCode: string) => {
+          const result = await client.query(`UPDATE blinkpay_webhook_events
+            SET status='quarantined',last_error=$3,lease_token=NULL,lease_expires_at=NULL,updated_at=$4
+            WHERE id=$1 AND lease_token=$2 RETURNING id`, [input.eventId,input.leaseToken,errorCode,o.verifiedAt])
+          return result.rowCount === 1
+        }
+
+        if (!aggregate && o.referenceType === 'payment') {
+          if (!o.paymentConsentId) return quarantine('payment-consent-invalid')
+          const provenance = (await client.query(`
+            SELECT consent.id consent_id, schedule.id schedule_id,
+                   checkout.id checkout_id, checkout.context_key, checkout.environment,
+                   checkout.synthetic, checkout.e2e_run_id, checkout.giver_id,
+                   checkout.fund_id, checkout.fund_name, checkout.fund_code,
+                   checkout.fund_accounting_key, schedule.amount_minor schedule_amount_minor
+            FROM giving_consents consent
+            JOIN giving_schedules schedule
+              ON schedule.consent_id=consent.id AND schedule.context_key=consent.context_key
+            JOIN giving_checkouts checkout
+              ON checkout.id=schedule.checkout_id AND checkout.context_key=schedule.context_key
+            WHERE consent.environment=$1 AND consent.provider_consent_id=$2
+              AND schedule.environment=consent.environment
+              AND checkout.environment=consent.environment
+              AND schedule.giver_id=consent.giver_id
+              AND checkout.giver_id=consent.giver_id
+              AND schedule.synthetic=consent.synthetic
+              AND checkout.synthetic=consent.synthetic
+              AND schedule.e2e_run_id IS NOT DISTINCT FROM consent.e2e_run_id
+              AND checkout.e2e_run_id IS NOT DISTINCT FROM consent.e2e_run_id
+              AND schedule.amount_minor=checkout.amount_minor
+            FOR UPDATE OF consent,schedule,checkout
+          `, [event.environment,o.paymentConsentId])).rows[0]
+          if (!provenance) return quarantine('payment-consent-unmatched')
+          await client.query(`INSERT INTO giving_gifts(
+              context_key,environment,synthetic,e2e_run_id,checkout_id,giver_id,consent_id,schedule_id,
+              fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,provider_payment_id,status)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'pending')
+            ON CONFLICT(environment,provider_payment_id) DO NOTHING`, [
+            provenance.context_key,provenance.environment,provenance.synthetic,provenance.e2e_run_id,
+            provenance.checkout_id,provenance.giver_id,provenance.consent_id,provenance.schedule_id,
+            provenance.fund_id,provenance.fund_name,provenance.fund_code,provenance.fund_accounting_key,
+            provenance.schedule_amount_minor,o.referenceId,
+          ])
+          aggregate = (await client.query(`SELECT id,status,provider_status,provider_status_updated_at,
+              context_key,synthetic,e2e_run_id,consent_id,schedule_id
+            FROM giving_gifts WHERE environment=$1 AND provider_payment_id=$2 FOR UPDATE`, [event.environment,o.referenceId])).rows[0]
+          if (!aggregate || Number(aggregate.consent_id) !== Number(provenance.consent_id) || Number(aggregate.schedule_id) !== Number(provenance.schedule_id) || aggregate.context_key !== provenance.context_key) {
+            return quarantine('payment-correlation-conflict')
+          }
+          await client.query(`UPDATE blinkpay_webhook_events SET context_key=$3,synthetic=$4,e2e_run_id=$5,updated_at=$6
+            WHERE id=$1 AND lease_token=$2`, [input.eventId,input.leaseToken,provenance.context_key,provenance.synthetic,provenance.e2e_run_id,o.verifiedAt])
+        }
         if (!aggregate) throw new Error(`Webhook ${o.referenceType} correlation is stale`)
+
+        if (o.referenceType === 'payment' && event.context_key === `${event.environment}:unmatched`) {
+          const provenance = (await client.query(`SELECT gift.context_key,gift.synthetic,gift.e2e_run_id,consent.provider_consent_id
+            FROM giving_gifts gift
+            JOIN giving_consents consent ON consent.id=gift.consent_id AND consent.context_key=gift.context_key
+            WHERE gift.id=$1`, [aggregate.id])).rows[0]
+          if (!provenance || provenance.provider_consent_id !== o.paymentConsentId) return quarantine('payment-correlation-conflict')
+          await client.query(`UPDATE blinkpay_webhook_events SET context_key=$3,synthetic=$4,e2e_run_id=$5,updated_at=$6
+            WHERE id=$1 AND lease_token=$2`, [input.eventId,input.leaseToken,provenance.context_key,provenance.synthetic,provenance.e2e_run_id,o.verifiedAt])
+        }
 
         const currentTimestamp = aggregate.provider_status_updated_at
           ? new Date(aggregate.provider_status_updated_at).getTime()
@@ -263,6 +333,28 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
           `, [event.environment, o.referenceId, localStatus, o.providerStatus, o.statusUpdatedAt, o.verifiedAt, o.providerRequestId ?? null])
         }
 
+        if (o.referenceType === 'schedule') {
+          const current = await client.query('SELECT status FROM giving_schedules WHERE id=$1', [aggregate.id])
+          if (current.rows[0]?.status === 'cancelled') {
+            const hasCancellationLink = (await client.query(`SELECT EXISTS(
+              SELECT 1 FROM information_schema.columns
+              WHERE table_schema='public' AND table_name='giving_provider_operations' AND column_name='schedule_id'
+            ) present`)).rows[0]?.present
+            if (hasCancellationLink) await client.query(`WITH transitioned AS (
+                UPDATE giving_provider_operations
+                SET status='succeeded',provider_request_id=COALESCE($2,provider_request_id),updated_at=$3
+                WHERE schedule_id=$1 AND provider='blinkpay' AND action='blinkpay.cancel-schedule'
+                  AND status IN ('submitted','unknown') RETURNING id
+              ), attempts AS (
+                SELECT transitioned.id operation_id,COALESCE(MAX(existing.attempt_number),0)+1 attempt_number
+                FROM transitioned LEFT JOIN giving_provider_operation_attempts existing ON existing.operation_id=transitioned.id
+                GROUP BY transitioned.id
+              )
+              INSERT INTO giving_provider_operation_attempts(operation_id,attempt_number,outcome,provider_request_id)
+              SELECT operation_id,attempt_number,'succeeded',$2 FROM attempts`, [aggregate.id,o.providerRequestId ?? null,o.verifiedAt])
+          }
+        }
+
         const completed = await client.query(`
           UPDATE blinkpay_webhook_events
           SET status = 'processed', processed_at = $3,
@@ -275,7 +367,7 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
       })
     },
     async retry(eventId, leaseToken, now, errorCode) {
-      const result = await pool.query(`UPDATE blinkpay_webhook_events SET status=CASE WHEN attempt_count>=$4 THEN 'dead' ELSE 'retry' END,next_attempt_at=CASE WHEN attempt_count>=$4 THEN NULL ELSE $3 + make_interval(secs => LEAST(3600,30*power(2,attempt_count-1))::integer) END,lease_token=NULL,lease_expires_at=NULL,last_error=$5,updated_at=$3 WHERE id=$1 AND status='processing' AND lease_token=$2 RETURNING id`, [eventId,leaseToken,now,MAX_ATTEMPTS,errorCode])
+      const result = await pool.query(`UPDATE blinkpay_webhook_events SET status=CASE WHEN attempt_count>=$4 THEN 'dead' ELSE 'retry' END,next_attempt_at=CASE WHEN attempt_count>=$4 THEN NULL ELSE $3::timestamptz + make_interval(secs => LEAST(3600,30*power(2,attempt_count-1))::integer) END,lease_token=NULL,lease_expires_at=NULL,last_error=$5,updated_at=$3 WHERE id=$1 AND status='processing' AND lease_token=$2 RETURNING id`, [eventId,leaseToken,now,MAX_ATTEMPTS,errorCode])
       return result.rowCount === 1
     },
     async recoverableEventIds(now, limit = 100) {
@@ -330,7 +422,7 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
         FROM giving_provider_operations operation
         JOIN giving_schedules schedule ON schedule.id=operation.schedule_id AND schedule.context_key=operation.context_key
         WHERE operation.provider='blinkpay' AND operation.action='blinkpay.cancel-schedule'
-          AND operation.status IN ('submitted','unknown') AND schedule.status IN ('cancel_pending','unknown')
+          AND operation.status IN ('submitted','unknown') AND schedule.status IN ('cancel_pending','unknown','cancelled')
         ORDER BY operation.updated_at,operation.id LIMIT $1`, [limit])
       return result.rows.map((row) => ({ operationId:Number(row.operation_id),scheduleId:Number(row.schedule_id),environment:row.environment as GivingEnvironment,providerScheduleId:String(row.provider_schedule_id) }))
     },
@@ -338,12 +430,13 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
       return transaction(pool, async (client) => {
         const operation = (await client.query(`SELECT id,status,schedule_id FROM giving_provider_operations WHERE id=$1 AND action='blinkpay.cancel-schedule' AND status IN ('submitted','unknown') FOR UPDATE`,[input.operationId])).rows[0]
         if (!operation || Number(operation.schedule_id) !== input.scheduleId) return false
-        const schedule = (await client.query(`SELECT id,status FROM giving_schedules WHERE id=$1 AND status IN ('cancel_pending','unknown') FOR UPDATE`,[input.scheduleId])).rows[0]
+        const schedule = (await client.query(`SELECT id,status FROM giving_schedules WHERE id=$1 AND status IN ('cancel_pending','unknown','cancelled') FOR UPDATE`,[input.scheduleId])).rows[0]
         if (!schedule) return false
-        const operationStatus = input.cancelled ? 'succeeded' : 'unknown'
-        const scheduleStatus = input.cancelled ? 'cancelled' : 'unknown'
+        const cancelled = input.cancelled || schedule.status === 'cancelled'
+        const operationStatus = cancelled ? 'succeeded' : 'unknown'
+        const scheduleStatus = cancelled ? 'cancelled' : 'unknown'
         await client.query('UPDATE giving_provider_operations SET status=$2,provider_request_id=COALESCE($3,provider_request_id),updated_at=$4 WHERE id=$1',[input.operationId,operationStatus,input.providerRequestId ?? null,input.observedAt])
-        await client.query(`INSERT INTO giving_provider_operation_attempts(operation_id,attempt_number,outcome,provider_request_id,error_code) SELECT $1,COALESCE(MAX(attempt_number),0)+1,$2,$3,$4 FROM giving_provider_operation_attempts WHERE operation_id=$1`,[input.operationId,operationStatus,input.providerRequestId ?? null,input.cancelled ? null : 'cancellation-still-unknown'])
+        await client.query(`INSERT INTO giving_provider_operation_attempts(operation_id,attempt_number,outcome,provider_request_id,error_code) SELECT $1,COALESCE(MAX(attempt_number),0)+1,$2,$3,$4 FROM giving_provider_operation_attempts WHERE operation_id=$1`,[input.operationId,operationStatus,input.providerRequestId ?? null,cancelled ? null : 'cancellation-still-unknown'])
         await client.query(`UPDATE giving_schedules SET status=$2,provider_status=$3,provider_verified_at=$4,provider_source='reconciliation',provider_observed_at=$4,provider_request_id=COALESCE($5,provider_request_id),updated_at=$4 WHERE id=$1`,[input.scheduleId,scheduleStatus,input.providerStatus,input.observedAt,input.providerRequestId ?? null])
         return true
       })
