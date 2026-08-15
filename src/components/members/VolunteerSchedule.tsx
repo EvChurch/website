@@ -462,6 +462,19 @@ export function VolunteerSchedule({
     setRespondingId(assignment.id)
     if (response === 'decline') closeDeclineDialog()
     setResponseError(null)
+    setAssignmentStateOverrides((current) => {
+      const next = new Map(current)
+      next.set(assignment.id, response === 'accept' ? 'confirmed' : 'declined')
+      return next
+    })
+    const rollbackOptimisticState = () => {
+      setAssignmentStateOverrides((current) => {
+        if (!current.has(assignment.id)) return current
+        const next = new Map(current)
+        next.delete(assignment.id)
+        return next
+      })
+    }
     try {
       const controller = new AbortController()
       responseAbortRef.current = controller
@@ -502,12 +515,14 @@ export function VolunteerSchedule({
         return
       }
       if (providerResponse.status === 409) {
+        rollbackOptimisticState()
         setRefreshAnnouncement('That request has changed in Rock. Your schedule is refreshing.')
         window.dispatchEvent(new Event(MEMBER_NOTIFICATIONS_REFRESH_EVENT))
         refreshCanonicalSchedule(true)
         return
       }
       if (providerResponse.status === 400 && result?.status === 'invalid-request') {
+        rollbackOptimisticState()
         setResponseError({
           id: assignment.id,
           message: 'Your response could not be submitted. Refresh the page and try again.',
@@ -515,6 +530,7 @@ export function VolunteerSchedule({
         return
       }
       if (providerResponse.status === 401 && result?.status === 'auth-required') {
+        rollbackOptimisticState()
         setResponseError({
           id: assignment.id,
           message: 'Your session has expired. Sign in again before responding.',
@@ -523,6 +539,7 @@ export function VolunteerSchedule({
         return
       }
       if (providerResponse.status === 403 && result?.status === 'forbidden') {
+        rollbackOptimisticState()
         setResponseError({
           id: assignment.id,
           message: 'This schedule is read-only in your current session. Refresh the page.',
@@ -530,6 +547,7 @@ export function VolunteerSchedule({
         return
       }
       const outcomeUnknown = result?.status === 'outcome-unknown'
+      rollbackOptimisticState()
       setResponseError({
         id: assignment.id,
         message: outcomeUnknown
@@ -538,6 +556,7 @@ export function VolunteerSchedule({
       })
       if (outcomeUnknown) refreshCanonicalSchedule(true)
     } catch {
+      rollbackOptimisticState()
       setResponseError({
         id: assignment.id,
         message: 'We could not confirm whether Rock saved your response. Refresh before trying again.',

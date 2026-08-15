@@ -208,6 +208,32 @@ describe('VolunteerSchedule', () => {
     window.removeEventListener('member-notifications:refresh', notificationRefresh)
   })
 
+  it('updates immediately while saving and rolls back when Rock rejects the response', async () => {
+    let resolveResponse!: (response: Response) => void
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise((resolve) => {
+      resolveResponse = resolve
+    }))
+    await act(async () => root.render(
+      <VolunteerSchedule
+        schedule={{ status: 'available', requests: [request], upcoming: [], declined: [] }}
+        isImpersonating={false}
+      />,
+    ))
+
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent === 'Accept')!.click())
+
+    expect(container.querySelector(`[id="${request.id}"] [aria-label="Confirmed"]`)).not.toBeNull()
+
+    await act(async () => resolveResponse(new Response(
+      JSON.stringify({ status: 'rock-unavailable' }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } },
+    )))
+
+    expect(container.querySelector(`[id="${request.id}"] [aria-label="Response requested"]`)).not.toBeNull()
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Rock could not save')
+  })
+
   it('places a response failure beneath the complete service card', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
       JSON.stringify({ status: 'rock-unavailable' }),
