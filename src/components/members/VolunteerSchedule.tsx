@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { HiCheck, HiXMark } from 'react-icons/hi2'
 
+import { formInputClass } from '@/components/forms/form-styles'
 import { MEMBER_NOTIFICATIONS_REFRESH_EVENT } from '@/lib/member-notification-contract'
 import type {
   VolunteerScheduleAssignment,
@@ -14,6 +15,7 @@ import type {
 const RETURN_REFRESH_THROTTLE_MS = 5_000
 const REFRESH_FALLBACK_MS = 8_000
 const RESPONSE_TIMEOUT_MS = 15_000
+const DIALOG_TRANSITION_MS = 200
 
 const occurrenceDateFormatter = new Intl.DateTimeFormat('en-NZ', {
   timeZone: 'Pacific/Auckland',
@@ -246,6 +248,7 @@ export function VolunteerSchedule({
   const declineTriggerRef = useRef<HTMLButtonElement | null>(null)
   const declineCancelRef = useRef<HTMLButtonElement | null>(null)
   const declineDialogRef = useRef<HTMLElement | null>(null)
+  const declineCloseTimeoutRef = useRef<number | null>(null)
   const declineDialogTitleId = `decline-service-${useId().replace(/:/gu, '')}`
   const declineDialogDescriptionId = `${declineDialogTitleId}-description`
   const previousRequestIdsRef = useRef(new Set(
@@ -256,6 +259,7 @@ export function VolunteerSchedule({
   const [refreshAnnouncement, setRefreshAnnouncement] = useState('')
   const [respondingId, setRespondingId] = useState<string | null>(null)
   const [confirmDeclineId, setConfirmDeclineId] = useState<string | null>(null)
+  const [isDeclineDialogVisible, setIsDeclineDialogVisible] = useState(false)
   const [declineReasonId, setDeclineReasonId] = useState<number | null>(null)
   const [responseError, setResponseError] = useState<ScheduleResponseError | null>(null)
   const [assignmentStateOverrides, setAssignmentStateOverrides] = useState<Map<string, AssignmentState>>(
@@ -264,9 +268,16 @@ export function VolunteerSchedule({
 
   const closeDeclineDialog = useCallback(() => {
     const trigger = declineTriggerRef.current
-    setConfirmDeclineId(null)
-    setDeclineReasonId(null)
-    window.requestAnimationFrame(() => trigger?.focus())
+    setIsDeclineDialogVisible(false)
+    if (declineCloseTimeoutRef.current !== null) {
+      window.clearTimeout(declineCloseTimeoutRef.current)
+    }
+    declineCloseTimeoutRef.current = window.setTimeout(() => {
+      setConfirmDeclineId(null)
+      setDeclineReasonId(null)
+      declineCloseTimeoutRef.current = null
+      trigger?.focus()
+    }, DIALOG_TRANSITION_MS)
   }, [])
 
   const refreshCanonicalSchedule = useCallback((force = false) => {
@@ -346,6 +357,7 @@ export function VolunteerSchedule({
 
   useEffect(() => () => {
     if (refreshFallbackRef.current !== null) window.clearTimeout(refreshFallbackRef.current)
+    if (declineCloseTimeoutRef.current !== null) window.clearTimeout(declineCloseTimeoutRef.current)
     responseAbortRef.current?.abort()
   }, [])
 
@@ -360,7 +372,10 @@ export function VolunteerSchedule({
     if (!confirmDeclineId) return
     const previousOverflow = document.documentElement.style.overflow
     document.documentElement.style.overflow = 'hidden'
-    declineCancelRef.current?.focus()
+    const animationFrame = window.requestAnimationFrame(() => {
+      setIsDeclineDialogVisible(true)
+      declineCancelRef.current?.focus()
+    })
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         event.preventDefault()
@@ -385,6 +400,7 @@ export function VolunteerSchedule({
     document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
+      window.cancelAnimationFrame(animationFrame)
       document.documentElement.style.overflow = previousOverflow
     }
   }, [closeDeclineDialog, confirmDeclineId])
@@ -612,6 +628,11 @@ export function VolunteerSchedule({
                   onAccept={() => void respond(assignment, 'accept')}
                   onRequestDecline={(trigger) => {
                     declineTriggerRef.current = trigger
+                    if (declineCloseTimeoutRef.current !== null) {
+                      window.clearTimeout(declineCloseTimeoutRef.current)
+                      declineCloseTimeoutRef.current = null
+                    }
+                    setIsDeclineDialogVisible(false)
                     setDeclineReasonId(null)
                     setConfirmDeclineId(assignment.id)
                   }}
@@ -624,7 +645,9 @@ export function VolunteerSchedule({
 
       {declineAssignment && (
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-brand-black/65 p-4 backdrop-blur-sm"
+          className={`fixed inset-0 z-[80] flex items-center justify-center bg-brand-black/65 p-4 backdrop-blur-sm transition-opacity duration-200 ease-out motion-reduce:transition-none ${
+            isDeclineDialogVisible ? 'opacity-100' : 'pointer-events-none opacity-0'
+          }`}
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) closeDeclineDialog()
           }}
@@ -635,7 +658,9 @@ export function VolunteerSchedule({
             aria-modal="true"
             aria-labelledby={declineDialogTitleId}
             aria-describedby={declineDialogDescriptionId}
-            className="relative w-full max-w-md rounded-2xl bg-warm-white p-6 shadow-2xl sm:p-8"
+            className={`relative w-full max-w-md rounded-2xl bg-warm-white p-6 shadow-2xl transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none sm:p-8 ${
+              isDeclineDialogVisible ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-2 scale-[0.98] opacity-0'
+            }`}
           >
             <button
               type="button"
@@ -656,17 +681,27 @@ export function VolunteerSchedule({
             <label className="mt-5 block text-sm font-bold text-brand-black" htmlFor={`${declineDialogTitleId}-reason`}>
               Why can’t you serve?
             </label>
-            <select
-              id={`${declineDialogTitleId}-reason`}
-              value={declineReasonId ?? ''}
-              onChange={(event) => setDeclineReasonId(Number(event.target.value) || null)}
-              className="mt-2 min-h-11 w-full rounded-lg border border-warm-grey bg-white px-3 py-2 text-sm text-brand-black focus:border-rich-red focus:outline-none focus:ring-2 focus:ring-light-red-2"
-            >
-              <option value="">Select a reason</option>
-              {declineReasons.map((reason) => (
-                <option key={reason.id} value={reason.id}>{reason.label}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                id={`${declineDialogTitleId}-reason`}
+                value={declineReasonId ?? ''}
+                onChange={(event) => setDeclineReasonId(Number(event.target.value) || null)}
+                className={`${formInputClass} min-h-11 appearance-none pr-11 text-sm`}
+              >
+                <option value="">Select a reason</option>
+                {declineReasons.map((reason) => (
+                  <option key={reason.id} value={reason.id}>{reason.label}</option>
+                ))}
+              </select>
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 20 20"
+                fill="none"
+                className="pointer-events-none absolute right-4 top-1/2 mt-1 h-4 w-4 -translate-y-1/2 text-mid-grey"
+              >
+                <path d="m5.5 7.5 4.5 4.5 4.5-4.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
             {declineReasons.length === 0 && (
               <p role="alert" className="mt-2 text-sm text-rich-red">
                 Decline reasons are temporarily unavailable. Refresh the page and try again.
@@ -680,7 +715,7 @@ export function VolunteerSchedule({
                 onClick={closeDeclineDialog}
                 className="min-h-11 rounded-full border border-dark-grey px-5 py-2 text-sm font-bold text-dark-grey disabled:opacity-60"
               >
-                Keep {declineIsRequest ? 'request' : 'commitment'}
+                Cancel
               </button>
               <button
                 type="button"
@@ -692,7 +727,7 @@ export function VolunteerSchedule({
                 )}
                 className="min-h-11 rounded-full bg-rich-red px-5 py-2 text-sm font-bold text-white transition-colors hover:bg-brand-black disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {respondingId === declineAssignment.id ? 'Declining…' : 'Yes, decline'}
+                {respondingId === declineAssignment.id ? 'Declining…' : 'Decline'}
               </button>
             </div>
           </section>

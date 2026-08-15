@@ -231,8 +231,8 @@ describe('VolunteerSchedule', () => {
     expect(container.querySelector('[role="dialog"]')?.getAttribute('aria-modal')).toBe('true')
     expect(document.documentElement.style.overflow).toBe('hidden')
 
-    const confirm = [...container.querySelectorAll<HTMLButtonElement>('button')]
-      .find((button) => button.textContent === 'Yes, decline')!
+    const confirm = [...container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')]
+      .find((button) => button.textContent === 'Decline')!
     expect(confirm.disabled).toBe(true)
     const reason = container.querySelector<HTMLSelectElement>('select')!
     await act(async () => {
@@ -271,8 +271,8 @@ describe('VolunteerSchedule', () => {
       reason.value = '728'
       reason.dispatchEvent(new Event('change', { bubbles: true }))
     })
-    await act(async () => [...container.querySelectorAll<HTMLButtonElement>('button')]
-      .find((button) => button.textContent === 'Yes, decline')!.click())
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')]
+      .find((button) => button.textContent === 'Decline')!.click())
     expect(fetchMock).toHaveBeenCalledWith('/api/member-service/respond', expect.objectContaining({
       body: JSON.stringify({ assignmentId: confirmed.id, response: 'decline', declineReasonId: 728 }),
     }))
