@@ -38,6 +38,7 @@ export type GivingAction =
   | { type: 'setFrequency'; frequency: GivingFrequency; now?: Date }
   | { type: 'setStartDate'; startDate: string }
   | { type: 'setIdentity'; field: GivingIdentityField; value: string }
+  | { type: 'hydrateIdentity'; identity: Partial<Record<GivingIdentityField, string>>; unedited: readonly GivingIdentityField[] }
   | { type: 'commitAmount'; amountMinor: number }
   | { type: 'next'; missingIdentity?: readonly GivingIdentityField[] }
   | { type: 'back' }
@@ -107,6 +108,14 @@ export function givingReducer(state: GivingState, action: GivingAction): GivingS
       return { ...state, answers: { ...state.answers, startDate: action.startDate } }
     case 'setIdentity':
       return { ...state, answers: { ...state.answers, [action.field]: action.value } }
+    case 'hydrateIdentity': {
+      const answers = { ...state.answers }
+      for (const field of action.unedited) {
+        const value = action.identity[field]
+        if (value) answers[field] = value
+      }
+      return { ...state, answers, missingIdentity: (['firstName','lastName','email'] as const).filter((field) => !answers[field].trim()) }
+    }
     case 'commitAmount': {
       const answers = { ...state.answers, amountMinor: action.amountMinor }
       const required = nextGivingStep(answers, state.missingIdentity)

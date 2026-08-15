@@ -197,11 +197,15 @@ function transientNetwork(error: unknown) {
   return error instanceof TypeError || (error instanceof DOMException && ['AbortError', 'TimeoutError'].includes(error.name))
 }
 
+async function discardBody(response: Response) {
+  try { await response.body?.cancel() } catch { /* best-effort resource release */ }
+}
+
 async function boundedJson(response: Response) {
   const mediaType = response.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase()
-  if (mediaType !== 'application/json') throw new BlinkPayClientError('response-invalid')
+  if (mediaType !== 'application/json') { await discardBody(response); throw new BlinkPayClientError('response-invalid') }
   const declaredLength = Number(response.headers.get('content-length'))
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_RESPONSE_BYTES) throw new BlinkPayClientError('response-invalid')
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_RESPONSE_BYTES) { await discardBody(response); throw new BlinkPayClientError('response-invalid') }
   const text = await response.text()
   if (Buffer.byteLength(text, 'utf8') > MAX_RESPONSE_BYTES) throw new BlinkPayClientError('response-invalid')
   try {
@@ -255,12 +259,14 @@ export function createBlinkPayClient(options: CreateBlinkPayClientOptions) {
           }
           throw new BlinkPayClientError('request-unavailable')
         }
-        if (response.redirected) throw new BlinkPayClientError('request-rejected', response.status)
+        if (response.redirected) { await discardBody(response); throw new BlinkPayClientError('request-rejected', response.status) }
         if (response.status >= 500 && attempt < 2) {
+          await discardBody(response)
           await sleep(retryDelayMs * (attempt + 1))
           continue
         }
         if (!response.ok) {
+          await discardBody(response)
           throw new BlinkPayClientError(response.status >= 500 ? 'request-unavailable' : 'request-rejected', response.status)
         }
         const value = await boundedJson(response)
@@ -334,14 +340,16 @@ export function createBlinkPayClient(options: CreateBlinkPayClientOptions) {
         throw error
       }
       const correlationId = response.headers.get('x-correlation-id') ?? undefined
-      if (response.redirected) throw new BlinkPayClientError('request-rejected', response.status, metadata(context, correlationId))
+      if (response.redirected) { await discardBody(response); throw new BlinkPayClientError('request-rejected', response.status, metadata(context, correlationId)) }
       if (response.status === 401 && !refreshed) {
+        await discardBody(response)
         refreshed = true
         token = undefined
         attempt -= 1
         continue
       }
       if (method === 'GET' && (response.status === 429 || response.status >= 500) && attempt + 1 < maxAttempts) {
+        await discardBody(response)
         await sleep(retryDelayMs * (attempt + 1))
         continue
       }
@@ -360,6 +368,7 @@ export function createBlinkPayClient(options: CreateBlinkPayClientOptions) {
       throw new BlinkPayClientError('request-unavailable', undefined, metadata(context))
     }
     if (!result.response.ok) {
+      await discardBody(result.response)
       throw new BlinkPayClientError(
         result.response.status === 429 || result.response.status >= 500 ? 'request-unavailable' : 'request-rejected',
         result.response.status,
@@ -388,8 +397,8 @@ export function createBlinkPayClient(options: CreateBlinkPayClientOptions) {
       return { outcome: 'unknown', reason: 'request-ambiguous', metadata: metadata(context) }
     }
     const requestMetadata = metadata(context, result.correlationId)
-    if (result.response.status >= 500) return { outcome: 'unknown', reason: 'request-ambiguous', metadata: requestMetadata }
-    if (!result.response.ok) throw new BlinkPayClientError('request-rejected', result.response.status, requestMetadata)
+    if (result.response.status >= 500) { await discardBody(result.response); return { outcome: 'unknown', reason: 'request-ambiguous', metadata: requestMetadata } }
+    if (!result.response.ok) { await discardBody(result.response); throw new BlinkPayClientError('request-rejected', result.response.status, requestMetadata) }
     try {
       return { outcome: 'succeeded', value: parse(await boundedJson(result.response)), metadata: requestMetadata }
     } catch {
@@ -485,8 +494,8 @@ export function createBlinkPayClient(options: CreateBlinkPayClientOptions) {
       return { outcome: 'unknown', reason: 'request-ambiguous', metadata: metadata(context) }
     }
     const requestMetadata = metadata(context, result.correlationId)
-    if (result.response.status >= 500) return { outcome: 'unknown', reason: 'request-ambiguous', metadata: requestMetadata }
-    if (result.response.status !== 204) throw new BlinkPayClientError('request-rejected', result.response.status, requestMetadata)
+    if (result.response.status >= 500) { await discardBody(result.response); return { outcome: 'unknown', reason: 'request-ambiguous', metadata: requestMetadata } }
+    if (result.response.status !== 204) { await discardBody(result.response); throw new BlinkPayClientError('request-rejected', result.response.status, requestMetadata) }
     return { outcome: 'succeeded', value: undefined, metadata: requestMetadata }
   }
 

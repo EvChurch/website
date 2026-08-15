@@ -1,8 +1,7 @@
-import { Pool } from 'pg'
 import { NextRequest, NextResponse } from 'next/server'
 
-import { createBlinkPayClient } from '@/lib/giving/blinkpay/client'
-import { loadBlinkPayConfig } from '@/lib/giving/blinkpay/config'
+import { getBlinkPayRuntimeClient } from '@/lib/giving/blinkpay/runtime-client'
+import { requireGivingPostgresPool } from '@/lib/giving/postgres'
 import { createGivingCheckoutService, createPostgresGivingCheckoutRepository } from '@/lib/giving/service'
 import { getPayloadClient } from '@/lib/payload'
 
@@ -26,13 +25,13 @@ function callbackAlias(url: URL): string | null | false {
 
 async function defaultConsume(token: string, expectedProviderId: string | null) {
   const payload = await getPayloadClient()
-  const pool = (payload.db as unknown as { pool?: Pool }).pool ?? new Pool({ connectionString: process.env.DATABASE_URL })
+  const pool = requireGivingPostgresPool(payload)
   const noIdentity = async () => { throw new Error('Identity unavailable') }
   const service = createGivingCheckoutService({
     repository: createPostgresGivingCheckoutRepository(pool),
     digestSecret: process.env.GIVING_CHECKOUT_DIGEST_SECRET ?? '',
     resolveIdentity: noIdentity,
-    blinkPay: (environment) => createBlinkPayClient({ config: loadBlinkPayConfig(environment) }),
+    blinkPay: getBlinkPayRuntimeClient,
   })
   return service.consumeReturn(token, expectedProviderId)
 }

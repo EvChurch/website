@@ -58,6 +58,21 @@ describe('GivingFlow', () => {
     window.history.replaceState(null, '', '/')
     trackGivingEvent.mockClear()
   })
+
+  it('loads signed-in identity only when active and prefills the unedited flow once', async () => {
+    vi.mocked(fetch).mockImplementation(async(input)=>String(input)==='/api/giving/identity'
+      ? new Response(JSON.stringify({signedIn:true,firstName:'Lazy',lastName:'Member',email:'lazy@example.com'}),{status:200,headers:{'content-type':'application/json'}})
+      : new Response(null,{status:204}))
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true}}/>))
+    await act(async()=>new Promise((resolve)=>setTimeout(resolve,0)))
+    expect(vi.mocked(fetch).mock.calls.filter(([input])=>String(input)==='/api/giving/identity')).toHaveLength(1)
+    await act(async()=>change(container.querySelector('input')!,'25'))
+    await act(async()=>button(container,'Continue')?.click())
+    await act(async()=>button(container,'One-off gift')?.click())
+    expect(container.textContent).toContain('Review your gift')
+    expect(container.textContent).toContain('Lazy')
+    expect(container.textContent).toContain('lazy@example.com')
+  })
   afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.useRealTimers(); vi.unstubAllGlobals() })
 
   it('completes a monthly signed-in path with General and separate Name and Email review rows', async () => {
@@ -125,10 +140,12 @@ describe('GivingFlow', () => {
   })
 
   it('asks only for email when that is the fresh signed-in identity field still missing', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ answers: {
-      amountMinor: 5000, fundId: 2, frequency: 'monthly', startDate: '2026-09-01',
-      firstName: '', lastName: '', email: '', returnPathname: '/',
-    } }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    vi.mocked(fetch).mockImplementation(async(input)=>String(input)==='/api/giving/identity'
+      ? new Response(JSON.stringify({signedIn:true,firstName:'Fresh',lastName:'Member'}),{status:200,headers:{'content-type':'application/json'}})
+      : new Response(JSON.stringify({ answers: {
+          amountMinor: 5000, fundId: 2, frequency: 'monthly', startDate: '2026-09-01',
+          firstName: '', lastName: '', email: '', returnPathname: '/',
+        } }), { status: 200, headers: { 'content-type': 'application/json' } }))
     await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested identity={{ signedIn: true, firstName: 'Fresh', lastName: 'Member' }} />))
     await act(async () => Promise.resolve())
     expect(container.textContent).toContain('What is your email')

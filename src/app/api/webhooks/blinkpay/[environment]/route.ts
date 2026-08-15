@@ -1,5 +1,5 @@
-import { Pool } from 'pg'
 import { getPayloadClient } from '@/lib/payload'
+import { requireGivingPostgresPool } from '@/lib/giving/postgres'
 import type { GivingEnvironment } from '@/lib/giving/contracts'
 import { createPostgresGivingLifecycleStore } from '@/lib/giving/reconciliation'
 import { parseWebhookEvent, readBoundedRawBody, verifyBlinkPayWebhook, webhookPayloadDigest } from '@/lib/giving/blinkpay/webhooks'
@@ -55,7 +55,7 @@ export function createBlinkPayWebhookHandler(dependencies: Dependencies) {
 
 async function defaults() {
   const payload = await getPayloadClient()
-  const pool = (payload.db as unknown as { pool?: Pool }).pool ?? new Pool({ connectionString: process.env.DATABASE_URL })
+  const pool = requireGivingPostgresPool(payload)
   const store = createPostgresGivingLifecycleStore(pool)
   return createBlinkPayWebhookHandler({
     contract: (environment) => loadContract(environment),
@@ -65,6 +65,10 @@ async function defaults() {
 }
 
 export async function POST(request: Request, context: { params: Promise<{ environment: string }> }) {
-  const handler = await defaults()
-  return handler(request, await context.params)
+  try {
+    const handler = await defaults()
+    return handler(request, await context.params)
+  } catch {
+    return new Response(null, { status: 503, headers: PRIVATE_HEADERS })
+  }
 }

@@ -25,6 +25,12 @@ function numericResponse(value: number, status: 200 | 201) {
   })
 }
 
+function cancellableResponse(status: number, headers: Record<string,string> = { 'content-type': 'application/json' }) {
+  const cancel = vi.fn()
+  const response = new Response(new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode('[]')) }, cancel }), { status, headers })
+  return { response, cancel }
+}
+
 describe('giving Rock client', () => {
   afterEach(() => vi.restoreAllMocks())
 
@@ -133,12 +139,14 @@ describe('giving Rock client', () => {
   })
 
   it('bounds GET retries but rejects redirects and oversized or malformed JSON without leaking bodies', async () => {
+    const discarded = cancellableResponse(503)
     const fetchImpl = vi.fn()
-      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(discarded.response)
       .mockResolvedValueOnce(jsonResponse([]))
     const client = createGivingRockClient({ ...config, fetchImpl, getRetries: 1, retryDelayMs: 0 })
     await expect(client.findActivePeopleByEmail('ada@example.com')).resolves.toEqual([])
     expect(fetchImpl).toHaveBeenCalledTimes(2)
+    expect(discarded.cancel).toHaveBeenCalledOnce()
 
     const malformed = createGivingRockClient({ ...config, fetchImpl: vi.fn().mockResolvedValue(new Response('{secret-body')) })
     const error = await malformed.findActivePeopleByEmail('ada@example.com').catch((caught) => caught)
@@ -147,11 +155,13 @@ describe('giving Rock client', () => {
   })
 
   it('requires application/json for reads and treats a create content-type mismatch as unknown', async () => {
+    const discarded = cancellableResponse(200, { 'content-type': 'text/plain' })
     const readClient = createGivingRockClient({
       ...config,
-      fetchImpl: vi.fn().mockResolvedValue(new Response('[]', { headers: { 'content-type': 'text/plain' } })),
+      fetchImpl: vi.fn().mockResolvedValue(discarded.response),
     })
     await expect(readClient.findActivePeopleByEmail('ada@example.com')).rejects.toMatchObject({ code: 'response-invalid', outcome: 'failed' })
+    expect(discarded.cancel).toHaveBeenCalledOnce()
 
     const createClient = createGivingRockClient({
       ...config,

@@ -19,6 +19,12 @@ function json(value: unknown, status = 200, correlation = 'provider-correlation'
   })
 }
 
+function cancellable(status: number, headers: Record<string,string> = { 'content-type': 'application/json' }) {
+  const cancel = vi.fn()
+  const response = new Response(new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode('{}')) }, cancel }), { status, headers })
+  return { response, cancel }
+}
+
 function client(fetchImpl: typeof fetch, overrides: Record<string, unknown> = {}) {
   let correlation = 0
   return createBlinkPayClient({
@@ -137,15 +143,17 @@ describe('BlinkPay client', () => {
 
   it('retries token network and 5xx failures with bounded backoff and clears the failed single-flight', async () => {
     const sleep = vi.fn(async () => undefined)
+    const discarded = cancellable(503)
     const fetchImpl = vi.fn()
       .mockRejectedValueOnce(new TypeError('network unavailable'))
-      .mockResolvedValueOnce(json({ error: 'down' }, 503))
+      .mockResolvedValueOnce(discarded.response)
       .mockResolvedValueOnce(json(token))
       .mockResolvedValueOnce(json({ payment_id: '11111111-1111-4111-8111-111111111111', type: 'single', status: 'Pending', creation_timestamp: '2026-08-15T00:00:00Z', status_updated_timestamp: '2026-08-15T00:00:00Z', detail: {}, refunds: [] }))
     const api = client(fetchImpl as unknown as typeof fetch, { sleep })
     await expect(api.getPayment('11111111-1111-4111-8111-111111111111')).resolves.toMatchObject({ status: 'Pending' })
     expect(fetchImpl.mock.calls.filter(([url]) => String(url).endsWith('/oauth2/token'))).toHaveLength(3)
     expect(sleep).toHaveBeenCalledTimes(2)
+    expect(discarded.cancel).toHaveBeenCalledOnce()
 
     const rejected = vi.fn().mockResolvedValue(json({ error: 'bad credentials' }, 400))
     const rejectedApi = client(rejected as unknown as typeof fetch, { sleep: vi.fn(async () => undefined) })
@@ -172,12 +180,14 @@ describe('BlinkPay client', () => {
   })
 
   it('retries bounded GET 5xx but never retries a timed-out or malformed successful create', async () => {
+    const discarded = cancellable(503)
     const fetchGet = vi.fn()
       .mockResolvedValueOnce(json(token))
-      .mockResolvedValueOnce(json({ error: 'down' }, 503))
+      .mockResolvedValueOnce(discarded.response)
       .mockResolvedValueOnce(json({ payment_id: '11111111-1111-4111-8111-111111111111', type: 'single', status: 'Pending', creation_timestamp: '2026-08-15T00:00:00Z', status_updated_timestamp: '2026-08-15T00:00:00Z', detail: {}, refunds: [] }))
     await client(fetchGet as unknown as typeof fetch).getPayment('11111111-1111-4111-8111-111111111111')
     expect(fetchGet).toHaveBeenCalledTimes(3)
+    expect(discarded.cancel).toHaveBeenCalledOnce()
 
     const fetchCreate = vi.fn().mockResolvedValueOnce(json(token)).mockRejectedValueOnce(new DOMException('timed out', 'TimeoutError'))
     await expect(client(fetchCreate as unknown as typeof fetch).createQuickPayment({
@@ -274,9 +284,11 @@ describe('BlinkPay client', () => {
   })
 
   it('returns unknown cancellation on timeout/5xx and never retries DELETE', async () => {
-    const fetchImpl = vi.fn().mockResolvedValueOnce(json(token)).mockResolvedValueOnce(json({ error: 'down' }, 503))
+    const discarded=cancellable(503)
+    const fetchImpl = vi.fn().mockResolvedValueOnce(json(token)).mockResolvedValueOnce(discarded.response)
     await expect(client(fetchImpl as unknown as typeof fetch).cancelFixedRecurringPayment('33333333-3333-4333-8333-333333333333', operationKeys)).resolves.toMatchObject({ outcome: 'unknown', reason: 'request-ambiguous' })
     expect(fetchImpl).toHaveBeenCalledTimes(2)
+    expect(discarded.cancel).toHaveBeenCalledOnce()
   })
 
   it('accepts only the documented 204 cancellation response', async () => {

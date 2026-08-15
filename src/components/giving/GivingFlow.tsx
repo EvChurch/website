@@ -56,13 +56,13 @@ function submissionKey() {
 
 export function GivingFlow({ funds, identity = { signedIn: false }, resumeRequested = false, turnstileSiteKey, synthetic = false, gatewayOrigins }: { funds: PublicGivingFund[]; identity?: GivingFlowIdentity; resumeRequested?: boolean; turnstileSiteKey: string; synthetic?: boolean; gatewayOrigins: readonly string[] }) {
   const known = useMemo(() => ({ firstName: identity.firstName ?? '', lastName: identity.lastName ?? '', email: identity.email ?? '' }), [identity.email, identity.firstName, identity.lastName])
-  const missingIdentity = useMemo<GivingIdentityField[]>(() => (['firstName', 'lastName', 'email'] as const).filter((field) => !known[field]), [known])
   const [state, dispatch] = useReducer(givingReducer, undefined, () => createGivingState(funds, known))
   const [error, setError] = useState<string>()
   const [restoring, setRestoring] = useState(false)
   const [checkout, setCheckout] = useState<CheckoutView>({ type: 'configuring' })
   const [turnstileToken, setTurnstileToken] = useState('')
   const [turnstileReset, setTurnstileReset] = useState(0)
+  const [identityLoading, setIdentityLoading] = useState(false)
   const giving = useGivingExperience()
   const headingRef = useRef<HTMLHeadingElement>(null)
   const leavingFlow = useRef(false)
@@ -81,6 +81,9 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   const asyncAbort = useRef(new AbortController())
   const givingWasActive = useRef(false)
   const verifiedFingerprint = useRef<string | null>(null)
+  const editedIdentity = useRef(new Set<GivingIdentityField>())
+  const memberIdentity = useRef<Partial<Record<GivingIdentityField,string>>>(known)
+  const identityResolved = useRef(!identity.signedIn || (['firstName','lastName','email'] as const).every((field) => Boolean(known[field])))
 
   const answerFingerprint = useMemo(() => JSON.stringify([
     state.answers.amountMinor,
@@ -136,6 +139,31 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     if (givingWasActive.current) cancelAsyncWork()
   }, [cancelAsyncWork, giving.givingViewActive])
   useEffect(() => {
+    if (!giving.givingViewActive || !identity.signedIn || identityResolved.current) return
+    const operation = currentOperation()
+    setIdentityLoading(true)
+    void (async () => {
+      try {
+        const response = await fetch('/api/giving/identity', { cache:'no-store',signal:operation.signal })
+        if (!operationIsCurrent(operation)) return
+        const value = response.ok ? await response.json() as unknown : null
+        if (!operationIsCurrent(operation)) return
+        const record = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string,unknown> : null
+        const hydrated: Partial<Record<GivingIdentityField,string>> = {}
+        if (record?.signedIn === true) for (const field of ['firstName','lastName','email'] as const) {
+          if (typeof record[field] === 'string' && record[field].length <= 320) hydrated[field] = record[field]
+        }
+        memberIdentity.current = hydrated
+        dispatch({type:'hydrateIdentity',identity:hydrated,unedited:(['firstName','lastName','email'] as const).filter((field)=>!editedIdentity.current.has(field))})
+        identityResolved.current = true
+      } catch {
+        if (operationIsCurrent(operation)) identityResolved.current = true
+      } finally {
+        if (operationIsCurrent(operation)) setIdentityLoading(false)
+      }
+    })()
+  }, [currentOperation,giving.givingViewActive,identity.signedIn,operationIsCurrent])
+  useEffect(() => {
     if (!turnstileToken) return
     if (state.step === 'review' && verifiedFingerprint.current === answerFingerprint) return
     verifiedFingerprint.current = null
@@ -157,9 +185,13 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     const saved = payload.answers
     const fund = funds.find((candidate) => candidate.id === saved?.fundId) ?? null
     if (!saved?.frequency) return false
-    dispatch({ type: 'restore', answers: { ...saved, fund, firstName: known.firstName || saved.firstName, lastName: known.lastName || saved.lastName, email: known.email || saved.email }, missingIdentity })
+    const restored = { ...saved, fund }
+    for (const field of ['firstName','lastName','email'] as const) {
+      if (!editedIdentity.current.has(field)) restored[field] = memberIdentity.current[field] || known[field] || saved[field]
+    }
+    dispatch({ type: 'restore', answers: restored, missingIdentity: (['firstName','lastName','email'] as const).filter((field)=>!restored[field]) })
     return true
-  }, [currentOperation, funds, known, missingIdentity, operationIsCurrent])
+  }, [currentOperation, funds, known, operationIsCurrent])
 
   const pollStatus = useCallback(async function poll(): Promise<void> {
     if(!pollActive.current||pollInFlight.current)return
@@ -213,7 +245,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     }
   }, [cancelAsyncWork])
 
-  const next = () => { setError(undefined); dispatch({ type: 'next', missingIdentity }) }
+  const next = () => { setError(undefined); dispatch({ type: 'next' }) }
   const persistDraft = async (method:'POST'|'PUT', signal?: AbortSignal) => {
     const operation = currentOperation()
     const answers = draftAnswers(state.answers, window.location.pathname)
@@ -290,13 +322,15 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     content = <div className="rounded-2xl bg-white p-5 shadow-sm"><p role="status" className="font-semibold">{presentation.message}</p>{presentation.showRetry && <button type="button" className="mt-5 font-semibold text-rich-red" onClick={() => void returnToGift()}>Return to your saved gift</button>}</div>
   } else switch (state.step) {
     case 'amount': content = <AmountStep value={state.answers.amountMinor} error={error} onContinue={(amountMinor) => { if (!amountMinor) { setError('Enter an amount greater than zero.'); return };setError(undefined);dispatch({ type: 'commitAmount', amountMinor }) }} />; break
-    case 'fund': content = <FundStep funds={funds} selected={state.answers.fund?.id ?? null} onSelect={(fund) => { dispatch({ type: 'setFund', fund }); dispatch({ type: 'next', missingIdentity }) }} />; break
+    case 'fund': content = <FundStep funds={funds} selected={state.answers.fund?.id ?? null} onSelect={(fund) => { dispatch({ type: 'setFund', fund }); dispatch({ type: 'next' }) }} />; break
     case 'frequency': content = <FrequencyStep selected={state.answers.frequency} onSelect={(frequency) => { dispatch({ type: 'setFrequency', frequency }); queueMicrotask(next) }} />; break
     case 'starting-date': content = <StartingDateStep value={state.answers.startDate} frequency={state.answers.frequency!} amountMinor={state.answers.amountMinor!} onInvalid={() => setError('Choose a valid starting date.')} onSelect={(startDate) => { setError(undefined); dispatch({ type: 'setStartDate', startDate }); queueMicrotask(next) }} />; break
     case 'identity-firstName': case 'identity-lastName': case 'identity-email': {
       const field = state.step.replace('identity-', '') as GivingIdentityField
-      const continueIdentity = editingName.current && field === 'firstName' ? () => dispatch({ type: 'edit', step: 'identity-lastName' }) : editingName.current && field === 'lastName' ? () => { editingName.current = false;dispatch({ type: 'next', missingIdentity }) } : next
-      content = <IdentityStep field={field} value={state.answers[field]} onChange={(value) => dispatch({ type: 'setIdentity', field, value })} onContinue={continueIdentity} onSignIn={!identity.signedIn ? signIn : undefined} />;break
+      const continueIdentity = editingName.current && field === 'firstName' ? () => dispatch({ type: 'edit', step: 'identity-lastName' }) : editingName.current && field === 'lastName' ? () => { editingName.current = false;dispatch({ type: 'next' }) } : next
+      content = identity.signedIn && identityLoading
+        ? <p role="status">Loading your saved details…</p>
+        : <IdentityStep field={field} value={state.answers[field]} onChange={(value) => {editedIdentity.current.add(field);dispatch({ type: 'setIdentity', field, value })}} onContinue={continueIdentity} onSignIn={!identity.signedIn ? signIn : undefined} />;break
     }
     case 'review': content = <><ReviewStep answers={state.answers} onEdit={(step) => { editingName.current = step === 'identity-firstName';dispatch({ type: 'edit', step, returnTo: 'review' }) }} /><div className="mt-5"><TurnstileWidget siteKey={turnstileSiteKey} action="giving-checkout" resetKey={turnstileReset} onToken={handleTurnstileToken} onError={setError} /><button type="button" disabled={!turnstileToken} onClick={() => void submit()} className="mt-3 w-full rounded-full bg-rich-red px-5 py-3 font-semibold text-white disabled:opacity-50">Continue to secure bank authorisation</button></div></>;break
   }

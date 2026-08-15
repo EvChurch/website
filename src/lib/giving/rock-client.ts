@@ -158,13 +158,19 @@ function transient(error: unknown) {
     (error instanceof DOMException && ['AbortError', 'TimeoutError'].includes(error.name))
 }
 
+async function discardBody(response: Response) {
+  try { await response.body?.cancel() } catch { /* best-effort resource release */ }
+}
+
 async function boundedJson(response: Response, create: boolean): Promise<unknown> {
   const mediaType = response.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase()
   if (mediaType !== 'application/json') {
+    await discardBody(response)
     throw new GivingRockClientError(create ? 'create-unknown' : 'response-invalid', create ? 'unknown' : 'failed')
   }
   const declaredLength = Number(response.headers.get('content-length'))
   if (Number.isFinite(declaredLength) && declaredLength > MAX_RESPONSE_BYTES) {
+    await discardBody(response)
     throw new GivingRockClientError(create ? 'create-unknown' : 'response-invalid', create ? 'unknown' : 'failed')
   }
   const text = await response.text()
@@ -214,15 +220,18 @@ export function createGivingRockClient(options: GivingRockClientOptions = {}): G
           redirect: 'error',
           cache: 'no-store',
         })
-        if (response.redirected) throw new GivingRockClientError('request-rejected')
+        if (response.redirected) { await discardBody(response); throw new GivingRockClientError('request-rejected') }
         if (!response.ok) {
           if (create && response.status >= 500) {
+            await discardBody(response)
             throw new GivingRockClientError('create-unknown', 'unknown', response.status)
           }
           if ((response.status === 429 || response.status >= 500) && attempt + 1 < attempts) {
+            await discardBody(response)
             await new Promise((resolve) => setTimeout(resolve, retryDelayMs * (attempt + 1)))
             continue
           }
+          await discardBody(response)
           throw new GivingRockClientError(
             response.status === 429 || response.status >= 500 ? 'request-unavailable' : 'request-rejected',
             'failed',

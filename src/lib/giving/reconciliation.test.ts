@@ -60,6 +60,21 @@ describe('giving lifecycle processing', () => {
     expect(result).toEqual({ events: 0, eventFailures: 0, verifications: 2, verificationFailures: 1, continuations: 2, continuationFailures: 1, cancellations: 0, cancellationFailures: 0 })
   })
 
+  it('caps each phase at four concurrent items and preserves phase barriers and failure counts', async () => {
+    let active=0
+    let maximum=0
+    let eventsCompleted=0
+    let verificationsCompleted=0
+    const work=vi.fn(async(id:number)=>{active+=1;maximum=Math.max(maximum,active);await new Promise((resolve)=>setTimeout(resolve,1));active-=1;eventsCompleted+=1;if(id===3)throw new Error('event')})
+    const verify=vi.fn(async(id:number)=>{expect(eventsCompleted).toBe(6);await new Promise((resolve)=>setTimeout(resolve,1));verificationsCompleted+=1;if(id===9)throw new Error('verify')})
+    const store={...noCancellations,recoverableEventIds:vi.fn().mockResolvedValue([1,2,3,4,5,6]),nonterminalCheckoutIdsWithProviderIds:vi.fn().mockResolvedValue([7,8,9,10,11]),authorisedConsentsWithoutSchedule:vi.fn(async()=>{expect(verificationsCompleted).toBe(5);return[]})}
+    const result=await runGivingReconciliation({store,processEvent:work,verifyCheckout:verify,continueRecurringCheckout:vi.fn(),reconcileCancellation:vi.fn()})
+    expect(maximum).toBe(4)
+    expect(work).toHaveBeenCalledTimes(6)
+    expect(verify).toHaveBeenCalledTimes(5)
+    expect(result).toMatchObject({events:6,eventFailures:1,verifications:5,verificationFailures:1})
+  })
+
   it('does not retry unknown provider operations that have no provider ID', async () => {
     const store = { ...noCancellations, recoverableEventIds: vi.fn().mockResolvedValue([]), nonterminalCheckoutIdsWithProviderIds: vi.fn().mockResolvedValue([]), authorisedConsentsWithoutSchedule: vi.fn().mockResolvedValue([]) }
     const verifyCheckout = vi.fn()

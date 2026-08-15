@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   sharedResource: false,
   givingIdentity: { signedIn: false } as { signedIn: boolean; firstName?: string | null; lastName?: string | null; email?: string | null },
   rejectGivingIdentity: false,
+  resolveGivingIdentity: vi.fn(),
   header: vi.fn(() => null),
   footer: vi.fn(() => null),
   siteHeader: vi.fn((_props: {
@@ -56,7 +57,7 @@ vi.mock('@/auth/member-session', () => ({
   getCurrentMemberProfileState: mocks.getCurrentMemberProfileState,
 }))
 vi.mock('@/auth/giving-member-identity', () => ({
-  resolveCurrentGivingMemberIdentity: vi.fn(async () => {
+  resolveCurrentGivingMemberIdentity: mocks.resolveGivingIdentity.mockImplementation(async () => {
     if (mocks.rejectGivingIdentity) throw new Error('Rock unavailable')
     return mocks.givingIdentity
   }),
@@ -121,25 +122,24 @@ describe('FrontendLayout member account state', () => {
     mocks.loadSiteFeedbackSettings.mockResolvedValue(null)
   })
 
-  it('uses only fresh giving-specific member identity and fails the giving gate closed when resolution fails', async () => {
+  it('defers fresh giving identity resolution while preserving signed-in eligibility', async () => {
     vi.stubEnv('BLINKPAY_PRODUCTION_ENABLED', 'true')
     mocks.enabled = true
     mocks.getCurrentMemberProfileState.mockResolvedValue({
       profile: { personId: 42, name: 'Do Not Split This', email: 'stale@example.com', photoUrl: null, campusSlug: null },
       needsRefresh: false,
     })
-    mocks.givingIdentity = { signedIn: true, firstName: 'Fresh', lastName: null, email: 'fresh@example.com' }
     renderToStaticMarkup(await FrontendLayout({ children: <main>Page</main> }))
     const providerProps = mocks.givingProvider.mock.calls.at(-1)?.[0]
     expect(providerProps).toMatchObject({ serverEligibility: 'production' })
     const givingExperience = providerProps?.givingExperience as React.ReactElement<{ identity: unknown }>
-    expect(givingExperience.props.identity).toEqual({
-      signedIn: true, firstName: 'Fresh', email: 'fresh@example.com',
-    })
+    expect(givingExperience.props.identity).toEqual({ signedIn: true })
+    expect(mocks.resolveGivingIdentity).not.toHaveBeenCalled()
 
     mocks.rejectGivingIdentity = true
     renderToStaticMarkup(await FrontendLayout({ children: <main>Page</main> }))
-    expect(mocks.givingProvider.mock.calls.at(-1)?.[0]).toMatchObject({ serverEligibility: null, givingExperience: null })
+    expect(mocks.givingProvider.mock.calls.at(-1)?.[0]).toMatchObject({ serverEligibility: 'production' })
+    expect(mocks.resolveGivingIdentity).not.toHaveBeenCalled()
     vi.unstubAllEnvs()
   })
 

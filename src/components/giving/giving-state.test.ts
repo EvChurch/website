@@ -40,6 +40,14 @@ describe('giving state', () => {
     expect(state.answers).toMatchObject({ firstName: 'Alexa', lastName: 'Taylor' })
   })
 
+  it('hydrates only identity fields the person has not edited', () => {
+    let state=createGivingState(funds)
+    state=givingReducer(state,{type:'setIdentity',field:'firstName',value:'Chosen'})
+    state=givingReducer(state,{type:'hydrateIdentity',identity:{firstName:'Rock',lastName:'Member',email:'rock@example.com'},unedited:['lastName','email']})
+    expect(state.answers).toMatchObject({firstName:'Chosen',lastName:'Member',email:'rock@example.com'})
+    expect(state.missingIdentity).toEqual([])
+  })
+
   it('revalidates an existing date when the recurring period changes', () => {
     let state = createGivingState(funds)
     state = { ...state, answers: { ...state.answers, amountMinor: 1000, frequency: 'monthly', startDate: '2026-08-15' } }

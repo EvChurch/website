@@ -6,6 +6,7 @@ import type { GivingCheckoutRecord } from './service'
 
 const LEASE_MS = 5 * 60 * 1000
 const MAX_ATTEMPTS = 8
+const RECONCILIATION_CONCURRENCY = 4
 
 export type LifecycleReferenceType = 'payment' | 'schedule' | 'consent'
 export interface ClaimedLifecycleEvent { id: number; leaseToken: string; referenceType: LifecycleReferenceType; referenceId: string; environment: GivingEnvironment }
@@ -113,31 +114,29 @@ export function createUnknownCancellationReconciler(dependencies: { store: Givin
   }
 }
 
+async function runBounded<T>(items: readonly T[], work: (item: T) => Promise<unknown>) {
+  let cursor = 0
+  let failures = 0
+  const worker = async () => {
+    while (cursor < items.length) {
+      const item = items[cursor++]!
+      try { await work(item) }
+      catch { failures += 1 }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(RECONCILIATION_CONCURRENCY,items.length) }, worker))
+  return failures
+}
+
 export async function runGivingReconciliation(dependencies: { store: GivingReconciliationStore; processEvent(id: number): Promise<unknown>; verifyCheckout(checkoutId: number): Promise<void>; continueRecurringCheckout(checkout: GivingCheckoutRecord, providerConsentId: string): Promise<void>; reconcileCancellation(candidate: UnknownCancellationOperation): Promise<unknown>; now?: () => Date }) {
   const ids = await dependencies.store.recoverableEventIds((dependencies.now ?? (() => new Date()))())
-  let eventFailures = 0
-  for (const id of ids) {
-    try { await dependencies.processEvent(id) }
-    catch { eventFailures += 1 }
-  }
+  const eventFailures = await runBounded(ids, dependencies.processEvent)
   const checkoutIds = await dependencies.store.nonterminalCheckoutIdsWithProviderIds()
-  let verificationFailures = 0
-  for (const checkoutId of checkoutIds) {
-    try { await dependencies.verifyCheckout(checkoutId) }
-    catch { verificationFailures += 1 }
-  }
+  const verificationFailures = await runBounded(checkoutIds, dependencies.verifyCheckout)
   const continuations = await dependencies.store.authorisedConsentsWithoutSchedule()
-  let continuationFailures = 0
-  for (const candidate of continuations) {
-    try { await dependencies.continueRecurringCheckout(candidate.checkout, candidate.providerConsentId) }
-    catch { continuationFailures += 1 }
-  }
+  const continuationFailures = await runBounded(continuations, (candidate) => dependencies.continueRecurringCheckout(candidate.checkout,candidate.providerConsentId))
   const cancellations = await dependencies.store.unknownCancellationOperations()
-  let cancellationFailures = 0
-  for (const candidate of cancellations) {
-    try { await dependencies.reconcileCancellation(candidate) }
-    catch { cancellationFailures += 1 }
-  }
+  const cancellationFailures = await runBounded(cancellations, dependencies.reconcileCancellation)
   return {
     events: ids.length,
     eventFailures,

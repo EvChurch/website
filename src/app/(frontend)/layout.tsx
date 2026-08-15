@@ -21,13 +21,10 @@ import { GivingExperienceProvider } from '@/components/giving/GivingExperiencePr
 import { GivingFlow } from '@/components/giving/GivingFlow'
 import { resolveGivingRuntimeConfiguration } from '@/lib/giving/availability'
 import { getCachedActiveGivingFunds } from '@/lib/giving/funds'
-import { createGivingRockClient } from '@/lib/giving/rock-client'
-import { resolveCurrentGivingMemberIdentity } from '@/auth/giving-member-identity'
 import { givingCapabilityCookieNames } from '@/lib/giving/drafts'
 import { getTurnstileSiteKey } from '@/lib/rock-forms/config'
 import { createGivingE2ESessionService, createPayloadGivingE2ESessionStore, GIVING_E2E_COOKIE } from '@/lib/giving/e2e-session'
 import { getPayloadClient } from '@/lib/payload'
-import { getAuth0Client } from '@/auth/auth0-client'
 import { loadLauncherData } from '@/lib/launcher/service-guide'
 import { loadSiteFeedbackSettings } from '@/lib/site-feedback/settings'
 import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
@@ -151,25 +148,8 @@ export default async function FrontendLayout({ children }: { children: ReactNode
               ? '/member-avatar'
               : null,
         }
-  let givingEligibility = initialGivingEligibility
-  let givingIdentity: { signedIn: boolean; firstName?: string; lastName?: string; email?: string } = { signedIn: false }
-  if (isMemberAuthEnabled() && givingEligibility) {
-    try {
-      const session = await getAuth0Client().getSession()
-      if (typeof session?.user?.sub === 'string' && session.user.sub) {
-        const resolved = await resolveCurrentGivingMemberIdentity({ rockClient: createGivingRockClient() })
-        if (!resolved.signedIn) throw new Error('Giving member identity unavailable')
-        givingIdentity = {
-          signedIn: true,
-          ...(resolved.firstName ? { firstName: resolved.firstName } : {}),
-          ...(resolved.lastName ? { lastName: resolved.lastName } : {}),
-          ...(resolved.email ? { email: resolved.email } : {}),
-        }
-      }
-    } catch {
-      givingEligibility = null
-    }
-  }
+  const givingEligibility = initialGivingEligibility
+  const givingIdentity = { signedIn: Boolean(rockProfileState) }
   const secureRequest = process.env.NODE_ENV === 'production'
   const resumeRequested = Boolean(
     requestCookies.get(givingCapabilityCookieNames(secureRequest).resume)?.value ||

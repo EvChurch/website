@@ -1,9 +1,8 @@
-import type { Pool } from 'pg'
 import { NextRequest, NextResponse } from 'next/server'
 import { hasExactPayloadAdminRole } from '@/access/roles'
-import { createBlinkPayClient } from '@/lib/giving/blinkpay/client'
-import { loadBlinkPayConfig } from '@/lib/giving/blinkpay/config'
+import { getBlinkPayRuntimeClient } from '@/lib/giving/blinkpay/runtime-client'
 import { createGivingCancellationService, createPostgresGivingCancellationStore } from '@/lib/giving/cancellation'
+import { requireGivingPostgresPool } from '@/lib/giving/postgres'
 import { getPayloadClient } from '@/lib/payload'
 import type { User } from '@/payload-types'
 
@@ -43,11 +42,10 @@ async function boundedJson(request: NextRequest) {
 }
 async function defaults(): Promise<CancelDependencies> {
   const payload = await getPayloadClient()
-  const pool = (payload.db as unknown as { pool?: Pool }).pool
-  if (!pool) throw new Error('Giving cancellation requires PostgreSQL')
+  const pool = requireGivingPostgresPool(payload)
   const service = createGivingCancellationService({
     store: createPostgresGivingCancellationStore(pool),
-    provider: (environment) => createBlinkPayClient({ config: loadBlinkPayConfig(environment) }),
+    provider: getBlinkPayRuntimeClient,
   })
   return {
     async admin(headers) {

@@ -1,14 +1,14 @@
-import { Pool } from 'pg'
 import { NextRequest, NextResponse } from 'next/server'
 
 import { resolveCurrentGivingMemberIdentity, givingIdentityForMemberSubmission } from '@/auth/giving-member-identity'
-import { createBlinkPayClient } from '@/lib/giving/blinkpay/client'
+import { getBlinkPayRuntimeClient } from '@/lib/giving/blinkpay/runtime-client'
 import { loadBlinkPayConfig } from '@/lib/giving/blinkpay/config'
 import type { GivingContext } from '@/lib/giving/contracts'
 import { createPayloadGivingE2ESessionStore, createGivingE2ESessionService, GIVING_E2E_COOKIE } from '@/lib/giving/e2e-session'
 import { createGivingRockClient } from '@/lib/giving/rock-client'
 import { createGivingIdentityRepository, resolveGivingIdentity } from '@/lib/giving/rock-identity'
 import { createPostgresGivingRateLimitStore, enforceGivingRateLimits, GivingRateLimitError, trustedGivingClientAddress, type GivingRateLimitStore } from '@/lib/giving/rate-limit'
+import { requireGivingPostgresPool } from '@/lib/giving/postgres'
 import { createGivingCheckoutService, createPostgresGivingCheckoutRepository, GivingCheckoutError, validateGivingCheckoutSubmission, type GivingCheckoutStartResult, type GivingCheckoutSubmission } from '@/lib/giving/service'
 import { getPayloadClient } from '@/lib/payload'
 import { verifyTurnstileToken } from '@/lib/turnstile'
@@ -76,10 +76,6 @@ async function boundedJson(request: NextRequest) {
     throw new GivingCheckoutError('invalid')
   }
 }
-function poolFromPayload(payload: Awaited<ReturnType<typeof getPayloadClient>>) {
-  return (payload.db as unknown as { pool?: Pool }).pool ?? new Pool({ connectionString: process.env.DATABASE_URL })
-}
-
 async function defaultAuthority(request: NextRequest): Promise<Authority> {
   const payload = await getPayloadClient()
   const token = request.cookies.get(GIVING_E2E_COOKIE)?.value
@@ -104,7 +100,7 @@ export async function resolveGivingCheckoutAuthority(input: {
 
 async function defaultStart(authority: GivingContext, submission: GivingCheckoutSubmission, _request: NextRequest) {
   const payload = await getPayloadClient()
-  const pool = poolFromPayload(payload)
+  const pool = requireGivingPostgresPool(payload)
   const rock = createGivingRockClient()
   const member = await resolveCurrentGivingMemberIdentity({ rockClient: rock })
   const identityRepository = createGivingIdentityRepository(pool)
@@ -114,7 +110,7 @@ async function defaultStart(authority: GivingContext, submission: GivingCheckout
   }
   const service = createGivingCheckoutService({
     repository: createPostgresGivingCheckoutRepository(pool),
-    blinkPay: createBlinkPayClient({ config }),
+    blinkPay: getBlinkPayRuntimeClient(authority.environment),
     digestSecret: process.env.GIVING_CHECKOUT_DIGEST_SECRET ?? '',
     resolveIdentity(input) {
       const identity = member.signedIn
@@ -138,7 +134,7 @@ const defaults: GivingCheckoutRouteDependencies = {
   rateLimitStore: {
     async increment(input) {
       const payload = await getPayloadClient()
-      return createPostgresGivingRateLimitStore(poolFromPayload(payload)).increment(input)
+      return createPostgresGivingRateLimitStore(requireGivingPostgresPool(payload)).increment(input)
     },
   },
   verifyTurnstile: verifyTurnstileToken,
