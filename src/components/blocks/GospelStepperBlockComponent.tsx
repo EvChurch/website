@@ -109,7 +109,7 @@ export function GospelStepperBlockComponent({
     <section className="bg-white px-5 py-16 lg:px-8 lg:py-24">
       <div className="mx-auto max-w-[80rem]">
         {heading && (
-          <h2 className="mb-12 text-center font-serif text-h2 font-normal leading-heading text-brand-black">
+          <h2 className="mb-12 text-center text-h2 font-normal leading-heading text-brand-black">
             {heading}
           </h2>
         )}
@@ -171,7 +171,7 @@ export function GospelStepperBlockComponent({
                     className="object-cover opacity-40"
                   />
                   <div className="relative mx-auto max-w-2xl px-8 py-16 text-center">
-                    <h3 className="font-serif text-h1 font-normal leading-display text-white">
+                    <h3 className="text-h1 font-normal leading-display text-white">
                       {step.heading}
                     </h3>
                     <div className="mt-6 text-lg leading-body-lg text-white/80">
@@ -185,7 +185,7 @@ export function GospelStepperBlockComponent({
                   imageUrl ? (imagePos === 'left' ? 'lg:flex-row-reverse' : 'lg:flex-row') : ''
                 }`}>
                   <div className={`flex-1 ${imageUrl ? '' : 'mx-auto max-w-2xl text-center'}`}>
-                    <h3 className="font-serif text-h1 font-normal leading-display text-brand-black">
+                    <h3 className="text-h1 font-normal leading-display text-brand-black">
                       {step.heading}
                     </h3>
                     <div className="mt-6 text-lg leading-body-lg text-dark-grey">
@@ -243,7 +243,7 @@ export function GospelStepperBlockComponent({
         {/* Final CTA (shown on last step) */}
         {showFinalCTA && (
           <div className="mt-16 rounded-2xl bg-warm-white p-8 text-center lg:p-12">
-            <h3 className="font-serif text-h2 font-normal leading-heading text-brand-black">
+            <h3 className="text-h2 font-normal leading-heading text-brand-black">
               {finalCTA.heading}
             </h3>
             {finalCTA.text && (

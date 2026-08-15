@@ -75,7 +75,7 @@ export function TimelineBlockComponent({
                       : 'border-l border-warm-grey/30 lg:border-l-0 lg:border-t'
                   } py-6 lg:pt-8`}
                 >
-                  <span className="font-serif text-[2.5rem] font-normal leading-none text-rich-red">
+                  <span className="font-sans text-[2.5rem] font-normal leading-none text-rich-red">
                     {event.year}
                   </span>
                   <h3

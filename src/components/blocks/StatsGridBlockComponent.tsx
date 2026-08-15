@@ -59,7 +59,7 @@ export function StatsGridBlockComponent({
                     <p className="text-xs font-semibold uppercase tracking-widest text-light-red-2">
                       {item.label}
                     </p>
-                    <p className="mt-3 font-serif text-[3.5rem] leading-none text-white">
+                    <p className="mt-3 font-sans text-[3.5rem] leading-none text-white">
                       {item.stat}
                     </p>
                     <p className="mt-2 text-sm text-warm-grey/70">{item.statLabel}</p>
