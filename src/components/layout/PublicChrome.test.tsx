@@ -44,6 +44,7 @@ describe('PublicChrome', () => {
   })
 
   afterEach(() => {
+    delete document.documentElement.dataset.routeTransition
     vi.unstubAllGlobals()
     document.body.innerHTML = ''
   })
@@ -102,5 +103,35 @@ describe('PublicChrome', () => {
     expect(container.querySelector('[data-launcher]')).toBeNull()
     expect(fetch).not.toHaveBeenCalled()
     await act(async () => root.unmount())
+  })
+
+  it('keeps first-load content static and enables animation after route changes', async () => {
+    vi.useFakeTimers()
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
+      memberProfile: null,
+      memberCampusSlug: null,
+      adminHref: null,
+      impersonation: null,
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    const container = document.createElement('div')
+    document.body.append(container)
+    const root = createRoot(container)
+
+    await act(async () => root.render(
+      <PublicChrome launcher={launcher} feedback={null} announcement={null} footer={<div data-footer />}><p>Page</p></PublicChrome>,
+    ))
+    expect(document.documentElement.dataset.routeTransition).toBeUndefined()
+
+    mocks.pathname = '/about'
+    await act(async () => root.render(
+      <PublicChrome launcher={launcher} feedback={null} announcement={null} footer={<div data-footer />}><p>About</p></PublicChrome>,
+    ))
+    expect(document.documentElement.dataset.routeTransition).toBe('true')
+
+    await act(async () => vi.advanceTimersByTime(1_250))
+    expect(document.documentElement.dataset.routeTransition).toBeUndefined()
+
+    await act(async () => root.unmount())
+    vi.useRealTimers()
   })
 })

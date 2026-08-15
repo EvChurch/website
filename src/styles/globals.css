@@ -91,6 +91,16 @@
   }
 }
 
+html[data-route-transition='true'] .route-animate-fade-in-up {
+  animation: var(--animate-fade-in-up);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-route-transition='true'] .route-animate-fade-in-up {
+    animation: none;
+  }
+}
+
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }

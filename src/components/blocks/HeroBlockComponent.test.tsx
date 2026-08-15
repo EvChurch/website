@@ -28,6 +28,8 @@ describe('HeroBlockComponent contrast', () => {
 
     expect(markup).toContain('fetchPriority="high"')
     expect(markup).toContain('loading="eager"')
+    expect(markup).toContain('route-animate-fade-in-up')
+    expect(markup).not.toContain('class="animate-fade-in-up')
   })
 
   it('uses the event-detail split layout for banner heroes', () => {
