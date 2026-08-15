@@ -16,7 +16,7 @@ const request = {
   id: 'rock-schedule:11111111-1111-4111-8111-111111111111',
   title: 'Sunday Gatherings — Music Team',
   occurrenceStart: '2026-08-23T09:00:00+12:00',
-  scheduleName: '9am Gathering',
+  scheduleName: 'Sunday 9am Gathering',
   locationName: 'EV Erina Auditorium',
 }
 
@@ -27,6 +27,17 @@ const confirmed = {
   scheduleName: '10:30am Gathering',
   locationName: null,
 }
+
+const declined = {
+  ...confirmed,
+  id: 'rock-schedule:77777777-7777-4777-8777-777777777777',
+  title: 'Sunday Gatherings — Prayer Team',
+}
+
+const declineReasons = [
+  { id: 728, label: 'Family Emergency' },
+  { id: 729, label: 'Have to Work' },
+]
 
 describe('VolunteerSchedule', () => {
   let container: HTMLDivElement
@@ -46,42 +57,252 @@ describe('VolunteerSchedule', () => {
     container.remove()
     vi.useRealTimers()
     window.history.replaceState(null, '', '/')
+    vi.restoreAllMocks()
   })
 
-  it('renders requests first, confirmed commitments second, and one generic native handoff', async () => {
+  it('renders requests first with Accept and Decline controls', async () => {
     await act(async () => root.render(
       <VolunteerSchedule
         schedule={{
           status: 'available',
           requests: [request],
           upcoming: [confirmed],
-          nativeToolboxUrl: 'https://rock.ev.church/ScheduleToolbox',
+          declined: [],
         }}
         isImpersonating={false}
       />,
     ))
 
-    const headings = [...container.querySelectorAll('h2')].map((heading) => heading.textContent)
-    expect(headings).toEqual(['Requests', 'Upcoming'])
-    expect(container.textContent).toContain('Response requested')
-    expect(container.textContent).toContain('Confirmed')
+    expect(container.querySelectorAll('article')).toHaveLength(2)
+    expect(container.textContent).not.toContain('Requests')
+    expect(container.textContent).not.toContain('Upcoming')
+    expect(container.querySelector('[aria-label="Response requested"]')).not.toBeNull()
+    expect(container.querySelector('[aria-label="Response requested"]')?.textContent).toBe('?')
+    expect(container.querySelector('[aria-label="Confirmed"]')).not.toBeNull()
     expect(container.textContent).toContain('Sunday Gatherings — Music Team')
     expect(container.textContent).toContain('9am Gathering')
+    expect(container.textContent).not.toContain('Sunday 9am Gathering')
     expect(container.textContent).toContain('EV Erina Auditorium')
+    expect(container.textContent).not.toContain('Sunday, 23 August 2026')
     expect(container.querySelector('time')?.getAttribute('datetime')).toBe(request.occurrenceStart)
     expect(
       container.querySelector(`[id="rock-schedule:11111111-1111-4111-8111-111111111111"]`)?.getAttribute('tabindex'),
     ).toBe('-1')
 
-    const handoffs = container.querySelectorAll<HTMLAnchorElement>('a[href="https://rock.ev.church/ScheduleToolbox"]')
-    expect(handoffs).toHaveLength(1)
-    expect(handoffs[0]?.textContent).toContain('Respond in Rock')
-    expect(handoffs[0]?.getAttribute('target')).toBe('_blank')
-    expect(container.textContent).toContain('accept or decline')
     expect(container.querySelector('form')).toBeNull()
-    expect(container.querySelector('button[name*="accept" i], button[name*="decline" i]')).toBeNull()
-    expect(handoffs[0]?.href).toBe('https://rock.ev.church/ScheduleToolbox')
+    expect([...container.querySelectorAll('button')].map(({ textContent }) => textContent))
+      .toEqual(expect.arrayContaining(['Accept', 'Decline']))
+    expect(container.querySelector('a[href*="ScheduleToolbox"]')).toBeNull()
     expect(container.innerHTML).not.toContain('attendanceId')
+  })
+
+  it('keeps a future decline visible and reconfirms it through the member API', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
+      JSON.stringify({ status: 'accepted' }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    ))
+    await act(async () => root.render(
+      <VolunteerSchedule
+        schedule={{ status: 'available', requests: [], upcoming: [], declined: [declined] }}
+        isImpersonating={false}
+      />,
+    ))
+
+    expect(container.querySelector('[aria-label="Declined"]')).not.toBeNull()
+    expect(container.textContent).toContain('Sunday Gatherings — Prayer Team')
+    expect(container.textContent).not.toContain('Response requested')
+    const reconfirm = [...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent === 'Reconfirm')!
+    await act(async () => reconfirm.click())
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/member-service/respond', expect.objectContaining({
+      body: JSON.stringify({ assignmentId: declined.id, response: 'accept' }),
+    }))
+    expect(container.querySelector('[aria-live="polite"]')?.textContent).toContain('reconfirmed')
+  })
+
+  it('groups mixed role states for the same service into one card', async () => {
+    const sameService = {
+      ...request,
+      id: 'rock-schedule:33333333-3333-4333-8333-333333333333',
+      title: 'Sunday Gatherings — Welcome Team',
+    }
+    const declinedSameService = {
+      ...request,
+      id: 'rock-schedule:44444444-4444-4444-8444-444444444444',
+      title: 'Sunday Gatherings — Prayer Team',
+    }
+    await act(async () => root.render(
+      <VolunteerSchedule
+        schedule={{
+          status: 'available',
+          requests: [request],
+          upcoming: [sameService],
+          declined: [declinedSameService],
+        }}
+        isImpersonating={false}
+      />,
+    ))
+
+    expect(container.querySelectorAll('article')).toHaveLength(1)
+    expect(container.querySelectorAll('[aria-label="Response requested"]')).toHaveLength(1)
+    expect(container.querySelectorAll('[aria-label="Confirmed"]')).toHaveLength(1)
+    expect(container.querySelectorAll('[aria-label="Declined"]')).toHaveLength(1)
+  })
+
+  it('sorts unanswered services first, then keeps each tier in date order', async () => {
+    const laterRequest = {
+      ...request,
+      occurrenceStart: '2026-09-20T09:00:00+12:00',
+    }
+    const earlierConfirmed = {
+      ...confirmed,
+      occurrenceStart: '2026-08-16T10:30:00+12:00',
+    }
+    await act(async () => root.render(
+      <VolunteerSchedule
+        schedule={{
+          status: 'available',
+          requests: [laterRequest],
+          upcoming: [earlierConfirmed],
+          declined: [],
+        }}
+        isImpersonating={false}
+      />,
+    ))
+
+    const cards = [...container.querySelectorAll('article')]
+    expect(cards).toHaveLength(2)
+    expect(cards[0]?.querySelector('[aria-label="Response requested"]')).not.toBeNull()
+    expect(cards[1]?.querySelector('[aria-label="Confirmed"]')).not.toBeNull()
+  })
+
+  it('accepts a request through the member API and refreshes schedule and notifications', async () => {
+    const notificationRefresh = vi.fn()
+    window.addEventListener('member-notifications:refresh', notificationRefresh)
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
+      JSON.stringify({ status: 'accepted' }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    ))
+    await act(async () => root.render(
+      <VolunteerSchedule
+        schedule={{
+          status: 'available', requests: [request], upcoming: [], declined: [],
+        }}
+        isImpersonating={false}
+      />,
+    ))
+
+    const accept = [...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent === 'Accept')!
+    await act(async () => accept.click())
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/member-service/respond', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ assignmentId: request.id, response: 'accept' }),
+    }))
+    expect(container.querySelector(`[id="${request.id}"] [aria-label="Confirmed"]`)).not.toBeNull()
+    expect(container.querySelector('[aria-live="polite"]')?.textContent).toContain('accepted')
+    expect(mocks.refresh).toHaveBeenCalledTimes(1)
+    expect(notificationRefresh).toHaveBeenCalledTimes(1)
+    window.removeEventListener('member-notifications:refresh', notificationRefresh)
+  })
+
+  it('requires a reason before declining through the member API', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
+      JSON.stringify({ status: 'declined' }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    ))
+    await act(async () => root.render(
+      <VolunteerSchedule
+        schedule={{
+          status: 'available', requests: [request], upcoming: [], declined: [],
+        }}
+        declineReasons={declineReasons}
+        isImpersonating={false}
+      />,
+    ))
+
+    const decline = [...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent === 'Decline')!
+    await act(async () => decline.click())
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(container.textContent).toContain('Decline this request?')
+    expect(container.querySelector('[role="dialog"]')?.getAttribute('aria-modal')).toBe('true')
+    expect(document.documentElement.style.overflow).toBe('hidden')
+
+    const confirm = [...container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')]
+      .find((button) => button.textContent === 'Decline')!
+    expect(confirm.disabled).toBe(true)
+    const reason = container.querySelector<HTMLSelectElement>('select')!
+    await act(async () => {
+      reason.value = '729'
+      reason.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    expect(confirm.disabled).toBe(false)
+    await act(async () => confirm.click())
+    expect(fetchMock).toHaveBeenCalledWith('/api/member-service/respond', expect.objectContaining({
+      body: JSON.stringify({ assignmentId: request.id, response: 'decline', declineReasonId: 729 }),
+    }))
+  })
+
+  it('allows a confirmed upcoming commitment to be declined with a reason', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
+      JSON.stringify({ status: 'declined' }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    ))
+    await act(async () => root.render(
+      <VolunteerSchedule
+        schedule={{ status: 'available', requests: [], upcoming: [confirmed], declined: [] }}
+        declineReasons={declineReasons}
+        isImpersonating={false}
+      />,
+    ))
+
+    const upcomingCard = container.querySelector<HTMLElement>(`[id="${confirmed.id}"]`)!
+    await act(async () => [...upcomingCard.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent === 'Decline')!.click())
+    expect(container.querySelector('[role="dialog"]')?.textContent)
+      .toContain('Decline this commitment?')
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    const reason = container.querySelector<HTMLSelectElement>('select')!
+    await act(async () => {
+      reason.value = '728'
+      reason.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')]
+      .find((button) => button.textContent === 'Decline')!.click())
+    expect(fetchMock).toHaveBeenCalledWith('/api/member-service/respond', expect.objectContaining({
+      body: JSON.stringify({ assignmentId: confirmed.id, response: 'decline', declineReasonId: 728 }),
+    }))
+  })
+
+  it('queues the post-response refresh behind an earlier focus refresh', async () => {
+    let resolveResponse!: (value: Response) => void
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise((resolve) => {
+      resolveResponse = resolve
+    }))
+    const schedule = { status: 'available' as const, requests: [request], upcoming: [], declined: [] }
+    await act(async () => root.render(
+      <VolunteerSchedule schedule={schedule} isImpersonating={false} />,
+    ))
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent === 'Accept')!.click())
+    await act(async () => window.dispatchEvent(new Event('focus')))
+    expect(mocks.refresh).toHaveBeenCalledTimes(1)
+
+    await act(async () => resolveResponse(new Response(
+      JSON.stringify({ status: 'accepted' }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    )))
+    expect(mocks.refresh).toHaveBeenCalledTimes(1)
+
+    await act(async () => root.render(
+      <VolunteerSchedule schedule={{ ...schedule }} isImpersonating={false} />,
+    ))
+    expect(container.querySelector(`[id="${request.id}"] [aria-label="Confirmed"]`)).not.toBeNull()
+    expect(mocks.refresh).toHaveBeenCalledTimes(2)
   })
 
   it('renders confirmed-only and successful empty states without inventing pending work', async () => {
@@ -91,13 +312,12 @@ describe('VolunteerSchedule', () => {
           status: 'available',
           requests: [],
           upcoming: [confirmed],
-          nativeToolboxUrl: 'https://rock.ev.church/ScheduleToolbox',
+          declined: [],
         }}
         isImpersonating={false}
       />,
     ))
-    expect(container.textContent).toContain('You have no serving requests to respond to.')
-    expect(container.textContent).toContain('Confirmed')
+    expect(container.querySelector('[aria-label="Confirmed"]')).not.toBeNull()
     expect(container.querySelector('a[href*="ScheduleToolbox"]')).toBeNull()
 
     await act(async () => root.render(
@@ -106,12 +326,12 @@ describe('VolunteerSchedule', () => {
           status: 'available',
           requests: [],
           upcoming: [],
-          nativeToolboxUrl: 'https://rock.ev.church/ScheduleToolbox',
+          declined: [],
         }}
         isImpersonating={false}
       />,
     ))
-    expect(container.textContent).toContain('You have no upcoming serving requests or commitments.')
+    expect(container.textContent).toContain('You have no upcoming serving assignments.')
     expect(container.textContent).not.toContain('temporarily unavailable')
   })
 
@@ -123,7 +343,7 @@ describe('VolunteerSchedule', () => {
           reason: 'rock-unavailable',
           requests: [],
           upcoming: [],
-          nativeToolboxUrl: null,
+          declined: [],
         }}
         isImpersonating={false}
       />,
@@ -140,14 +360,14 @@ describe('VolunteerSchedule', () => {
     expect(container.querySelector<HTMLButtonElement>('button')?.disabled).toBe(true)
   })
 
-  it('suppresses native response links while impersonating', async () => {
+  it('suppresses response controls while impersonating', async () => {
     await act(async () => root.render(
       <VolunteerSchedule
         schedule={{
           status: 'available',
           requests: [request],
           upcoming: [],
-          nativeToolboxUrl: 'https://rock.ev.church/ScheduleToolbox',
+          declined: [],
         }}
         isImpersonating
       />,
@@ -155,6 +375,8 @@ describe('VolunteerSchedule', () => {
 
     expect(container.textContent).toContain('read-only while impersonating')
     expect(container.querySelector('a[href*="ScheduleToolbox"]')).toBeNull()
+    expect([...container.querySelectorAll('button')].some((button) => button.textContent === 'Accept')).toBe(false)
+    expect([...container.querySelectorAll('button')].some((button) => button.textContent === 'Decline')).toBe(false)
   })
 
   it('refreshes canonical server data on focus or visible return without duplicate immediate calls', async () => {
@@ -164,7 +386,7 @@ describe('VolunteerSchedule', () => {
           status: 'available',
           requests: [request],
           upcoming: [],
-          nativeToolboxUrl: 'https://rock.ev.church/ScheduleToolbox',
+          declined: [],
         }}
         isImpersonating={false}
       />,
@@ -182,14 +404,14 @@ describe('VolunteerSchedule', () => {
       vi.advanceTimersByTime(5_000)
       document.dispatchEvent(new Event('visibilitychange'))
     })
-    expect(mocks.refresh).toHaveBeenCalledTimes(2)
+    expect(mocks.refresh).toHaveBeenCalledTimes(1)
 
     await act(async () => vi.advanceTimersByTime(8_000))
     expect(container.textContent).not.toContain('Refreshing your current schedule')
     expect(container.textContent).toContain('could not confirm your latest schedule')
     expect(container.querySelector('a[href*="ScheduleToolbox"]')).toBeNull()
     await act(async () => container.querySelector<HTMLButtonElement>('button')?.click())
-    expect(mocks.refresh).toHaveBeenCalledTimes(3)
+    expect(mocks.refresh).toHaveBeenCalledTimes(2)
   })
 
   it('focuses the request identified by a notification fragment', async () => {
@@ -200,7 +422,7 @@ describe('VolunteerSchedule', () => {
           status: 'available',
           requests: [request],
           upcoming: [],
-          nativeToolboxUrl: 'https://rock.ev.church/ScheduleToolbox',
+          declined: [],
         }}
         isImpersonating={false}
       />,
@@ -215,7 +437,7 @@ describe('VolunteerSchedule', () => {
       status: 'available' as const,
       requests: [request],
       upcoming: [],
-      nativeToolboxUrl: 'https://rock.ev.church/ScheduleToolbox',
+      declined: [],
     }
     await act(async () => root.render(
       <VolunteerSchedule schedule={schedule} isImpersonating={false} />,
@@ -237,7 +459,7 @@ describe('VolunteerSchedule', () => {
       status: 'available' as const,
       requests: [request],
       upcoming: [],
-      nativeToolboxUrl: 'https://rock.ev.church/ScheduleToolbox',
+      declined: [],
     }
     await act(async () => root.render(
       <VolunteerSchedule schedule={pendingSchedule} isImpersonating={false} />,

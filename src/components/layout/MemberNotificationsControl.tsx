@@ -12,6 +12,7 @@ import {
 import {
   isMemberNotificationHref,
   MEMBER_NOTIFICATION_LIST_LIMIT,
+  MEMBER_NOTIFICATIONS_REFRESH_EVENT,
   MEMBER_NOTIFICATIONS_OVERFLOW_HREF,
   type AvailableMemberNotifications,
   type MemberNotification,
@@ -113,6 +114,7 @@ export function MemberNotificationsControl({
   const inFlightRefreshRef = useRef<Promise<void> | null>(null)
   const requestAbortRef = useRef<AbortController | null>(null)
   const refreshAfterFlightRef = useRef(false)
+  const refreshAfterCooldownRef = useRef(false)
   const [cooldownUntil, setCooldownUntil] = useState(0)
   const panelId = `member-notifications-${useId().replace(/:/gu, '')}`
   const query = searchParams.toString()
@@ -132,7 +134,10 @@ export function MemberNotificationsControl({
       return inFlightRefreshRef.current
     }
     const now = Date.now()
-    if (now < retryAfterRef.current) return Promise.resolve()
+    if (now < retryAfterRef.current) {
+      if (force) refreshAfterCooldownRef.current = true
+      return Promise.resolve()
+    }
     if (!force && now - lastRequestedAtRef.current < BACKGROUND_REFRESH_DEDUP_MS) return Promise.resolve()
     lastRequestedAtRef.current = now
     const sequence = ++requestSequenceRef.current
@@ -194,20 +199,35 @@ export function MemberNotificationsControl({
 
   useEffect(() => {
     if (cooldownUntil <= Date.now()) return
-    const timeout = window.setTimeout(() => setCooldownUntil(0), cooldownUntil - Date.now())
+    const timeout = window.setTimeout(() => {
+      setCooldownUntil(0)
+      if (refreshAfterCooldownRef.current) {
+        refreshAfterCooldownRef.current = false
+        void refresh(true)
+      }
+    }, cooldownUntil - Date.now())
     return () => window.clearTimeout(timeout)
-  }, [cooldownUntil])
+  }, [cooldownUntil, refresh])
 
   useEffect(() => {
     void refresh()
     return () => {
       refreshAfterFlightRef.current = false
+      refreshAfterCooldownRef.current = false
       requestSequenceRef.current += 1
       lastRequestedAtRef.current = 0
       requestAbortRef.current?.abort()
       requestAbortRef.current = null
       inFlightRefreshRef.current = null
     }
+  }, [refresh])
+
+  useEffect(() => {
+    function refreshAfterMemberAction() {
+      void refresh(true)
+    }
+    window.addEventListener(MEMBER_NOTIFICATIONS_REFRESH_EVENT, refreshAfterMemberAction)
+    return () => window.removeEventListener(MEMBER_NOTIFICATIONS_REFRESH_EVENT, refreshAfterMemberAction)
   }, [refresh])
 
   useEffect(() => {

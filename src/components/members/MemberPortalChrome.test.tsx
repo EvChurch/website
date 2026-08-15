@@ -51,5 +51,15 @@ describe('MemberPortalChrome', () => {
     expect(markup).toMatch(/<a[^>]+aria-current="page"[^>]+href="\/members\/my-service"/u)
     expect(markup).not.toMatch(/<a[^>]+aria-current="page"[^>]+href="\/members"/u)
     expect(markup).toContain('Leader Resources')
+
+    const labels = [...markup.matchAll(/<a[^>]*rel="nofollow"[^>]*>([\s\S]*?)<\/a>/gu)]
+      .map((match) => match[1]?.replace(/<[^>]+>/gu, ''))
+    expect(labels).toEqual([
+      'Overview',
+      'Daily Reading',
+      'Connect Group',
+      'Leader Resources',
+      'My Service',
+    ])
   })
 })

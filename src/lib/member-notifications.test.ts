@@ -17,12 +17,13 @@ const GUIDS = {
 function available(
   requests: Extract<VolunteerScheduleResult, { status: 'available' }>['requests'],
   upcoming: Extract<VolunteerScheduleResult, { status: 'available' }>['upcoming'] = [],
+  declined: Extract<VolunteerScheduleResult, { status: 'available' }>['declined'] = [],
 ): VolunteerScheduleResult {
   return {
     status: 'available',
     requests,
     upcoming,
-    nativeToolboxUrl: 'https://rock.ev.church/ScheduleToolbox',
+    declined,
   }
 }
 
@@ -93,13 +94,25 @@ describe('member notifications', () => {
     expect(empty).toMatchObject({ status: 'available', actionableCount: 0, items: [] })
   })
 
+  it('does not count future declined assignments as actionable notifications', () => {
+    const result = buildMemberNotifications(available([], [], [{
+      id: `rock-schedule:${GUIDS.first}`,
+      title: 'Welcome Team',
+      occurrenceStart: '2026-08-16T09:00:00+12:00',
+      scheduleName: '9am',
+      locationName: null,
+    }]))
+
+    expect(result).toMatchObject({ status: 'available', actionableCount: 0, items: [] })
+  })
+
   it('keeps unavailable distinct from available-empty', () => {
     expect(buildMemberNotifications({
       status: 'unavailable',
       reason: 'rock-unavailable',
       requests: [],
       upcoming: [],
-      nativeToolboxUrl: null,
+      declined: [],
     })).toEqual({
       status: 'unavailable',
       actionableCount: 0,

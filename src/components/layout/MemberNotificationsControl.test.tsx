@@ -244,6 +244,19 @@ describe('MemberNotificationsControl', () => {
     expect(fetch).toHaveBeenCalledTimes(3)
   })
 
+  it('refreshes immediately after a member responds to a notification', async () => {
+    await act(async () => root.render(<MemberNotificationsControl />))
+    await act(async () => Promise.resolve())
+    expect(fetch).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      window.dispatchEvent(new Event('member-notifications:refresh'))
+      await Promise.resolve()
+    })
+
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
   it('uses a viewport-contained, scroll-bounded panel with touch-sized controls', async () => {
     await act(async () => root.render(<MemberNotificationsControl />))
     await act(async () => Promise.resolve())
