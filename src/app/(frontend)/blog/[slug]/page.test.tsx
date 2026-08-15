@@ -15,7 +15,7 @@ vi.mock('@/lib/blog', async (importOriginal) => ({
   getBlogPostBySlug: mocks.getBlogPostBySlug,
 }))
 
-import BlogPostPage, { generateMetadata } from './page'
+import BlogPostPage, { generateMetadata, generateStaticParams } from './page'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 describe('blog post page', () => {
@@ -97,5 +97,9 @@ describe('blog post page', () => {
     )
     expect(source).toContain('export const revalidate = 86400')
     expect(source).not.toContain("export const dynamic = 'force-dynamic'")
+  })
+
+  it('enables on-demand static generation for published slugs', async () => {
+    await expect(generateStaticParams()).resolves.toEqual([])
   })
 })

@@ -21,7 +21,7 @@ vi.mock('@/lib/tracked-not-found', () => ({
   trackedNotFound: mocks.trackedNotFound,
 }))
 
-import EventDetailPage from './page'
+import EventDetailPage, { generateStaticParams } from './page'
 
 describe('event detail page', () => {
   beforeEach(() => {
@@ -36,5 +36,9 @@ describe('event detail page', () => {
       EventDetailPage({ params: Promise.resolve({ slug: 'missing' }) }),
     ).rejects.toThrow('NEXT_NOT_FOUND')
     expect(mocks.trackedNotFound).toHaveBeenCalledWith('events', 'missing')
+  })
+
+  it('enables on-demand static generation for public event slugs', async () => {
+    await expect(generateStaticParams()).resolves.toEqual([])
   })
 })
