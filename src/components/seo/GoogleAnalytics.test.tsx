@@ -40,5 +40,10 @@ describe('GoogleAnalytics', () => {
       'script[src="https://www.googletagmanager.com/gtag/js?id=G-TEST"]',
     )
     expect(script?.crossOrigin).toBe('anonymous')
+    expect(script?.getAttribute('strategy')).toBe('lazyOnload')
+    const bootstrap = container.querySelector('#google-analytics')
+    expect(bootstrap?.getAttribute('strategy')).toBe('afterInteractive')
+    expect(bootstrap?.textContent).toContain('window.dataLayer = window.dataLayer || []')
+    expect(bootstrap?.textContent).toContain('window.gtag = function(){dataLayer.push(arguments);}')
   })
 })

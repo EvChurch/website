@@ -21,6 +21,14 @@ describe('Footer social links', () => {
     expect(markup).toContain('>Blog<')
   })
 
+  it('uses accessible footer text colors on the warm-white background', () => {
+    const markup = renderToStaticMarkup(<Footer />)
+
+    expect(markup).toContain('text-dark-grey transition-colors duration-150 hover:text-deep-red')
+    expect(markup).toContain('text-xs text-dark-grey')
+    expect(markup).not.toContain('text-mid-grey/70')
+  })
+
   it('places campus service times on a visible line below each campus link', () => {
     const markup = renderToStaticMarkup(<Footer />)
 
