@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import { EventCard } from '@/components/events/EventCard'
+import { EVENTS_BACKGROUND_CLASS } from '@/components/events/event-styles'
 import { getUpcomingEvents } from '@/lib/events'
 import type { UpcomingEventsBlock as PayloadUpcomingEventsBlock } from '@/payload-types'
 
@@ -29,7 +30,7 @@ export async function UpcomingEventsBlockComponent({
   const allEventsHref = campusSlug ? `/events/${campusSlug}` : '/events'
 
   return (
-    <section className="bg-[#080808] px-5 py-20 text-white lg:px-8 lg:py-28">
+    <section className={`${EVENTS_BACKGROUND_CLASS} px-5 py-20 text-white lg:px-8 lg:py-28`}>
       <div className="mx-auto max-w-[80rem]">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-3xl">

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { PublicEvent } from '@/lib/events'
 import type { Campus } from '@/payload-types'
+import { EVENTS_BACKGROUND_CLASS } from '@/components/events/event-styles'
 
 const mocks = vi.hoisted(() => ({
   getUpcomingEvents: vi.fn(),
@@ -78,6 +79,7 @@ describe('UpcomingEventsBlockComponent', () => {
     expect(markup).toContain('What’s on')
     expect(markup).toContain('Upcoming events')
     expect(markup).toContain('href="/events"')
+    expect(markup).toContain(EVENTS_BACKGROUND_CLASS)
   })
 
   it('does not render an empty block', async () => {

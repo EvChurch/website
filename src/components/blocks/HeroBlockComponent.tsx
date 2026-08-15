@@ -289,7 +289,8 @@ export function HeroBlockComponent({
                 media={image}
                 mediaSize="hero"
                 fill
-                priority
+                loading="eager"
+                fetchPriority="high"
                 sizes="(max-width: 1023px) 100vw, (max-width: 1280px) 60vw, 720px"
                 className="h-full w-full object-cover"
               />
@@ -309,7 +310,8 @@ export function HeroBlockComponent({
             media={typeof image === 'string' ? image : image}
             mediaSize="hero"
             fill
-            priority
+            loading="eager"
+            fetchPriority="high"
             sizes="100vw"
             className="h-full w-full object-cover"
           />

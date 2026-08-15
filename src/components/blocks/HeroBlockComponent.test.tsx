@@ -21,6 +21,15 @@ describe('HeroBlockComponent contrast', () => {
     expect(markup).not.toContain('text-light-red-3')
   })
 
+  it('eagerly loads the hero image at high fetch priority', () => {
+    const markup = renderToStaticMarkup(
+      <HeroBlockComponent image="/hero.jpg" heading="A place to belong" />,
+    )
+
+    expect(markup).toContain('fetchPriority="high"')
+    expect(markup).toContain('loading="eager"')
+  })
+
   it('uses the event-detail split layout for banner heroes', () => {
     const markup = renderToStaticMarkup(
       <HeroBlockComponent
@@ -39,6 +48,8 @@ describe('HeroBlockComponent contrast', () => {
     expect(markup).toContain('lg:order-none')
     expect(markup).toContain('shadow-[0_28px_70px_rgba(0,0,0,0.53)]')
     expect(markup).toContain('color:#8C7B6B')
+    expect(markup).toContain('fetchPriority="high"')
+    expect(markup).toContain('loading="eager"')
     expect(markup).not.toContain('background-color:#8C7B6B')
   })
 
