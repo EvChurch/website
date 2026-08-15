@@ -6,13 +6,16 @@ import type { ResolvedGivingIdentity } from './rock-identity'
 const context = { contextKey: 'sandbox:e2e:run-1', environment: 'sandbox' as const, synthetic: true, e2eRunId: 7 }
 const baseSubmission = { submissionKey: 'A'.repeat(43), amountMinor: 2500, fundId: 1, frequency: 'one-off' as const, firstPaymentDate: null, firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.com', turnstileToken: 'turnstile' }
 
-function repository(): GivingCheckoutRepository & { checkouts: GivingCheckoutRecord[]; operations: GivingCheckoutOperation[] } {
+interface TestSchedule { checkoutId: number; consentId: number; providerScheduleId: string; status: 'pending' | 'active' }
+
+function repository(): GivingCheckoutRepository & { checkouts: GivingCheckoutRecord[]; operations: GivingCheckoutOperation[]; schedules: TestSchedule[] } {
   const checkouts: GivingCheckoutRecord[] = []
   const operations: GivingCheckoutOperation[] = []
+  const schedules: TestSchedule[] = []
   const returns = new Map<string, number>()
   const statuses = new Map<string, number>()
   return {
-    checkouts, operations,
+    checkouts, operations, schedules,
     async createOrReuse(input) {
       const existing = checkouts.find((checkout) => checkout.submissionKeyDigest === input.submissionKeyDigest)
       if (existing) {
@@ -52,8 +55,8 @@ function repository(): GivingCheckoutRepository & { checkouts: GivingCheckoutRec
     async findOperation(id,action) { return operations.find((operation)=>operation.action===action&&(operation as GivingCheckoutOperation & {checkoutId?:number}).checkoutId===id) ?? null },
     async completeOneOff(checkout) { checkout.status='completed'; checkout.resultCode='verified' },
     async recordConsentAuthorised() { return 11 },
-    async bindScheduleProviderId(_checkout,operation,_consentId,providerId) { const stored=operations.find((item)=>item.id===operation.id)!; stored.status='succeeded'; stored.providerId=providerId },
-    async completeSchedule(checkout) { checkout.status='completed'; checkout.resultCode='verified' },
+    async bindScheduleProviderId(checkout,operation,consentId,providerId) { schedules.push({checkoutId:checkout.id,consentId,providerScheduleId:providerId,status:'pending'}); const stored=operations.find((item)=>item.id===operation.id)!; stored.status='succeeded'; stored.providerId=providerId },
+    async completeSchedule(checkout,operation,consentId,provider) { let schedule=schedules.find((item)=>item.consentId===consentId);if(!schedule){schedule={checkoutId:checkout.id,consentId,providerScheduleId:provider.fixed_recurring_payment_id,status:'active'};schedules.push(schedule)}if(schedule.checkoutId!==checkout.id||schedule.providerScheduleId!==provider.fixed_recurring_payment_id||operation.providerId!==provider.fixed_recurring_payment_id)throw new GivingCheckoutError('conflict');schedule.status='active';operations.find((item)=>item.id===operation.id)!.status='succeeded';checkout.status='completed';checkout.resultCode='verified' },
     async setProcessing(id) { const checkout=checkouts.find((item)=>item.id===id)!; if(checkout.status!=='unknown'){checkout.status='verifying';checkout.resultCode='processing'} },
     async setFailed(id,code) { const checkout=checkouts.find((item)=>item.id===id)!; checkout.status='failed';checkout.resultCode=code },
   }
@@ -247,6 +250,7 @@ describe('giving checkout orchestration', () => {
     await checkout.verify(1)
     expect(blinkPay.createFixedRecurringPayment).toHaveBeenCalledTimes(1)
     expect(blinkPay.getFixedRecurringPayment).toHaveBeenCalledWith('schedule-1')
-    await expect(checkout.status(returned.statusToken)).resolves.toMatchObject({ retryAllowed: false })
+    expect(repo.schedules).toEqual([{ checkoutId: 1, consentId: 11, providerScheduleId: 'schedule-1', status: 'active' }])
+    await expect(checkout.status(returned.statusToken)).resolves.toMatchObject({ state: 'verified', retryAllowed: false })
   })
 })

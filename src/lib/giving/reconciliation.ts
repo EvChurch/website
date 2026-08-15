@@ -56,6 +56,13 @@ export interface LifecycleProvider {
   getEnduringConsent(id: string): Promise<BlinkPayConsent>
 }
 
+export class GivingLifecycleCorrelationPendingError extends Error {
+  constructor() {
+    super('Recurring payment correlation is not locally available yet')
+    this.name = 'GivingLifecycleCorrelationPendingError'
+  }
+}
+
 const PROVIDER_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
 
 function observed(value: { status: string; status_updated_timestamp?: string; provider_correlation_id?: string; detail?: Record<string, unknown> }, referenceType: LifecycleReferenceType, referenceId: string, now: Date): AuthoritativeObservation {
@@ -82,8 +89,9 @@ export function createGivingLifecycleProcessor(dependencies: { store: GivingLife
             : await provider.getEnduringConsent(claimed.referenceId)
         const finalized = await dependencies.store.finalize({ eventId: claimed.id, leaseToken: claimed.leaseToken, observation: observed(value, claimed.referenceType, claimed.referenceId, now()) })
         return { status: finalized ? 'processed' : 'skipped' }
-      } catch {
-        await dependencies.store.retry(claimed.id, claimed.leaseToken, now(), 'provider-read-failed')
+      } catch (error) {
+        const errorCode = error instanceof GivingLifecycleCorrelationPendingError ? 'payment-correlation-pending' : 'provider-read-failed'
+        await dependencies.store.retry(claimed.id, claimed.leaseToken, now(), errorCode)
         return { status: 'retry' }
       }
     },
@@ -157,12 +165,15 @@ async function transaction<T>(pool: Pool, work: (client: PoolClient) => Promise<
 }
 
 function checkoutFromRow(row: Record<string, unknown>): GivingCheckoutRecord {
+  const firstPaymentDate = row.first_payment_date instanceof Date
+    ? `${row.first_payment_date.getFullYear()}-${String(row.first_payment_date.getMonth()+1).padStart(2,'0')}-${String(row.first_payment_date.getDate()).padStart(2,'0')}`
+    : row.first_payment_date ? String(row.first_payment_date).slice(0,10) : null
   return {
     id: Number(row.checkout_id), contextKey: String(row.context_key), environment: row.environment as GivingEnvironment,
     synthetic: Boolean(row.synthetic), e2eRunId: row.e2e_run_id === null ? null : Number(row.e2e_run_id), giverId: Number(row.giver_id),
     bankReference: String(row.bank_reference), fundId: Number(row.fund_id), fundName: String(row.fund_name), fundCode: String(row.fund_code),
     fundAccountingKey: String(row.fund_accounting_key), amountMinor: Number(row.amount_minor), frequency: row.frequency as GivingCheckoutRecord['frequency'],
-    firstPaymentDate: row.first_payment_date ? String(row.first_payment_date).slice(0, 10) : null, correlationKey: String(row.correlation_key),
+    firstPaymentDate, correlationKey: String(row.correlation_key),
     submissionKeyDigest: String(row.submission_key_digest), submissionDigest: String(row.submission_digest), gatewayRedirectUri: row.gateway_redirect_uri ? String(row.gateway_redirect_uri) : null,
     status: row.checkout_status as GivingCheckoutRecord['status'], resultCode: row.result_code as GivingCheckoutRecord['resultCode'],
   }
@@ -243,6 +254,27 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
 
         if (!aggregate && o.referenceType === 'payment') {
           if (!o.paymentConsentId) return quarantine('payment-consent-invalid')
+          const consent = (await client.query(`
+            SELECT consent.id,
+                   checkout.id checkout_id
+            FROM giving_consents consent
+            LEFT JOIN giving_checkouts checkout
+              ON checkout.id=consent.checkout_id
+             AND checkout.context_key=consent.context_key
+             AND checkout.environment=consent.environment
+             AND checkout.giver_id=consent.giver_id
+             AND checkout.synthetic=consent.synthetic
+             AND checkout.e2e_run_id IS NOT DISTINCT FROM consent.e2e_run_id
+            WHERE consent.environment=$1 AND consent.provider_consent_id=$2
+            FOR UPDATE OF consent
+          `, [event.environment,o.paymentConsentId])).rows[0]
+          if (!consent) {
+            const crossEnvironment = (await client.query(`SELECT 1 FROM giving_consents
+              WHERE provider_consent_id=$1 AND environment<>$2 LIMIT 1`, [o.paymentConsentId,event.environment])).rowCount === 1
+            if (crossEnvironment) return quarantine('payment-consent-cross-environment')
+            throw new GivingLifecycleCorrelationPendingError()
+          }
+          if (!consent.checkout_id) return quarantine('payment-consent-context-conflict')
           const provenance = (await client.query(`
             SELECT consent.id consent_id, schedule.id schedule_id,
                    checkout.id checkout_id, checkout.context_key, checkout.environment,
@@ -266,7 +298,11 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
               AND schedule.amount_minor=checkout.amount_minor
             FOR UPDATE OF consent,schedule,checkout
           `, [event.environment,o.paymentConsentId])).rows[0]
-          if (!provenance) return quarantine('payment-consent-unmatched')
+          if (!provenance) {
+            const scheduleExists = (await client.query('SELECT 1 FROM giving_schedules WHERE consent_id=$1 LIMIT 1', [consent.id])).rowCount === 1
+            if (scheduleExists) return quarantine('payment-consent-context-conflict')
+            throw new GivingLifecycleCorrelationPendingError()
+          }
           await client.query(`INSERT INTO giving_gifts(
               context_key,environment,synthetic,e2e_run_id,checkout_id,giver_id,consent_id,schedule_id,
               fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,provider_payment_id,status)

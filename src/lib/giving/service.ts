@@ -95,7 +95,7 @@ export interface GivingCheckoutRepository {
   completeOneOff(checkout: GivingCheckoutRecord, paymentId: string, observedAt: Date, providerRequestId?: string): Promise<void>
   recordConsentAuthorised(checkout: GivingCheckoutRecord, consentId: string, observedAt: Date, providerRequestId?: string): Promise<number | null>
   bindScheduleProviderId(checkout: GivingCheckoutRecord, operation: GivingCheckoutOperation, consentId: number, providerScheduleId: string, providerRequestId?: string): Promise<void>
-  completeSchedule(checkout: GivingCheckoutRecord, provider: BlinkPayFixedRecurringPayment, observedAt: Date): Promise<void>
+  completeSchedule(checkout: GivingCheckoutRecord, operation: GivingCheckoutOperation, consentId: number, provider: BlinkPayFixedRecurringPayment, observedAt: Date): Promise<void>
   setProcessing(checkoutId: number): Promise<void>
   setFailed(checkoutId: number, code: Extract<CheckoutResultCode, 'cancelled' | 'rejected' | 'expired'>): Promise<void>
 }
@@ -328,7 +328,10 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
     }
     if (!operation.providerId) return
     const schedule = await blinkPay.getFixedRecurringPayment(operation.providerId)
-    if (blinkPay.isFixedRecurringPaymentActive(schedule)) await dependencies.repository.completeSchedule(checkout, schedule, now())
+    if (schedule.fixed_recurring_payment_id !== operation.providerId || schedule.consent_id !== consentId ||
+        schedule.amount.currency !== 'NZD' || schedule.amount.total !== minorUnitsToNzd(checkout.amountMinor) ||
+        schedule.start_date !== checkout.firstPaymentDate) throw new GivingCheckoutError('conflict')
+    if (blinkPay.isFixedRecurringPaymentActive(schedule)) await dependencies.repository.completeSchedule(checkout, operation, localConsentId, schedule, now())
     else await dependencies.repository.setProcessing(checkout.id)
   }
 
@@ -407,6 +410,11 @@ async function tx<T>(pool: Pool, work: (client: PoolClient) => Promise<T>) {
 }
 
 type CheckoutRow = Record<string, unknown>
+function postgresDate(value: unknown): string | null {
+  if (!value) return null
+  if (!(value instanceof Date)) return String(value).slice(0, 10)
+  return `${value.getFullYear()}-${String(value.getMonth()+1).padStart(2,'0')}-${String(value.getDate()).padStart(2,'0')}`
+}
 function checkoutRow(row: CheckoutRow | undefined): GivingCheckoutRecord | null {
   if (!row) return null
   return {
@@ -423,7 +431,7 @@ function checkoutRow(row: CheckoutRow | undefined): GivingCheckoutRecord | null 
     fundAccountingKey: String(row.fund_accounting_key),
     amountMinor: Number(row.amount_minor),
     frequency: row.frequency as GivingFrequency,
-    firstPaymentDate: row.first_payment_date ? String(row.first_payment_date).slice(0, 10) : null,
+    firstPaymentDate: postgresDate(row.first_payment_date),
     correlationKey: String(row.correlation_key),
     submissionKeyDigest: String(row.submission_key_digest),
     submissionDigest: String(row.submission_digest),
@@ -725,14 +733,60 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
         if (result.rowCount !== 1) throw new GivingCheckoutError('conflict')
       })
     },
-    completeSchedule(checkout, provider, observedAt) {
+    completeSchedule(checkout, operation, consentId, provider, observedAt) {
       return tx(pool, async (client) => {
+        if (!checkout.giverId || operation.providerId !== provider.fixed_recurring_payment_id) throw new GivingCheckoutError('conflict')
         const schedule = await client.query(`
-          UPDATE giving_schedules SET status='active',next_payment_date=$2,provider_observed_at=$3,updated_at=now()
-          WHERE checkout_id=$1 AND context_key=$4 AND provider_schedule_id=$5 AND status IN ('pending','unknown','active')
+          INSERT INTO giving_schedules(
+            context_key,environment,synthetic,e2e_run_id,checkout_id,giver_id,consent_id,
+            provider_schedule_id,status,frequency,amount_minor,next_payment_date,provider_observed_at
+          )
+          SELECT $1::varchar,$2::varchar,$3::boolean,$4::integer,$5::integer,$6::integer,consent.id,
+                 $8::varchar,'active',$9::varchar,$10::numeric,$11::timestamptz,$12::timestamptz
+          FROM giving_consents consent
+          WHERE consent.id=$7 AND consent.context_key=$1 AND consent.environment=$2
+            AND consent.synthetic=$3 AND consent.e2e_run_id IS NOT DISTINCT FROM $4
+            AND consent.checkout_id=$5 AND consent.giver_id=$6
+            AND consent.provider_consent_id=$13 AND consent.status='authorised'
+          ON CONFLICT(consent_id) DO UPDATE SET
+            status='active',next_payment_date=EXCLUDED.next_payment_date,
+            provider_observed_at=GREATEST(giving_schedules.provider_observed_at,EXCLUDED.provider_observed_at),updated_at=now()
+          WHERE giving_schedules.context_key=EXCLUDED.context_key
+            AND giving_schedules.environment=EXCLUDED.environment
+            AND giving_schedules.synthetic=EXCLUDED.synthetic
+            AND giving_schedules.e2e_run_id IS NOT DISTINCT FROM EXCLUDED.e2e_run_id
+            AND giving_schedules.checkout_id=EXCLUDED.checkout_id
+            AND giving_schedules.giver_id=EXCLUDED.giver_id
+            AND giving_schedules.provider_schedule_id=EXCLUDED.provider_schedule_id
+            AND giving_schedules.frequency=EXCLUDED.frequency
+            AND giving_schedules.amount_minor=EXCLUDED.amount_minor
+            AND giving_schedules.status IN ('pending','unknown','active')
           RETURNING id
-        `, [checkout.id,provider.next_payment_date,observedAt,checkout.contextKey,provider.fixed_recurring_payment_id])
+        `, [checkout.contextKey,checkout.environment,checkout.synthetic,checkout.e2eRunId,checkout.id,checkout.giverId,consentId,provider.fixed_recurring_payment_id,checkout.frequency,checkout.amountMinor,provider.next_payment_date,observedAt,provider.consent_id])
         if (schedule.rowCount !== 1) throw new GivingCheckoutError('conflict')
+        const operationResult = await client.query(`
+          WITH updated AS (
+            UPDATE giving_provider_operations
+            SET status='succeeded',updated_at=now()
+            WHERE id=$1 AND checkout_id=$2 AND context_key=$3
+              AND action='blinkpay.create-schedule' AND provider_id=$4
+              AND status IN ('submitted','unknown')
+            RETURNING id
+          ), next_attempt AS (
+            SELECT COALESCE(MAX(attempt_number),0)+1 value
+            FROM giving_provider_operation_attempts WHERE operation_id=$1
+          )
+          INSERT INTO giving_provider_operation_attempts(operation_id,attempt_number,outcome)
+          SELECT updated.id,next_attempt.value,'succeeded' FROM updated CROSS JOIN next_attempt
+          RETURNING id
+        `, [operation.id,checkout.id,checkout.contextKey,provider.fixed_recurring_payment_id])
+        if (operation.status !== 'succeeded' && operationResult.rowCount !== 1) throw new GivingCheckoutError('conflict')
+        if (operation.status === 'succeeded') {
+          const existing = await client.query(`SELECT id FROM giving_provider_operations
+            WHERE id=$1 AND checkout_id=$2 AND context_key=$3 AND action='blinkpay.create-schedule'
+              AND provider_id=$4 AND status='succeeded'`, [operation.id,checkout.id,checkout.contextKey,provider.fixed_recurring_payment_id])
+          if (existing.rowCount !== 1) throw new GivingCheckoutError('conflict')
+        }
         const completed = await client.query(`UPDATE giving_checkouts SET status='completed',result_code='verified',updated_at=now() WHERE id=$1 AND context_key=$2 AND status IN ('authorising','verifying','unknown') RETURNING id`, [checkout.id,checkout.contextKey])
         if (completed.rowCount !== 1) throw new GivingCheckoutError('conflict')
       })

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createGivingLifecycleProcessor, createUnknownCancellationReconciler, runGivingReconciliation } from './reconciliation'
+import { createGivingLifecycleProcessor, createUnknownCancellationReconciler, GivingLifecycleCorrelationPendingError, runGivingReconciliation } from './reconciliation'
 
 const noCancellations = { unknownCancellationOperations: vi.fn().mockResolvedValue([]), recordCancellationObservation: vi.fn() }
 
@@ -22,6 +22,18 @@ describe('giving lifecycle processing', () => {
     await expect(createGivingLifecycleProcessor({ store, provider: () => ({ getFixedRecurringPayment: vi.fn().mockRejectedValue(new Error('offline')) } as never) }).process(1)).resolves.toEqual({ status: 'retry' })
     expect(store.retry).toHaveBeenCalledWith(1, 'lease', expect.any(Date), 'provider-read-failed')
     expect(store.finalize).not.toHaveBeenCalled()
+  })
+
+  it('keeps a locally unbound recurring payment retryable after an authoritative provider read', async () => {
+    const store = {
+      claim: vi.fn().mockResolvedValue({ id: 1, leaseToken: 'lease', referenceType: 'payment', referenceId: 'pay-1', environment: 'sandbox' }),
+      finalize: vi.fn().mockRejectedValue(new GivingLifecycleCorrelationPendingError()),
+      retry: vi.fn().mockResolvedValue(true),
+    }
+    const getPayment = vi.fn().mockResolvedValue({ payment_id: 'pay-1', status: 'AcceptedSettlementCompleted', detail: { consent_id: '22222222-2222-4222-8222-222222222222' } })
+    await expect(createGivingLifecycleProcessor({ store, provider: () => ({ getPayment } as never) }).process(1)).resolves.toEqual({ status: 'retry' })
+    expect(store.finalize).toHaveBeenCalledTimes(1)
+    expect(store.retry).toHaveBeenCalledWith(1, 'lease', expect.any(Date), 'payment-correlation-pending')
   })
 
   it('uses the injected U6 continuation for authorised consents without schedules', async () => {

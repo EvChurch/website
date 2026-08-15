@@ -55,6 +55,33 @@ describe.skipIf(!databaseUrl)('giving webhook PostgreSQL leases and failure reco
     expect((await pool.query(`SELECT status,context_key FROM blinkpay_webhook_events WHERE id=ANY($1::int[]) ORDER BY id`,[records.map((record)=>record.eventId)])).rows).toEqual([{status:'processed',context_key:'production'},{status:'processed',context_key:'production'}])
   })
 
+  it('retries a recurring payment received before schedule binding and materializes it after binding', async () => {
+    const recurring = await seedRecurring()
+    await pool.query('DELETE FROM giving_schedules WHERE id=$1',[recurring.scheduleId])
+    const store = createPostgresGivingLifecycleStore(pool)
+    let current = new Date('2026-08-15T12:00:00Z')
+    const paymentId = '44444444-4444-4444-8444-444444444445'
+    const event = await store.recordVerifiedEvent({ environment:'production',eventId:'evt-before-schedule',eventType:'payment.changed',referenceType:'payment',referenceId:paymentId,payloadDigest:'b'.repeat(64),payload:{},now:current })
+    const getPayment = vi.fn().mockResolvedValue({ payment_id:paymentId,status:'AcceptedSettlementCompleted',status_updated_timestamp:current.toISOString(),detail:{consent_id:'22222222-2222-4222-8222-222222222222'} })
+    const processor = createGivingLifecycleProcessor({store,provider:()=>({getPayment} as never),now:()=>current})
+
+    expect(await processor.process(event.eventId)).toEqual({status:'retry'})
+    expect((await pool.query('SELECT status,attempt_count,last_error,next_attempt_at IS NOT NULL retry_scheduled FROM blinkpay_webhook_events WHERE id=$1',[event.eventId])).rows[0]).toEqual({
+      status:'retry',attempt_count:'1',last_error:'payment-correlation-pending',retry_scheduled:true,
+    })
+    expect((await pool.query('SELECT count(*) count FROM giving_gifts WHERE provider_payment_id=$1',[paymentId])).rows[0].count).toBe('0')
+
+    const schedule = await pool.query<{id:number}>(`INSERT INTO giving_schedules(context_key,environment,synthetic,checkout_id,giver_id,consent_id,provider_schedule_id,status,frequency,amount_minor)
+      VALUES('production','production',false,$1,$2,$3,'33333333-3333-4333-8333-333333333334','active','monthly',4200) RETURNING id`, [recurring.checkoutId,recurring.giverId,recurring.consentId])
+    current = new Date('2026-08-15T12:00:31Z')
+    expect(await processor.process(event.eventId)).toEqual({status:'processed'})
+    expect(getPayment).toHaveBeenCalledTimes(2)
+    expect((await pool.query(`SELECT checkout_id,giver_id,consent_id,schedule_id,amount_minor,status FROM giving_gifts WHERE provider_payment_id=$1`,[paymentId])).rows).toEqual([{
+      checkout_id:recurring.checkoutId,giver_id:recurring.giverId,consent_id:recurring.consentId,schedule_id:schedule.rows[0].id,amount_minor:'4200',status:'settled',
+    }])
+    expect((await pool.query('SELECT status,attempt_count,last_error FROM blinkpay_webhook_events WHERE id=$1',[event.eventId])).rows[0]).toEqual({status:'processed',attempt_count:'2',last_error:null})
+  })
+
   it('quarantines invalid or cross-environment recurring correlations and retries provider read failures without gifts', async () => {
     await seedRecurring()
     const store = createPostgresGivingLifecycleStore(pool)
