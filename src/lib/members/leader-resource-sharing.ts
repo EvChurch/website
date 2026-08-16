@@ -87,23 +87,13 @@ export async function createOrReuseLeaderResourceShare(
 ): Promise<string | null> {
   const profile = await getCurrentMemberProfile({ persistLegacyProfile: true })
   if (!profile || !positiveInteger(resourceRockId)) return null
-  const payload = (await getPayloadClient()) as unknown as SharingPayload
-  const participantResult = await payload.find({
-    collection: 'connect-group-participants', depth: 0, limit: 1,
-    pagination: false, overrideAccess: true,
-    select: { isCoach: true, memberships: true },
-    where: { rockPersonId: { equals: profile.personId } },
-  })
-  const participant = record(participantResult.docs[0])
-  const memberships = Array.isArray(participant?.memberships) ? participant.memberships : []
-  const isLeader = memberships.some((membership) => record(membership)?.isLeader === true)
-  if (!isLeader) return null
 
   // Reuse the existing member boundary so campus and approval access remain authoritative.
   const { getMemberResourceDetail } = await import('./data')
   const detail = await getMemberResourceDetail(resourceRockId)
   if (!detail || detail.access !== 'granted') return null
 
+  const payload = (await getPayloadClient()) as unknown as SharingPayload
   const pairKey = `${resourceRockId}:${profile.personId}`
   const existing = await findShare(payload, { pairKey: { equals: pairKey } })
   if (existing) return existing.token

@@ -18,17 +18,51 @@ describe('leader resource sharing', () => {
   })
 
   it('reuses the same share for an authorized leader', async () => {
-    mocks.payload.find
-      .mockResolvedValueOnce({ docs: [{ memberships: [{ isLeader: true }] }] })
-      .mockResolvedValueOnce({ docs: [{ token: 'a'.repeat(32), resourceRockId: 245, sharerRockPersonId: 42 }] })
+    mocks.payload.find.mockResolvedValueOnce({
+      docs: [{ token: 'a'.repeat(32), resourceRockId: 245, sharerRockPersonId: 42 }],
+    })
     await expect(createOrReuseLeaderResourceShare(245)).resolves.toBe('a'.repeat(32))
     expect(mocks.payload.create).not.toHaveBeenCalled()
   })
 
-  it('denies a participant without leader access', async () => {
-    mocks.payload.find.mockResolvedValueOnce({ docs: [{ isCoach: true, memberships: [{ isLeader: false }] }] })
+  it('reuses a share for a coach without a leader membership', async () => {
+    mocks.payload.find.mockResolvedValueOnce({
+      docs: [{ token: 'a'.repeat(32), resourceRockId: 245, sharerRockPersonId: 42 }],
+    })
+    await expect(createOrReuseLeaderResourceShare(245)).resolves.toBe('a'.repeat(32))
+    expect(mocks.detail).toHaveBeenCalledWith(245)
+    expect(mocks.payload.create).not.toHaveBeenCalled()
+  })
+
+  it('creates the first share after the access boundary grants access', async () => {
+    const share = {
+      token: 'a'.repeat(32),
+      resourceRockId: 245,
+      sharerRockPersonId: 42,
+    }
+    mocks.payload.find.mockResolvedValueOnce({ docs: [] })
+    mocks.payload.create.mockResolvedValueOnce(share)
+
+    await expect(createOrReuseLeaderResourceShare(245)).resolves.toBe(share.token)
+    expect(mocks.detail).toHaveBeenCalledWith(245)
+    expect(mocks.payload.create).toHaveBeenCalledWith({
+      collection: 'leader-resource-shares',
+      overrideAccess: true,
+      data: {
+        token: expect.stringMatching(/^[A-Za-z0-9_-]{32}$/u),
+        pairKey: '245:42',
+        resourceRockId: 245,
+        sharerRockPersonId: 42,
+      },
+    })
+  })
+
+  it('denies an ordinary member without leader or coach access', async () => {
+    mocks.detail.mockResolvedValueOnce({ access: 'denied' })
     await expect(createOrReuseLeaderResourceShare(245)).resolves.toBeNull()
-    expect(mocks.detail).not.toHaveBeenCalled()
+    expect(mocks.detail).toHaveBeenCalledWith(245)
+    expect(mocks.payload.find).not.toHaveBeenCalled()
+    expect(mocks.payload.create).not.toHaveBeenCalled()
   })
 
   it('returns current resource data and omits a removed sharer', async () => {
