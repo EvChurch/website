@@ -264,6 +264,10 @@ export function HeroBlockComponent({
   const imageUrl = typeof image === 'string' ? image : image?.url
   const height = minHeight ?? '70vh'
   const overlay = overlayStyle ?? 'default'
+  const focalPointStyle =
+    typeof image !== 'string' && image.focalX != null && image.focalY != null
+      ? { objectPosition: `${image.focalX}% ${image.focalY}%` }
+      : undefined
 
   // Banner variant: event-detail-style split header with text beside the artwork.
   if (overlay === 'banner') {
@@ -314,6 +318,7 @@ export function HeroBlockComponent({
             fetchPriority="high"
             sizes="100vw"
             className="h-full w-full object-cover"
+            style={focalPointStyle}
           />
           <Overlays style={overlay} keyColor={keyColor} />
         </div>

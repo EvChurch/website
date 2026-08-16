@@ -11,6 +11,8 @@ export interface PayloadMediaImage {
   alt?: string | null
   width?: number | null
   height?: number | null
+  focalX?: number | null
+  focalY?: number | null
   blurDataURL?: string | null
   sizes?: Partial<
     Record<
