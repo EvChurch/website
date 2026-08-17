@@ -400,6 +400,24 @@ function getHtmlInputType(fieldTypeGuid: string) {
   return 'text'
 }
 
+function withPersonDefaults(
+  initial: RockPersonEntryValues | null,
+  defaults?: { name: string; email: string } | null,
+) {
+  if (!initial || !defaults) return initial
+  const nameParts = defaults.name.trim().split(/\s+/)
+  return {
+    ...initial,
+    person: {
+      ...initial.person,
+      firstName: initial.person.firstName || nameParts[0] || null,
+      lastName:
+        initial.person.lastName || nameParts.slice(1).join(' ') || null,
+      email: initial.person.email || defaults.email,
+    },
+  }
+}
+
 function PersonSearchField({
   value,
   contextToken,
@@ -521,11 +539,13 @@ export function RockForm({
   initialSchema = null,
   fallbackAction = DEFAULT_FORM_FALLBACK_ACTION,
   scrollContainerRef,
+  personDefaults,
 }: {
   workflowTypeGuid: string
   initialSchema?: RockFormSchema | null
   fallbackAction?: FormFallbackAction
   scrollContainerRef?: RefObject<HTMLElement | null>
+  personDefaults?: { name: string; email: string } | null
 }) {
   const [schema, setSchema] = useState<RockFormSchema | null>(initialSchema)
   const [startupSiteKey, setStartupSiteKey] = useState(
@@ -536,7 +556,10 @@ export function RockForm({
   )
   const [personEntryValues, setPersonEntryValues] =
     useState<RockPersonEntryValues | null>(
-      initialSchema?.initialPersonEntryValues || null,
+      withPersonDefaults(
+        initialSchema?.initialPersonEntryValues || null,
+        personDefaults,
+      ),
     )
   const [files, setFiles] = useState<Record<string, File>>({})
   const [turnstileToken, setTurnstileToken] = useState('')
@@ -563,18 +586,22 @@ export function RockForm({
   const applySchema = useCallback((nextSchema: RockFormSchema) => {
     setSchema(nextSchema)
     setFieldValues(nextSchema.initialFieldValues)
-    setPersonEntryValues(nextSchema.initialPersonEntryValues)
+    setPersonEntryValues(
+      withPersonDefaults(nextSchema.initialPersonEntryValues, personDefaults),
+    )
     setFiles({})
     setTurnstileToken('')
     setTurnstileResetKey((key) => key + 1)
-  }, [])
+  }, [personDefaults])
 
   useEffect(() => {
     if (initialSchema) {
       setSchema(initialSchema)
       setStartupSiteKey(initialSchema.turnstileSiteKey)
       setFieldValues(initialSchema.initialFieldValues)
-      setPersonEntryValues(initialSchema.initialPersonEntryValues)
+      setPersonEntryValues(
+        withPersonDefaults(initialSchema.initialPersonEntryValues, personDefaults),
+      )
       setFiles({})
       setError('')
       setLoading(false)
@@ -613,7 +640,7 @@ export function RockForm({
       startController.current?.abort()
       submitController.current?.abort()
     }
-  }, [workflowTypeGuid, initialSchema, startupRetryKey])
+  }, [workflowTypeGuid, initialSchema, startupRetryKey, personDefaults])
 
   const startForm = useCallback(
     async (token: string) => {
