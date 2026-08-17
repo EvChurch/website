@@ -15,6 +15,8 @@ import type { SyncResult } from './sync-runner'
 
 export const CONNECT_GROUP_TYPE_IDS = [25, 46] as const
 export const CONNECT_GROUP_COACH_SECURITY_GROUP_ID = 33287
+export const CONNECT_GROUP_COACHING_PARENT_IDS = [28241, 28782] as const
+const CONNECT_GROUP_COACHING_GROUP_TYPE_ID = 23
 
 const MIN_EXISTING_RECORDS_FOR_DROP_GUARD = 10
 const MIN_ACCEPTABLE_SNAPSHOT_RATIO = 0.5
@@ -144,36 +146,44 @@ function buildParticipantSnapshot(
 }
 
 function mapCoachedGroups(
-  groups: RockConnectGroup[],
-  parentMemberships: Array<{ groupId: number; memberships: RockGroupMember[] }>,
+  connectGroupMemberships: Array<{ groupId: number; memberships: RockGroupMember[] }>,
+  coachingGroupMemberships: Array<{ groupId: number; memberships: RockGroupMember[] }>,
   coachMemberships: RockGroupMember[],
 ): Map<number, number[]> {
   const coachPersonIds = new Set(coachMemberships.map((membership) => membership.Person.Id))
-  const childGroupIdsByParentId = new Map<number, number[]>()
-  for (const group of groups) {
-    if (!group.ParentGroupId) continue
-    const childGroupIds = childGroupIdsByParentId.get(group.ParentGroupId) ?? []
-    childGroupIds.push(group.Id)
-    childGroupIdsByParentId.set(group.ParentGroupId, childGroupIds)
+  const ledGroupIdsByPersonId = new Map<number, Set<number>>()
+  for (const { groupId, memberships } of connectGroupMemberships) {
+    for (const membership of memberships) {
+      validateMembership(membership, groupId)
+      if (membership.GroupRole.IsLeader !== true) continue
+      const ledGroupIds = ledGroupIdsByPersonId.get(membership.Person.Id) ?? new Set<number>()
+      ledGroupIds.add(groupId)
+      ledGroupIdsByPersonId.set(membership.Person.Id, ledGroupIds)
+    }
   }
 
-  const coachedGroupIdsByPersonId = new Map<number, number[]>()
-  for (const { groupId, memberships } of parentMemberships) {
-    const childGroupIds = childGroupIdsByParentId.get(groupId) ?? []
+  const coachedGroupIdsByPersonId = new Map<number, Set<number>>()
+  for (const { groupId, memberships } of coachingGroupMemberships) {
+    const childGroupIds = new Set(
+      memberships.flatMap((membership) => [
+        ...(ledGroupIdsByPersonId.get(membership.Person.Id) ?? []),
+      ]),
+    )
     for (const membership of memberships) {
       validateMembership(membership, groupId)
       const personId = membership.Person.Id
       if (membership.GroupRole.IsLeader !== true || !coachPersonIds.has(personId)) continue
-      coachedGroupIdsByPersonId.set(
-        personId,
-        [...new Set([
-          ...(coachedGroupIdsByPersonId.get(personId) ?? []),
-          ...childGroupIds,
-        ])].sort((a, b) => a - b),
-      )
+      const coachedGroupIds = coachedGroupIdsByPersonId.get(personId) ?? new Set<number>()
+      for (const childGroupId of childGroupIds) coachedGroupIds.add(childGroupId)
+      coachedGroupIdsByPersonId.set(personId, coachedGroupIds)
     }
   }
-  return coachedGroupIdsByPersonId
+  return new Map(
+    [...coachedGroupIdsByPersonId].map(([personId, groupIds]) => [
+      personId,
+      [...groupIds].sort((a, b) => a - b),
+    ]),
+  )
 }
 
 async function reconcileCollection({
@@ -250,18 +260,19 @@ export async function syncConnectGroups(): Promise<SyncResult> {
     const coachMemberships = await fetchActiveGroupMembers(
       CONNECT_GROUP_COACH_SECURITY_GROUP_ID,
     )
-    const parentGroupIds = [...new Set(
-      groups
-        .map((group) => group.ParentGroupId)
-        .filter((groupId): groupId is number => (
-          typeof groupId === 'number' && Number.isInteger(groupId) && groupId > 0
-        )),
-    )].sort((a, b) => a - b)
-    const parentMemberships: Array<{ groupId: number; memberships: RockGroupMember[] }> = []
-    for (const groupId of parentGroupIds) {
-      parentMemberships.push({
-        groupId,
-        memberships: await fetchActiveGroupMembers(groupId),
+    const coachingGroups = await rockFetchAll<RockGroup>({
+      endpoint: 'Groups',
+      getKey: (group) => requireDurableId(group.Id, 'Rock coaching group'),
+      params: {
+        $filter: `(${CONNECT_GROUP_COACHING_PARENT_IDS.map((id) => `ParentGroupId eq ${id}`).join(' or ')}) and GroupTypeId eq ${CONNECT_GROUP_COACHING_GROUP_TYPE_ID} and IsActive eq true`,
+        $orderby: 'Name,Id',
+      },
+    })
+    const coachingGroupMemberships: Array<{ groupId: number; memberships: RockGroupMember[] }> = []
+    for (const group of coachingGroups) {
+      coachingGroupMemberships.push({
+        groupId: group.Id,
+        memberships: await fetchActiveGroupMembers(group.Id),
       })
     }
 
@@ -269,7 +280,7 @@ export async function syncConnectGroups(): Promise<SyncResult> {
     const preparedParticipants = buildParticipantSnapshot(
       memberSnapshots,
       coachMemberships,
-      mapCoachedGroups(groups, parentMemberships, coachMemberships),
+      mapCoachedGroups(memberSnapshots, coachingGroupMemberships, coachMemberships),
       syncedAt,
     )
 
