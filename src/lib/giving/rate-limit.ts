@@ -3,6 +3,10 @@ import { isIP } from 'node:net'
 import type { Pool } from 'pg'
 
 const WINDOW_MS = 10 * 60_000
+const CLIENT_MAXIMUM = 20
+const IDENTITY_MAXIMUM = 10
+const MEMBER_CLIENT_MAXIMUM = 100
+const MEMBER_IDENTITY_MAXIMUM = 50
 
 export interface GivingRateLimitStore {
   increment(input: { bucketDigest: string; scope: 'client' | 'identity'; windowStartedAt: Date; expiresAt: Date }): Promise<number>
@@ -29,13 +33,13 @@ function digest(scope: 'client' | 'identity', value: string) {
   return createHmac('sha256', secret()).update(`giving-rate-v1\0${scope}\0${value}`).digest('hex')
 }
 
-export async function enforceGivingRateLimits(input: { address: string; email: string; store: GivingRateLimitStore; now?: number }) {
+export async function enforceGivingRateLimits(input: { address: string; email: string; memberSubject?: string | null; store: GivingRateLimitStore; now?: number }) {
   const now = input.now ?? Date.now()
   const windowStartedAt = new Date(Math.floor(now / WINDOW_MS) * WINDOW_MS)
   const expiresAt = new Date(windowStartedAt.getTime() + 2 * WINDOW_MS)
   const buckets = [
-    { scope: 'client' as const, value: input.address, maximum: 5 },
-    { scope: 'identity' as const, value: input.email.normalize('NFC').trim().toLowerCase(), maximum: 3 },
+    { scope: 'client' as const, value: input.memberSubject ? `member:${input.memberSubject}` : input.address, maximum: input.memberSubject ? MEMBER_CLIENT_MAXIMUM : CLIENT_MAXIMUM },
+    { scope: 'identity' as const, value: input.memberSubject ?? input.email.normalize('NFC').trim().toLowerCase(), maximum: input.memberSubject ? MEMBER_IDENTITY_MAXIMUM : IDENTITY_MAXIMUM },
   ]
   for (const bucket of buckets) {
     const count = await input.store.increment({ bucketDigest: digest(bucket.scope,bucket.value), scope: bucket.scope, windowStartedAt, expiresAt })

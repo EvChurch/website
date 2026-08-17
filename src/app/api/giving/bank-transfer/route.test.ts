@@ -53,6 +53,9 @@ describe('POST giving bank transfer', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('cache-control')).toContain('no-store')
     expect(deps.verifyTurnstile).toHaveBeenCalledOnce()
+    expect(vi.mocked(deps.verifyTurnstile).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(deps.rateLimitStore.increment).mock.invocationCallOrder[0],
+    )
     expect(deps.prepare).toHaveBeenCalledOnce()
     expect(await response.json()).toEqual(expect.objectContaining({ reference: 'EV123', particulars: 'GENERAL' }))
   })
@@ -77,12 +80,12 @@ describe('POST giving bank transfer', () => {
 
   it('returns a private rate-limit response with retry guidance', async () => {
     const deps = dependencies()
-    vi.mocked(deps.rateLimitStore.increment).mockResolvedValue(6)
+    vi.mocked(deps.rateLimitStore.increment).mockImplementation(async ({ scope }) => scope === 'identity' ? 11 : 1)
     const response = await handleGivingBankTransferPost(request(), deps)
     expect(response.status).toBe(429)
     expect(Number(response.headers.get('retry-after'))).toBeGreaterThan(0)
     expect(response.headers.get('cache-control')).toContain('no-store')
-    expect(deps.verifyTurnstile).not.toHaveBeenCalled()
+    expect(deps.verifyTurnstile).toHaveBeenCalledOnce()
     expect(deps.prepare).not.toHaveBeenCalled()
   })
 
@@ -92,6 +95,7 @@ describe('POST giving bank transfer', () => {
     const response = await handleGivingBankTransferPost(request(), deps)
     expect(response.status).toBe(503)
     expect(response.headers.get('cache-control')).toContain('no-store')
+    expect(deps.rateLimitStore.increment).not.toHaveBeenCalled()
     expect(deps.prepare).not.toHaveBeenCalled()
   })
 

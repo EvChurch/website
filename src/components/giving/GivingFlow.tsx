@@ -357,12 +357,14 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     const abortSubmit = () => submitAbort.abort()
     operation.signal.addEventListener('abort', abortSubmit, { once: true })
     const submitTimer = setTimeout(abortSubmit, GIVING_SUBMIT_TIMEOUT_MS)
+    let rotateSubmissionKey = false
     leavingFlow.current = true
     setCheckout({ type: 'submitting' });setError(undefined)
     try {
       await persistDraft(submitAbort.signal)
       const response = await fetch('/api/giving/checkouts', { method:'POST',headers:{'content-type':'application/json','x-ev-giving-request':'checkout-v1'},body:JSON.stringify({submissionKey:flowSubmissionKey.current,amountMinor:state.answers.amountMinor,fundId:state.answers.fund.id,frequency:state.answers.frequency,firstPaymentDate:state.answers.frequency==='one-off'?null:state.answers.startDate,firstName:state.answers.firstName,lastName:state.answers.lastName,email:state.answers.email,turnstileToken}),signal:submitAbort.signal })
       const value = await response.json() as { outcome?: unknown; retryAllowed?: unknown; gatewayRedirectUri?: unknown }
+      rotateSubmissionKey = response.status >= 500 && value.retryAllowed === true
       if (!operationIsCurrent(operation)) return
       if (submitAbort.signal.aborted) throw new DOMException('Checkout timed out', 'TimeoutError')
       if(response.status===202&&value.outcome==='unknown'&&value.retryAllowed===false){
@@ -374,7 +376,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
       leavingFlow.current = true
       window.location.assign(redirect)
     } catch {
-      if (operationIsCurrent(operation)) { verifiedFingerprint.current=null;setCheckout({ type: 'configuring' });setTurnstileToken('');setTurnstileReset((value)=>value+1);setError('We could not start secure bank authorisation. Your gift details are saved; please try again.') }
+      if (operationIsCurrent(operation)) { if (rotateSubmissionKey) flowSubmissionKey.current=submissionKey();verifiedFingerprint.current=null;setCheckout({ type: 'configuring' });setTurnstileToken('');setTurnstileReset((value)=>value+1);setError('We could not start secure bank authorisation. Your gift details are saved; please try again.') }
     } finally {
       clearTimeout(submitTimer)
       operation.signal.removeEventListener('abort', abortSubmit)

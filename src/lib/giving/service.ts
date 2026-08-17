@@ -78,7 +78,7 @@ interface CreateCheckoutInput extends GivingContext {
 }
 
 export type GivingCheckoutStartResult =
-  | { outcome: 'redirect'; gatewayRedirectUri: string; statusToken: string; correlationKey: string; reused: boolean }
+  | { outcome: 'redirect'; gatewayRedirectUri: string; statusToken: string; returnToken: string; correlationKey: string; reused: boolean }
   | { outcome: 'unknown'; retryAllowed: false; statusToken: string; correlationKey: string; reused: boolean }
 
 export interface GivingCheckoutRepository {
@@ -271,7 +271,7 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
   const operationKeys = () => ({ requestId: `ev-${uuid()}`, idempotencyKey: `ev-${uuid()}` })
   const blinkPayFor = (checkout: GivingCheckoutRecord) => typeof dependencies.blinkPay === 'function' ? dependencies.blinkPay(checkout.environment) : dependencies.blinkPay
 
-  async function executeHosted(checkout: GivingCheckoutRecord, action: Extract<GivingCheckoutOperation['action'], 'blinkpay.create-payment' | 'blinkpay.create-consent'>, returnToken: string) {
+  async function executeHosted(checkout: GivingCheckoutRecord, action: Extract<GivingCheckoutOperation['action'], 'blinkpay.create-payment' | 'blinkpay.create-consent'>) {
     const blinkPay = blinkPayFor(checkout)
     let operation = await dependencies.repository.prepareOperation(checkout, action, requestDigest(action, checkout), operationKeys())
     if (operation.status === 'succeeded') {
@@ -281,7 +281,7 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
     if (operation.status !== 'prepared') throw new GivingCheckoutError('unknown')
     await dependencies.repository.markSubmitted(operation.id)
     operation = { ...operation, status: 'submitted' }
-    const redirectUri = `https://www.ev.church/give/return/${returnToken}`
+    const redirectUri = 'https://www.ev.church/give/return'
     if (!checkout.bankReference) throw new GivingCheckoutError('conflict')
     const pcr = { particulars: checkout.fundCode.slice(0, 12), code: checkout.bankCode, reference: checkout.bankReference }
     let result
@@ -307,7 +307,7 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
     try {
       await dependencies.repository.recordHostedSuccess({ checkout, operation, providerId, gatewayRedirectUri: result.value.redirect_uri, providerRequestId: result.metadata.correlationId })
     } catch {
-      await dependencies.repository.recordAcceptedUnknown({ checkoutId: checkout.id, operationId: operation.id, action, providerId, providerRequestId: result.metadata.correlationId, code: 'provider-accepted-binding-failed' })
+      await dependencies.repository.recordAcceptedUnknown({ checkoutId: checkout.id, operationId: operation.id, action, providerId, providerRequestId: result.metadata.correlationId, code: 'provider-accepted-binding-failed' }).catch(() => undefined)
       throw new GivingCheckoutError('unknown')
     }
     return result.value.redirect_uri
@@ -328,14 +328,14 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
     })
     let checkout = created.checkout
     await dependencies.repository.rotateStatusCapability(checkout.id, capabilityDigest('status', statusToken), capabilityDigest('status', statusToken), new Date(current.getTime() + CAPABILITY_TTL_MS))
-    if (created.disposition === 'redirect' && checkout.gatewayRedirectUri) return { outcome: 'redirect', gatewayRedirectUri: checkout.gatewayRedirectUri, statusToken, correlationKey: checkout.correlationKey, reused: true } satisfies GivingCheckoutStartResult
+    if (created.disposition === 'redirect' && checkout.gatewayRedirectUri) return { outcome: 'redirect', gatewayRedirectUri: checkout.gatewayRedirectUri, statusToken, returnToken, correlationKey: checkout.correlationKey, reused: true } satisfies GivingCheckoutStartResult
     if (created.disposition === 'recover') return { outcome: 'unknown', retryAllowed: false, statusToken, correlationKey: checkout.correlationKey, reused: created.reused } satisfies GivingCheckoutStartResult
     const identity: GivingIdentityInput = { kind: 'guest', firstName: submission.firstName, lastName: submission.lastName, email: submission.email }
     const resolvedIdentity = await dependencies.resolveIdentity({ contextKey: checkout.contextKey, environment: checkout.environment, synthetic: checkout.synthetic, checkoutId: checkout.id, identity })
     checkout = { ...checkout, giverId: resolvedIdentity.giverId, bankReference: resolvedIdentity.bankReference }
     try {
-      const gatewayRedirectUri = await executeHosted(checkout, checkout.frequency === 'one-off' ? 'blinkpay.create-payment' : 'blinkpay.create-consent', returnToken)
-      return { outcome: 'redirect', gatewayRedirectUri, statusToken, correlationKey: checkout.correlationKey, reused: false } satisfies GivingCheckoutStartResult
+      const gatewayRedirectUri = await executeHosted(checkout, checkout.frequency === 'one-off' ? 'blinkpay.create-payment' : 'blinkpay.create-consent')
+      return { outcome: 'redirect', gatewayRedirectUri, statusToken, returnToken, correlationKey: checkout.correlationKey, reused: false } satisfies GivingCheckoutStartResult
     } catch (error) {
       if (error instanceof GivingCheckoutError && error.code === 'unknown') {
         return { outcome: 'unknown', retryAllowed: false, statusToken, correlationKey: checkout.correlationKey, reused: false } satisfies GivingCheckoutStartResult
@@ -547,6 +547,13 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
               await client.query(`UPDATE giving_checkouts SET status='unknown',result_code='unknown',updated_at=now() WHERE id=$1`, [existing.id])
               existing.status = 'unknown'
               existing.resultCode = 'unknown'
+            }
+            if (returnCapabilityLive) {
+              await client.query(`
+                UPDATE giving_checkouts
+                SET return_capability_digest=$2,return_capability_expires_at=$3,return_capability_consumed_at=NULL,updated_at=now()
+                WHERE id=$1
+              `, [existing.id, input.returnCapabilityDigest, input.returnCapabilityExpiresAt])
             }
             return { checkout: existing, reused: true, disposition: returnCapabilityLive ? 'redirect' : 'recover' }
           }

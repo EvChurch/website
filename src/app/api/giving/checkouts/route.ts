@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-import { resolveCurrentGivingMemberIdentity, givingIdentityForMemberSubmission } from '@/auth/giving-member-identity'
+import { currentGivingMemberSubject, resolveCurrentGivingMemberIdentity, givingIdentityForMemberSubmission } from '@/auth/giving-member-identity'
 import { getBlinkPayRuntimeClient } from '@/lib/giving/blinkpay/runtime-client'
 import { loadBlinkPayConfig } from '@/lib/giving/blinkpay/config'
 import { configuredGivingEnvironment } from '@/lib/giving/availability'
@@ -29,6 +29,7 @@ export interface GivingCheckoutRouteDependencies {
   authority(request: NextRequest): Promise<Authority>
   rateLimitStore: GivingRateLimitStore
   verifyTurnstile(input: { token: string; remoteIp: string; expectedHostname: string | null; expectedAction: string }): Promise<void>
+  memberSubject?(request: NextRequest): Promise<string | null>
   startCheckout(authority: GivingContext, submission: GivingCheckoutSubmission, request: NextRequest): Promise<GivingCheckoutStartResult>
 }
 
@@ -91,6 +92,7 @@ const defaults: GivingCheckoutRouteDependencies = {
     },
   },
   verifyTurnstile: verifyTurnstileToken,
+  memberSubject: () => currentGivingMemberSubject(),
   startCheckout: defaultStart,
 }
 
@@ -102,17 +104,24 @@ export async function handleGivingCheckoutPost(request: NextRequest, dependencie
     if (!isGivingJson(request)) return response({ error: 'Giving unavailable' }, 415)
     const submission = validateGivingCheckoutSubmission(await boundedGivingJson(request))
     const address = trustedGivingClientAddress(request.headers)
-    await enforceGivingRateLimits({ address, email: submission.email, store: dependencies.rateLimitStore })
     await dependencies.verifyTurnstile({ token: submission.turnstileToken, remoteIp: address, expectedHostname: process.env.NODE_ENV === 'production' ? 'www.ev.church' : null, expectedAction: GIVING_CHECKOUT_TURNSTILE_ACTION })
+    const memberSubject = await dependencies.memberSubject?.(request) ?? null
+    await enforceGivingRateLimits({ address, email: submission.email, memberSubject, store: dependencies.rateLimitStore })
     const result = await dependencies.startCheckout(authority, submission, request)
     const output = result.outcome === 'redirect'
       ? response({ outcome: result.outcome, gatewayRedirectUri: result.gatewayRedirectUri, correlationKey: result.correlationKey, reused: result.reused }, 201)
       : response({ outcome: result.outcome, retryAllowed: result.retryAllowed, correlationKey: result.correlationKey, reused: result.reused }, 202)
     output.cookies.set('__Host-ev_giving_checkout', result.statusToken, { httpOnly: true, secure: true, sameSite: 'strict', path: '/', maxAge: 30 * 60 })
+    if (result.outcome === 'redirect') {
+      output.cookies.set('__Host-ev_giving_return', result.returnToken, {
+        httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 30 * 60,
+      })
+    }
     return output
   } catch (error) {
     if (error instanceof GivingRateLimitError) return response({ error: 'Giving unavailable' }, 429, error.retryAfterSeconds)
     if (error instanceof InvalidGivingRequestError || error instanceof GivingCheckoutError && error.code === 'invalid') return response({ error: 'Giving unavailable' }, 400)
+    if (error instanceof GivingCheckoutError && error.code === 'unavailable') return response({ error: 'Giving unavailable', retryAllowed: true }, 503)
     return response({ error: 'Giving unavailable' }, 503)
   }
 }

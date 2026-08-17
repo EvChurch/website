@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-import { givingIdentityForMemberSubmission, resolveCurrentGivingMemberIdentity } from '@/auth/giving-member-identity'
+import { currentGivingMemberSubject, givingIdentityForMemberSubmission, resolveCurrentGivingMemberIdentity } from '@/auth/giving-member-identity'
 import type { GivingBankTransferPreparation } from '@/lib/giving/bank-transfer'
 import { GIVING_REQUEST_MARKERS } from '@/lib/giving/contracts'
 import { createPostgresGivingRateLimitStore, enforceGivingRateLimits, GivingRateLimitError, trustedGivingClientAddress, type GivingRateLimitStore } from '@/lib/giving/rate-limit'
@@ -18,6 +18,7 @@ const TURNSTILE_ACTION = 'giving-checkout'
 export interface GivingBankTransferRouteDependencies {
   rateLimitStore: GivingRateLimitStore
   verifyTurnstile(input: { token: string; remoteIp: string; expectedHostname: string | null; expectedAction: string }): Promise<void>
+  memberSubject?(request: NextRequest): Promise<string | null>
   prepare(submission: GivingCheckoutSubmission, request: NextRequest): Promise<GivingBankTransferPreparation>
 }
 
@@ -66,6 +67,7 @@ const defaults: GivingBankTransferRouteDependencies = {
     },
   },
   verifyTurnstile: verifyTurnstileToken,
+  memberSubject: () => currentGivingMemberSubject(),
   prepare: defaultPrepare,
 }
 
@@ -75,13 +77,14 @@ export async function handleGivingBankTransferPost(request: NextRequest, depende
     if (!isGivingJson(request)) return response({ error: 'Giving unavailable' }, 415)
     const submission = validateGivingCheckoutSubmission(await boundedGivingJson(request))
     const address = trustedGivingClientAddress(request.headers)
-    await enforceGivingRateLimits({ address, email: submission.email, store: dependencies.rateLimitStore })
     await dependencies.verifyTurnstile({
       token: submission.turnstileToken,
       remoteIp: address,
       expectedHostname: process.env.NODE_ENV === 'production' ? 'www.ev.church' : null,
       expectedAction: TURNSTILE_ACTION,
     })
+    const memberSubject = await dependencies.memberSubject?.(request) ?? null
+    await enforceGivingRateLimits({ address, email: submission.email, memberSubject, store: dependencies.rateLimitStore })
     return response(await dependencies.prepare(submission, request), 200)
   } catch (error) {
     if (error instanceof GivingRateLimitError) return response({ error: 'Giving unavailable' }, 429, error.retryAfterSeconds)
