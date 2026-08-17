@@ -10,10 +10,25 @@ export const dynamic = 'force-dynamic'
 
 export interface GivingReturnDependencies {
   consume(token: string, expectedProviderId: string | null): Promise<{ statusToken: string; checkoutId: number }>
+  completionUrl?(): URL
 }
 
 function unavailable() {
   return new NextResponse('Not found', { status: 404, headers: GIVING_PRIVATE_HEADERS })
+}
+
+function givingCompletionUrl() {
+  const configured = process.env.APP_BASE_URL
+  if (!configured) throw new Error('APP_BASE_URL is required')
+  const base = new URL(configured)
+  const isLoopback = ['localhost', '127.0.0.1', '::1'].includes(base.hostname)
+  if (base.origin !== configured || base.username || base.password || base.pathname !== '/' || base.search || base.hash) {
+    throw new Error('APP_BASE_URL must be an origin')
+  }
+  if (base.protocol !== 'https:' && !(base.protocol === 'http:' && isLoopback)) {
+    throw new Error('APP_BASE_URL must use HTTPS outside local development')
+  }
+  return new URL('/?giving=return', base)
 }
 
 function callbackAlias(url: URL): string | false {
@@ -45,8 +60,9 @@ export async function handleGivingReturnGet(
     if (alias === false) return unavailable()
     const token = request.cookies.get('__Host-ev_giving_return')?.value
     if (!token) return unavailable()
+    const completionUrl = dependencies.completionUrl?.() ?? givingCompletionUrl()
     const result = await dependencies.consume(token, alias)
-    const response = NextResponse.redirect(new URL('/?giving=return', request.url), 303)
+    const response = NextResponse.redirect(completionUrl, 303)
     for (const [key, value] of Object.entries(GIVING_PRIVATE_HEADERS)) response.headers.set(key, value)
     response.cookies.set('__Host-ev_giving_checkout', result.statusToken, {
       httpOnly: true, secure: true, sameSite: 'strict', path: '/', maxAge: 30 * 60,
