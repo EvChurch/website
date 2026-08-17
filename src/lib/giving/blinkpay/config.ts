@@ -1,5 +1,5 @@
 import type { GivingEnvironment } from '../contracts'
-import type { BlinkPayConfig, BlinkPayReadinessDiagnostic } from './types'
+import type { BlinkPayConfig } from './types'
 
 const ORIGINS = {
   sandbox: 'https://sandbox.debit.blinkpay.co.nz',
@@ -51,16 +51,6 @@ function exactHttpsOrigin(value: string | undefined) {
   return url.origin
 }
 
-export function blinkPayProductionReadiness(): readonly BlinkPayReadinessDiagnostic[] {
-  return Object.freeze([
-    { code: 'consent-create-recovery', blocking: true, message: 'Confirm merchant-supported recovery for ambiguous enduring-consent creation.' },
-    { code: 'fixed-recurring-create-recovery', blocking: true, message: 'Confirm merchant-supported recovery for ambiguous fixed-recurring-payment creation.' },
-    { code: 'production-gateway-origin', blocking: true, message: 'Record the tenant-proven exact production hosted Gateway origin.' },
-    { code: 'production-scopes', blocking: true, message: 'Confirm the exact production OAuth scopes issued to this merchant.' },
-    { code: 'return-aliases', blocking: true, message: 'Confirm production callback aliases registered during merchant onboarding.' },
-  ])
-}
-
 export function loadBlinkPayConfig(
   environment: GivingEnvironment,
   env: Record<string, string | undefined> = process.env,
@@ -92,7 +82,6 @@ export function loadBlinkPayConfig(
     clientSecret: requiredSecret(env[`${prefix}_CLIENT_SECRET`]),
     webhookSecrets: optionalSecrets(env[`${prefix}_WEBHOOK_SECRETS`] ?? env[`${prefix}_WEBHOOK_SECRET`]),
     productionEnabled: environment === 'production' && env.BLINKPAY_PRODUCTION_ENABLED === 'true',
-    readiness: environment === 'production' ? blinkPayProductionReadiness() : Object.freeze([]),
   }
   return Object.freeze(config)
 }

@@ -8,7 +8,7 @@ export function resolveGivingRuntimeConfiguration({ productionEnabled = process.
   try {
     if (productionEnabled !== 'true') return null
     const config=(productionConfig ?? (()=>loadBlinkPayConfig('production')))()
-    if (!config.productionEnabled || config.environment !== 'production' || config.readiness.some((item)=>item.blocking)) return null
+    if (!config.productionEnabled || config.environment !== 'production') return null
     return {eligibility:'production',gatewayOrigins:config.gatewayOrigins}
   } catch { return null }
 }

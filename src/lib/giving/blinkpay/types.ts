@@ -129,12 +129,6 @@ export type BlinkPayMutationResult<T> =
   | { outcome: 'succeeded'; value: T; metadata: BlinkPayOperationMetadata }
   | { outcome: 'unknown'; reason: 'request-ambiguous' | 'response-invalid'; metadata: BlinkPayOperationMetadata }
 
-export interface BlinkPayReadinessDiagnostic {
-  code: 'consent-create-recovery' | 'fixed-recurring-create-recovery' | 'production-gateway-origin' | 'production-scopes' | 'return-aliases'
-  blocking: true
-  message: string
-}
-
 export interface BlinkPayConfig {
   environment: GivingEnvironment
   oauthTokenUrl: string
@@ -145,7 +139,6 @@ export interface BlinkPayConfig {
   clientSecret: string
   webhookSecrets: readonly string[]
   productionEnabled: boolean
-  readiness: readonly BlinkPayReadinessDiagnostic[]
 }
 
 export interface BlinkPayAccessToken {

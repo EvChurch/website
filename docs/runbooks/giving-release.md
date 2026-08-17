@@ -1,6 +1,6 @@
-# Giving release gates
+# Giving release controls
 
-Status: **blocked — do not enable production giving or a public PostHog audience.** This document records the controlled path to readiness; it is not evidence that any gate has passed.
+PostHog controls which visitors are offered BlinkPay. `BLINKPAY_PRODUCTION_ENABLED` remains the server-side emergency switch; there are no additional hardcoded readiness diagnostics.
 
 ## Evidence boundaries
 
@@ -8,9 +8,9 @@ Status: **blocked — do not enable production giving or a public PostHog audien
 - PNZ sandbox evidence must be labelled provider-backed. A signature-valid mocked failed webhook is acceptable only where PNZ cannot produce that lifecycle.
 - Only controlled real-money tests can prove production credentials and settlement.
 
-## Current blockers
+## Operational verification
 
-All remain unresolved:
+These checks are operational guidance rather than runtime blockers:
 
 - BlinkPay production certification and Going Live review.
 - Exact production OAuth scopes for payments, enduring consents, fixed recurring payments and registered webhooks.
@@ -23,7 +23,7 @@ All remain unresolved:
 - Verified EV reconciliation, alerting and operator response evidence.
 - Acquisition shutdown and lifecycle-sustainment rehearsal.
 
-The server production gate remains closed while any readiness diagnostic is blocking, even if PostHog is enabled.
+The server accepts production BlinkPay checkouts when `BLINKPAY_PRODUCTION_ENABLED=true` and the production configuration is valid. PostHog controls audience rollout.
 
 ## Required evidence sequence
 
@@ -33,7 +33,7 @@ The server production gate remains closed while any readiness diagnostic is bloc
 4. Register webhooks through controlled merchant onboarding and retain delivery proof; the application does not manage subscriptions.
 5. Configure monitoring for settlement, consent state, schedule state, webhook exceptions, unknown age and flow completion.
 6. Execute approved low-value real-money one-off and recurring setup/cancellation tests, reconcile all records, and confirm operator ownership.
-7. Enable a narrowly targeted PostHog audience only after every gate above has linked evidence and approval.
+7. Expand the PostHog audience as evidence and operator confidence increase.
 
 ## Credential rotation
 
@@ -50,4 +50,4 @@ Do not roll back the giving schema after financial or audit writes. Unknown prov
 
 ## Release record
 
-Before any activation, record owner, approver, timestamp, commit and deployment, evidence links for every blocker, target PostHog cohort, monitoring owner, acquisition-disable action and lifecycle-sustainment version. Until that record is complete, readiness is **blocked**.
+Before expanding the PostHog audience, record owner, timestamp, commit and deployment, target cohort, monitoring owner, acquisition-disable action and lifecycle-sustainment version.

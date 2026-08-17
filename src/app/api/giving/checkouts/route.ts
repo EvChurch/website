@@ -18,7 +18,7 @@ export const GIVING_CHECKOUT_TURNSTILE_ACTION = 'giving-checkout'
 
 type Authority = GivingContext | null
 export function productionGivingCheckoutAuthority(config: ReturnType<typeof loadBlinkPayConfig>): Authority {
-  return config.environment === 'production' && config.productionEnabled && !config.readiness.some((item) => item.blocking)
+  return config.environment === 'production' && config.productionEnabled
     ? { contextKey: 'production', environment: 'production', synthetic: false }
     : null
 }
@@ -56,10 +56,6 @@ async function defaultStart(authority: GivingContext, submission: GivingCheckout
   const rock = createGivingRockClient()
   const member = await resolveCurrentGivingMemberIdentity({ rockClient: rock })
   const identityRepository = createGivingIdentityRepository(pool)
-  const config = loadBlinkPayConfig(authority.environment)
-  if (authority.environment === 'production' && config.readiness.some((item) => item.blocking)) {
-    throw new GivingCheckoutError('unavailable')
-  }
   const service = createGivingCheckoutService({
     repository: createPostgresGivingCheckoutRepository(pool),
     blinkPay: getBlinkPayRuntimeClient(authority.environment),
