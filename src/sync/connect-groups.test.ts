@@ -21,7 +21,6 @@ vi.mock('./rock-group-members', () => ({
 
 import {
   CONNECT_GROUP_COACH_SECURITY_GROUP_ID,
-  CONNECT_GROUP_COACHING_PARENT_IDS,
   syncConnectGroups,
 } from './connect-groups'
 
@@ -91,7 +90,7 @@ describe('syncConnectGroups', () => {
       endpoint: 'Groups',
       getKey: expect.any(Function),
       params: {
-        $filter: `(${CONNECT_GROUP_COACHING_PARENT_IDS.map((id) => `ParentGroupId eq ${id}`).join(' or ')}) and GroupTypeId eq 23 and IsActive eq true`,
+        $filter: '(ParentGroupId eq 28241 or ParentGroupId eq 28781 or ParentGroupId eq 28782) and GroupTypeId eq 23 and IsActive eq true',
         $orderby: 'Name,Id',
       },
     })

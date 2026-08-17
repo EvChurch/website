@@ -15,7 +15,7 @@ import type { SyncResult } from './sync-runner'
 
 export const CONNECT_GROUP_TYPE_IDS = [25, 46] as const
 export const CONNECT_GROUP_COACH_SECURITY_GROUP_ID = 33287
-export const CONNECT_GROUP_COACHING_PARENT_IDS = [28241, 28782] as const
+export const CONNECT_GROUP_COACHING_PARENT_IDS = [28241, 28781, 28782] as const
 const CONNECT_GROUP_COACHING_GROUP_TYPE_ID = 23
 
 const MIN_EXISTING_RECORDS_FOR_DROP_GUARD = 10
