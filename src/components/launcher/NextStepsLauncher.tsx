@@ -728,6 +728,7 @@ export function NextStepsLauncher({
             <RockForm
               workflowTypeGuid={state.view.workflowTypeGuid}
               scrollContainerRef={scrollRef}
+              personDefaults={memberProfile}
             />
           </div>
         );

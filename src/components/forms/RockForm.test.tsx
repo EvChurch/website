@@ -215,6 +215,20 @@ describe('RockForm', () => {
     expect(markup).toContain('Female')
   })
 
+  it('prefills visible person-entry fields from the signed-in member profile', () => {
+    const markup = renderToStaticMarkup(
+      <RockForm
+        workflowTypeGuid={workflowTypeGuid}
+        initialSchema={spouseSchema()}
+        personDefaults={{ name: 'Tatai Nikora', email: 'tatai@example.com' }}
+      />,
+    )
+
+    expect(markup).toContain('value="Tatai"')
+    expect(markup).toContain('value="Nikora"')
+    expect(markup).toContain('value="tatai@example.com"')
+  })
+
   it('shows the retry and contact fallback when the startup security check fails', async () => {
     vi.stubGlobal(
       'fetch',
