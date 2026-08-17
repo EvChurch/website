@@ -42,12 +42,6 @@ const nextConfig: NextConfig = {
         destination: '/campus/unichurch',
         permanent: true,
       },
-      // Give → external
-      {
-        source: '/give',
-        destination: 'https://give.ev.church',
-        permanent: true,
-      },
     ]
   },
   images: {

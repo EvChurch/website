@@ -140,7 +140,7 @@ export interface BlinkPayConfig {
   oauthTokenUrl: string
   apiBaseUrl: string
   gatewayOrigins: readonly string[]
-  callbackOrigin: 'https://www.ev.church'
+  callbackOrigin: string
   clientId: string
   clientSecret: string
   webhookSecrets: readonly string[]

@@ -1,16 +1,11 @@
-import { useState } from 'react'
 import type { GivingFrequency } from '../giving-state'
 
-const main: Array<[GivingFrequency, string, string]> = [
-  ['monthly', 'Monthly', 'A simple rhythm for ongoing generosity'],
-  ['weekly', 'Weekly', 'Give each week'],
-  ['fortnightly', 'Fortnightly', 'Give every two weeks'],
-  ['one-off', 'One-off gift', 'Give once today'],
+const main: Array<[GivingFrequency, string]> = [
+  ['weekly', 'Every week'],
+  ['fortnightly', 'Every two weeks'],
+  ['monthly', 'Every month'],
+  ['one-off', 'Just this once'],
 ]
 export function FrequencyStep({ selected, onSelect }: { selected: GivingFrequency | null; onSelect: (frequency: GivingFrequency) => void }) {
-  const [more, setMore] = useState(false)
-  return <div className="space-y-3">{main.map(([value, label, copy], index) => <button key={value} type="button" onClick={() => onSelect(value)} className={`w-full rounded-2xl border bg-white px-5 text-left ${index === 0 ? 'min-h-20 border-rich-red/50 shadow-sm' : 'min-h-14 border-warm-grey'} ${selected === value ? 'ring-2 ring-rich-red' : ''}`}><span className="block font-semibold">{label}</span><span className="block text-sm text-dark-grey">{copy}</span></button>)}
-    <button type="button" className="min-h-11 px-2 text-sm font-semibold text-rich-red" aria-expanded={more} onClick={() => setMore((value) => !value)}>More options</button>
-    {more && <div className="grid grid-cols-2 gap-3">{([['daily', 'Daily'], ['annual', 'Annually']] as const).map(([value, label]) => <button key={value} type="button" className="min-h-12 rounded-2xl border border-warm-grey bg-white font-semibold" onClick={() => onSelect(value)}>{label}</button>)}</div>}
-  </div>
+  return <div className="space-y-3">{main.map(([value, label], index) => <button autoFocus={index === 0} key={value} type="button" onClick={() => onSelect(value)} className={`min-h-14 w-full rounded-full border px-6 text-left font-semibold transition hover:border-rich-red/50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red ${value === 'one-off' ? 'border-warm-grey bg-warm-grey/70 text-brand-black hover:bg-warm-grey' : 'border-warm-grey bg-white text-brand-black'} ${selected === value ? 'ring-2 ring-rich-red' : ''}`}>{label}</button>)}</div>
 }

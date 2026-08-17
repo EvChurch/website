@@ -9,7 +9,7 @@ import {
   type GivingDraftBinding,
 } from '@/lib/giving/drafts'
 import { getPayloadClient } from '@/lib/payload'
-import { GIVING_PRIVATE_HEADERS } from '@/app/api/giving/drafts/route'
+import { GIVING_PRIVATE_HEADERS } from '@/lib/giving/request-boundary'
 
 export const dynamic = 'force-dynamic'
 

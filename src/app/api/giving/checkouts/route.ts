@@ -3,24 +3,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { resolveCurrentGivingMemberIdentity, givingIdentityForMemberSubmission } from '@/auth/giving-member-identity'
 import { getBlinkPayRuntimeClient } from '@/lib/giving/blinkpay/runtime-client'
 import { loadBlinkPayConfig } from '@/lib/giving/blinkpay/config'
-import type { GivingContext } from '@/lib/giving/contracts'
+import { GIVING_REQUEST_MARKERS, type GivingContext } from '@/lib/giving/contracts'
 import { createPayloadGivingE2ESessionStore, createGivingE2ESessionService, GIVING_E2E_COOKIE } from '@/lib/giving/e2e-session'
 import { createGivingRockClient } from '@/lib/giving/rock-client'
 import { createGivingIdentityRepository, resolveGivingIdentity } from '@/lib/giving/rock-identity'
 import { createPostgresGivingRateLimitStore, enforceGivingRateLimits, GivingRateLimitError, trustedGivingClientAddress, type GivingRateLimitStore } from '@/lib/giving/rate-limit'
 import { requireGivingPostgresPool } from '@/lib/giving/postgres'
+import { boundedGivingJson, GIVING_PRIVATE_HEADERS, InvalidGivingRequestError, isGivingJson, trustedGivingMutation } from '@/lib/giving/request-boundary'
 import { createGivingCheckoutService, createPostgresGivingCheckoutRepository, GivingCheckoutError, validateGivingCheckoutSubmission, type GivingCheckoutStartResult, type GivingCheckoutSubmission } from '@/lib/giving/service'
 import { getPayloadClient } from '@/lib/payload'
 import { verifyTurnstileToken } from '@/lib/turnstile'
 
 export const dynamic = 'force-dynamic'
 export const GIVING_CHECKOUT_TURNSTILE_ACTION = 'giving-checkout'
-const MAX_BODY_BYTES = 8_192
-const PRIVATE_HEADERS = {
-  'Cache-Control': 'private, no-store, max-age=0',
-  'Referrer-Policy': 'no-referrer',
-  'X-Robots-Tag': 'noindex, nofollow, noarchive',
-}
 
 type Authority = GivingContext | null
 export function productionGivingCheckoutAuthority(config: ReturnType<typeof loadBlinkPayConfig>): Authority {
@@ -38,43 +33,8 @@ export interface GivingCheckoutRouteDependencies {
 function response(value: unknown, status: number, retryAfter?: number) {
   return NextResponse.json(value, {
     status,
-    headers: { ...PRIVATE_HEADERS, ...(retryAfter ? { 'Retry-After': String(retryAfter) } : {}) },
+    headers: { ...GIVING_PRIVATE_HEADERS, ...(retryAfter ? { 'Retry-After': String(retryAfter) } : {}) },
   })
-}
-function trustedMutation(request: NextRequest) {
-  if (request.headers.get('origin') !== 'https://www.ev.church') return false
-  if (request.headers.get('sec-fetch-site') !== 'same-origin') return false
-  return request.headers.get('x-ev-giving-request') === 'checkout-v1'
-}
-function isJson(request: NextRequest) {
-  return request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase() === 'application/json'
-}
-async function boundedJson(request: NextRequest) {
-  const declared = request.headers.get('content-length')
-  if (declared && (!Number.isSafeInteger(Number(declared)) || Number(declared) < 0 || Number(declared) > MAX_BODY_BYTES)) {
-    throw new GivingCheckoutError('invalid')
-  }
-  if (!request.body) throw new GivingCheckoutError('invalid')
-  const reader = request.body.getReader()
-  const decoder = new TextDecoder('utf-8', { fatal: true })
-  let size = 0
-  let text = ''
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    size += value.byteLength
-    if (size > MAX_BODY_BYTES) {
-      await reader.cancel().catch(() => undefined)
-      throw new GivingCheckoutError('invalid')
-    }
-    text += decoder.decode(value, { stream: true })
-  }
-  text += decoder.decode()
-  try {
-    return JSON.parse(text) as unknown
-  } catch {
-    throw new GivingCheckoutError('invalid')
-  }
 }
 async function defaultAuthority(request: NextRequest): Promise<Authority> {
   const payload = await getPayloadClient()
@@ -145,9 +105,9 @@ export async function handleGivingCheckoutPost(request: NextRequest, dependencie
   try {
     const authority = await dependencies.authority(request)
     if (!authority) return response({ error: 'Giving unavailable' }, 404)
-    if (!trustedMutation(request)) return response({ error: 'Giving unavailable' }, 403)
-    if (!isJson(request)) return response({ error: 'Giving unavailable' }, 415)
-    const submission = validateGivingCheckoutSubmission(await boundedJson(request))
+    if (!trustedGivingMutation(request, GIVING_REQUEST_MARKERS.checkout)) return response({ error: 'Giving unavailable' }, 403)
+    if (!isGivingJson(request)) return response({ error: 'Giving unavailable' }, 415)
+    const submission = validateGivingCheckoutSubmission(await boundedGivingJson(request))
     const address = trustedGivingClientAddress(request.headers)
     await enforceGivingRateLimits({ address, email: submission.email, store: dependencies.rateLimitStore })
     await dependencies.verifyTurnstile({ token: submission.turnstileToken, remoteIp: address, expectedHostname: process.env.NODE_ENV === 'production' ? 'www.ev.church' : null, expectedAction: GIVING_CHECKOUT_TURNSTILE_ACTION })
@@ -159,7 +119,7 @@ export async function handleGivingCheckoutPost(request: NextRequest, dependencie
     return output
   } catch (error) {
     if (error instanceof GivingRateLimitError) return response({ error: 'Giving unavailable' }, 429, error.retryAfterSeconds)
-    if (error instanceof GivingCheckoutError && error.code === 'invalid') return response({ error: 'Giving unavailable' }, 400)
+    if (error instanceof InvalidGivingRequestError || error instanceof GivingCheckoutError && error.code === 'invalid') return response({ error: 'Giving unavailable' }, 400)
     return response({ error: 'Giving unavailable' }, 503)
   }
 }

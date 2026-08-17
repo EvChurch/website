@@ -30,6 +30,7 @@ export interface GivingState {
   history: GivingStep[]
   editReturnStep: GivingStep | null
   missingIdentity: GivingIdentityField[]
+  fundConfirmed: boolean
 }
 
 export type GivingAction =
@@ -53,6 +54,7 @@ export function createGivingState(
     step: 'amount',
     history: [],
     editReturnStep: null,
+    fundConfirmed: false,
     missingIdentity: (['firstName', 'lastName', 'email'] as const).filter((field) => !identity[field]),
     answers: {
       amountMinor: null,
@@ -69,9 +71,10 @@ export function createGivingState(
 export function nextGivingStep(
   answers: GivingAnswers,
   missingIdentity: readonly GivingIdentityField[] = ['firstName', 'lastName', 'email'],
+  fundConfirmed = true,
 ): GivingStep {
   if (answers.amountMinor === null) return 'amount'
-  if (answers.fund === null) return 'fund'
+  if (answers.fund === null || !fundConfirmed) return 'fund'
   if (answers.frequency === null) return 'frequency'
   if (answers.frequency !== 'one-off' && answers.startDate === null) return 'starting-date'
   for (const field of missingIdentity) {
@@ -90,7 +93,7 @@ export function givingReducer(state: GivingState, action: GivingAction): GivingS
     case 'setAmount':
       return { ...state, answers: { ...state.answers, amountMinor: action.amountMinor } }
     case 'setFund':
-      return { ...state, answers: { ...state.answers, fund: action.fund } }
+      return { ...state, fundConfirmed: true, answers: { ...state.answers, fund: action.fund } }
     case 'setFrequency':
       const retainedDate = action.frequency !== 'one-off' && state.answers.startDate && state.answers.amountMinor &&
         isGivingStartDateValid(action.frequency, state.answers.amountMinor, state.answers.startDate, action.now)
@@ -118,12 +121,12 @@ export function givingReducer(state: GivingState, action: GivingAction): GivingS
     }
     case 'commitAmount': {
       const answers = { ...state.answers, amountMinor: action.amountMinor }
-      const required = nextGivingStep(answers, state.missingIdentity)
+      const required = nextGivingStep(answers, state.missingIdentity, state.fundConfirmed)
       const step = state.editReturnStep && required === 'review' ? state.editReturnStep : required
       return { ...state, answers, step, history: [...state.history, state.step], editReturnStep: step === state.editReturnStep ? null : state.editReturnStep }
     }
     case 'next': {
-      const required = nextGivingStep(state.answers, action.missingIdentity ?? state.missingIdentity)
+      const required = nextGivingStep(state.answers, action.missingIdentity ?? state.missingIdentity, state.fundConfirmed)
       const step = state.editReturnStep && required === 'review' ? state.editReturnStep : required
       const moved = move(state, step)
       return step === state.editReturnStep ? { ...moved, editReturnStep: null } : moved
@@ -140,6 +143,7 @@ export function givingReducer(state: GivingState, action: GivingAction): GivingS
         answers: action.answers,
         history: [],
         editReturnStep: null,
+        fundConfirmed: true,
         missingIdentity: action.missingIdentity ?? state.missingIdentity,
       }
   }

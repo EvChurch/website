@@ -12,9 +12,9 @@ export async function mockGivingContracts(page: Page, statuses: Array<{state:str
   })
   await page.route('**/api/giving/checkouts', async (route) => {
     checkoutBodies.push(route.request().postDataJSON() as Record<string, unknown>)
-    await route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({gatewayRedirectUri:'https://sandbox.debit.blinkpay.co.nz/gateway/mock'})})
+    await route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({gatewayRedirectUri:'https://sandbox.secure.blinkpay.co.nz/gateway/mock'})})
   })
-  await page.route('https://sandbox.debit.blinkpay.co.nz/gateway/mock', (route) => route.fulfill({status:200,contentType:'text/html',body:'<h1>Mock hosted gateway</h1>'}))
+  await page.route('https://sandbox.secure.blinkpay.co.nz/gateway/mock', (route) => route.fulfill({status:200,contentType:'text/html',body:'<h1>Mock hosted gateway</h1>'}))
   await page.route('**/api/giving/checkouts/current/status', (route) => {
     const status = statuses[Math.min(statusIndex, statuses.length - 1)]
     statusIndex += 1
@@ -40,7 +40,7 @@ export async function completeGuestIdentity(page:Page) {
   await page.getByRole('button',{name:'Continue'}).click()
   await page.getByRole('textbox',{name:/email/i}).fill('ada@example.com')
   await page.getByRole('button',{name:'Continue'}).click()
-  await expect(page.getByRole('heading',{name:'Review your gift'})).toBeVisible()
+  await expect(page.getByRole('heading',{name:'Continue with BlinkPay'})).toBeVisible()
 }
 
 export async function activateProductionOriginSandbox(page: Page) {

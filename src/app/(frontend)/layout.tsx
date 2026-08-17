@@ -19,6 +19,7 @@ import { isCurrentPayloadAdmin } from '@/auth/payload-admin-session'
 import { NextStepsLauncher } from '@/components/launcher/NextStepsLauncher'
 import { GivingExperienceProvider } from '@/components/giving/GivingExperienceProvider'
 import { GivingFlow } from '@/components/giving/GivingFlow'
+import { GivingUnavailable } from '@/components/giving/GivingUnavailable'
 import { resolveGivingRuntimeConfiguration } from '@/lib/giving/availability'
 import { getCachedActiveGivingFunds } from '@/lib/giving/funds'
 import { givingCapabilityCookieNames } from '@/lib/giving/drafts'
@@ -128,13 +129,21 @@ export default async function FrontendLayout({ children }: { children: ReactNode
   }
   const givingRuntime = resolveGivingRuntimeConfiguration({ protectedE2E })
   const initialGivingEligibility = givingRuntime?.eligibility ?? null
+  const loadGivingFunds = async () => {
+    try {
+      return await getCachedActiveGivingFunds()
+    } catch {
+      console.error('Giving funds are unavailable.')
+      return []
+    }
+  }
   const [launcher, feedback, rockProfileState, payloadAdmin, impersonation, givingFunds] = await Promise.all([
     loadLauncherData(),
     loadSiteFeedbackSettings(),
     isMemberAuthEnabled() ? getCurrentMemberProfileState() : undefined,
     isCurrentPayloadAdmin(requestHeaders),
     getCurrentMemberImpersonation(),
-    initialGivingEligibility ? getCachedActiveGivingFunds() : Promise.resolve([]),
+    loadGivingFunds(),
   ])
   const memberProfile = rockProfileState === undefined
     ? undefined
@@ -166,7 +175,9 @@ export default async function FrontendLayout({ children }: { children: ReactNode
           <GivingExperienceProvider
             serverEligibility={givingEligibility}
             resumeRequested={resumeRequested}
-            givingExperience={givingEligibility && givingFunds.length > 0 && givingRuntime ? <GivingFlow funds={givingFunds} identity={givingIdentity} resumeRequested={resumeRequested} turnstileSiteKey={getTurnstileSiteKey()} synthetic={givingRuntime.synthetic} gatewayOrigins={givingRuntime.gatewayOrigins} /> : null}
+            givingExperience={givingFunds.length > 0
+              ? <GivingFlow funds={givingFunds} identity={givingIdentity} resumeRequested={resumeRequested} turnstileSiteKey={getTurnstileSiteKey()} synthetic={givingRuntime?.synthetic ?? false} gatewayOrigins={givingRuntime?.gatewayOrigins ?? []} />
+              : <GivingUnavailable />}
           >
             <AnalyticsManager />
             <AnnouncementBanner />

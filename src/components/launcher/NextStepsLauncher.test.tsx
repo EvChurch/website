@@ -306,9 +306,9 @@ describe("NextStepsLauncher", () => {
     expect(panelText).not.toContain(
       "Explore everything available at your campus",
     );
-    expect(container.querySelector('a[href="https://give.ev.church"]')).not.toBeNull();
+    expect(container.querySelector('a[href="/give"]')).not.toBeNull();
     expect(button(container, "Plan a Visit")?.className).toContain("py-6");
-    expect(container.querySelector('a[href="https://give.ev.church"]')?.className).not.toContain(
+    expect(container.querySelector('a[href="/give"]')?.className).not.toContain(
       "py-6",
     );
 
@@ -362,14 +362,14 @@ describe("NextStepsLauncher", () => {
 
     await act(async () => button(container, "Back")?.click());
     const launcherGive = container.querySelector<HTMLAnchorElement>(
-      '[aria-label="Next steps launcher"] a[href="https://give.ev.church"]',
+      '[aria-label="Next steps launcher"] a[href="/give"]',
     )!;
     await act(async () => launcherGive.click());
     expect(container.querySelector("[data-giving-private]")).not.toBeNull();
 
     await act(async () => button(container, "Back")?.click());
     const mobileGive = Array.from(
-      container.querySelectorAll<HTMLAnchorElement>('a[href="https://give.ev.church"]'),
+      container.querySelectorAll<HTMLAnchorElement>('a[href="/give"]'),
     ).find((anchor) => anchor.textContent?.trim() === "Give" && !anchor.hasAttribute("data-header-give"))!;
     await act(async () => mobileGive.click());
     expect(container.querySelector("[data-giving-private]")).not.toBeNull();
@@ -384,7 +384,7 @@ describe("NextStepsLauncher", () => {
     ));
     await act(async () => container.querySelector<HTMLButtonElement>("[data-enable-giving]")?.click());
     await act(async () => button(container, "Open next steps")?.click());
-    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="https://give.ev.church"]')?.click());
+    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="/give"]')?.click());
     expect(container.querySelector('[data-giving-step]')?.textContent).toBe('2');
 
     await act(async () => button(container, "Back")?.click());
@@ -406,7 +406,7 @@ describe("NextStepsLauncher", () => {
     ));
     await act(async () => container.querySelector<HTMLButtonElement>("[data-enable-giving]")?.click());
     await act(async () => button(container, "Open next steps")?.click());
-    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="https://give.ev.church"]')?.click());
+    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="/give"]')?.click());
     expect(container.querySelector('[data-giving-submit-guard]')?.getAttribute('data-active')).toBe('true');
 
     await act(async () => button(container, "Back")?.click());
@@ -426,14 +426,14 @@ describe("NextStepsLauncher", () => {
     ));
     await act(async () => container.querySelector<HTMLButtonElement>("[data-enable-giving]")?.click());
     await act(async () => button(container, "Open next steps")?.click());
-    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="https://give.ev.church"]')?.click());
+    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="/give"]')?.click());
     expect(container.querySelector('[data-giving-active]')?.textContent).toBe('true');
     await act(async () => button(container, "Close next steps")?.click());
     expect(container.querySelector('[data-giving-active]')?.textContent).toBe('false');
     expect(container.querySelector('[aria-label="Next steps launcher"]')).not.toBeNull();
   });
 
-  it("preserves the real giving anchor for disabled and modified clicks", async () => {
+  it("opens giving before flag resolution while preserving modified link clicks", async () => {
     await act(async () => {
       root.render(
         <GivingExperienceProvider
@@ -447,20 +447,19 @@ describe("NextStepsLauncher", () => {
       );
     });
     const give = container.querySelector<HTMLAnchorElement>("header [data-header-give]")!;
-    expect(give.href).toBe("https://give.ev.church/");
+    expect(give.href).toBe("http://localhost:3000/give");
 
     const disabledClick = new MouseEvent("click", { bubbles: true, cancelable: true });
-    expect(give.dispatchEvent(disabledClick)).toBe(true);
-    expect(disabledClick.defaultPrevented).toBe(false);
-    expect(container.querySelector("[data-giving-private]")).toBeNull();
-
-    await act(async () => container.querySelector<HTMLButtonElement>("[data-enable-giving]")?.click());
+    await act(async () => { give.dispatchEvent(disabledClick) })
+    expect(disabledClick.defaultPrevented).toBe(true);
+    expect(container.querySelector("[data-giving-private]")).not.toBeNull();
+    await act(async () => button(container, "Back")?.click())
     const modifiedClick = new MouseEvent("click", {
       bubbles: true,
       cancelable: true,
       ctrlKey: true,
     });
-    expect(give.dispatchEvent(modifiedClick)).toBe(true);
+    await act(async () => { give.dispatchEvent(modifiedClick) })
     expect(modifiedClick.defaultPrevented).toBe(false);
     expect(container.querySelector("[data-giving-private]")).toBeNull();
   });

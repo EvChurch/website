@@ -2,7 +2,6 @@
 
 import {
   createContext,
-  type MouseEvent as ReactMouseEvent,
   type ReactNode,
   useCallback,
   useContext,
@@ -18,12 +17,12 @@ export type GivingFlagState = 'unresolved' | 'enabled' | 'disabled' | 'failed'
 
 interface GivingExperienceContextValue {
   flagState: GivingFlagState
-  givingEnabled: boolean
+  blinkPayEnabled: boolean
+  givingSurfaceAvailable: boolean
   givingExperience: ReactNode | null
   givingRequestId: number
   givingViewActive: boolean
   consumeGivingRequest: (requestId: number) => boolean
-  handleGivingLinkClick: (event: ReactMouseEvent<HTMLAnchorElement>) => boolean
   openGiving: () => boolean
   setFlagState: (state: GivingFlagState) => void
   setGivingViewActive: (active: boolean) => void
@@ -35,12 +34,12 @@ interface GivingExperienceContextValue {
 
 const disabledContext: GivingExperienceContextValue = {
   flagState: 'failed',
-  givingEnabled: false,
+  blinkPayEnabled: false,
+  givingSurfaceAvailable: false,
   givingExperience: null,
   givingRequestId: 0,
   givingViewActive: false,
   consumeGivingRequest: () => false,
-  handleGivingLinkClick: () => false,
   openGiving: () => false,
   setFlagState: () => undefined,
   setGivingViewActive: () => undefined,
@@ -51,6 +50,15 @@ const disabledContext: GivingExperienceContextValue = {
 }
 
 const GivingExperienceContext = createContext(disabledContext)
+
+function isOrdinaryGivingClick(event: Pick<MouseEvent, 'button' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey'>, target: string | null) {
+  return event.button === 0 &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    !event.altKey &&
+    (!target || target === '_self')
+}
 
 export function GivingExperienceProvider({
   children,
@@ -70,35 +78,36 @@ export function GivingExperienceProvider({
   const resumedFromCleanUrl = useRef(false)
   const givingBackHandler = useRef<(() => boolean) | null>(null)
   const givingCloseHandler = useRef<(() => boolean) | null>(null)
-  const givingEnabled = serverEligibility !== null && flagState === 'enabled'
   const rendererReady = givingExperience !== null
+  const givingSurfaceAvailable = rendererReady
+  const blinkPayEnabled = serverEligibility !== null && flagState === 'enabled'
 
   const openGiving = useCallback(() => {
-    if (!givingEnabled || !rendererReady) return false
+    if (!rendererReady) return false
     setGivingRequestId((requestId) => requestId + 1)
     return true
-  }, [givingEnabled, rendererReady])
+  }, [rendererReady])
 
   useEffect(() => {
-    if (!givingEnabled || !rendererReady || resumedFromCleanUrl.current) return
+    if (!rendererReady) return
+    const openLocalGivingLink = (event: MouseEvent) => {
+      if (event.defaultPrevented) return
+      const target = event.target instanceof Element ? event.target.closest('a') : null
+      if (!target || target.getAttribute('href') !== '/give' || target.hasAttribute('download')) return
+      if (!isOrdinaryGivingClick(event, target.getAttribute('target'))) return
+      if (!openGiving()) return
+      event.preventDefault()
+    }
+    document.addEventListener('click', openLocalGivingLink, true)
+    return () => document.removeEventListener('click', openLocalGivingLink, true)
+  }, [openGiving, rendererReady])
+
+  useEffect(() => {
+    if (!rendererReady || resumedFromCleanUrl.current) return
     if (!resumeRequested) return
     resumedFromCleanUrl.current = true
     setGivingRequestId((requestId) => requestId + 1)
-  }, [givingEnabled, rendererReady, resumeRequested])
-
-  const handleGivingLinkClick = useCallback((event: ReactMouseEvent<HTMLAnchorElement>) => {
-    const target = event.currentTarget.getAttribute('target')
-    const ordinaryPrimaryClick =
-      event.button === 0 &&
-      !event.metaKey &&
-      !event.ctrlKey &&
-      !event.shiftKey &&
-      !event.altKey &&
-      (!target || target === '_self')
-    if (!ordinaryPrimaryClick || !openGiving()) return false
-    event.preventDefault()
-    return true
-  }, [openGiving])
+  }, [rendererReady, resumeRequested])
 
   const handleGivingBack = useCallback(() => givingBackHandler.current?.() ?? false, [])
   const registerGivingBackHandler = useCallback((handler: () => boolean) => {
@@ -125,12 +134,12 @@ export function GivingExperienceProvider({
 
   const value = useMemo<GivingExperienceContextValue>(() => ({
     flagState,
-    givingEnabled,
+    blinkPayEnabled,
+    givingSurfaceAvailable,
     givingExperience,
     givingRequestId,
     givingViewActive,
     consumeGivingRequest,
-    handleGivingLinkClick,
     handleGivingBack,
     handleGivingClose,
     openGiving,
@@ -140,12 +149,12 @@ export function GivingExperienceProvider({
     setGivingViewActive,
   }), [
     consumeGivingRequest,
+    blinkPayEnabled,
     flagState,
-    givingEnabled,
+    givingSurfaceAvailable,
     givingExperience,
     givingRequestId,
     givingViewActive,
-    handleGivingLinkClick,
     handleGivingBack,
     handleGivingClose,
     openGiving,

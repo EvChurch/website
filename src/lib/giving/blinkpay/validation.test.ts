@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   assertAuthorisedConsent,
+  assertCallbackUri,
   assertConsentFromTimestamp,
   assertFixedRecurringPaymentInput,
   assertRedirectUri,
@@ -80,5 +81,11 @@ describe('BlinkPay validation', () => {
       'https://evil.test/?next=https://sandbox.debit.blinkpay.co.nz',
       'https://sandbox.debit.blinkpay.co.nz@evil.test/gateway/abc',
     ]) expect(() => assertRedirectUri(uri, ['https://sandbox.debit.blinkpay.co.nz'])).toThrow(/redirect/i)
+  })
+
+  it('allows an exact HTTP loopback callback only for local development', () => {
+    expect(assertCallbackUri('http://localhost:3000/give/return', 'http://localhost:3000')).toBe('http://localhost:3000/give/return')
+    expect(() => assertCallbackUri('http://evil.test/give/return', 'http://evil.test')).toThrow(/callback/u)
+    expect(() => assertCallbackUri('http://127.0.0.1:3000/give/return', 'http://localhost:3000')).toThrow(/callback/u)
   })
 })

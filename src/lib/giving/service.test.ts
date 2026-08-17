@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createGivingCheckoutService, GivingCheckoutError, type GivingCheckoutBlinkPayClient, type GivingCheckoutOperation, type GivingCheckoutRecord, type GivingCheckoutRepository } from './service'
+import { createGivingCheckoutService, GivingCheckoutError, prepareGivingBankTransfer, type GivingCheckoutBlinkPayClient, type GivingCheckoutOperation, type GivingCheckoutRecord, type GivingCheckoutRepository } from './service'
 import type { ResolvedGivingIdentity } from './rock-identity'
 
 const context = { contextKey: 'sandbox:e2e:run-1', environment: 'sandbox' as const, synthetic: true, e2eRunId: 7 }
@@ -32,7 +32,7 @@ function repository(): GivingCheckoutRepository & { checkouts: GivingCheckoutRec
         returns.set(input.returnCapabilityDigest, existing.id)
         return { checkout: existing, reused: true, disposition: 'start' as const }
       }
-      const checkout: GivingCheckoutRecord = { contextKey: input.contextKey, environment: input.environment, synthetic: input.synthetic, e2eRunId: input.e2eRunId, id: checkouts.length + 1, giverId: null, bankReference: null, fundId: 1, fundName: 'General', fundCode: 'GEN', fundAccountingKey: 'general', amountMinor: input.submission.amountMinor, frequency: input.submission.frequency, firstPaymentDate: input.submission.firstPaymentDate, correlationKey: input.correlationKey, submissionKeyDigest: input.submissionKeyDigest, submissionDigest: input.submissionDigest, gatewayRedirectUri: null, status: 'draft', resultCode: null }
+      const checkout: GivingCheckoutRecord = { contextKey: input.contextKey, environment: input.environment, synthetic: input.synthetic, e2eRunId: input.e2eRunId, id: checkouts.length + 1, giverId: null, bankReference: null, bankCode: 'ALOVELACE', fundId: 1, fundName: 'General', fundCode: 'GEN', fundAccountingKey: 'general', amountMinor: input.submission.amountMinor, frequency: input.submission.frequency, firstPaymentDate: input.submission.firstPaymentDate, correlationKey: input.correlationKey, submissionKeyDigest: input.submissionKeyDigest, submissionDigest: input.submissionDigest, gatewayRedirectUri: null, status: 'draft', resultCode: null }
       checkouts.push(checkout); returns.set(input.returnCapabilityDigest, checkout.id)
       return { checkout, reused: false, disposition: 'start' as const }
     },
@@ -49,6 +49,7 @@ function repository(): GivingCheckoutRepository & { checkouts: GivingCheckoutRec
     async markUnknown(id) { operations.find((operation) => operation.id === id)!.status = 'unknown'; checkouts[0].status = 'unknown'; checkouts[0].resultCode = 'unknown' },
     async recordAcceptedUnknown(input) { const operation=operations.find((item)=>item.id===input.operationId)!;operation.status='unknown';operation.providerId=input.providerId;const checkout=checkouts.find((item)=>item.id===input.checkoutId)!;checkout.status='unknown';checkout.resultCode='unknown' },
     async markFailed(id) { operations.find((operation) => operation.id === id)!.status = 'failed' },
+    async acknowledgeBankSetup() { return true },
     async recordHostedSuccess(input) { const stored=operations.find((operation)=>operation.id===input.operation.id)!; stored.status = 'succeeded'; stored.providerId = input.providerId; const checkout=checkouts.find((item)=>item.id===input.checkout.id)!;checkout.gatewayRedirectUri = input.gatewayRedirectUri; checkout.status = 'authorising'; checkout.resultCode = 'processing' },
     async consumeReturn(digest,expectedProviderId,_now,statusDigest) { const id = returns.get(digest); if (!id) return null; const checkout=checkouts.find((item)=>item.id===id)!;const operation=operations.find((item)=>(item as GivingCheckoutOperation & {checkoutId?:number}).checkoutId===id);if(expectedProviderId&&operation?.providerId!==expectedProviderId)return null;returns.delete(digest); statuses.clear(); statuses.set(statusDigest,id); checkout.status = 'verifying'; return checkout },
     async findByStatusCapability(digest) { const id=statuses.get(digest); return id ? checkouts.find((checkout)=>checkout.id===id) ?? null : null },
@@ -79,12 +80,43 @@ function service(repo = repository(), overrides: Partial<GivingCheckoutBlinkPayC
 }
 
 describe('giving checkout orchestration', () => {
+  it('prepares direct-bank references through the same Rock identity resolution without calling BlinkPay', async () => {
+    const repo = repository()
+    const resolveIdentity = vi.fn(async () => {
+      repo.checkouts[0].giverId = 9
+      repo.checkouts[0].bankReference = 'EV123'
+      return { giverId:9,personAliasId:123,bankReference:'EV123',firstName:'Ada',lastName:'Lovelace',email:'ada@example.com' }
+    })
+    const dependencies = {
+      repository: repo,
+      digestSecret: 's'.repeat(32),
+      now: () => new Date('2026-08-15T00:00:00Z'),
+      randomBytes: () => Buffer.alloc(32, 1),
+      uuid: () => '00000000-0000-4000-8000-000000000001',
+      resolveIdentity,
+    }
+    const first = await prepareGivingBankTransfer({ ...context, submission: baseSubmission }, dependencies)
+    const second = await prepareGivingBankTransfer({ ...context, submission: baseSubmission }, dependencies)
+    expect(first).toEqual({
+      accountName: 'Auckland Evangelical Church Trust',
+      accountNumber: '01-1845-0008260-05',
+      particulars: 'GEN',
+      code: 'ALOVELACE',
+      reference: 'EV123',
+      acknowledgementToken: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/u),
+    })
+    expect(second).toMatchObject({ ...first, acknowledgementToken: expect.any(String) })
+    expect(resolveIdentity).toHaveBeenCalledTimes(1)
+    expect(repo.operations).toHaveLength(0)
+  })
+
   it('reuses an identical submission, commits caller-owned keys before the call and verifies one-off settlement authoritatively', async () => {
     const { checkout, blinkPay, repo } = service()
     const first = await checkout.start({ ...context, submission: baseSubmission })
     const second = await checkout.start({ ...context, submission: baseSubmission })
     expect(second).toMatchObject({ reused: true, gatewayRedirectUri: first.gatewayRedirectUri })
     expect(blinkPay.createQuickPayment).toHaveBeenCalledTimes(1)
+    expect(blinkPay.createQuickPayment.mock.calls[0][0].pcr).toEqual({ particulars: 'GEN', code: 'ALOVELACE', reference: 'EV123' })
     expect(blinkPay.createQuickPayment.mock.calls[0][1]).toEqual({ requestId: repo.operations[0].requestId, idempotencyKey: repo.operations[0].idempotencyKey })
     const callback = blinkPay.createQuickPayment.mock.calls[0][0].flow.detail.redirect_uri
     const token = callback.split('/').at(-1)!
@@ -214,6 +246,7 @@ describe('giving checkout orchestration', () => {
     await checkout.consumeReturn(callback.split('/').at(-1)!)
     await checkout.verify(1)
     expect(blinkPay.createFixedRecurringPayment).toHaveBeenCalledTimes(1)
+    expect(blinkPay.createFixedRecurringPayment.mock.calls[0][0].pcr).toEqual({ particulars: 'GEN', code: 'ALOVELACE', reference: 'EV123' })
     expect(blinkPay.getEnduringConsent).toHaveBeenCalled()
     expect(blinkPay.getFixedRecurringPayment).toHaveBeenCalled()
   })

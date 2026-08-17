@@ -39,6 +39,7 @@ const mocks = vi.hoisted(() => ({
     { id: 1, name: 'General', code: 'GENERAL', sortOrder: 0, isDefault: true },
   ]),
   givingFlow: vi.fn(() => null),
+  givingUnavailable: vi.fn(() => null),
 }))
 
 vi.mock('next/headers', () => ({
@@ -87,6 +88,7 @@ vi.mock('@/components/giving/GivingExperienceProvider', () => ({
   GivingExperienceProvider: mocks.givingProvider,
 }))
 vi.mock('@/components/giving/GivingFlow', () => ({ GivingFlow: mocks.givingFlow }))
+vi.mock('@/components/giving/GivingUnavailable', () => ({ GivingUnavailable: mocks.givingUnavailable }))
 vi.mock('@/lib/giving/funds', () => ({
   getCachedActiveGivingFunds: mocks.getCachedActiveGivingFunds,
 }))
@@ -168,6 +170,8 @@ describe('FrontendLayout member account state', () => {
       await FrontendLayout({ children: <main>Page</main> }),
     )
     expect(markup).toContain('data-giving-eligibility="disabled"')
+    expect(mocks.getCachedActiveGivingFunds).toHaveBeenCalledOnce()
+    expect(mocks.givingProvider.mock.calls.at(-1)?.[0]?.givingExperience).toBeTruthy()
 
     vi.stubEnv('BLINKPAY_PRODUCTION_ENABLED', 'true')
     markup = renderToStaticMarkup(
@@ -175,6 +179,28 @@ describe('FrontendLayout member account state', () => {
     )
     expect(markup).toContain('data-giving-eligibility="production"')
     vi.unstubAllEnvs()
+  })
+
+  it('keeps the launcher giving entry available when no funds can be loaded', async () => {
+    mocks.getCachedActiveGivingFunds.mockResolvedValueOnce([])
+
+    renderToStaticMarkup(await FrontendLayout({ children: <main>Page</main> }))
+
+    const givingExperience = mocks.givingProvider.mock.calls.at(-1)?.[0]?.givingExperience
+    expect(givingExperience).toBeTruthy()
+    expect(givingExperience?.type).toBe(mocks.givingUnavailable)
+  })
+
+  it('keeps public pages available when loading giving funds fails', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mocks.getCachedActiveGivingFunds.mockRejectedValueOnce(new Error('database unavailable'))
+
+    const layout = await FrontendLayout({ children: <main>Page</main> })
+    expect(() => renderToStaticMarkup(layout)).not.toThrow()
+    const givingExperience = mocks.givingProvider.mock.calls.at(-1)?.[0]?.givingExperience
+    expect(givingExperience?.type).toBe(mocks.givingUnavailable)
+    expect(error).toHaveBeenCalledWith('Giving funds are unavailable.')
+    error.mockRestore()
   })
 
   it('loads visitor-facing feedback settings into the composed header', async () => {

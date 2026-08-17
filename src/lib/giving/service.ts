@@ -4,7 +4,7 @@ import type { Pool, PoolClient } from 'pg'
 
 import type { GivingFrequency } from '@/components/giving/giving-state'
 import type { GivingIdentityInput, ResolvedGivingIdentity } from './rock-identity'
-import type { GivingCheckoutStatus, GivingContext, ProviderOperationAction, ProviderOperationStatus } from './contracts'
+import { isGivingCapabilityToken, type GivingCheckoutStatus, type GivingContext, type ProviderOperationAction, type ProviderOperationStatus } from './contracts'
 import type {
   BlinkPayAmount,
   BlinkPayConsent,
@@ -17,9 +17,9 @@ import type {
   CreateQuickPaymentRequest,
 } from './blinkpay/types'
 import { minorUnitsToNzd, validateNzDate, validatePeriod } from './blinkpay/validation'
+import { givingBankCode, givingBankTransferDetails, type GivingBankTransferPreparation } from './bank-transfer'
 
 const CAPABILITY_TTL_MS = 30 * 60 * 1000
-const SUBMISSION_KEY = /^[A-Za-z0-9_-]{43}$/u
 const CONTROL = /[\u0000-\u001f\u007f]/u
 
 export type CheckoutResultCode = 'processing' | 'cancelled' | 'rejected' | 'expired' | 'unknown' | 'verified'
@@ -40,6 +40,7 @@ export interface GivingCheckoutRecord extends GivingContext {
   id: number
   giverId: number | null
   bankReference: string | null
+  bankCode: string
   fundId: number
   fundName: string
   fundCode: string
@@ -98,6 +99,7 @@ export interface GivingCheckoutRepository {
   completeSchedule(checkout: GivingCheckoutRecord, operation: GivingCheckoutOperation, consentId: number, provider: BlinkPayFixedRecurringPayment, observedAt: Date): Promise<void>
   setProcessing(checkoutId: number): Promise<void>
   setFailed(checkoutId: number, code: Extract<CheckoutResultCode, 'cancelled' | 'rejected' | 'expired'>): Promise<void>
+  acknowledgeBankSetup(capabilityDigest: string, now: Date): Promise<boolean>
 }
 
 export interface GivingCheckoutBlinkPayClient {
@@ -115,6 +117,15 @@ export interface GivingCheckoutBlinkPayClient {
 interface GivingCheckoutDependencies {
   repository: GivingCheckoutRepository
   blinkPay: GivingCheckoutBlinkPayClient | ((environment: GivingContext['environment']) => GivingCheckoutBlinkPayClient)
+  resolveIdentity(input: GivingContext & { checkoutId: number; identity: GivingIdentityInput }): Promise<ResolvedGivingIdentity>
+  digestSecret: string
+  now?: () => Date
+  randomBytes?: (size: number) => Buffer
+  uuid?: () => string
+}
+
+interface GivingBankTransferDependencies {
+  repository: GivingCheckoutRepository
   resolveIdentity(input: GivingContext & { checkoutId: number; identity: GivingIdentityInput }): Promise<ResolvedGivingIdentity>
   digestSecret: string
   now?: () => Date
@@ -144,7 +155,7 @@ export function validateGivingCheckoutSubmission(value: unknown): GivingCheckout
   const keys = ['submissionKey','amountMinor','fundId','frequency','firstPaymentDate','firstName','lastName','email','turnstileToken']
   if (!exactObject(value, keys)) throw new GivingCheckoutError('invalid')
   const frequency = String(value.frequency)
-  if (!SUBMISSION_KEY.test(String(value.submissionKey)) || !Number.isSafeInteger(value.amountMinor) || Number(value.amountMinor) <= 0 ||
+  if (!isGivingCapabilityToken(value.submissionKey) || !Number.isSafeInteger(value.amountMinor) || Number(value.amountMinor) <= 0 ||
       !Number.isSafeInteger(value.fundId) || Number(value.fundId) <= 0 ||
       !['one-off','daily','weekly','fortnightly','monthly','annual'].includes(frequency) ||
       !boundedText(value.firstName, 100) || !boundedText(value.lastName, 100) || !boundedText(value.email, 320) || !boundedText(value.turnstileToken, 4096)) {
@@ -191,6 +202,58 @@ function requestDigest(action: string, checkout: GivingCheckoutRecord) {
   return createHash('sha256').update(JSON.stringify({ action, checkoutId: checkout.id, contextKey: checkout.contextKey, amountMinor: checkout.amountMinor, frequency: checkout.frequency, firstPaymentDate: checkout.firstPaymentDate, fundCode: checkout.fundCode, bankReference: checkout.bankReference })).digest('hex')
 }
 
+export async function prepareGivingBankTransfer(
+  input: GivingContext & { submission: GivingCheckoutSubmission },
+  dependencies: GivingBankTransferDependencies,
+): Promise<GivingBankTransferPreparation> {
+  const submission = validateGivingCheckoutSubmission(input.submission)
+  const now = dependencies.now?.() ?? new Date()
+  const random = dependencies.randomBytes ?? randomBytes
+  const uuid = dependencies.uuid ?? randomUUID
+  const capability = random(32).toString('base64url')
+  const created = await dependencies.repository.createOrReuse({
+    ...input,
+    submission,
+    submissionKeyDigest: submissionKeyDigest(dependencies.digestSecret, input, submission.submissionKey),
+    submissionDigest: canonicalSubmissionDigest(dependencies.digestSecret, submission),
+    correlationKey: uuid(),
+    returnCapabilityDigest: capabilityDigest('return', capability),
+    returnCapabilityExpiresAt: new Date(now.getTime() + CAPABILITY_TTL_MS),
+    currentTime: now,
+  })
+  if (created.disposition !== 'start') throw new GivingCheckoutError('conflict')
+
+  let bankReference = created.checkout.bankReference
+  if (!bankReference) {
+    const resolved = await dependencies.resolveIdentity({
+      contextKey: created.checkout.contextKey,
+      environment: created.checkout.environment,
+      synthetic: created.checkout.synthetic,
+      e2eRunId: created.checkout.e2eRunId,
+      checkoutId: created.checkout.id,
+      identity: {
+        kind: 'guest',
+        firstName: submission.firstName,
+        lastName: submission.lastName,
+        email: submission.email,
+      },
+    })
+    bankReference = resolved.bankReference
+  }
+  return {
+    ...givingBankTransferDetails(created.checkout.fundCode, created.checkout.bankCode, bankReference),
+    acknowledgementToken: capability,
+  }
+}
+
+export async function acknowledgeGivingBankSetup(
+  token: string,
+  dependencies: Pick<GivingBankTransferDependencies, 'repository'> & { now?: () => Date },
+) {
+  if (!isGivingCapabilityToken(token)) throw new GivingCheckoutError('invalid')
+  return dependencies.repository.acknowledgeBankSetup(capabilityDigest('return', token), dependencies.now?.() ?? new Date())
+}
+
 function amount(amountMinor: number): BlinkPayAmount { return { total: minorUnitsToNzd(amountMinor), currency: 'NZD' } }
 function keys(operation: GivingCheckoutOperation): BlinkPayOperationKeys { return { requestId: operation.requestId, idempotencyKey: operation.idempotencyKey } }
 function failedConsent(status: string): 'cancelled' | 'rejected' | 'expired' | null {
@@ -220,7 +283,7 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
     operation = { ...operation, status: 'submitted' }
     const redirectUri = `https://www.ev.church/give/return/${returnToken}`
     if (!checkout.bankReference) throw new GivingCheckoutError('conflict')
-    const pcr = { particulars: checkout.fundCode.slice(0, 12), reference: checkout.bankReference }
+    const pcr = { particulars: checkout.fundCode.slice(0, 12), code: checkout.bankCode, reference: checkout.bankReference }
     let result
     try {
       result = action === 'blinkpay.create-payment'
@@ -305,7 +368,7 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
           consent_id: consentId, consent_status: consent.status, period: checkout.frequency as Exclude<GivingFrequency, 'one-off'>,
           start_date: checkout.firstPaymentDate!, amount: amount(checkout.amountMinor), amount_minor: checkout.amountMinor,
           maximum_amount_payment_minor: checkout.amountMinor, maximum_amount_period_minor: checkout.amountMinor,
-          pcr: { particulars: checkout.fundCode.slice(0, 12), reference: checkout.bankReference ?? (() => { throw new GivingCheckoutError('conflict') })() }, retry_strategy: 'same_day',
+          pcr: { particulars: checkout.fundCode.slice(0, 12), code: checkout.bankCode, reference: checkout.bankReference ?? (() => { throw new GivingCheckoutError('conflict') })() }, retry_strategy: 'same_day',
         }, keys(operation))
       } catch (error) {
         const rejected = typeof error === 'object' && error !== null && 'code' in error && error.code === 'request-rejected'
@@ -362,7 +425,7 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
     verify,
     continueRecurring,
     async consumeReturn(token: string, expectedProviderId: string | null = null) {
-      if (!SUBMISSION_KEY.test(token)) throw new GivingCheckoutError('unavailable')
+      if (!isGivingCapabilityToken(token)) throw new GivingCheckoutError('unavailable')
       const statusToken = random(32).toString('base64url')
       const current = now()
       const checkout = await dependencies.repository.consumeReturn(capabilityDigest('return', token), expectedProviderId, current, capabilityDigest('status', statusToken), capabilityDigest('status', statusToken), new Date(current.getTime() + CAPABILITY_TTL_MS))
@@ -375,7 +438,7 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
       return { statusToken, checkoutId: checkout.id }
     },
     async status(token: string) {
-      if (!SUBMISSION_KEY.test(token)) throw new GivingCheckoutError('unavailable')
+      if (!isGivingCapabilityToken(token)) throw new GivingCheckoutError('unavailable')
       const statusDigest = capabilityDigest('status', token)
       let checkout = await dependencies.repository.findByStatusCapability(statusDigest, now())
       if (!checkout) throw new GivingCheckoutError('unavailable')
@@ -425,6 +488,7 @@ function checkoutRow(row: CheckoutRow | undefined): GivingCheckoutRecord | null 
     e2eRunId: row.e2e_run_id === null ? null : Number(row.e2e_run_id),
     giverId: row.giver_id === null ? null : Number(row.giver_id),
     bankReference: row.bank_reference ? String(row.bank_reference) : null,
+    bankCode: String(row.bank_code),
     fundId: Number(row.fund_id),
     fundName: String(row.fund_name),
     fundCode: String(row.fund_code),
@@ -452,7 +516,7 @@ function operationRow(row: CheckoutRow | undefined): GivingCheckoutOperation | n
     requestDigest: String(row.request_digest),
   }
 }
-const CHECKOUT_COLUMNS = 'id,context_key,environment,synthetic,e2e_run_id,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,frequency,first_payment_date,correlation_key,submission_key_digest,submission_digest,gateway_redirect_uri,status,result_code'
+const CHECKOUT_COLUMNS = 'id,context_key,environment,synthetic,e2e_run_id,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,bank_code,amount_minor,frequency,first_payment_date,correlation_key,submission_key_digest,submission_digest,gateway_redirect_uri,status,result_code'
 const CHECKOUT_SELECT = `${CHECKOUT_COLUMNS},(SELECT bank_reference FROM giving_givers WHERE giving_givers.id=giving_checkouts.giver_id) AS bank_reference`
 
 export function createPostgresGivingCheckoutRepository(pool: Pool): GivingCheckoutRepository {
@@ -510,13 +574,14 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
         const result = await client.query(`
           INSERT INTO giving_checkouts(
             context_key,environment,synthetic,e2e_run_id,fund_id,fund_name,fund_code,fund_accounting_key,
-            amount_minor,frequency,first_payment_date,correlation_key,submission_key_digest,submission_digest,
+            bank_code,amount_minor,frequency,first_payment_date,correlation_key,submission_key_digest,submission_digest,
             return_capability_digest,return_capability_expires_at,status
-          ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'draft')
+          ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'draft')
           RETURNING ${CHECKOUT_COLUMNS}
         `, [
           input.contextKey, input.environment, input.synthetic, input.e2eRunId,
           fund.id, fund.name, fund.code, fund.accounting_key,
+          givingBankCode(input.submission.firstName, input.submission.lastName),
           input.submission.amountMinor, input.submission.frequency, input.submission.firstPaymentDate,
           input.correlationKey, input.submissionKeyDigest, input.submissionDigest,
           input.returnCapabilityDigest, input.returnCapabilityExpiresAt,
@@ -599,6 +664,34 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
         WHERE id=$1 AND status IN ('prepared','submitted','unknown')
       `, [id])
       if (result.rowCount !== 1) throw new GivingCheckoutError('conflict')
+    },
+    async acknowledgeBankSetup(digest, now) {
+      return tx(pool, async (client) => {
+        const eligible = await client.query<{ id: number; bank_setup_acknowledged_at: Date | null }>(`
+          SELECT checkout.id,checkout.bank_setup_acknowledged_at
+          FROM giving_checkouts checkout
+          WHERE return_capability_digest=$1
+            AND return_capability_expires_at>$2
+            AND gateway_redirect_uri IS NULL
+            AND NOT EXISTS(
+              SELECT 1 FROM giving_provider_operations operation
+              WHERE operation.checkout_id=checkout.id AND operation.provider='blinkpay'
+            )
+          FOR UPDATE OF checkout
+        `, [digest, now])
+        if (eligible.rowCount !== 1) return false
+        if (eligible.rows[0]?.bank_setup_acknowledged_at) return true
+        const updated = await client.query(`
+          UPDATE giving_checkouts
+          SET bank_setup_acknowledged_at=$2,
+              return_capability_consumed_at=COALESCE(return_capability_consumed_at,$2),
+              updated_at=now()
+          WHERE id=$1 AND bank_setup_acknowledged_at IS NULL
+          RETURNING id
+        `, [eligible.rows[0]?.id, now])
+        if (updated.rowCount !== 1) throw new GivingCheckoutError('conflict')
+        return true
+      })
     },
     recordHostedSuccess(input) {
       return tx(pool, async (client) => {

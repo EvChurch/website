@@ -3,6 +3,7 @@
 import { act, useEffect } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import Link from 'next/link'
 
 import {
   GivingExperienceProvider,
@@ -15,7 +16,7 @@ import {
 function Probe() {
   const giving = useGivingExperience()
   return <>
-    <output data-enabled={giving.givingEnabled} data-flag={giving.flagState}>
+    <output data-enabled={giving.givingSurfaceAvailable} data-blinkpay={giving.blinkPayEnabled} data-flag={giving.flagState}>
       {giving.givingRequestId}
     </output>
     <button type="button" onClick={() => giving.setFlagState('enabled')}>enable</button>
@@ -55,7 +56,7 @@ describe('GivingExperienceProvider', () => {
     expect(container.querySelector('output')?.textContent).toBe('0')
   })
 
-  it('requires server eligibility, a positive flag, and a ready renderer to acquire', async () => {
+  it('opens the giving interface whenever its renderer is ready', async () => {
     await act(async () => root.render(
       <GivingExperienceProvider
         serverEligibility="production"
@@ -64,43 +65,61 @@ describe('GivingExperienceProvider', () => {
         <Probe />
       </GivingExperienceProvider>,
     ))
-    expect(container.querySelector('output')?.dataset.enabled).toBe('false')
-    await act(async () => container.querySelectorAll('button')[0]?.click())
     expect(container.querySelector('output')?.dataset.enabled).toBe('true')
     await act(async () => container.querySelectorAll('button')[1]?.click())
     expect(container.querySelector('output')?.textContent).toBe('1')
   })
 
-  it('fails closed for unresolved, disabled, failed, server-ineligible, and renderer-missing states', async () => {
+  it('opens ordinary local Give links in the launcher while preserving modified navigation', async () => {
+    await act(async () => root.render(
+      <GivingExperienceProvider serverEligibility={null} givingExperience={<div>Giving flow</div>}>
+        <Probe />
+        <Link href="/give">Give</Link>
+      </GivingExperienceProvider>,
+    ))
+    const give = container.querySelector<HTMLAnchorElement>('a[href="/give"]')!
+    const ordinaryClick = new MouseEvent('click', { bubbles: true, cancelable: true })
+    await act(async () => give.dispatchEvent(ordinaryClick))
+    expect(ordinaryClick.defaultPrevented).toBe(true)
+    expect(container.querySelector('output')?.textContent).toBe('1')
+
+    const modifiedClick = new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true })
+    await act(async () => give.dispatchEvent(modifiedClick))
+    expect(modifiedClick.defaultPrevented).toBe(false)
+    expect(container.querySelector('output')?.textContent).toBe('1')
+  })
+
+  it('uses the flag and server eligibility only for the BlinkPay handoff', async () => {
     await act(async () => root.render(
       <GivingExperienceProvider serverEligibility={null} givingExperience={<div>Giving flow</div>}>
         <Probe />
       </GivingExperienceProvider>,
     ))
-    await act(async () => container.querySelectorAll('button')[0]?.click())
     await act(async () => container.querySelectorAll('button')[1]?.click())
-    expect(container.querySelector('output')?.dataset.enabled).toBe('false')
-    expect(container.querySelector('output')?.textContent).toBe('0')
+    expect(container.querySelector('output')?.dataset.enabled).toBe('true')
+    expect(container.querySelector('output')?.dataset.blinkpay).toBe('false')
+    expect(container.querySelector('output')?.textContent).toBe('1')
 
     await act(async () => root.render(
-      <GivingExperienceProvider serverEligibility="production">
+      <GivingExperienceProvider serverEligibility="production" givingExperience={<div>Giving flow</div>}>
         <Probe />
       </GivingExperienceProvider>,
     ))
     await act(async () => container.querySelectorAll('button')[0]?.click())
-    await act(async () => container.querySelectorAll('button')[1]?.click())
-    expect(container.querySelector('output')?.dataset.enabled).toBe('true')
-    expect(container.querySelector('output')?.textContent).toBe('0')
+    expect(container.querySelector('output')?.dataset.blinkpay).toBe('true')
 
     await act(async () => container.querySelector<HTMLButtonElement>('[data-disable]')?.click())
+    expect(container.querySelector('output')?.dataset.enabled).toBe('true')
+    expect(container.querySelector('output')?.dataset.blinkpay).toBe('false')
     await act(async () => container.querySelectorAll('button')[1]?.click())
-    expect(container.querySelector('output')?.dataset.enabled).toBe('false')
-    expect(container.querySelector('output')?.textContent).toBe('0')
+    expect(container.querySelector('output')?.textContent).toBe('2')
 
     await act(async () => container.querySelector<HTMLButtonElement>('[data-fail]')?.click())
-    await act(async () => container.querySelectorAll('button')[1]?.click())
+    expect(container.querySelector('output')?.dataset.enabled).toBe('true')
     expect(container.querySelector('output')?.dataset.flag).toBe('failed')
-    expect(container.querySelector('output')?.textContent).toBe('0')
+    expect(container.querySelector('output')?.dataset.blinkpay).toBe('false')
+    await act(async () => container.querySelectorAll('button')[1]?.click())
+    expect(container.querySelector('output')?.textContent).toBe('3')
   })
 
   it('consumes each monotonic open request once and never reuses a stale id', async () => {

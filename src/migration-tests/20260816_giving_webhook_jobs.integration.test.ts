@@ -4,6 +4,7 @@ import { createGivingLifecycleProcessor, createPostgresGivingLifecycleStore } fr
 import { GIVING_PILOT_UP_SQL } from '../migrations/20260815_170000_giving_pilot'
 import { GIVING_CHECKOUT_ORCHESTRATION_UP_SQL } from '../migrations/20260815_230000_giving_checkout_orchestration'
 import { GIVING_WEBHOOK_JOBS_DOWN_SQL, GIVING_WEBHOOK_JOBS_UP_SQL, GIVING_WEBHOOK_JOB_SLUGS } from '../migrations/20260816_000000_giving_webhook_jobs'
+import { GIVING_BANK_CODE_UP_SQL } from '../migrations/20260817_010000_giving_bank_code'
 
 const databaseUrl = process.env.GIVING_MIGRATION_TEST_DATABASE_URL
 function assertDisposable(value: string) {
@@ -20,19 +21,20 @@ describe.skipIf(!databaseUrl)('giving webhook PostgreSQL leases and failure reco
     await pool.query(GIVING_PILOT_UP_SQL)
     await pool.query(GIVING_CHECKOUT_ORCHESTRATION_UP_SQL)
     await pool.query(GIVING_WEBHOOK_JOBS_UP_SQL)
+    await pool.query(GIVING_BANK_CODE_UP_SQL)
     await pool.query("INSERT INTO giving_funds(name,code,accounting_key,is_default) VALUES('General','GEN','general',true)")
   })
 
   async function seed(paymentId = 'pay-1') {
     const giver = await pool.query<{id:number}>("INSERT INTO giving_givers(context_key,environment,synthetic,rock_person_alias_id,bank_reference,name,email) VALUES('production','production',false,10,'EV10','Ada','ada@example.com') RETURNING id")
-    const checkout = await pool.query<{id:number}>(`INSERT INTO giving_checkouts(context_key,environment,synthetic,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,frequency,correlation_key,status,submission_key_digest,submission_digest) VALUES('production','production',false,$1,1,'General','GEN','general',2500,'monthly',$2,'verifying',$3,$4) RETURNING id`, [giver.rows[0].id,`correlation-${paymentId}`,`key-${paymentId}`,`digest-${paymentId}`])
+    const checkout = await pool.query<{id:number}>(`INSERT INTO giving_checkouts(context_key,environment,synthetic,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,bank_code,amount_minor,frequency,correlation_key,status,submission_key_digest,submission_digest) VALUES('production','production',false,$1,1,'General','GEN','general','AGIVER',2500,'monthly',$2,'verifying',$3,$4) RETURNING id`, [giver.rows[0].id,`correlation-${paymentId}`,`key-${paymentId}`,`digest-${paymentId}`])
     const gift = await pool.query<{id:number}>(`INSERT INTO giving_gifts(context_key,environment,synthetic,checkout_id,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,provider_payment_id,status) VALUES('production','production',false,$1,$2,1,'General','GEN','general',2500,$3,'pending') RETURNING id`, [checkout.rows[0].id,giver.rows[0].id,paymentId])
     return { checkoutId: checkout.rows[0].id, giverId: giver.rows[0].id, giftId: gift.rows[0].id }
   }
 
   async function seedRecurring() {
     const giver = await pool.query<{id:number}>("INSERT INTO giving_givers(context_key,environment,synthetic,rock_person_alias_id,bank_reference,name,email) VALUES('production','production',false,20,'EV20','Recurring','recurring@example.com') RETURNING id")
-    const checkout = await pool.query<{id:number}>(`INSERT INTO giving_checkouts(context_key,environment,synthetic,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,frequency,correlation_key,status,submission_key_digest,submission_digest) VALUES('production','production',false,$1,1,'General','GEN','general',4200,'monthly','recurring-correlation','completed','recurring-key','recurring-digest') RETURNING id`, [giver.rows[0].id])
+    const checkout = await pool.query<{id:number}>(`INSERT INTO giving_checkouts(context_key,environment,synthetic,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,bank_code,amount_minor,frequency,correlation_key,status,submission_key_digest,submission_digest) VALUES('production','production',false,$1,1,'General','GEN','general','RGIVER',4200,'monthly','recurring-correlation','completed','recurring-key','recurring-digest') RETURNING id`, [giver.rows[0].id])
     const consent = await pool.query<{id:number}>(`INSERT INTO giving_consents(context_key,environment,synthetic,checkout_id,giver_id,provider_consent_id,status) VALUES('production','production',false,$1,$2,'22222222-2222-4222-8222-222222222222','authorised') RETURNING id`, [checkout.rows[0].id,giver.rows[0].id])
     const schedule = await pool.query<{id:number}>(`INSERT INTO giving_schedules(context_key,environment,synthetic,checkout_id,giver_id,consent_id,provider_schedule_id,status,frequency,amount_minor) VALUES('production','production',false,$1,$2,$3,'33333333-3333-4333-8333-333333333333','active','monthly',4200) RETURNING id`, [checkout.rows[0].id,giver.rows[0].id,consent.rows[0].id])
     return { giverId:giver.rows[0].id,checkoutId:checkout.rows[0].id,consentId:consent.rows[0].id,scheduleId:schedule.rows[0].id }

@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import type {
   BlinkPayAccessToken,
   BlinkPayAmount,
@@ -219,7 +221,7 @@ export function createBlinkPayClient(options: CreateBlinkPayClientOptions) {
   const fetchImpl = options.fetchImpl ?? fetch
   const now = options.now ?? (() => new Date())
   const sleep = options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)))
-  const uuid = options.uuid ?? crypto.randomUUID
+  const uuid = options.uuid ?? randomUUID
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
   const getRetries = options.getRetries ?? DEFAULT_GET_RETRIES
   const retryDelayMs = options.retryDelayMs ?? 100

@@ -7,6 +7,8 @@ import { createPostgresGivingLifecycleStore } from '../lib/giving/reconciliation
 import { createGivingCheckoutService, createPostgresGivingCheckoutRepository, GivingCheckoutError } from '../lib/giving/service'
 import { GIVING_PILOT_UP_SQL } from '../migrations/20260815_170000_giving_pilot'
 import { GIVING_CHECKOUT_ORCHESTRATION_UP_SQL } from '../migrations/20260815_230000_giving_checkout_orchestration'
+import { GIVING_BANK_CODE_UP_SQL } from '../migrations/20260817_010000_giving_bank_code'
+import { GIVING_BANK_ACKNOWLEDGEMENT_UP_SQL } from '../migrations/20260817_020000_giving_bank_acknowledgement'
 
 const databaseUrl = process.env.GIVING_MIGRATION_TEST_DATABASE_URL
 
@@ -29,6 +31,8 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     await pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public; CREATE TABLE users(id serial PRIMARY KEY); CREATE TABLE payload_locked_documents_rels(id serial PRIMARY KEY); INSERT INTO users DEFAULT VALUES;')
     await pool.query(GIVING_PILOT_UP_SQL)
     await pool.query(GIVING_CHECKOUT_ORCHESTRATION_UP_SQL)
+    await pool.query(GIVING_BANK_CODE_UP_SQL)
+    await pool.query(GIVING_BANK_ACKNOWLEDGEMENT_UP_SQL)
     await pool.query("INSERT INTO giving_funds(name,code,accounting_key,is_default) VALUES('General','GEN','general',true)")
   })
 
@@ -67,6 +71,16 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     await pool.query('UPDATE giving_checkouts SET giver_id=$2 WHERE id=$1', [checkoutId, giver.rows[0].id])
     return giver.rows[0].id
   }
+
+  it('records a direct-bank setup acknowledgement without marking the checkout completed', async () => {
+    const repository = createPostgresGivingCheckoutRepository(pool)
+    const run = await seedRun('bank-ack')
+    const created = await repository.createOrReuse(input('bank-ack', run, { returnDigest: 'bank-ack-digest' }))
+    const now = new Date()
+    expect(await repository.acknowledgeBankSetup('bank-ack-digest', now)).toBe(true)
+    expect(await repository.acknowledgeBankSetup('bank-ack-digest', now)).toBe(true)
+    expect((await pool.query('SELECT status,bank_setup_acknowledged_at FROM giving_checkouts WHERE id=$1', [created.checkout.id])).rows[0]).toMatchObject({ status: 'draft', bank_setup_acknowledged_at: now })
+  })
 
   it('isolates key idempotency by context and conflicts on changed canonical body', async () => {
     const repository = createPostgresGivingCheckoutRepository(pool)

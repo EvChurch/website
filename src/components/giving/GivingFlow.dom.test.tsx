@@ -5,18 +5,20 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { PublicGivingFund } from '@/lib/giving/contracts'
-import { GIVING_STATUS_POLL_LIMIT, GivingFlow, givingCheckoutPresentation, givingStatusPollDelay, safeGivingGatewayRedirect } from './GivingFlow'
+import { GIVING_STATUS_POLL_LIMIT, GivingFlow, givingCheckoutPresentation, givingProgress, givingStatusPollDelay, positionGivingSurface, safeGivingGatewayRedirect } from './GivingFlow'
 
 vi.mock('@/components/forms/TurnstileWidget', () => ({ TurnstileWidget: ({ onToken }: { onToken: (token: string) => void }) => <button type="button" data-turnstile onClick={() => onToken('turnstile-token')}>Pass security check</button> }))
 const trackGivingEvent=vi.hoisted(()=>vi.fn())
 vi.mock('@/lib/giving/analytics',()=>({trackGivingEvent}))
 const givingContext=vi.hoisted(()=>({
   active:true,
+  blinkPayEnabled:true,
   back:null as (()=>boolean)|null,
   close:null as (()=>boolean)|null,
 }))
 vi.mock('./GivingExperienceProvider',()=>({useGivingExperience:()=>({
   givingViewActive:givingContext.active,
+  blinkPayEnabled:givingContext.blinkPayEnabled,
   registerGivingBackHandler:(handler:()=>boolean)=>{givingContext.back=handler;return()=>{if(givingContext.back===handler)givingContext.back=null}},
   registerGivingCloseHandler:(handler:()=>boolean)=>{givingContext.close=handler;return()=>{if(givingContext.close===handler)givingContext.close=null}},
 })}))
@@ -41,8 +43,33 @@ async function reachSignedInReview(container: HTMLElement, root: Root) {
   await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
   await act(async()=>change(container.querySelector('input')!,'25'))
   await act(async()=>button(container,'Continue')?.click())
-  await act(async()=>button(container,'One-off gift')?.click())
+  await act(async()=>button(container,'General')?.click())
+  await act(async()=>button(container,'Just this once')?.click())
 }
+
+function elementWithRect(top: number, bottom: number) {
+  const element = document.createElement('div')
+  element.getBoundingClientRect = () => ({ top, bottom, height: bottom - top } as DOMRect)
+  return element
+}
+
+describe('giving surface positioning', () => {
+  it('moves forward journeys to the bottom and brings edited surfaces fully into view', () => {
+    const scroller = elementWithRect(0, 600)
+    Object.defineProperty(scroller, 'scrollHeight', { configurable: true, value: 900 })
+    scroller.scrollTop = 40
+    positionGivingSurface(scroller, elementWithRect(450, 700), elementWithRect(540, 600), 'forward')
+    expect(scroller.scrollTop).toBe(900)
+
+    scroller.scrollTop = 100
+    positionGivingSurface(scroller, elementWithRect(-20, 280), elementWithRect(540, 600), 'edit')
+    expect(scroller.scrollTop).toBe(72)
+
+    scroller.scrollTop = 100
+    positionGivingSurface(scroller, elementWithRect(300, 590), elementWithRect(540, 600), 'surface')
+    expect(scroller.scrollTop).toBe(158)
+  })
+})
 
 describe('GivingFlow', () => {
   let container: HTMLDivElement
@@ -53,10 +80,12 @@ describe('GivingFlow', () => {
     root = createRoot(container)
     vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 204 })))
     givingContext.active=true
+    givingContext.blinkPayEnabled=true
     givingContext.back=null
     givingContext.close=null
     window.history.replaceState(null, '', '/')
     trackGivingEvent.mockClear()
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn(async () => undefined) } })
   })
 
   it('loads signed-in identity only when active and prefills the unedited flow once', async () => {
@@ -68,51 +97,241 @@ describe('GivingFlow', () => {
     expect(vi.mocked(fetch).mock.calls.filter(([input])=>String(input)==='/api/giving/identity')).toHaveLength(1)
     await act(async()=>change(container.querySelector('input')!,'25'))
     await act(async()=>button(container,'Continue')?.click())
-    await act(async()=>button(container,'One-off gift')?.click())
-    expect(container.textContent).toContain('Review your gift')
-    expect(container.textContent).toContain('Lazy')
-    expect(container.textContent).toContain('lazy@example.com')
+    await act(async()=>button(container,'General')?.click())
+    await act(async()=>button(container,'Just this once')?.click())
+    expect(container.textContent).toContain('Continue with BlinkPay')
+    expect(container.textContent).toContain('BlinkPay is a trusted third party')
   })
   afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.useRealTimers(); vi.unstubAllGlobals() })
 
-  it('completes a monthly signed-in path with General and separate Name and Email review rows', async () => {
+  it('completes a monthly signed-in path and ends with a concise BlinkPay handoff', async () => {
     await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{ signedIn: true, firstName: 'Alex', lastName: 'Taylor', email: 'alex@example.com' }} />))
     await act(async () => change(container.querySelector('input')!, '50'))
     await act(async () => button(container, 'Continue')?.click())
+    expect(container.textContent).toContain('What fund should this be for')
+    expect(document.activeElement?.textContent).toContain('Missions')
+    expect(container.querySelector('[data-question-panel="highlighted"]')).toBeTruthy()
+    expect(container.querySelector('[aria-label="Change amount"]')).toBeTruthy()
+    await act(async () => button(container, 'General')?.click())
     expect(container.textContent).toContain('How often')
-    await act(async () => button(container, 'Monthly')?.click())
-    expect(container.textContent).toContain('When should it start')
+    expect(document.activeElement?.textContent).toContain('Every week')
+    expect(container.textContent).toContain('I’d like to give $50.00')
+    expect(container.textContent).toContain('for General')
+    expect(container.textContent).not.toContain('More options')
+    expect(container.textContent).not.toContain('Every day')
+    expect(container.textContent).not.toContain('Every year')
+    expect(button(container, 'Just this once')?.className).toContain('bg-warm-grey/70')
+    expect(button(container, 'Just this once')?.className).toContain('text-brand-black')
+    await act(async () => button(container, 'Every month')?.click())
+    expect(container.textContent).toContain('Starting when?')
+    expect(document.activeElement?.textContent).toContain('Today')
+    await act(async () => button(container, 'Choose another date')?.click())
+    expect(container.querySelector('#giving-step-heading')?.textContent).toBe('OK, choose a start date')
+    expect(container.querySelector('#giving-step-heading')?.className).not.toContain('hidden')
+    expect(container.querySelector('section')?.getAttribute('aria-labelledby')).toBe('giving-step-heading')
+    expect(document.activeElement?.textContent).toContain('August')
+    expect(container.querySelector('[data-giving-step] [class*="fade-in_180ms"]')).toBeTruthy()
+    expect(container.querySelector('[role="option"][aria-selected="true"]')?.className).toContain('border-rich-red')
+    expect(container.querySelector('[role="option"][aria-selected="true"]')?.className).not.toContain('border-4')
+    expect(Array.from(container.querySelectorAll('[data-scroll-viewport]')).every((row) => row.className.includes('w-[calc(100%+2.5rem)]') && row.className.includes('[scrollbar-width:none]'))).toBe(true)
+    expect(Array.from(container.querySelectorAll('[role="listbox"]')).every((row) => row.className.includes('px-5'))).toBe(true)
+    const monthScroller = container.querySelector<HTMLDivElement>('[data-scroll-viewport]')!
+    expect(monthScroller.className).toContain('[&_*]:select-none')
+    monthScroller.setPointerCapture = vi.fn()
+    monthScroller.hasPointerCapture = vi.fn(() => false)
+    await act(async () => {
+      monthScroller.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 180, clientY: 20, pointerId: 1, pointerType: 'mouse' }))
+      monthScroller.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 174, clientY: 20, pointerId: 1, pointerType: 'mouse' }))
+      monthScroller.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 174, clientY: 20, pointerId: 1, pointerType: 'mouse' }))
+      button(container, 'September')?.click()
+    })
+    expect(button(container, 'September')?.getAttribute('aria-selected')).toBe('true')
+    await act(async () => button(container, '27')?.click())
+    expect(button(container, '27')?.getAttribute('aria-selected')).toBe('true')
+    await act(async () => {
+      monthScroller.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 180, clientY: 20, pointerId: 2, pointerType: 'mouse' }))
+      monthScroller.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 100, clientY: 20, pointerId: 2, pointerType: 'mouse' }))
+      monthScroller.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 100, clientY: 20, pointerId: 2, pointerType: 'mouse' }))
+    })
+    expect(monthScroller.scrollLeft).toBe(80)
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Cancel custom date"]')?.click())
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Change amount"]')?.click())
+    expect(container.textContent).toContain('How much would you like to give')
+    expect(container.textContent).toContain('for General')
+    expect(container.textContent).toContain('Every month')
+    await act(async () => change(container.querySelector('input')!, '55'))
+    await act(async () => button(container, 'Continue')?.click())
+    expect(container.textContent).toContain('Starting when?')
+    expect(container.textContent).toContain('$55.00')
+    expect(container.textContent).toContain('for General')
+    expect(container.textContent).toContain('Every month')
     await act(async () => button(container, 'Tomorrow')?.click())
-    expect(container.textContent).toContain('Review your gift')
-    expect(container.textContent).toContain('General')
-    expect(container.textContent).toContain('Name')
-    expect(container.textContent).toContain('Email')
-
-    await act(async () => button(container, 'Amount')?.click())
-    await act(async () => change(container.querySelector('input')!, '75'))
-    await act(async () => button(container, 'Continue')?.click())
-    expect(container.textContent).toContain('Review your gift')
-    expect(container.textContent).toContain('$75.00 NZD')
-    expect(container.textContent).toContain('monthly')
-
-    await act(async () => button(container, 'Name')?.click())
-    expect(container.textContent).toContain('What is your first name')
-    await act(async () => change(container.querySelector('input')!, 'Alexa'))
-    await act(async () => button(container, 'Continue')?.click())
-    expect(container.textContent).toContain('What is your last name')
-    await act(async () => button(container, 'Continue')?.click())
-    expect(container.textContent).toContain('Alexa Taylor')
-    expect(container.textContent).toContain('alex@example.com')
+    expect(container.textContent).toContain('Continue with BlinkPay')
+    expect(container.textContent).toContain('complete your payment setup with your bank')
+    expect(container.textContent).toContain('You’re giving $55.00 to General every month, starting tomorrow.')
+    expect(container.textContent).not.toContain('$55.00 NZD')
   })
 
   it('keeps one-off plainly selectable without showing a starting-date step', async () => {
     await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} />))
     await act(async () => change(container.querySelector('input')!, '25'))
     await act(async () => button(container, 'Continue')?.click())
-    expect(button(container, 'One-off gift')).toBeTruthy()
-    await act(async () => button(container, 'One-off gift')?.click())
+    await act(async () => button(container, 'General')?.click())
+    expect(button(container, 'Just this once')).toBeTruthy()
+    await act(async () => button(container, 'Just this once')?.click())
     expect(container.textContent).toContain('What is your first name')
-    expect(container.textContent).not.toContain('When should it start')
+    expect(container.textContent).not.toContain('Starting when?')
+    const firstNameInput = container.querySelector<HTMLInputElement>('input')!
+    expect(document.activeElement).toBe(firstNameInput)
+    expect(firstNameInput.parentElement?.previousElementSibling?.className).toContain('sr-only')
+    expect(firstNameInput.parentElement?.className).toContain('min-h-20')
+    expect(firstNameInput.className).toContain('text-2xl')
+    expect(container.querySelector<HTMLButtonElement>('button[aria-label="Continue"]')).toBeNull()
+    expect(container.textContent).not.toContain('Sign in and keep these answers')
+    await act(async () => change(firstNameInput, 'Ada'))
+    expect(container.querySelector<HTMLButtonElement>('button[aria-label="Continue"]')).toBeTruthy()
+    await act(async () => button(container, 'Continue')?.click())
+    const lastNameInput = container.querySelector<HTMLInputElement>('input')!
+    expect(document.activeElement).toBe(lastNameInput)
+    await act(async () => change(lastNameInput, 'Lovelace'))
+    await act(async () => button(container, 'Continue')?.click())
+    const emailInput = container.querySelector<HTMLInputElement>('input')!
+    expect(document.activeElement).toBe(emailInput)
+    expect(emailInput.type).toBe('text')
+    expect(emailInput.inputMode).toBe('email')
+    await act(async () => change(emailInput, 'ada'))
+    await act(async () => button(container, 'Continue')?.click())
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe('Enter a valid email address.')
+    expect(container.textContent).toContain('What is your email?')
+    await act(async () => change(emailInput, 'ada@example.com'))
+    await act(async () => button(container, 'Continue')?.click())
+    expect(container.textContent).toContain('Continue with BlinkPay')
+    expect(container.textContent).toContain('You’re giving $25.00 to General just this once.')
+  })
+
+  it('shows direct bank-transfer details when the BlinkPay rollout flag is off', async () => {
+    givingContext.blinkPayEnabled=false
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} sandboxPreview identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
+    await act(async()=>change(container.querySelector('input')!,'25'))
+    await act(async()=>button(container,'Continue')?.click())
+    await act(async()=>button(container,'General')?.click())
+    await act(async()=>button(container,'Just this once')?.click())
+    expect(container.textContent).toContain('Use these details in your banking app')
+    expect(container.textContent).toContain('Auckland Evangelical Church Trust')
+    expect(container.textContent).toContain('01-1845-0008260-05')
+    expect(container.textContent).toContain('GENERAL')
+    expect(container.textContent).toContain('EVPREVIEW')
+    expect(container.textContent).toContain("I've set this up")
+    expect(container.querySelectorAll('button[aria-label^="Copy "]')).toHaveLength(5)
+    expect(container.querySelectorAll('a[data-bank-shortcut]')).toHaveLength(0)
+    expect(container.textContent).not.toContain('Open your bank')
+    expect(container.textContent).not.toContain('official New Zealand website')
+    await act(async()=>container.querySelector<HTMLButtonElement>('button[aria-label="Copy account number"]')?.click())
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('01-1845-0008260-05')
+    expect(container.textContent).toContain('Copied')
+    await act(async()=>button(container,"I've set this up")?.click())
+    expect(container.textContent).toContain("Thanks — we've recorded that you set this up")
+    expect(container.textContent).not.toContain('Continue to BlinkPay')
+    expect(container.querySelector('[data-turnstile]')).toBeNull()
+  })
+
+  it('resolves the real Rock reference before displaying production bank-transfer instructions', async () => {
+    givingContext.blinkPayEnabled=false
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      if (String(input) === '/api/giving/bank-transfer') return new Response(JSON.stringify({
+          accountName: 'Auckland Evangelical Church Trust',
+          accountNumber: '01-1845-0008260-05',
+          particulars: 'GENERAL',
+          code: 'ALOVELACE',
+          reference: 'EV123',
+          acknowledgementToken: 'A'.repeat(43),
+        }), { status: 200, headers: { 'content-type': 'application/json' } })
+      if (String(input) === '/api/giving/bank-transfer/acknowledge') return new Response(JSON.stringify({ acknowledged: true, verified: false }), { status: 200, headers: { 'content-type': 'application/json' } })
+      return new Response(null, { status: 204 })
+    })
+    await reachSignedInReview(container, root)
+    expect(container.textContent).not.toContain('Show bank transfer details')
+    expect(container.textContent).toContain('Preparing your bank details')
+    await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    expect(container.textContent).toContain('EV123')
+    expect(container.textContent).toContain('ALOVELACE')
+    const call = vi.mocked(fetch).mock.calls.find(([input]) => String(input) === '/api/giving/bank-transfer')
+    expect(call?.[1]?.headers).toMatchObject({ 'x-ev-giving-request': 'bank-transfer-v1' })
+    expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input) === '/api/giving/checkouts')).toBe(false)
+    await act(async()=>button(container,"I've set this up")?.click())
+    expect(container.textContent).toContain("Thanks — we've recorded that you set this up")
+    const acknowledgement = vi.mocked(fetch).mock.calls.find(([input]) => String(input) === '/api/giving/bank-transfer/acknowledge')
+    expect(acknowledgement?.[1]?.headers).toMatchObject({ 'x-ev-giving-request': 'bank-transfer-acknowledgement-v1' })
+    expect(JSON.parse(String(acknowledgement?.[1]?.body))).toEqual({ token: 'A'.repeat(43) })
+  })
+
+  it.each([
+    ['a server failure', new Response(JSON.stringify({ error: 'Giving unavailable' }), { status: 503, headers: { 'content-type': 'application/json' } })],
+    ['an invalid response', new Response(JSON.stringify({ accountName: 'Wrong account' }), { status: 200, headers: { 'content-type': 'application/json' } })],
+  ])('keeps bank-transfer preparation retryable after %s', async (_label, bankResponse) => {
+    givingContext.blinkPayEnabled = false
+    vi.mocked(fetch).mockImplementation(async (input) => String(input) === '/api/giving/bank-transfer'
+      ? bankResponse.clone()
+      : new Response(null, { status: 204 }))
+    await reachSignedInReview(container, root)
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('could not prepare your bank transfer details')
+    expect(button(container, 'Show bank transfer details')).toBeUndefined()
+    expect(container.querySelector<HTMLButtonElement>('[data-turnstile]')).toBeTruthy()
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    expect(vi.mocked(fetch).mock.calls.filter(([input]) => String(input) === '/api/giving/bank-transfer')).toHaveLength(2)
+  })
+
+  it('returns from a failed BlinkPay handoff to the completed email step without leaking its error', async () => {
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      const url = String(input)
+      if (url === '/api/giving/drafts' && init?.method === 'PUT') return new Response(null, { status: 204 })
+      if (url === '/api/giving/checkouts') {
+        return new Response(JSON.stringify({ gatewayRedirectUri: 'https://evil.test/gateway' }), {
+          status: 201,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      return new Response(null, { status: 204 })
+    })
+    await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} />))
+    await act(async () => change(container.querySelector('input')!, '25'))
+    await act(async () => button(container, 'Continue')?.click())
+    await act(async () => button(container, 'General')?.click())
+    await act(async () => button(container, 'Every month')?.click())
+    await act(async () => button(container, 'Tomorrow')?.click())
+    await act(async () => change(container.querySelector('input')!, 'Ada'))
+    await act(async () => button(container, 'Continue')?.click())
+    await act(async () => change(container.querySelector('input')!, 'Lovelace'))
+    await act(async () => button(container, 'Continue')?.click())
+    await act(async () => change(container.querySelector('input')!, 'ada@example.com'))
+    await act(async () => button(container, 'Continue')?.click())
+    expect(container.textContent).toContain('Continue with BlinkPay')
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    await act(async () => button(container, 'Continue to BlinkPay')?.click())
+    expect(container.textContent).toContain('gift details are saved')
+    await act(async () => givingContext.back?.())
+    expect(container.textContent).toContain('What is your email?')
+    expect(container.querySelector<HTMLInputElement>('input')?.value).toBe('ada@example.com')
+    expect(container.textContent).not.toContain('gift details are saved')
+  })
+
+  it('shows progress at the bottom without step-in-progress copy', async () => {
+    await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} />))
+    const progress = container.querySelector<HTMLElement>('[role="progressbar"]')
+    const amountInput = container.querySelector<HTMLInputElement>('input')
+    expect(container.textContent).not.toContain('Step in progress')
+    expect(amountInput?.placeholder).toBe('1.00')
+    expect(container.querySelector<HTMLButtonElement>('button[aria-label="Continue"]')).toBeNull()
+    await act(async () => change(amountInput!, '0.99'))
+    expect(container.querySelector<HTMLButtonElement>('button[aria-label="Continue"]')).toBeNull()
+    await act(async () => change(amountInput!, '1.00'))
+    expect(container.querySelector<HTMLButtonElement>('button[aria-label="Continue"]')).toBeTruthy()
+    expect(progress?.getAttribute('aria-label')).toBe('Giving progress')
+    expect(progress?.className).toContain('h-5')
+    expect(progress?.getAttribute('aria-valuenow')).toBe(String(givingProgress('amount', null)))
+    expect(container.querySelector('[data-giving-step]')?.className).toContain('animate-fade-in')
+    expect(progress?.firstElementChild?.className).toContain('duration-500')
   })
 
   it('allows successive amount digits and a decimal without rewriting the field mid-entry', async () => {
@@ -122,7 +341,11 @@ describe('GivingFlow', () => {
       await act(async () => change(input, value))
       expect(input.value).toBe(value)
     }
+    await act(async () => change(input, '12.345'))
+    expect(input.value).toBe('12.34')
     await act(async () => button(container, 'Continue')?.click())
+    expect(container.textContent).toContain('What fund should this be for')
+    await act(async () => button(container, 'General')?.click())
     expect(container.textContent).toContain('How often')
   })
 
@@ -134,9 +357,9 @@ describe('GivingFlow', () => {
     } }), { status: 200, headers: { 'content-type': 'application/json' } }))
     await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested identity={{ signedIn: true, firstName: 'Fresh', lastName: 'Member', email: 'fresh@example.com' }} />))
     await act(async () => Promise.resolve())
-    expect(container.textContent).toContain('Review your gift')
-    expect(container.textContent).toContain('Fresh Member')
-    expect(container.textContent).toContain('fresh@example.com')
+    expect(container.textContent).toContain('Continue with BlinkPay')
+    expect(container.textContent).not.toContain('Fresh Member')
+    expect(container.textContent).not.toContain('fresh@example.com')
   })
 
   it('asks only for email when that is the fresh signed-in identity field still missing', async () => {
@@ -170,29 +393,58 @@ describe('GivingFlow', () => {
     await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
     await act(async()=>change(container.querySelector('input')!,'25'))
     await act(async()=>button(container,'Continue')?.click())
-    await act(async()=>button(container,'One-off gift')?.click())
+    await act(async()=>button(container,'General')?.click())
+    await act(async()=>button(container,'Just this once')?.click())
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
-    await act(async()=>button(container,'Continue to secure')?.click())
+    await act(async()=>button(container,'Continue to BlinkPay')?.click())
     expect(container.textContent).toContain('gift details are saved')
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
-    await act(async()=>button(container,'Continue to secure')?.click())
+    await act(async()=>button(container,'Continue to BlinkPay')?.click())
     expect(checkoutBodies).toHaveLength(2)
     expect(checkoutBodies[0].submissionKey).toBe(checkoutBodies[1].submissionKey)
     expect(String(checkoutBodies[0].submissionKey)).toHaveLength(43)
     expect(vi.mocked(fetch).mock.calls.some(([input])=>String(input).startsWith('/give/resume/'))).toBe(false)
   })
 
-  it('requires a fresh Turnstile token after leaving Review or editing an answer', async () => {
+  it('uses the direct Sandbox endpoint in preview without creating a saved EV draft', async () => {
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      if (String(input) === '/api/giving/preview-checkouts') {
+        return new Response(JSON.stringify({ outcome: 'unknown', retryAllowed: false }), {
+          status: 202,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      return new Response(null, { status: 404 })
+    })
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} sandboxPreview identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
+    await act(async()=>change(container.querySelector('input')!,'25'))
+    await act(async()=>button(container,'Continue')?.click())
+    await act(async()=>button(container,'General')?.click())
+    await act(async()=>button(container,'Just this once')?.click())
+    await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    await act(async()=>button(container,'Continue to BlinkPay')?.click())
+
+    expect(vi.mocked(fetch).mock.calls.some(([input])=>String(input)==='/api/giving/preview-checkouts')).toBe(true)
+    expect(vi.mocked(fetch).mock.calls.some(([input])=>String(input)==='/api/giving/drafts')).toBe(false)
+    expect(container.textContent).toContain('Sandbox may have received this request')
+    await act(async()=>givingContext.back?.())
+    expect(container.textContent).toContain('How often?')
+    expect(container.textContent).not.toContain('Sandbox may have received this request')
+  })
+
+  it('requires a fresh Turnstile token after leaving the BlinkPay handoff', async () => {
     await reachSignedInReview(container, root)
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
-    expect(button(container,'Continue to secure')?.disabled).toBe(false)
-    await act(async()=>button(container,'Amount')?.click())
-    await act(async()=>change(container.querySelector('input')!,'30'))
-    await act(async()=>button(container,'Continue')?.click())
-    expect(container.textContent).toContain('Review your gift')
-    expect(button(container,'Continue to secure')?.disabled).toBe(true)
+    expect(button(container,'Continue to BlinkPay')?.disabled).toBe(false)
+    await act(async()=>givingContext.back?.())
+    expect(container.textContent).toContain('How often?')
+    await act(async()=>button(container,'Every month')?.click())
+    expect(container.textContent).toContain('Starting when?')
+    await act(async()=>button(container,'This Friday')?.click())
+    expect(container.textContent).toContain('Continue with BlinkPay')
+    expect(button(container,'Continue to BlinkPay')?.disabled).toBe(true)
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
-    expect(button(container,'Continue to secure')?.disabled).toBe(false)
+    expect(button(container,'Continue to BlinkPay')?.disabled).toBe(false)
   })
 
   it('consumes Back and Close while checkout submission is pending and preserves its draft on unmount', async () => {
@@ -206,7 +458,7 @@ describe('GivingFlow', () => {
     })
     await reachSignedInReview(container, root)
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
-    await act(async()=>button(container,'Continue to secure')?.click())
+    await act(async()=>button(container,'Continue to BlinkPay')?.click())
     expect(givingContext.back?.()).toBe(true)
     expect(givingContext.close?.()).toBe(true)
     expect(container.textContent).toContain('Please wait')
@@ -228,9 +480,10 @@ describe('GivingFlow', () => {
     await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
     await act(async()=>change(container.querySelector('input')!,'25'))
     await act(async()=>button(container,'Continue')?.click())
-    await act(async()=>button(container,'One-off gift')?.click())
+    await act(async()=>button(container,'General')?.click())
+    await act(async()=>button(container,'Just this once')?.click())
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
-    await act(async()=>button(container,'Continue to secure')?.click())
+    await act(async()=>button(container,'Continue to BlinkPay')?.click())
     givingContext.active=false
     await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
     await act(async()=>resolveCheckout?.(new Response(JSON.stringify({gatewayRedirectUri:'https://sandbox.debit.blinkpay.co.nz/gateway/mock'}),{status:201,headers:{'content-type':'application/json'}})))
@@ -251,9 +504,10 @@ describe('GivingFlow', () => {
     await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
     await act(async()=>change(container.querySelector('input')!,'25'))
     await act(async()=>button(container,'Continue')?.click())
-    await act(async()=>button(container,'One-off gift')?.click())
+    await act(async()=>button(container,'General')?.click())
+    await act(async()=>button(container,'Just this once')?.click())
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
-    await act(async()=>button(container,'Continue to secure')?.click())
+    await act(async()=>button(container,'Continue to BlinkPay')?.click())
     expect(checkoutCalls).toBe(1)
     expect(container.textContent).toContain('still checking the outcome')
     expect(container.textContent).toContain('Do not try again')
@@ -342,12 +596,12 @@ describe('GivingFlow', () => {
     expect(container.textContent).toContain('How much would you like to give')
   })
 
-  it('auto-opens an unknown return with synthetic warning and no retry',async()=>{
+  it('auto-opens an unknown synthetic return without a retry action',async()=>{
     window.history.replaceState(null,'','/?giving=return')
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({state:'unknown',retryAllowed:false,kind:'recurring'}),{status:200,headers:{'content-type':'application/json'}}))
     await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested synthetic/>))
     await act(async()=>Promise.resolve())
-    expect(container.textContent).toContain('TEST DATA · BlinkPay sandbox')
+    expect(container.textContent).not.toContain('TEST DATA')
     expect(container.textContent).toContain('still checking the outcome')
     expect(container.textContent).toContain('Do not try again')
     expect(button(container,'Return to your saved gift')).toBeUndefined()

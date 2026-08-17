@@ -3,13 +3,13 @@ import { activateProductionOriginSandbox, productionOriginEnabled, stopProductio
 
 test.describe('manual production-origin BlinkPay sandbox evidence', () => {
   test.skip(!productionOriginEnabled, 'Explicit production base URL, exact-admin credentials and authenticated storage state are required')
-  test('protected session is visibly synthetic and tears down', async ({page}) => {
+  test('protected session opens giving and tears down', async ({page}) => {
     const session = await activateProductionOriginSandbox(page)
     try {
       await page.goto('/')
       await page.getByRole('button',{name:/Open next steps/i}).click()
       await page.getByRole('link',{name:'Give Now'}).click()
-      await expect(page.getByText(/TEST DATA · BlinkPay sandbox/i)).toBeVisible()
+      await expect(page.getByRole('heading',{name:/How much would you like to give/i})).toBeVisible()
     } finally {
       await stopProductionOriginSandbox(page,session.csrf)
     }
@@ -28,10 +28,10 @@ test.describe('manual production-origin BlinkPay sandbox evidence', () => {
       await page.getByRole('link',{name:'Give Now'}).click()
       const amountHeading=page.getByRole('heading',{name:/How much would you like to give/i})
       if(!await amountHeading.isVisible({timeout:15_000}))throw new Error('Giving did not open. Confirm the browser is in the approved PostHog test cohort and the protected admin session is valid.')
-      await expect(page.getByText(/TEST DATA · BlinkPay sandbox/i)).toBeVisible()
       await page.getByLabel('NZD amount').fill('1.00')
       await page.getByRole('button',{name:'Continue'}).click()
-      await page.getByRole('button',{name:/One-off gift/i}).click()
+      await page.getByRole('radio',{name:'General'}).click()
+      await page.getByRole('button',{name:/Just this once/i}).click()
       if(await page.getByRole('heading',{name:/first name/i}).isVisible()){
         await page.getByRole('textbox',{name:/first name/i}).fill('EV')
         await page.getByRole('button',{name:'Continue'}).click()
@@ -40,13 +40,12 @@ test.describe('manual production-origin BlinkPay sandbox evidence', () => {
         await page.getByRole('textbox',{name:/email/i}).fill(process.env.GIVING_E2E_ADMIN_EMAIL!)
         await page.getByRole('button',{name:'Continue'}).click()
       }
-      await expect(page.getByRole('heading',{name:'Review your gift'})).toBeVisible()
-      await expect(page.getByText(/TEST DATA · BlinkPay sandbox/i)).toBeVisible()
-      const submit=page.getByRole('button',{name:/Continue to secure bank authorisation/i})
+      await expect(page.getByRole('heading',{name:'Continue with BlinkPay'})).toBeVisible()
+      const submit=page.getByRole('button',{name:/Continue to BlinkPay/i})
       try{await expect(submit).toBeEnabled({timeout:60_000})}catch{throw new Error('Turnstile did not complete. Run this manual headed project and complete the interaction-only security prompt before its timeout.')}
       await submit.click()
-      await page.waitForURL((url)=>url.origin==='https://sandbox.debit.blinkpay.co.nz',{timeout:30_000})
-      expect(new URL(page.url()).origin).toBe('https://sandbox.debit.blinkpay.co.nz')
+      await page.waitForURL((url)=>url.origin==='https://sandbox.secure.blinkpay.co.nz',{timeout:30_000})
+      expect(new URL(page.url()).origin).toBe('https://sandbox.secure.blinkpay.co.nz')
     }finally{await stopProductionOriginSandbox(page,session.csrf)}
   })
 })

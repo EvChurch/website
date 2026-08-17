@@ -121,12 +121,15 @@ export function assertRedirectUri(value: string, allowedOrigins: readonly string
 
 export function assertCallbackUri(value: string, callbackOrigin: string) {
   let url: URL
+  let expected: URL
   try {
     url = new URL(value)
+    expected = new URL(callbackOrigin)
   } catch {
     throw new BlinkPayValidationError('callback URI')
   }
-  if (url.protocol !== 'https:' || url.username || url.password || url.origin !== callbackOrigin || url.hash) {
+  const loopback = expected.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(expected.hostname)
+  if ((expected.protocol !== 'https:' && !loopback) || callbackOrigin !== expected.origin || url.protocol !== expected.protocol || url.username || url.password || url.origin !== expected.origin || url.hash) {
     throw new BlinkPayValidationError('callback URI')
   }
   return url.toString()

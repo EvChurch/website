@@ -171,7 +171,7 @@ function checkoutFromRow(row: Record<string, unknown>): GivingCheckoutRecord {
   return {
     id: Number(row.checkout_id), contextKey: String(row.context_key), environment: row.environment as GivingEnvironment,
     synthetic: Boolean(row.synthetic), e2eRunId: row.e2e_run_id === null ? null : Number(row.e2e_run_id), giverId: Number(row.giver_id),
-    bankReference: String(row.bank_reference), fundId: Number(row.fund_id), fundName: String(row.fund_name), fundCode: String(row.fund_code),
+    bankReference: String(row.bank_reference), bankCode: String(row.bank_code), fundId: Number(row.fund_id), fundName: String(row.fund_name), fundCode: String(row.fund_code),
     fundAccountingKey: String(row.fund_accounting_key), amountMinor: Number(row.amount_minor), frequency: row.frequency as GivingCheckoutRecord['frequency'],
     firstPaymentDate, correlationKey: String(row.correlation_key),
     submissionKeyDigest: String(row.submission_key_digest), submissionDigest: String(row.submission_digest), gatewayRedirectUri: row.gateway_redirect_uri ? String(row.gateway_redirect_uri) : null,
@@ -448,7 +448,7 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
       return result.rows.map((row) => Number(row.id))
     },
     async authorisedConsentsWithoutSchedule(limit = 100) {
-      const result = await pool.query(`SELECT c.provider_consent_id,co.id checkout_id,co.context_key,co.environment,co.synthetic,co.e2e_run_id,co.giver_id,g.bank_reference,co.fund_id,co.fund_name,co.fund_code,co.fund_accounting_key,co.amount_minor,co.frequency,co.first_payment_date,co.correlation_key,co.submission_key_digest,co.submission_digest,co.gateway_redirect_uri,co.status checkout_status,co.result_code
+      const result = await pool.query(`SELECT c.provider_consent_id,co.id checkout_id,co.context_key,co.environment,co.synthetic,co.e2e_run_id,co.giver_id,g.bank_reference,co.bank_code,co.fund_id,co.fund_name,co.fund_code,co.fund_accounting_key,co.amount_minor,co.frequency,co.first_payment_date,co.correlation_key,co.submission_key_digest,co.submission_digest,co.gateway_redirect_uri,co.status checkout_status,co.result_code
         FROM giving_consents c JOIN giving_checkouts co ON co.id=c.checkout_id AND co.context_key=c.context_key JOIN giving_givers g ON g.id=co.giver_id AND g.context_key=co.context_key LEFT JOIN giving_schedules s ON s.consent_id=c.id WHERE c.status='authorised' AND s.id IS NULL ORDER BY c.updated_at LIMIT $1`, [limit])
       return result.rows.map((row) => ({ checkout: checkoutFromRow(row), providerConsentId: String(row.provider_consent_id) }))
     },

@@ -40,6 +40,20 @@ export interface PublicGivingFund {
   isDefault: boolean
 }
 
+export const GIVING_REQUEST_MARKERS = {
+  checkout: 'checkout-v1',
+  bankTransfer: 'bank-transfer-v1',
+  bankTransferAcknowledgement: 'bank-transfer-acknowledgement-v1',
+} as const
+
+export type GivingRequestMarker = typeof GIVING_REQUEST_MARKERS[keyof typeof GIVING_REQUEST_MARKERS]
+
+const GIVING_CAPABILITY_TOKEN = /^[A-Za-z0-9_-]{43}$/u
+
+export function isGivingCapabilityToken(value: unknown): value is string {
+  return typeof value === 'string' && GIVING_CAPABILITY_TOKEN.test(value)
+}
+
 export const GIVING_CHECKOUT_STATUS_STATES = ['processing','cancelled','rejected','expired','unknown','verified'] as const
 export type GivingCheckoutStatusState = typeof GIVING_CHECKOUT_STATUS_STATES[number]
 export interface GivingCheckoutStatus { state:GivingCheckoutStatusState;retryAllowed:boolean;kind:'one-off'|'recurring' }

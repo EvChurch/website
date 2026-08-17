@@ -5,6 +5,7 @@ const ORIGINS = {
   sandbox: 'https://sandbox.debit.blinkpay.co.nz',
   production: 'https://debit.blinkpay.co.nz',
 } as const
+const SANDBOX_GATEWAY_ORIGIN = 'https://sandbox.secure.blinkpay.co.nz'
 
 const CALLBACK_ORIGIN = 'https://www.ev.church' as const
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/u
@@ -76,8 +77,8 @@ export function loadBlinkPayConfig(
   const gatewayOrigin = environment === 'sandbox'
     ? (() => {
         const configured = env.BLINKPAY_SANDBOX_GATEWAY_URL
-        if (configured) exactOptionalUrl(configured, ORIGINS.sandbox)
-        return ORIGINS.sandbox
+        if (configured) exactOptionalUrl(configured, SANDBOX_GATEWAY_ORIGIN)
+        return SANDBOX_GATEWAY_ORIGIN
       })()
     : exactHttpsOrigin(env.BLINKPAY_PRODUCTION_GATEWAY_URL)
 

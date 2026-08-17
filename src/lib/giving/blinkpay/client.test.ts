@@ -41,6 +41,27 @@ const pcr = { particulars: 'EV123', code: 'GENERAL', reference: 'DONATION' }
 const operationKeys = { requestId: 'test-request-id-0001', idempotencyKey: 'test-idempotency-key-0001' }
 
 describe('BlinkPay configuration', () => {
+  it('uses the runtime UUID generator without requiring an injected test replacement', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(json(token))
+      .mockResolvedValueOnce(json({
+        quick_payment_id: '11111111-1111-4111-8111-111111111111',
+        redirect_uri: 'https://sandbox.secure.blinkpay.co.nz/gateway/quick',
+      }, 201))
+    const runtimeClient = createBlinkPayClient({
+      config: loadBlinkPayConfig('sandbox', sandboxEnv),
+      fetchImpl,
+    })
+
+    await expect(runtimeClient.createQuickPayment({
+      type: 'single',
+      flow: { detail: { type: 'gateway', redirect_uri: 'https://www.ev.church/give/return/test' } },
+      amount,
+      pcr,
+    }, operationKeys)).resolves.toMatchObject({ outcome: 'succeeded' })
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
   it('hard-codes exact environment origins and loads only selected credentials', () => {
     const config = loadBlinkPayConfig('sandbox', new Proxy(sandboxEnv, {
       get(target, property: string) {
@@ -50,7 +71,7 @@ describe('BlinkPay configuration', () => {
     }))
     expect(config.oauthTokenUrl).toBe('https://sandbox.debit.blinkpay.co.nz/oauth2/token')
     expect(config.apiBaseUrl).toBe('https://sandbox.debit.blinkpay.co.nz/payments/v1/')
-    expect(config.gatewayOrigins).toEqual(['https://sandbox.debit.blinkpay.co.nz'])
+    expect(config.gatewayOrigins).toEqual(['https://sandbox.secure.blinkpay.co.nz'])
     expect(Object.isFrozen(config)).toBe(true)
   })
 
@@ -91,7 +112,7 @@ describe('BlinkPay client', () => {
       .mockResolvedValueOnce(json(token))
       .mockResolvedValueOnce(json({
         quick_payment_id: '11111111-1111-4111-8111-111111111111',
-        redirect_uri: 'https://sandbox.debit.blinkpay.co.nz/gateway/quick',
+        redirect_uri: 'https://sandbox.secure.blinkpay.co.nz/gateway/quick',
       }, 201))
     const api = client(fetchImpl as unknown as typeof fetch)
 
@@ -205,8 +226,8 @@ describe('BlinkPay client', () => {
   it('uses representative exact quick, enduring and fixed recurring bodies and validates returned gateway URLs', async () => {
     const fetchImpl = vi.fn()
       .mockResolvedValueOnce(json(token))
-      .mockResolvedValueOnce(json({ quick_payment_id: '11111111-1111-4111-8111-111111111111', redirect_uri: 'https://sandbox.debit.blinkpay.co.nz/gateway/quick' }, 201))
-      .mockResolvedValueOnce(json({ consent_id: '22222222-2222-4222-8222-222222222222', redirect_uri: 'https://sandbox.debit.blinkpay.co.nz/gateway/consent' }, 201))
+      .mockResolvedValueOnce(json({ quick_payment_id: '11111111-1111-4111-8111-111111111111', redirect_uri: 'https://sandbox.secure.blinkpay.co.nz/gateway/quick' }, 201))
+      .mockResolvedValueOnce(json({ consent_id: '22222222-2222-4222-8222-222222222222', redirect_uri: 'https://sandbox.secure.blinkpay.co.nz/gateway/consent' }, 201))
       .mockResolvedValueOnce(json({ fixed_recurring_payment_id: '33333333-3333-4333-8333-333333333333' }, 201))
     const api = client(fetchImpl as unknown as typeof fetch)
     await api.createQuickPayment({ type: 'single', flow: { detail: { type: 'gateway', redirect_uri: 'https://www.ev.church/give/return' } }, amount, pcr }, operationKeys)
@@ -307,7 +328,7 @@ describe('BlinkPay client', () => {
     expect(error).toBeInstanceOf(BlinkPayClientError)
     expect(String(error)).not.toContain('provider-secret-body')
 
-    const poisoned = vi.fn().mockResolvedValueOnce(json(token)).mockResolvedValueOnce(json({ quick_payment_id: '11111111-1111-4111-8111-111111111111', redirect_uri: 'https://sandbox.debit.blinkpay.co.nz.evil.test/gateway' }, 201))
+    const poisoned = vi.fn().mockResolvedValueOnce(json(token)).mockResolvedValueOnce(json({ quick_payment_id: '11111111-1111-4111-8111-111111111111', redirect_uri: 'https://sandbox.secure.blinkpay.co.nz.evil.test/gateway' }, 201))
     await expect(client(poisoned as unknown as typeof fetch).createQuickPayment({ type: 'single', flow: { detail: { type: 'gateway', redirect_uri: 'https://www.ev.church/give/return' } }, amount, pcr }, operationKeys)).resolves.toMatchObject({ outcome: 'unknown', reason: 'response-invalid' })
   })
 

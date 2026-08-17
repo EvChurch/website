@@ -64,12 +64,23 @@ describe('giving state', () => {
     state = {
       ...state,
       step: 'review',
+      fundConfirmed: true,
       answers: { ...state.answers, amountMinor: 5000, frequency: 'monthly', startDate: '2026-09-01' },
     }
     state = givingReducer(state, { type: 'edit', step: 'amount', returnTo: 'review' })
     state = givingReducer(state, { type: 'commitAmount', amountMinor: 7500 })
     expect(state.step).toBe('review')
     expect(state.answers).toMatchObject({ amountMinor: 7500, frequency: 'monthly', startDate: '2026-09-01', email: 'alex@example.com' })
+  })
+
+  it('requires an explicit fund confirmation while retaining the default selection', () => {
+    let state = createGivingState(funds)
+    state = givingReducer(state, { type: 'commitAmount', amountMinor: 5000 })
+    expect(state.step).toBe('fund')
+    expect(state.answers.fund).toBe(funds[1])
+    state = givingReducer(state, { type: 'setFund', fund: funds[1] })
+    state = givingReducer(state, { type: 'next' })
+    expect(state.step).toBe('frequency')
   })
 
   it('uses the actual missing identity set after restoring a signed-in draft', () => {

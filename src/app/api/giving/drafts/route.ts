@@ -11,17 +11,12 @@ import {
   type GivingDraftBinding,
 } from '@/lib/giving/drafts'
 import { getPayloadClient } from '@/lib/payload'
+import { GIVING_PRIVATE_HEADERS } from '@/lib/giving/request-boundary'
 import { isSameOriginRequest } from '@/lib/request-origin'
 
 export const dynamic = 'force-dynamic'
 
 const MAX_BODY_BYTES = 8_192
-export const GIVING_PRIVATE_HEADERS = {
-  'Cache-Control': 'private, no-store, max-age=0',
-  'Referrer-Policy': 'no-referrer',
-  'X-Robots-Tag': 'noindex, nofollow, noarchive',
-} as const
-
 async function currentSubject() {
   try {
     const session = await getAuth0Client().getSession()

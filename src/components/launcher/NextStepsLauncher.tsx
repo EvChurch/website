@@ -636,10 +636,9 @@ export function NextStepsLauncher({
               }
             />
             <a
-              href="https://give.ev.church"
+              href="/give"
               className="group flex w-full animate-fade-in items-center justify-between gap-4 rounded-2xl border border-warm-grey/70 bg-white px-5 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-rich-red/35 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red motion-reduce:animate-none"
               style={{ animationDelay: "250ms" }}
-              onClick={giving.handleGivingLinkClick}
             >
               <span className="block text-lg font-semibold text-brand-black">
                 Give Now
@@ -681,7 +680,7 @@ export function NextStepsLauncher({
         return renderCatalogue();
       case "giving":
         return giving.givingExperience ? (
-          <div data-giving-private>{giving.givingExperience}</div>
+          <div className="h-full" data-giving-private>{giving.givingExperience}</div>
         ) : null;
       case "feedback":
         return feedback ? (
@@ -854,7 +853,7 @@ export function NextStepsLauncher({
                 className={
                   state.view.type === "content"
                     ? "w-full"
-                    : "mx-auto w-full max-w-2xl"
+                    : `mx-auto w-full max-w-2xl ${state.view.type === "giving" ? "h-full" : ""}`
                 }
               >
                 {renderView()}
