@@ -28,6 +28,7 @@ describe('member chrome route', () => {
     vi.clearAllMocks()
     mocks.isCurrentPayloadAdmin.mockResolvedValue(false)
     mocks.getTurnstileSiteKey.mockReturnValue('turnstile-key')
+    vi.stubEnv('POSTHOG_IDENTITY_SECRET', 'p'.repeat(32))
   })
 
   it('short-circuits anonymous requests before initializing Auth0', async () => {
@@ -63,6 +64,7 @@ describe('member chrome route', () => {
       impersonation: null,
       givingResumeRequested: false,
       givingTurnstileSiteKey: 'turnstile-key',
+      postHogIdentity: null,
     })
     expect(mocks.isCurrentPayloadAdmin).not.toHaveBeenCalled()
   })
@@ -110,6 +112,11 @@ describe('member chrome route', () => {
       },
       givingResumeRequested: false,
       givingTurnstileSiteKey: 'turnstile-key',
+      postHogIdentity: {
+        distinctId: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/u),
+        name: 'Aroha Ngata',
+        email: 'aroha@example.com',
+      },
     })
   })
 

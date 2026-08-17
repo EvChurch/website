@@ -49,6 +49,7 @@ export function PublicChrome({
   const [memberChrome, setMemberChrome] = useState<MemberChromeState>(ANONYMOUS_MEMBER_CHROME)
   const [givingResumeRequested, setGivingResumeRequested] = useState(false)
   const [givingTurnstileSiteKey, setGivingTurnstileSiteKey] = useState('')
+  const [memberChromeResolved, setMemberChromeResolved] = useState(false)
 
   useLayoutEffect(() => {
     if (initialRoute.current) {
@@ -91,6 +92,9 @@ export function PublicChrome({
       .catch(() => {
         // Anonymous chrome is the safe fallback when private state is unavailable.
       })
+      .finally(() => {
+        if (!cancelled) setMemberChromeResolved(true)
+      })
 
     return () => { cancelled = true }
   }, [sharedResource])
@@ -120,7 +124,7 @@ export function PublicChrome({
       givingExperience={givingExperience}
     >
       <MediaPlayerProvider>
-        <AnalyticsManager />
+        <AnalyticsManager postHogIdentity={memberChromeResolved ? memberChrome.postHogIdentity : undefined} />
         {announcement}
         <SiteHeader
           feedback={feedback}
