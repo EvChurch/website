@@ -32,6 +32,10 @@ describe('MemberAccountControl', () => {
 
   beforeEach(() => {
     navigation.pathname = '/sermons'
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({
+      status: 'available', actionableCount: 0, items: [],
+      overflowHref: '/members/my-service', hasMore: false,
+    })))))
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
@@ -40,6 +44,7 @@ describe('MemberAccountControl', () => {
   afterEach(async () => {
     await act(async () => root.unmount())
     container.remove()
+    vi.unstubAllGlobals()
   })
 
   it('renders a plain signed-out link with the current safe path', async () => {
@@ -104,6 +109,7 @@ describe('MemberAccountControl', () => {
     expect(menu?.textContent).toContain('aroha@example.com')
     expect(menu?.querySelector('img')).not.toBeNull()
     expect(menu?.textContent).toContain('Overview')
+    expect(menu?.textContent).toContain('My Service')
     expect(menu?.textContent).toContain('Connect Group')
     expect(menu?.textContent).toContain('Admin')
     expect(menu?.textContent).toContain('Log out')
@@ -114,6 +120,7 @@ describe('MemberAccountControl', () => {
     const links = [...(menu?.querySelectorAll<HTMLAnchorElement>('a') ?? [])]
       .map((link) => link.getAttribute('href'))
     expect(links).toContain('/members')
+    expect(links).toContain('/members/my-service')
     expect(links).toContain('/members/connect-groups')
     expect(links).toContain('/admin/impersonate')
     expect(links.some(l => l?.startsWith('/auth/logout'))).toBe(true)
@@ -272,12 +279,14 @@ describe('MemberAccountControl', () => {
     expect(trigger.textContent).toContain('Aroha Ngata')
     expect(trigger.textContent).toContain('aroha@example.com')
     expect(expandedPanel?.textContent).toContain('Overview')
+    expect(expandedPanel?.textContent).toContain('My Service')
     expect(expandedPanel?.textContent).toContain('Connect Group')
     expect(expandedPanel?.textContent).toContain('Log out')
 
     const links = [...(expandedPanel?.querySelectorAll<HTMLAnchorElement>('a') ?? [])]
       .map((link) => link.getAttribute('href'))
     expect(links).toContain('/members')
+    expect(links).toContain('/members/my-service')
     expect(links).toContain('/members/connect-groups')
     expect(links.some(l => l?.startsWith('/auth/logout'))).toBe(true)
     const privateLinks = [...container.querySelectorAll<HTMLAnchorElement>(
@@ -328,8 +337,9 @@ describe('MemberAccountControl', () => {
     await act(async () => root.render(<Header memberProfile={member} />))
 
     const give = container.querySelector<HTMLAnchorElement>('a[href="/give"]')!
-    // Desktop trigger is after Give
-    expect(give.nextElementSibling?.querySelector('button[aria-haspopup="true"]')).not.toBeNull()
+    const bell = container.querySelector<HTMLElement>('[data-member-notifications]')!
+    // The one shared bell follows Give and precedes both responsive account surfaces.
+    expect(give.compareDocumentPosition(bell) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
 
     // 2 hover-menu triggers (desktop + mobile-icon) with aria-label
     const accountTriggers = container.querySelectorAll(
@@ -338,8 +348,9 @@ describe('MemberAccountControl', () => {
     expect(accountTriggers).toHaveLength(2)
 
     const hamburger = container.querySelector<HTMLButtonElement>('button[aria-label="Open menu"]')!
-    // Mobile-icon (hover menu, aria-haspopup="true") is the previous sibling
+    // Mobile account trigger sits immediately before the hamburger; the shared bell precedes both.
     expect(hamburger.previousElementSibling?.querySelector('button[aria-haspopup="true"]')).not.toBeNull()
+    expect(bell.compareDocumentPosition(hamburger) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
 
     // Drawer: find via aria-expanded + chevron SVG
     const drawerAccount = container.querySelector<HTMLButtonElement>(
@@ -351,6 +362,36 @@ describe('MemberAccountControl', () => {
     expect(
       drawerAccount.compareDocumentPosition(planVisit) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0)
+  })
+
+  it('shows notifications only for resolved members and keeps header overlays mutually exclusive', async () => {
+    await act(async () => root.render(<Header memberProfile={null} />))
+    expect(container.querySelector('[data-member-notifications]')).toBeNull()
+
+    await act(async () => root.render(<Header memberProfile={member} />))
+    await act(async () => Promise.resolve())
+    const header = container.querySelector<HTMLElement>('header')!
+    const account = header.querySelectorAll<HTMLButtonElement>(
+      'button[aria-label="Open account for Aroha Ngata"]',
+    )[0]!
+    const bell = header.querySelector<HTMLButtonElement>(
+      '[data-member-notifications] button[aria-controls]',
+    )!
+
+    await act(async () => account.click())
+    expect(header.querySelector('[role="menu"]')).not.toBeNull()
+    await act(async () => bell.click())
+    expect(header.querySelector('[role="menu"]')).toBeNull()
+    expect(bell.getAttribute('aria-expanded')).toBe('true')
+
+    await act(async () => account.click())
+    expect(bell.getAttribute('aria-expanded')).toBe('false')
+    expect(header.querySelector('[role="menu"]')).not.toBeNull()
+
+    const hamburger = container.querySelector<HTMLButtonElement>('button[aria-label="Open menu"]')!
+    await act(async () => hamburger.click())
+    expect(header.querySelector('[role="menu"]')).toBeNull()
+    expect(hamburger.getAttribute('aria-expanded')).toBe('true')
   })
 
   it('keeps Next Steps as a navigation group without linking to a removed page', async () => {

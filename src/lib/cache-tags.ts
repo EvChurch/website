@@ -19,10 +19,13 @@ export const CACHE_TAGS = {
   pages: 'pages',
   blogPosts: 'blog-posts',
   announcements: 'announcements',
+  dailyBibleReadings: 'daily-bible-readings',
+  serviceGuide: 'service-guide',
   navigation: 'navigation',
   siteSettings: 'site-settings',
   sermonPipeline: 'sermon-pipeline',
   givingFunds: 'giving-funds',
+  missingPaths: 'missing-paths',
 } as const
 
 export type CacheTag = (typeof CACHE_TAGS)[keyof typeof CACHE_TAGS]

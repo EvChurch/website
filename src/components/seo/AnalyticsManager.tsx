@@ -79,6 +79,7 @@ function initializePostHog(): boolean {
     autocapture: false,
     capture_pageview: false,
     capture_pageleave: false,
+    disable_surveys: true,
     disable_session_recording: false,
     enable_recording_console_log: false,
     mask_all_text: false,

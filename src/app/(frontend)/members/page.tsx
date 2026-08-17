@@ -26,6 +26,21 @@ export default async function MembersPage() {
     >
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         <Link
+          href="/members/my-service"
+          rel="nofollow"
+          className="group flex min-h-72 flex-col justify-between rounded-2xl bg-brand-black p-8 text-white shadow-lg shadow-brand-black/10 transition-transform hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-light-red-2"
+        >
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-light-red-2">Volunteer self service</p>
+            <h2 className="mt-5 text-4xl leading-tight text-white">My Service</h2>
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/65">
+              See scheduling requests that need a response and your confirmed upcoming commitments.
+            </p>
+          </div>
+          <p className="mt-8 text-sm font-bold text-light-red-2">View My Service</p>
+        </Link>
+
+        <Link
           href="/members/daily-readings"
           rel="nofollow"
           className="group flex min-h-72 flex-col justify-between rounded-2xl border border-warm-grey bg-white p-8 shadow-lg shadow-brand-black/5 transition-transform hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-light-red-2"

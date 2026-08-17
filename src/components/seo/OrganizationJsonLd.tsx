@@ -1,4 +1,5 @@
 import { SOCIAL_LINKS } from '@/lib/social-links'
+import { UNICHURCH_SCHEMA_ADDRESS } from '@/lib/seo-addresses'
 
 export function OrganizationJsonLd() {
   const data = {
@@ -28,14 +29,7 @@ export function OrganizationJsonLd() {
         addressRegion: 'Auckland',
         addressCountry: 'NZ',
       },
-      {
-        '@type': 'PostalAddress',
-        name: 'Unichurch',
-        streetAddress: '24 Princes Street',
-        addressLocality: 'Auckland CBD',
-        addressRegion: 'Auckland',
-        addressCountry: 'NZ',
-      },
+      UNICHURCH_SCHEMA_ADDRESS,
     ],
     isAccessibleForFree: true,
     publicAccess: true,

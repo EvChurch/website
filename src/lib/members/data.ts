@@ -1,4 +1,5 @@
 import { getCurrentMemberProfile } from '@/auth/member-session'
+import type { RockMemberProfile } from '@/auth/rock-member-profile'
 import {
   fetchConnectGroupAttendance,
   type GroupAttendanceOverview,
@@ -318,6 +319,19 @@ export async function getMemberPortalHome(): Promise<MemberPortalHome | null> {
     profile: toPortalProfile(context.profile),
     groups,
     canAccessLeaderResources: canAccessLeaderResources(context.participant),
+  }
+}
+
+export async function getMemberPortalHomeForProfile(
+  profile: RockMemberProfile,
+): Promise<MemberPortalHome> {
+  const payload = (await getPayloadClient()) as unknown as MemberPayloadClient
+  const participant = await findCurrentParticipant(payload, profile.personId)
+  const groups = await findMemberGroups(payload, participant)
+  return {
+    profile: toPortalProfile(profile),
+    groups,
+    canAccessLeaderResources: canAccessLeaderResources(participant),
   }
 }
 

@@ -68,7 +68,7 @@ There is no confirmed P0 crawl or indexing outage. Several previously identified
 1. Monitor the old numeric and `new.ev.church` URLs moving to the already-indexed slug canonicals; retain the permanent redirects and reinspect the legacy URLs after recrawl.
 2. Deploy and validate the completed GA4 event contract, then agree which successful outcomes are key events. Use the saved `www Organic Search landing pages` exploration rather than property-wide totals.
 3. Repeat mobile performance measurements, prioritising homepage, North, and Unichurch; inspect LCP render delay and the homepage hero priority hint before proposing more performance code.
-4. Normalize Unichurch schema as Old Government House (B102), 24 Princes Street, Auckland CBD, Auckland 1010, and add explicit parent links; do not invent telephone or office-hour fields.
+4. Normalize Unichurch schema as Old Government House (B102), 24 Princes Street, Auckland CBD, Auckland 1010; do not invent telephone or office-hour fields.
 5. Correct Central's ambiguous “heart of the city” tagline during the next approved content edit, then decide whether `resources.ev.church` or `/sermons` is the primary branded sermon destination.
 
 ### 6. What should we deliberately not spend time on?
@@ -462,7 +462,7 @@ No evidence was found for live sitemap parameter URLs, sitemap duplicate URLs, o
 
 - The schema validator reports the homepage and all three campuses as syntactically valid.
 - Live campus-specific street, postcode, coordinates, map identity, and Sunday hours are complete for all three locations.
-- Telephone, campus image, direct campus `sameAs`, and explicit `parentOrganization` are absent from campus entities. Add only verified real information; the missing fields are enhancements, not evidence that the current schema is invalid.
+- Telephone, campus image, and direct campus `sameAs` are absent from campus entities. Add only verified real information; the missing fields are enhancements, not evidence that the current schema is invalid.
 - The two Unichurch schema representations describe the same place, not conflicting locations: Old Government House is at 24 Princes Street, Auckland CBD, Auckland 1010. Normalize the fields so the venue name, unit/room, street address, locality, and postcode are all explicit and consistent. The organisation addresses are hard-coded while campus entities are synced, so sharing a source would reduce future drift risk.
 - Opening/service hours accurately reflect real Sunday gatherings.
 
@@ -470,7 +470,7 @@ Recommended model:
 
 - Keep the parent Ev Church `Church` entity and unique child campus `Church` entities.
 - Populate real `PostalAddress`, `GeoCoordinates`, image, and a stable identity link only where verified.
-- Keep `parentOrganization` pointing to `https://www.ev.church/#organization`.
+- Do not add `parentOrganization` to `Church`: Schema.org defines `Church` as a `PlaceOfWorship`, not an `Organization`.
 - Do not invent telephone numbers, office hours, or broader opening hours.
 
 ## Internal Linking
@@ -526,7 +526,7 @@ Conclusion: no cross-engine decline or Google-specific issue can be established 
 | P1 | GA4 outcome measurement needs production validation | Typed events and isolated Organic Search exploration exist; production collection and key events are unproven | Deploy/validate current events and agree key events; keep intent clicks distinct from successful outcomes | High measurement value, indirect traffic impact | S |
 | P1 | Mobile LCP remains inconsistent after image fix | Latest PSI lab: homepage 4.2 s; campuses about 10.1–10.5 s; origin field LCP 2.615 s | Run repeated PSI/Lighthouse and inspect render delay; fix only a reproducible bottleneck | Moderate UX benefit; possible SEO benefit | S investigation, implementation TBD |
 | P2 | Central tagline is geographically ambiguous | “In the heart of the city” while campus is Hillsborough | Change to accurate Hillsborough/south-central language | Low–moderate local clarity | XS |
-| P2 | Unichurch address fields are not normalized | Parent schema has `24 Princes Street`; campus schema has the venue name but omits the street number | Represent it consistently as Old Government House (B102), 24 Princes Street, Auckland CBD, Auckland 1010; add the parent relation | Clearer entity data; low ranking impact | XS–S |
+| P2 | Unichurch address fields are not normalized | Sitewide schema has `24 Princes Street`; campus schema has the venue name but omits the street number | Represent it consistently as Old Government House (B102), 24 Princes Street, Auckland CBD, Auckland 1010 | Clearer entity data; low ranking impact | XS–S |
 | P2 | Branded youth/kids snippets underperform | `ev youth`: 184 impressions, 0.5% CTR, pos 6.1; `ev kids`: 93, 0%, pos 8.6 | Inspect post-launch SERPs and refine title/description/CTA only if weakness persists | Moderate | S |
 | P2 | Sermon destinations may compete | Resources owns branded sermon visibility; new `/sermons` launched | Make an explicit primary-destination decision and align links/canonicals/redirects | Moderate | M–L |
 | P2 | Origin TTFB needs improvement | CrUX p75 1.007 s; dynamic layout/page reads | Profile cold/p75 server timing and cache only safe public data | Moderate | M |
@@ -573,8 +573,8 @@ No application code was changed during this audit refresh. The repository alread
 ### 5. Proposed P2: normalize the organisation and campus entity graph
 
 - **Files/components:** `src/components/seo/OrganizationJsonLd.tsx` (`OrganizationJsonLd`) and `src/components/seo/CampusJsonLd.tsx` (`CampusJsonLd`); use the current campus data source rather than duplicating verified addresses where practical.
-- **Proposed implementation:** Represent the one verified location consistently as Old Government House (B102), 24 Princes Street, Auckland CBD, Auckland 1010. Keep the venue name separate from `streetAddress` where the schema shape permits, and add `parentOrganization: {"@id":"https://www.ev.church/#organization"}` to each campus. Add image, telephone, or direct `sameAs` only when verified.
-- **Tests required:** Update `OrganizationJsonLd.test.tsx` and `CampusJsonLd.test.tsx` to assert identical verified address facts, stable `@id` values, and the child-to-parent link; rerun live schema validation on all four pages.
+- **Proposed implementation:** Represent the one verified location consistently as Old Government House (B102), 24 Princes Street, Auckland CBD, Auckland 1010. Keep the venue name separate from `streetAddress` and do not add organization-only properties to the `Church` place entities. Add image, telephone, or direct `sameAs` only when verified.
+- **Tests required:** Update `OrganizationJsonLd.test.tsx` and `CampusJsonLd.test.tsx` to assert identical verified address facts and stable `@id` values; rerun live schema validation on all four pages.
 - **SEO risk:** Low because this normalizes two descriptions of the same verified location; the main risk is accidentally dropping the venue/room detail while restructuring fields.
 
 ## Measurement Plan

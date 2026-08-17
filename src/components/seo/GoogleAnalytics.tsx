@@ -30,7 +30,7 @@ export function GoogleAnalytics({ pagePath }: { pagePath: string }) {
       <Script
         crossOrigin="anonymous"
         src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-        strategy="afterInteractive"
+        strategy="lazyOnload"
       />
       <Script id="google-analytics" strategy="afterInteractive">
         {`

@@ -25,6 +25,17 @@ interface MemberAccountControlProps {
   tone?: MemberAccountTone
   active?: boolean
   adminHref?: string
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+}
+
+function memberAccountMenuItems(adminHref?: string) {
+  return [
+    { label: 'Overview', href: '/members' },
+    { label: 'My Service', href: '/members/my-service' },
+    { label: 'Connect Group', href: '/members/connect-groups' },
+    ...(adminHref ? [{ label: 'Admin', href: adminHref }] : []),
+  ]
 }
 
 function PersonIcon({ className = 'h-8 w-8' }: { className?: string }) {
@@ -140,17 +151,26 @@ export function MemberAccountControl({
   tone = 'light',
   active = true,
   adminHref,
+  open: controlledOpen,
+  onOpenChange,
 }: MemberAccountControlProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [open, setOpen] = useState(false)
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const open = controlledOpen ?? uncontrolledOpen
   const [popoverMounted, setPopoverMounted] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const popoverId = `member-account-${useId().replace(/:/gu, '')}`
   const query = searchParams.toString()
   const currentPath = `${pathname || '/'}${query ? `?${query}` : ''}`
+  const previousPathRef = useRef(currentPath)
   const returnTo = encodeURIComponent(currentPath)
+
+  const setOpen = useCallback((nextOpen: boolean) => {
+    if (controlledOpen === undefined) setUncontrolledOpen(nextOpen)
+    onOpenChange?.(nextOpen)
+  }, [controlledOpen, onOpenChange])
 
   const close = useCallback((restoreFocus: boolean) => {
     setOpen(false)
@@ -158,11 +178,10 @@ export function MemberAccountControl({
     if (restoreFocus) {
       window.requestAnimationFrame(() => triggerRef.current?.focus())
     }
-  }, [])
+  }, [setOpen])
 
   const togglePopover = useCallback(() => {
     if (!active) return
-
     if (open) {
       close(false)
       return
@@ -177,7 +196,12 @@ export function MemberAccountControl({
   }, [active, close])
 
   useEffect(() => {
-    close(false)
+    if (!open) setPopoverMounted(false)
+  }, [open])
+
+  useEffect(() => {
+    if (currentPath !== previousPathRef.current) close(false)
+    previousPathRef.current = currentPath
   }, [currentPath, close])
 
   useEffect(() => {
@@ -284,29 +308,16 @@ export function MemberAccountControl({
         >
           <div className="overflow-hidden">
             <div className="pb-4 pl-4">
-              <a
-                href="/members"
-                rel="nofollow"
-                className="block py-2.5 text-sm text-mid-grey transition-colors hover:text-rich-red"
-              >
-                Overview
-              </a>
-              <a
-                href="/members/connect-groups"
-                rel="nofollow"
-                className="block py-2.5 text-sm text-mid-grey transition-colors hover:text-rich-red"
-              >
-                Connect Group
-              </a>
-              {adminHref && (
+              {memberAccountMenuItems(adminHref).map((item) => (
                 <a
-                  href={adminHref}
+                  key={item.href}
+                  href={item.href}
                   rel="nofollow"
                   className="block py-2.5 text-sm text-mid-grey transition-colors hover:text-rich-red"
                 >
-                  Admin
+                  {item.label}
                 </a>
-              )}
+              ))}
               <div className="my-1 border-t border-warm-grey/30" />
               <a
                 href={`/auth/logout?returnTo=${returnTo}`}
@@ -385,11 +396,7 @@ function MemberAccountHoverMenu({
 
   // Menu items
   const menuItems = useMemo(
-    () => [
-      { label: 'Overview', href: '/members' },
-      { label: 'Connect Group', href: '/members/connect-groups' },
-      ...(adminHref ? [{ label: 'Admin', href: adminHref }] : []),
-    ],
+    () => memberAccountMenuItems(adminHref),
     [adminHref],
   )
 
@@ -416,7 +423,6 @@ function MemberAccountHoverMenu({
   // Open on mouse enter
   function handleMouseEnter() {
     if (!active) return
-
     clearCloseTimer()
     isHoveringRef.current = true
     setPopoverMounted(true)
@@ -439,7 +445,6 @@ function MemberAccountHoverMenu({
   // Click fallback for non-hover devices
   function togglePopover() {
     if (!active) return
-
     if (open) {
       closePopover()
       window.requestAnimationFrame(() => triggerRef.current?.focus())

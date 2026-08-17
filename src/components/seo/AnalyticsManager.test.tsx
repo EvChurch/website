@@ -69,6 +69,7 @@ describe('AnalyticsManager', () => {
       expect.objectContaining({
         api_host: 'https://t.ev.church',
         autocapture: false,
+        disable_surveys: true,
         disable_session_recording: false,
         mask_all_element_attributes: false,
         mask_all_text: false,

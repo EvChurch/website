@@ -1,5 +1,7 @@
 import type { CollectionConfig } from 'payload'
 import { isEditor, publishedOnly } from '@/access/roles'
+import { createCacheInvalidationHook } from '@/hooks/revalidateCacheTags'
+import { CACHE_TAGS } from '@/lib/cache-tags'
 
 export const Announcements: CollectionConfig = {
   slug: 'announcements',
@@ -15,6 +17,10 @@ export const Announcements: CollectionConfig = {
     create: isEditor,
     update: isEditor,
     delete: isEditor,
+  },
+  hooks: {
+    afterChange: [createCacheInvalidationHook(CACHE_TAGS.announcements)],
+    afterDelete: [createCacheInvalidationHook(CACHE_TAGS.announcements)],
   },
   fields: [
     {

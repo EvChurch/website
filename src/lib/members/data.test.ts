@@ -614,6 +614,37 @@ describe('member data access', () => {
     await expect(getMemberResourceDetail(202)).resolves.toEqual({ access: 'denied' })
   })
 
+  it('authorizes coach-only resource details while still rejecting drafts', async () => {
+    const coachOnly = {
+      ...participant,
+      isCoach: true,
+      memberships: participant.memberships.map((membership) => ({
+        ...membership,
+        roleName: 'Member',
+        isLeader: false,
+      })),
+    }
+    payloadState.find.mockImplementation(async ({ collection, where }) => {
+      const rockIdCondition = where?.and?.find(
+        (condition: Record<string, unknown>) => 'rockId' in condition,
+      ) as { rockId?: { equals?: number } } | undefined
+      const requestedRockId = rockIdCondition?.rockId?.equals
+      return {
+        docs: collection === 'connect-group-participants'
+          ? [coachOnly]
+          : collection === 'connect-group-leader-resources' && requestedRockId
+            ? resources.filter((resource) => resource.rockId === requestedRockId)
+            : payloadDocs(collection),
+      }
+    })
+
+    await expect(getMemberResourceDetail(202)).resolves.toMatchObject({
+      access: 'granted',
+      resource: { rockId: 202 },
+    })
+    await expect(getMemberResourceDetail(203)).resolves.toEqual({ access: 'denied' })
+  })
+
   it('only resolves protected resource assets after the same leader and campus checks', async () => {
     await expect(getMemberResourceAsset(201, { kind: 'leader-notes' })).resolves.toEqual({
       kind: 'file',

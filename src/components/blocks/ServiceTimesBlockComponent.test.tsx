@@ -17,6 +17,8 @@ describe('ServiceTimesBlockComponent', () => {
     )
 
     expect(markup).toContain('Join us this Sunday')
+    expect(markup).toContain('text-deep-red')
+    expect(markup).not.toContain('tracking-[0.18em] text-rich-red')
     expect(markup).toContain('aria-label="Sunday service times"')
     expect(markup).toContain('grid-cols-1 sm:grid-cols-3')
     expect(markup).toContain('href="/campus/north"')

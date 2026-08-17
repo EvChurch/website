@@ -1,26 +1,15 @@
 import type { Metadata } from 'next'
-import { getPayloadClient } from '@/lib/payload'
+import { getSpeakerPageData } from '@/lib/sermon-pages'
 import { trackedNotFound } from '@/lib/tracked-not-found'
 import { getSermonAudioUrl, getSeriesBannerUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { SermonCard } from '@/components/sermons/SermonCard'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
 import { DEFAULT_OPEN_GRAPH_IMAGES, truncateMetaDescription } from '@/lib/seo-metadata'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 86400
 
 export async function generateStaticParams() {
   return []
-}
-
-async function getSpeakerBySlug(slug: string) {
-  const payload = await getPayloadClient()
-  const result = await payload.find({
-    collection: 'speakers',
-    where: { slug: { equals: slug } },
-    depth: 0,
-    limit: 1,
-  })
-  return result.docs[0] ?? null
 }
 
 export async function generateMetadata({
@@ -29,7 +18,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
   const { slug } = await params
-  const speaker = await getSpeakerBySlug(slug)
+  const { speaker } = await getSpeakerPageData(slug)
 
   if (!speaker) return {}
 
@@ -59,24 +48,10 @@ export default async function SpeakerPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const payload = await getPayloadClient()
-  const speaker = await getSpeakerBySlug(slug)
+  const { speaker, sermonsResult } = await getSpeakerPageData(slug)
 
   if (!speaker) trackedNotFound('sermons', 'speakers', slug)
-
-  // Fetch sermons by this speaker
-  const sermonsResult = await payload.find({
-    collection: 'sermons',
-    where: {
-      and: [
-        { isPublished: { equals: true } },
-        { or: [{ audioSpeaker: { equals: speaker.id } }, { 'videos.speaker': { equals: speaker.id } }] },
-      ],
-    },
-    sort: '-publishedAt',
-    limit: 200,
-    depth: 2,
-  })
+  if (!sermonsResult) trackedNotFound('sermons', 'speakers', slug)
 
   const breadcrumbItems = [
     { name: 'Home', url: 'https://www.ev.church' },

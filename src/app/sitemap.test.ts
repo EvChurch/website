@@ -1,8 +1,13 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   find: vi.fn(),
+  unstableCache: vi.fn((callback: unknown) => callback),
 }))
+
+vi.mock('next/cache', () => ({ unstable_cache: mocks.unstableCache }))
 
 vi.mock('@/lib/payload', () => ({
   getPayloadClient: vi.fn(async () => ({ find: mocks.find })),
@@ -12,7 +17,7 @@ import sitemap from './sitemap'
 
 describe('sitemap', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    mocks.find.mockReset()
     mocks.find.mockImplementation(async ({ collection }: { collection: string }) => ({
       docs:
         collection === 'pages'
@@ -35,5 +40,30 @@ describe('sitemap', () => {
     expect(urls).toContain('https://www.ev.church/sitemap')
     expect(urls).not.toContain('https://www.ev.church/next-steps')
     expect(urls).toContain('https://www.ev.church/give')
+  })
+
+  it('uses all source tags and a short fallback for mixed sitemap content', () => {
+    expect(mocks.unstableCache).toHaveBeenCalledWith(
+      expect.any(Function),
+      ['public-sitemap-sections'],
+      {
+        tags: [
+          'pages',
+          'campuses',
+          'events',
+          'blog-posts',
+          'sermons',
+          'sermon-series',
+          'speakers',
+          'topics',
+          'scriptures',
+        ],
+        revalidate: 300,
+      },
+    )
+
+    const source = readFileSync(join(process.cwd(), 'src/app/sitemap.ts'), 'utf8')
+    expect(source).toContain('export const revalidate = 300')
+    expect(source).not.toContain("export const dynamic = 'force-dynamic'")
   })
 })

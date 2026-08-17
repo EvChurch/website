@@ -27,7 +27,7 @@ export function ServiceTimesBlockComponent({
     <section className="border-b border-brand-black/10 bg-warm-white text-brand-black">
       <div className="mx-auto flex max-w-[80rem] flex-col px-5 sm:flex-row sm:items-stretch lg:px-8">
         <div className="flex items-center border-b border-brand-black/10 py-3 sm:w-48 sm:shrink-0 sm:border-b-0 sm:border-r sm:py-5 sm:pr-6 lg:w-56">
-          <h2 className="font-sans text-xs font-bold uppercase tracking-[0.18em] text-rich-red">
+          <h2 className="font-sans text-xs font-bold uppercase tracking-[0.18em] text-deep-red">
             {heading}
           </h2>
         </div>

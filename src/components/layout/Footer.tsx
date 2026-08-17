@@ -144,7 +144,7 @@ export function Footer() {
                 href={social.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-mid-grey/70 transition-colors duration-150 hover:text-rich-red"
+                className="text-dark-grey transition-colors duration-150 hover:text-deep-red"
                 aria-label={social.label}
               >
                 {socialIcons[social.platform]}
@@ -153,8 +153,8 @@ export function Footer() {
           </div>
 
           {/* Legal */}
-          <div className="flex items-center gap-4 text-xs text-mid-grey/70">
-            <Link href="/privacy" className="transition-colors hover:text-rich-red">
+          <div className="flex items-center gap-4 text-xs text-dark-grey">
+            <Link href="/privacy" className="transition-colors hover:text-deep-red">
               Privacy Policy
             </Link>
             <span aria-hidden="true">&middot;</span>

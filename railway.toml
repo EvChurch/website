@@ -1,5 +1,5 @@
 [build]
-buildCommand = "pnpm run payload generate:importmap && pnpm run build"
+buildCommand = "DATABASE_URL=$BUILD_DATABASE_URL pnpm run payload generate:importmap && DATABASE_URL=$BUILD_DATABASE_URL pnpm run build"
 
 [deploy]
 startCommand = "pnpm run payload migrate && pnpm start"

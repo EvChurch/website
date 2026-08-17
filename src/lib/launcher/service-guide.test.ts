@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const cacheMocks = vi.hoisted(() => ({
+  unstableCache: vi.fn((callback: unknown) => callback),
+}))
+
+vi.mock('next/cache', () => ({
+  unstable_cache: cacheMocks.unstableCache,
+}))
+
 import { getPayloadClient } from '@/lib/payload'
 import {
   isCurrentlyEligible,
@@ -49,6 +57,17 @@ describe('Service Guide launcher data', () => {
     findGlobal.mockResolvedValue({
       lastSuccessfulSyncAt: '2026-08-07T00:00:00.000Z',
     })
+  })
+
+  it('caches only the default-time catalogue with source dependency tags', () => {
+    expect(cacheMocks.unstableCache).toHaveBeenCalledWith(
+      expect.any(Function),
+      ['launcher-data'],
+      {
+        tags: ['service-guide', 'campuses', 'events'],
+        revalidate: 600,
+      },
+    )
   })
 
   it('uses inclusive starts and exclusive expiry timestamps', () => {

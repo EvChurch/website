@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const cacheMocks = vi.hoisted(() => ({
+  unstableCache: vi.fn((callback: unknown) => callback),
+}))
+
+vi.mock('next/cache', () => ({
+  unstable_cache: cacheMocks.unstableCache,
+}))
+
 import { getPayloadClient } from '@/lib/payload'
 import { loadSiteFeedbackSettings } from './settings'
 
@@ -11,6 +19,14 @@ describe('loadSiteFeedbackSettings', () => {
   beforeEach(() => {
     vi.mocked(getPayloadClient).mockResolvedValue({ findGlobal } as never)
     findGlobal.mockReset()
+  })
+
+  it('caches only the default-time public settings with a time-safe fallback', () => {
+    expect(cacheMocks.unstableCache).toHaveBeenCalledWith(
+      expect.any(Function),
+      ['public-site-feedback-settings'],
+      { tags: ['site-settings'], revalidate: 300 },
+    )
   })
 
   it('returns normalized visitor settings using defaults for absent copy', async () => {

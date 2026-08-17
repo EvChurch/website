@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { EventsListing } from '@/components/events/EventsListing'
 import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 300
 
 export const metadata: Metadata = {
   title: 'Events | Ev Church Auckland',

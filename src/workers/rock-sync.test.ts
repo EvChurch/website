@@ -1,11 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  cacheTagsForSyncResults,
   notifyCompletedWorker,
+  notifyWebsiteCache,
   runRockSyncWorker,
   runWorkerEntrypoint,
   waitForPayloadCleanup,
 } from './rock-sync'
+
+afterEach(() => vi.unstubAllEnvs())
 
 describe('notifyCompletedWorker', () => {
   it('sends a success heartbeat only after a completed reconciliation', async () => {
@@ -29,19 +33,24 @@ describe('notifyCompletedWorker', () => {
 })
 
 describe('runRockSyncWorker', () => {
-  it('runs the reconciliation under the database lock', async () => {
+  it('notifies the website only after reconciliation completes under the database lock', async () => {
     const results = [syncResult('events')]
     const runSync = vi.fn().mockResolvedValue(results)
+    const notifyWebsite = vi.fn().mockResolvedValue(undefined)
     const withLock = vi.fn(async (operation: () => Promise<typeof results>) => ({
       acquired: true as const,
       value: await operation(),
     }))
 
-    await expect(runRockSyncWorker({ runSync, withLock })).resolves.toEqual({
+    await expect(runRockSyncWorker({ runSync, withLock, notifyWebsite })).resolves.toEqual({
       status: 'completed',
       results,
     })
     expect(runSync).toHaveBeenCalledOnce()
+    expect(runSync.mock.invocationCallOrder[0]).toBeLessThan(
+      notifyWebsite.mock.invocationCallOrder[0],
+    )
+    expect(notifyWebsite).toHaveBeenCalledWith(results)
   })
 
   it('fails the job when any entity reports an error', async () => {
@@ -54,20 +63,71 @@ describe('runRockSyncWorker', () => {
       value: await operation(),
     })
 
-    await expect(runRockSyncWorker({ runSync, withLock })).rejects.toThrow(
+    const notifyWebsite = vi.fn()
+
+    await expect(runRockSyncWorker({ runSync, withLock, notifyWebsite })).rejects.toThrow(
       'Sync completed with errors: events: Rock unavailable',
     )
+    expect(notifyWebsite).not.toHaveBeenCalled()
   })
 
   it('skips cleanly when another reconciliation owns the lock', async () => {
     const runSync = vi.fn()
     const withLock = vi.fn().mockResolvedValue({ acquired: false })
 
-    await expect(runRockSyncWorker({ runSync, withLock })).resolves.toEqual({
+    const notifyWebsite = vi.fn()
+
+    await expect(runRockSyncWorker({ runSync, withLock, notifyWebsite })).resolves.toEqual({
       status: 'skipped',
       reason: 'Rock sync is already in progress',
     })
     expect(runSync).not.toHaveBeenCalled()
+    expect(notifyWebsite).not.toHaveBeenCalled()
+  })
+})
+
+describe('cacheTagsForSyncResults', () => {
+  it('maps only changed sync entities to whitelisted cache tags', () => {
+    expect(cacheTagsForSyncResults([
+      syncResult('campuses'),
+      syncResult('daily-bible-readings'),
+      syncResult('service-guide-items'),
+      { ...syncResult('sermons'), updated: 0 },
+      syncResult('connect-group-leader-resources'),
+    ])).toEqual(['campuses', 'daily-bible-readings', 'service-guide'])
+  })
+})
+
+describe('notifyWebsiteCache', () => {
+  it('posts changed tags to the authenticated internal endpoint', async () => {
+    vi.stubEnv('APP_BASE_URL', 'https://www.ev.church')
+    vi.stubEnv('CRON_SECRET', 'cache-secret')
+    const fetcher = vi.fn().mockResolvedValue(new Response(null, { status: 200 }))
+
+    await notifyWebsiteCache([
+      syncResult('events'),
+      syncResult('daily-bible-readings'),
+    ], fetcher)
+
+    expect(fetcher).toHaveBeenCalledWith(
+      new URL('https://www.ev.church/api/internal/cache/revalidate'),
+      {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer cache-secret',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ tags: ['events', 'daily-bible-readings'] }),
+      },
+    )
+  })
+
+  it('does not make a request when reconciliation changed no public data', async () => {
+    const fetcher = vi.fn()
+
+    await notifyWebsiteCache([{ ...syncResult('events'), updated: 0 }], fetcher)
+
+    expect(fetcher).not.toHaveBeenCalled()
   })
 })
 

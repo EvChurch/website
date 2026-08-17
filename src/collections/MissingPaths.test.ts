@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+const mocks = vi.hoisted(() => ({ revalidateTag: vi.fn() }))
+
+vi.mock('next/cache', () => ({ revalidateTag: mocks.revalidateTag }))
 
 import { MissingPaths } from './MissingPaths'
 
@@ -27,5 +31,18 @@ describe('MissingPaths collection', () => {
       'count',
       'destination',
     ])
+  })
+
+  it('invalidates cached redirects after editor changes and deletes', () => {
+    const afterChange = MissingPaths.hooks?.afterChange?.[0]
+    const afterDelete = MissingPaths.hooks?.afterDelete?.[0]
+
+    expect(afterChange).toBeTypeOf('function')
+    expect(afterDelete).toBeTypeOf('function')
+    ;(afterChange as () => void)()
+    ;(afterDelete as () => void)()
+
+    expect(mocks.revalidateTag).toHaveBeenNthCalledWith(1, 'missing-paths', { expire: 0 })
+    expect(mocks.revalidateTag).toHaveBeenNthCalledWith(2, 'missing-paths', { expire: 0 })
   })
 })

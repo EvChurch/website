@@ -3,16 +3,19 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import {
   MemberAccountControl,
   type MemberDisplayProfile,
 } from './MemberAccountControl'
+import { MemberNotificationsControl } from './MemberNotificationsControl'
 
 type NavItem = { label: string } & (
   | { href: string; children?: never }
   | { href?: string; children: { label: string; href: string }[] }
 )
+
+type HeaderOverlay = 'none' | 'notifications' | 'desktop-account' | 'mobile-account' | 'mobile-menu'
 
 const navItems: NavItem[] = [
   {
@@ -315,12 +318,14 @@ function MobileMenu({
 
           {(memberProfile !== undefined || adminHref) && (
             <div className="border-b border-cool-grey/60">
-              <MemberAccountControl
-                profile={memberProfile ?? null}
-                variant="drawer"
-                active={open}
-                adminHref={adminHref}
-              />
+              <Suspense fallback={<span aria-hidden className="block h-[65px]" />}>
+                <MemberAccountControl
+                  profile={memberProfile ?? null}
+                  variant="drawer"
+                  active={open}
+                  adminHref={adminHref}
+                />
+              </Suspense>
             </div>
           )}
 
@@ -360,8 +365,9 @@ export function Header({
   const pathname = usePathname()
   const [scrolled, setScrolled] = useState(false)
   const [hidden, setHidden] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const [openOverlay, setOpenOverlay] = useState<HeaderOverlay>('none')
   const hasScrolledRef = useRef(false)
+  const mobileOpen = openOverlay === 'mobile-menu'
   const darkTone = scrolled || needsDarkHeaderAtTop(pathname)
   const memberPath = isMemberPath(pathname)
 
@@ -423,6 +429,18 @@ export function Header({
     return () => { document.body.style.overflow = '' }
   }, [mobileOpen])
 
+  useEffect(() => {
+    setOpenOverlay('none')
+  }, [pathname])
+
+  const handleOverlayChange = useCallback((overlay: Exclude<HeaderOverlay, 'none'>, open: boolean) => {
+    setOpenOverlay((current) => open ? overlay : current === overlay ? 'none' : current)
+  }, [])
+
+  function toggleMobileMenu() {
+    setOpenOverlay((current) => current === 'mobile-menu' ? 'none' : 'mobile-menu')
+  }
+
   return (
     <>
       <ScrollProgress />
@@ -438,7 +456,7 @@ export function Header({
         }`}
         style={{
           top: topOffset,
-          transform: hidden && !mobileOpen
+          transform: hidden && !mobileOpen && openOverlay === 'none'
             ? `translateY(calc(-100% - ${topOffset}px))`
             : 'translateY(0)',
         }}
@@ -460,12 +478,13 @@ export function Header({
             />
           </Link>
 
-          {/* Desktop Nav */}
-          <div className="hidden items-center gap-1 lg:flex">
-            <nav
-              className="flex items-center gap-0.5"
-              aria-label="Main navigation"
-            >
+          <div className="flex items-center gap-1">
+            {/* Desktop Nav */}
+            <div className="hidden items-center gap-1 lg:flex">
+              <nav
+                className="flex items-center gap-0.5"
+                aria-label="Main navigation"
+              >
               {navItems.map((item) => {
                 if (item.children) {
                   return (
@@ -500,46 +519,64 @@ export function Header({
                   </Link>
                 )
               })}
-            </nav>
-            <Link
-              href="/give"
-              data-header-give
-              className={`ml-3 mr-2 rounded-full px-5 py-2 text-[0.8125rem] font-semibold uppercase tracking-wide transition-colors duration-200 ${
-                darkTone
-                  ? 'bg-rich-red text-white hover:bg-deep-red'
-                  : 'bg-white text-brand-black hover:bg-white/90'
-              }`}
-            >
-              Give
-            </Link>
-            {(memberProfile !== undefined || adminHref) && (
-              <MemberAccountControl
-                profile={memberProfile ?? null}
-                variant="desktop"
-                tone={darkTone ? 'dark' : 'light'}
-                adminHref={adminHref}
-              />
+              </nav>
+              <Link
+                href="/give"
+                data-header-give
+                className={`ml-3 mr-2 rounded-full px-5 py-2 text-[0.8125rem] font-semibold uppercase tracking-wide transition-colors duration-200 ${
+                  darkTone
+                    ? 'bg-rich-red text-white hover:bg-deep-red'
+                    : 'bg-white text-brand-black hover:bg-white/90'
+                }`}
+              >
+                Give
+              </Link>
+            </div>
+            {memberProfile && (
+              <Suspense fallback={<span aria-hidden className="h-11 w-11" />}>
+                <MemberNotificationsControl
+                  tone={darkTone ? 'dark' : 'light'}
+                  open={openOverlay === 'notifications'}
+                  onOpenChange={(open) => handleOverlayChange('notifications', open)}
+                />
+              </Suspense>
             )}
-          </div>
-
-          <div className="flex items-center gap-1 lg:hidden">
             {(memberProfile !== undefined || adminHref) && (
-              <MemberAccountControl
-                profile={memberProfile ?? null}
-                variant="mobile-icon"
-                tone={darkTone ? 'dark' : 'light'}
-                active={!mobileOpen}
-                adminHref={adminHref}
-              />
+              <div className="hidden lg:block">
+                <Suspense fallback={<span aria-hidden className="block h-9 w-9" />}>
+                  <MemberAccountControl
+                    profile={memberProfile ?? null}
+                    variant="desktop"
+                    tone={darkTone ? 'dark' : 'light'}
+                    open={openOverlay === 'desktop-account'}
+                    adminHref={adminHref}
+                    onOpenChange={(open) => handleOverlayChange('desktop-account', open)}
+                  />
+                </Suspense>
+              </div>
+            )}
+            {(memberProfile !== undefined || adminHref) && (
+              <div className="lg:hidden">
+                <Suspense fallback={<span aria-hidden className="block h-10 w-10" />}>
+                  <MemberAccountControl
+                    profile={memberProfile ?? null}
+                    variant="mobile-icon"
+                    tone={darkTone ? 'dark' : 'light'}
+                    open={openOverlay === 'mobile-account'}
+                    adminHref={adminHref}
+                    onOpenChange={(open) => handleOverlayChange('mobile-account', open)}
+                  />
+                </Suspense>
+              </div>
             )}
 
             {/* Mobile Hamburger */}
             <button
               data-header-menu
-              className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+              className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors lg:hidden ${
                 darkTone ? 'text-brand-black hover:bg-warm-white' : 'text-white hover:bg-white/10'
               }`}
-              onClick={() => setMobileOpen(!mobileOpen)}
+              onClick={toggleMobileMenu}
               aria-expanded={mobileOpen}
               aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             >
@@ -564,7 +601,7 @@ export function Header({
 
       <MobileMenu
         open={mobileOpen}
-        onClose={() => setMobileOpen(false)}
+        onClose={() => setOpenOverlay('none')}
         memberProfile={memberProfile}
         adminHref={adminHref}
       />

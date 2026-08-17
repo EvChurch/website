@@ -1,7 +1,9 @@
 import type { CollectionConfig } from 'payload'
 
 import { isEditor } from '@/access/roles'
+import { createCacheInvalidationHook } from '@/hooks/revalidateCacheTags'
 import { validateMissingPathRedirect } from '@/hooks/validateMissingPathRedirect'
+import { CACHE_TAGS } from '@/lib/cache-tags'
 
 /** Aggregate-only register for eligible missing public paths. */
 export const MissingPaths: CollectionConfig = {
@@ -19,6 +21,8 @@ export const MissingPaths: CollectionConfig = {
   },
   hooks: {
     beforeChange: [validateMissingPathRedirect],
+    afterChange: [createCacheInvalidationHook(CACHE_TAGS.missingPaths)],
+    afterDelete: [createCacheInvalidationHook(CACHE_TAGS.missingPaths)],
   },
   fields: [
     {

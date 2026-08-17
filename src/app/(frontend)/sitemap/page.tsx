@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { getSitemapSections } from '@/lib/sitemap'
 import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 300
 
 export const metadata: Metadata = {
   title: 'Sitemap | Ev Church Auckland',

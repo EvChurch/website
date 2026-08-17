@@ -28,6 +28,25 @@ describe('HeroBlockComponent contrast', () => {
 
     expect(markup).toContain('fetchPriority="high"')
     expect(markup).toContain('loading="eager"')
+    expect(markup).toContain('route-animate-fade-in-up')
+    expect(markup).not.toContain('class="animate-fade-in-up')
+  })
+
+  it('positions the background image around its Payload focal point', () => {
+    const markup = renderToStaticMarkup(
+      <HeroBlockComponent
+        image={{
+          id: 'hero-image',
+          url: '/hero.jpg',
+          focalX: 72,
+          focalY: 18,
+          sizes: { hero: { url: '/hero-1920x1080.jpg' } },
+        }}
+        heading="A place to belong"
+      />,
+    )
+
+    expect(markup).toContain('object-position:72% 18%')
   })
 
   it('uses the event-detail split layout for banner heroes', () => {

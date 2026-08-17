@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -5,7 +7,10 @@ const mocks = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NEXT_NOT_FOUND')
   }),
+  unstableCache: vi.fn((callback: unknown) => callback),
 }))
+
+vi.mock('next/cache', () => ({ unstable_cache: mocks.unstableCache }))
 
 vi.mock('@/lib/tracked-not-found', () => ({ trackedNotFound: mocks.notFound }))
 
@@ -16,7 +21,10 @@ vi.mock('@/lib/payload', () => ({
 import DynamicPage, { generateMetadata } from './page'
 
 describe('retired dynamic pages', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    mocks.find.mockClear()
+    mocks.notFound.mockClear()
+  })
 
   it('returns not found for the retired Next Steps slug without querying Payload', async () => {
     await expect(
@@ -34,5 +42,20 @@ describe('retired dynamic pages', () => {
 
     expect(mocks.notFound).not.toHaveBeenCalled()
     expect(mocks.find).not.toHaveBeenCalled()
+  })
+
+  it('uses the tagged page source cache and a long ISR fallback', () => {
+    expect(mocks.unstableCache).toHaveBeenCalledWith(
+      expect.any(Function),
+      ['public-page-by-slug'],
+      { tags: ['pages'], revalidate: 86_400 },
+    )
+
+    const source = readFileSync(
+      join(process.cwd(), 'src/app/(frontend)/[slug]/page.tsx'),
+      'utf8',
+    )
+    expect(source).toContain('export const revalidate = 86400')
+    expect(source).not.toContain("export const dynamic = 'force-dynamic'")
   })
 })
