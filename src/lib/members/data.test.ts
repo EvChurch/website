@@ -44,6 +44,7 @@ import {
   getMemberResourceAsset,
   getMemberResourceDetail,
   getMemberResources,
+  getSharedMemberAvatar,
 } from './data'
 
 const participant = {
@@ -204,6 +205,37 @@ describe('member data access', () => {
     })
   })
 
+  it('returns a coach own group first followed by the groups they coach', async () => {
+    const coachedParticipant = {
+      ...participant,
+      isCoach: true,
+      coachedGroups: [
+        { rockGroupId: 11 },
+        { rockGroupId: 12 },
+      ],
+    }
+    const coachedGroups = [
+      { ...group, id: 6, rockGroupId: 12, name: 'Wednesday Connect' },
+      group,
+      { ...group, id: 7, rockGroupId: 11, name: 'Monday Connect' },
+    ]
+    payloadState.find.mockImplementation(async ({ collection }) => ({
+      docs: collection === 'connect-group-participants'
+        ? [coachedParticipant]
+        : collection === 'connect-groups'
+          ? coachedGroups
+          : [],
+    }))
+
+    await expect(getMemberPortalHome()).resolves.toMatchObject({
+      groups: [
+        { rockGroupId: 10, isCoached: false },
+        { rockGroupId: 11, isCoached: true },
+        { rockGroupId: 12, isCoached: true },
+      ],
+    })
+  })
+
   it('returns only active groups the member explicitly leads', async () => {
     const ordinaryGroup = { ...group, id: 6, rockGroupId: 11, name: 'Thursday Connect' }
     const coachParticipant = {
@@ -274,6 +306,21 @@ describe('member data access', () => {
     await expect(authorizeConnectGroupAttendanceLeader(Number.NaN)).resolves.toEqual({ access: 'denied' })
   })
 
+  it('keeps attendance entry leader-only for a coached group', async () => {
+    const coachedParticipant = {
+      ...participant,
+      isCoach: true,
+      coachedGroups: [{ rockGroupId: 11 }],
+    }
+    payloadState.find.mockImplementation(async ({ collection }) => ({
+      docs: collection === 'connect-group-participants' ? [coachedParticipant] : [],
+    }))
+
+    await expect(authorizeConnectGroupAttendanceLeader(11)).resolves.toEqual({
+      access: 'denied',
+    })
+  })
+
   it('returns null attendance leader data when signed out', async () => {
     memberSession.profile = null
 
@@ -307,6 +354,80 @@ describe('member data access', () => {
       ],
     })
     expect(attendanceState.fetchConnectGroupAttendance).toHaveBeenCalledWith(10, [42, 84])
+  })
+
+  it('allows a coach to view a group in their coaching group', async () => {
+    const coachedParticipant = {
+      ...participant,
+      isCoach: true,
+      coachedGroups: [{ rockGroupId: 11 }],
+    }
+    const coachedGroup = { ...group, id: 6, rockGroupId: 11, name: 'Thursday Connect' }
+    payloadState.find.mockImplementation(async ({ collection, where }) => {
+      if (collection === 'connect-group-participants' && where?.['memberships.rockGroupId']) {
+        return { docs: [otherMember] }
+      }
+      return {
+        docs: collection === 'connect-group-participants'
+          ? [coachedParticipant]
+          : collection === 'connect-groups'
+            ? [coachedGroup]
+            : [],
+      }
+    })
+
+    await expect(getMemberGroupDetail(11)).resolves.toMatchObject({
+      access: 'granted',
+      group: { rockGroupId: 11, isCoached: true, isLeader: false },
+      attendance: expect.any(Object),
+    })
+  })
+
+  it('denies a coach access to a group outside their coaching group', async () => {
+    const coachedParticipant = {
+      ...participant,
+      isCoach: true,
+      coachedGroups: [{ rockGroupId: 11 }],
+    }
+    payloadState.find.mockImplementation(async ({ collection }) => ({
+      docs: collection === 'connect-group-participants' ? [coachedParticipant] : [],
+    }))
+
+    await expect(getMemberGroupDetail(12)).resolves.toEqual({ access: 'denied' })
+  })
+
+  it('shares roster avatars with the coach of that group only', async () => {
+    const coachedParticipant = {
+      ...participant,
+      isCoach: true,
+      coachedGroups: [{ rockGroupId: 11 }],
+    }
+    const coachedMember = {
+      ...otherMember,
+      memberships: [{
+        ...otherMember.memberships[0],
+        rockGroupId: 11,
+      }],
+    }
+    const unrelatedMember = {
+      ...otherMember,
+      rockPersonId: 85,
+      photoId: 201,
+      memberships: [{
+        ...otherMember.memberships[0],
+        rockGroupId: 12,
+      }],
+    }
+    payloadState.find.mockImplementation(async ({ collection, where }) => {
+      if (collection !== 'connect-group-participants') return { docs: [] }
+      const requestedPersonId = where?.rockPersonId?.equals
+      if (requestedPersonId === 84) return { docs: [coachedMember] }
+      if (requestedPersonId === 85) return { docs: [unrelatedMember] }
+      return { docs: [coachedParticipant] }
+    })
+
+    await expect(getSharedMemberAvatar(84)).resolves.toEqual({ photoId: 200 })
+    await expect(getSharedMemberAvatar(85)).resolves.toBeNull()
   })
 
   it('does not request or expose attendance for an ordinary group member', async () => {

@@ -176,6 +176,52 @@ describe('syncConnectGroups', () => {
     ])
   })
 
+  it('maps child groups to the coach leading their parent group', async () => {
+    mocks.rockFetchAll.mockResolvedValue([
+      group(1, 'Tuesday Central Connect', null, 90),
+      group(2, 'Thursday Central Connect', null, 90),
+    ])
+    mocks.fetchActiveGroupMembers.mockImplementation((groupId: number) => {
+      if (groupId === 1) {
+        return Promise.resolve([
+          membership(301, 1, 101, 'Leader', true, 'Alex Coach'),
+        ])
+      }
+      if (groupId === 2) return Promise.resolve([])
+      if (groupId === CONNECT_GROUP_COACH_SECURITY_GROUP_ID) {
+        return Promise.resolve([
+          membership(401, groupId, 101, 'Member', false, 'Alex Coach'),
+        ])
+      }
+      if (groupId === 90) {
+        return Promise.resolve([
+          membership(501, 90, 101, 'Coach', true, 'Alex Coach'),
+        ])
+      }
+      throw new Error(`Unexpected group ${groupId}`)
+    })
+
+    await syncConnectGroups()
+
+    expect(mocks.fetchActiveGroupMembers.mock.calls.map(([id]) => id)).toEqual([
+      1,
+      2,
+      CONNECT_GROUP_COACH_SECURITY_GROUP_ID,
+      90,
+    ])
+    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({
+      collection: 'connect-group-participants',
+      id: 601,
+      data: expect.objectContaining({
+        rockPersonId: 101,
+        coachedGroups: [
+          { rockGroupId: 1 },
+          { rockGroupId: 2 },
+        ],
+      }),
+    }))
+  })
+
   it('fails before the transaction when an assigned campus is not mirrored', async () => {
     mocks.find.mockImplementation(({ collection }: { collection: string }) => {
       if (collection === 'campuses') return Promise.resolve({ docs: [] })
@@ -210,6 +256,25 @@ describe('syncConnectGroups', () => {
     const result = await syncConnectGroups()
 
     expect(result.errors[0]).toMatch(/failed/)
+    expect(mocks.getPayloadClient).not.toHaveBeenCalled()
+    expect(mocks.beginTransaction).not.toHaveBeenCalled()
+    expect(mocks.create).not.toHaveBeenCalled()
+    expect(mocks.update).not.toHaveBeenCalled()
+    expect(mocks.delete).not.toHaveBeenCalled()
+  })
+
+  it('leaves Payload untouched when a parent membership fetch fails', async () => {
+    mocks.rockFetchAll.mockResolvedValue([
+      group(1, 'Tuesday Central Connect', null, 90),
+    ])
+    mocks.fetchActiveGroupMembers.mockImplementation((groupId: number) => {
+      if (groupId === 90) return Promise.reject(new Error('parent members failed'))
+      return Promise.resolve([])
+    })
+
+    const result = await syncConnectGroups()
+
+    expect(result.errors).toEqual(['Error: parent members failed'])
     expect(mocks.getPayloadClient).not.toHaveBeenCalled()
     expect(mocks.beginTransaction).not.toHaveBeenCalled()
     expect(mocks.create).not.toHaveBeenCalled()
@@ -288,7 +353,12 @@ describe('syncConnectGroups', () => {
   })
 })
 
-function group(Id: number, Name: string, CampusId: number | null = null) {
+function group(
+  Id: number,
+  Name: string,
+  CampusId: number | null = null,
+  ParentGroupId: number | null = null,
+) {
   return {
     Id,
     Name,
@@ -296,6 +366,7 @@ function group(Id: number, Name: string, CampusId: number | null = null) {
     IsActive: true,
     GroupCapacity: null,
     CampusId,
+    ParentGroupId,
     GroupLocations: [],
   }
 }

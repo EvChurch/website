@@ -41,6 +41,7 @@ describe('mapRockConnectGroupParticipant', () => {
         },
       ],
       true,
+      [401, 402],
     )
 
     expect(mapped).toEqual({
@@ -53,6 +54,10 @@ describe('mapRockConnectGroupParticipant', () => {
       ],
       photoId: 222,
       isCoach: true,
+      coachedGroups: [
+        { rockGroupId: 401 },
+        { rockGroupId: 402 },
+      ],
       memberships: [
         {
           rockGroupId: 401,
@@ -94,6 +99,7 @@ describe('mapRockConnectGroupParticipant', () => {
       phoneNumbers: [],
       photoId: null,
       isCoach: false,
+      coachedGroups: [],
       memberships: [],
     })
   })

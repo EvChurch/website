@@ -38,6 +38,7 @@ import * as migration_20260816_000000_giving_webhook_jobs from './20260816_00000
 import * as migration_20260816_010000_giving_administration from './20260816_010000_giving_administration';
 import * as migration_20260817_010000_giving_bank_code from './20260817_010000_giving_bank_code';
 import * as migration_20260817_020000_giving_bank_acknowledgement from './20260817_020000_giving_bank_acknowledgement';
+import * as migration_20260817_085255_connect_group_coaching from './20260817_085255_connect_group_coaching';
 
 export const migrations = [
   {
@@ -239,5 +240,10 @@ export const migrations = [
     up: migration_20260817_020000_giving_bank_acknowledgement.up,
     down: migration_20260817_020000_giving_bank_acknowledgement.down,
     name: '20260817_020000_giving_bank_acknowledgement',
+  },
+  {
+    up: migration_20260817_085255_connect_group_coaching.up,
+    down: migration_20260817_085255_connect_group_coaching.down,
+    name: '20260817_085255_connect_group_coaching',
   },
 ];

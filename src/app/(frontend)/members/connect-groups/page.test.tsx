@@ -17,7 +17,10 @@ vi.mock('@/components/members/MemberPortalChrome', async (importOriginal) => ({
   MemberPortalChrome: ({ children }: { children: React.ReactNode }) => children,
 }))
 vi.mock('@/components/members/ConnectGroupCard', () => ({
-  ConnectGroupCard: ({ group }: { group: { name: string } }) => <article>{group.name}</article>,
+  ConnectGroupCard: ({ group, highlighted }: {
+    group: { name: string }
+    highlighted?: boolean
+  }) => <article data-highlighted={highlighted || undefined}>{group.name}</article>,
 }))
 
 import ConnectGroupsPage from './page'
@@ -38,6 +41,7 @@ function group(rockGroupId: number, name: string) {
     locationName: null,
     locationAddress: null,
     isLeader: false,
+    isCoached: false,
     roleName: 'Member',
   }
 }
@@ -83,6 +87,28 @@ describe('ConnectGroupsPage', () => {
 
     expect(markup).toContain('Tuesday Central Connect')
     expect(markup).toContain('Sunday North Connect')
+    expect(mocks.redirect).not.toHaveBeenCalled()
+  })
+
+  it('highlights the coach own group above the groups they coach', async () => {
+    mocks.getMemberPortalHome.mockResolvedValue({
+      profile,
+      groups: [
+        group(10, 'Tuesday Central Connect'),
+        { ...group(20, 'Sunday North Connect'), isCoached: true, roleName: 'Coach' },
+        { ...group(30, 'Wednesday West Connect'), isCoached: true, roleName: 'Coach' },
+      ],
+      canAccessLeaderResources: true,
+    })
+
+    const markup = renderToStaticMarkup(await ConnectGroupsPage())
+
+    expect(markup.indexOf('Tuesday Central Connect')).toBeLessThan(
+      markup.indexOf('Connect Groups I coach'),
+    )
+    expect(markup).toContain('data-highlighted="true"')
+    expect(markup).toContain('Sunday North Connect')
+    expect(markup).toContain('Wednesday West Connect')
     expect(mocks.redirect).not.toHaveBeenCalled()
   })
 

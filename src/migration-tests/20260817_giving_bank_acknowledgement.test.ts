@@ -11,6 +11,8 @@ describe('giving bank acknowledgement migration', () => {
 
   it('refuses destructive rollback after an acknowledgement and is registered', () => {
     expect(GIVING_BANK_ACKNOWLEDGEMENT_DOWN_SQL).toContain('Cannot roll back giving bank acknowledgement after acknowledgement activity')
-    expect(migrations.at(-1)?.name).toBe('20260817_020000_giving_bank_acknowledgement')
+    expect(migrations.some((migration) => (
+      migration.name === '20260817_020000_giving_bank_acknowledgement'
+    ))).toBe(true)
   })
 })

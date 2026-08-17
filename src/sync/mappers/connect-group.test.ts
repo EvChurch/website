@@ -9,6 +9,7 @@ describe('mapRockConnectGroup', () => {
       Name: 'Example Group',
       Description: '',
       IsActive: true,
+      ParentGroupId: null,
       GroupCapacity: null,
       CampusId: null,
       GroupLocations: [],

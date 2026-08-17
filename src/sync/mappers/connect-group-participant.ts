@@ -20,6 +20,7 @@ export type MappedConnectGroupParticipant = {
   }>
   photoId: number | null
   isCoach: boolean
+  coachedGroups: Array<{ rockGroupId: number }>
   memberships: MappedConnectGroupMembership[]
 }
 
@@ -66,6 +67,7 @@ export function mapRockConnectGroupParticipant(
   person: RockPerson,
   memberships: RockGroupMember[],
   isCoach = false,
+  coachedGroupIds: number[] = [],
 ): MappedConnectGroupParticipant {
   return {
     rockPersonId: person.Id,
@@ -74,6 +76,7 @@ export function mapRockConnectGroupParticipant(
     phoneNumbers: listedPhoneNumbers(person),
     photoId: Number.isInteger(person.PhotoId) ? (person.PhotoId ?? null) : null,
     isCoach,
+    coachedGroups: coachedGroupIds.map((rockGroupId) => ({ rockGroupId })),
     memberships: memberships
       .filter(
         (
