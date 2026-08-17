@@ -39,6 +39,14 @@ export const ConnectGroupParticipants: CollectionConfig = {
     { name: 'photoId', type: 'number', index: true },
     { name: 'isCoach', type: 'checkbox', required: true, defaultValue: false, index: true },
     {
+      name: 'coachedGroups',
+      type: 'array',
+      admin: { readOnly: true },
+      fields: [
+        { name: 'rockGroupId', type: 'number', required: true, index: true },
+      ],
+    },
+    {
       name: 'memberships',
       type: 'array',
       admin: { readOnly: true },

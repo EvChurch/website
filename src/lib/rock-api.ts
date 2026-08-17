@@ -340,6 +340,7 @@ export type RockGroup = {
   Name: string
   Description: string
   IsActive: boolean
+  ParentGroupId: number | null
   GroupCapacity: number | null
   CampusId: number | null
   Members: RockGroupMember[]

@@ -45,6 +45,7 @@ export interface MemberGroupSummary {
   locationName: string | null
   locationAddress: string | null
   isLeader: boolean
+  isCoached: boolean
   roleName: string
 }
 
@@ -183,7 +184,8 @@ function campusId(value: unknown): string | null {
 
 function toMemberGroup(
   group: ConnectGroupRecord,
-  membership: ParticipantMembershipRecord,
+  membership: ParticipantMembershipRecord | null,
+  isCoached = false,
 ): MemberGroupSummary | null {
   const rockGroupId = positiveInteger(group.rockGroupId)
   const name = nonemptyText(group.name)
@@ -197,8 +199,9 @@ function toMemberGroup(
     campusSlug: nonemptyText(campus?.slug),
     locationName: nonemptyText(group.location?.name),
     locationAddress: nonemptyText(group.location?.address),
-    isLeader: membership.isLeader === true,
-    roleName: nonemptyText(membership.roleName) ?? 'Member',
+    isLeader: membership?.isLeader === true,
+    isCoached,
+    roleName: isCoached ? 'Coach' : nonemptyText(membership?.roleName) ?? 'Member',
   }
 }
 
@@ -233,6 +236,7 @@ async function findCurrentParticipant(
       phoneNumbers: true,
       photoId: true,
       isCoach: true,
+      coachedGroups: true,
       memberships: true,
     },
     where: { rockPersonId: { equals: rockPersonId } },
@@ -241,17 +245,30 @@ async function findCurrentParticipant(
   return participant ? participantFrom(participant) : null
 }
 
-function memberGroupIds(participant: ParticipantRecord | null) {
-  return (participant?.memberships ?? [])
-    .map((membership) => positiveInteger(membership.rockGroupId))
+function coachedGroupIds(participant: ParticipantRecord | null) {
+  return (participant?.coachedGroups ?? [])
+    .map((group) => positiveInteger(group.rockGroupId))
     .filter((id): id is number => id !== null)
+}
+
+function accessibleGroupIds(participant: ParticipantRecord | null) {
+  return [...new Set([
+    ...(participant?.memberships ?? []).map((membership) => membership.rockGroupId),
+    ...coachedGroupIds(participant),
+  ])]
+    .map(positiveInteger)
+    .filter((id): id is number => id !== null)
+}
+
+function isCoachedGroup(participant: ParticipantRecord | null, rockGroupId: number) {
+  return coachedGroupIds(participant).includes(rockGroupId)
 }
 
 async function findActiveGroupRecords(
   payload: MemberPayloadClient,
   participant: ParticipantRecord | null,
 ): Promise<ConnectGroupRecord[]> {
-  const rockGroupIds = memberGroupIds(participant)
+  const rockGroupIds = accessibleGroupIds(participant)
   if (rockGroupIds.length === 0) return []
 
   const result = await payload.find({
@@ -290,10 +307,16 @@ async function findMemberGroups(
       const membership = rockGroupId
         ? membershipFor(participant ?? {}, rockGroupId)
         : null
-      return membership ? toMemberGroup(group, membership) : null
+      const isCoached = rockGroupId
+        ? !membership && isCoachedGroup(participant, rockGroupId)
+        : false
+      return membership || isCoached ? toMemberGroup(group, membership, isCoached) : null
     })
     .filter((group): group is MemberGroupSummary => group !== null)
-    .sort((a, b) => a.name.localeCompare(b.name))
+    .sort((a, b) => {
+      if (a.isCoached !== b.isCoached) return a.isCoached ? 1 : -1
+      return a.name.localeCompare(b.name)
+    })
 }
 
 function canAccessLeaderResources(participant: ParticipantRecord | null) {
@@ -388,7 +411,8 @@ export async function getMemberGroupDetail(
   const currentMembership = context.participant
     ? membershipFor(context.participant, rockGroupId)
     : null
-  if (!currentMembership) return { access: 'denied' }
+  const isCoached = isCoachedGroup(context.participant, rockGroupId)
+  if (!currentMembership && !isCoached) return { access: 'denied' }
 
   const [groupResult, peopleResult] = await Promise.all([
     context.payload.find({
@@ -431,7 +455,7 @@ export async function getMemberGroupDetail(
   ])
   const groupRecord = groupResult.docs[0]
   if (!groupRecord) return { access: 'denied' }
-  const group = toMemberGroup(groupFrom(groupRecord), currentMembership)
+  const group = toMemberGroup(groupFrom(groupRecord), currentMembership, isCoached && !currentMembership)
   if (!group) return { access: 'denied' }
 
   const people = peopleResult.docs
@@ -448,7 +472,7 @@ export async function getMemberGroupDetail(
       return a.name.localeCompare(b.name)
     })
 
-  const canViewAttendance = currentMembership.isLeader === true || context.participant?.isCoach === true
+  const canViewAttendance = currentMembership?.isLeader === true || isCoached
   let attendance: GroupAttendanceOverview | null = null
   if (canViewAttendance) {
     try {
@@ -773,7 +797,10 @@ export async function getGroupCurrentResources(
   if (audience === 'leader' && !canAccessLeaderResources(context.participant)) {
     return { access: 'denied' }
   }
-  if (!membershipFor(context.participant, rockGroupId)) return { access: 'denied' }
+  if (
+    !membershipFor(context.participant, rockGroupId) &&
+    !isCoachedGroup(context.participant, rockGroupId)
+  ) return { access: 'denied' }
   const records = (await approvedResourceRecords(context.payload)).filter((resource) => (
     resourceMatchesCampusSlug(resource, campusSlug)
   ))
@@ -931,11 +958,7 @@ export async function getSharedMemberAvatar(
   if (!positiveInteger(targetRockPersonId)) return null
   const context = await currentMemberContext()
   if (!context?.participant) return null
-  const currentGroupIds = new Set(
-    (context.participant.memberships ?? [])
-      .map((membership) => positiveInteger(membership.rockGroupId))
-      .filter((id): id is number => id !== null),
-  )
+  const currentGroupIds = new Set(accessibleGroupIds(context.participant))
   if (currentGroupIds.size === 0) return null
 
   const result = await context.payload.find({
