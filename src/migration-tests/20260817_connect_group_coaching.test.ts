@@ -20,6 +20,6 @@ describe('Connect Group coaching migration', () => {
     expect(CONNECT_GROUP_COACHING_DOWN_SQL).toContain(
       'DROP TABLE IF EXISTS "connect_group_participants_coached_groups" CASCADE',
     )
-    expect(migrations.at(-1)?.name).toBe('20260817_085255_connect_group_coaching')
+    expect(migrations.some((migration) => migration.name === '20260817_085255_connect_group_coaching')).toBe(true)
   })
 })

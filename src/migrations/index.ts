@@ -39,6 +39,7 @@ import * as migration_20260816_010000_giving_administration from './20260816_010
 import * as migration_20260817_010000_giving_bank_code from './20260817_010000_giving_bank_code';
 import * as migration_20260817_020000_giving_bank_acknowledgement from './20260817_020000_giving_bank_acknowledgement';
 import * as migration_20260817_085255_connect_group_coaching from './20260817_085255_connect_group_coaching';
+import * as migration_20260818_010000_giving_rock_alias_reuse from './20260818_010000_giving_rock_alias_reuse';
 
 export const migrations = [
   {
@@ -245,5 +246,10 @@ export const migrations = [
     up: migration_20260817_085255_connect_group_coaching.up,
     down: migration_20260817_085255_connect_group_coaching.down,
     name: '20260817_085255_connect_group_coaching',
+  },
+  {
+    up: migration_20260818_010000_giving_rock_alias_reuse.up,
+    down: migration_20260818_010000_giving_rock_alias_reuse.down,
+    name: '20260818_010000_giving_rock_alias_reuse',
   },
 ];
