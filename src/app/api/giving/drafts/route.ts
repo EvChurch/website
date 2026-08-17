@@ -7,16 +7,16 @@ import {
   createGivingDraftService,
   createPayloadGivingDraftStore,
   givingCapabilityCookieNames,
+  GIVING_DRAFT_TTL_MS,
   validateGivingDraftAnswers,
   type GivingDraftBinding,
 } from '@/lib/giving/drafts'
 import { getPayloadClient } from '@/lib/payload'
-import { GIVING_PRIVATE_HEADERS } from '@/lib/giving/request-boundary'
+import { boundedGivingJson, GIVING_PRIVATE_HEADERS, isGivingJson } from '@/lib/giving/request-boundary'
 import { isSameOriginRequest } from '@/lib/request-origin'
 
 export const dynamic = 'force-dynamic'
 
-const MAX_BODY_BYTES = 8_192
 async function currentSubject() {
   try {
     const session = await getAuth0Client().getSession()
@@ -24,25 +24,6 @@ async function currentSubject() {
   } catch {
     return null
   }
-}
-
-async function boundedJson(request: NextRequest) {
-  const declared = request.headers.get('content-length')
-  if (declared && (!Number.isSafeInteger(Number(declared)) || Number(declared) > MAX_BODY_BYTES)) throw new Error('invalid')
-  if (!request.body) throw new Error('invalid')
-  const reader = request.body.getReader()
-  const decoder = new TextDecoder('utf-8', { fatal: true })
-  let size = 0
-  let text = ''
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    size += value.byteLength
-    if (size > MAX_BODY_BYTES) throw new Error('invalid')
-    text += decoder.decode(value, { stream: true })
-  }
-  text += decoder.decode()
-  return JSON.parse(text) as unknown
 }
 
 function response(value: unknown, status = 200) {
@@ -59,48 +40,22 @@ async function service() {
   return createGivingDraftService(createPayloadGivingDraftStore(payload))
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    if (!isSameOriginRequest(request)) return response({ error: 'Draft unavailable' }, 403)
-    if (request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase() !== 'application/json') return response({ error: 'Draft unavailable' }, 415)
-    const answers = validateGivingDraftAnswers(await boundedJson(request))
-    const subject = await currentSubject()
-    const { secure, names } = cookiePolicy(request)
-    const existingNonce = request.cookies.get(names.guest)?.value
-    const nonce = existingNonce || randomBytes(32).toString('base64url')
-    const binding: GivingDraftBinding = subject
-      ? { audience: 'member', subject }
-      : { audience: 'guest', nonce }
-    const draft = await (await service()).create({ answers, binding })
-    const result = response({ resumePath: `/give/resume/${draft.token}` }, 201)
-    if (!subject && !existingNonce) {
-      result.cookies.set(names.guest, nonce, {
-        httpOnly: true, secure, sameSite: 'lax', path: '/', maxAge: 15 * 60,
-      })
-    }
-    return result
-  } catch {
-    return response({ error: 'Draft unavailable' }, 400)
-  }
-}
-
 export async function PUT(request:NextRequest){
   try{
     if(!isSameOriginRequest(request))return response({error:'Draft unavailable'},403)
-    if(request.headers.get('content-type')?.split(';',1)[0]?.trim().toLowerCase()!=='application/json')return response({error:'Draft unavailable'},415)
-    const answers=validateGivingDraftAnswers(await boundedJson(request))
-    const memberSubject=await currentSubject()
+    if(!isGivingJson(request))return response({error:'Draft unavailable'},415)
+    const answers=validateGivingDraftAnswers(await boundedGivingJson(request))
+    const [memberSubject,draftService]=await Promise.all([currentSubject(),service()])
     const{secure,names}=cookiePolicy(request)
     const existingNonce=request.cookies.get(names.guest)?.value
     const nonce=existingNonce||randomBytes(32).toString('base64url')
     const binding:GivingDraftBinding=memberSubject?{audience:'member',subject:memberSubject}:{audience:'guest',nonce}
-    const draftService=await service()
     const session=await draftService.createSession({answers,binding})
     const prior=request.cookies.get(names.resume)?.value
     if(prior)await draftService.revokeSession(prior)
     const result=new NextResponse(null,{status:204,headers:GIVING_PRIVATE_HEADERS})
-    if(!memberSubject&&!existingNonce)result.cookies.set(names.guest,nonce,{httpOnly:true,secure,sameSite:'lax',path:'/',maxAge:15*60})
-    result.cookies.set(names.resume,session.token,{httpOnly:true,secure,sameSite:'strict',path:'/',maxAge:15*60})
+    if(!memberSubject&&!existingNonce)result.cookies.set(names.guest,nonce,{httpOnly:true,secure,sameSite:'lax',path:'/',maxAge:GIVING_DRAFT_TTL_MS/1_000})
+    result.cookies.set(names.resume,session.token,{httpOnly:true,secure,sameSite:'strict',path:'/',maxAge:GIVING_DRAFT_TTL_MS/1_000})
     return result
   }catch{return response({error:'Draft unavailable'},400)}
 }

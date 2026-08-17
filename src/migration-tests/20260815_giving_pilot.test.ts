@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 
 import { GIVING_PILOT_DOWN_SQL, GIVING_PILOT_UP_SQL, down, up } from '../migrations/20260815_170000_giving_pilot'
@@ -28,12 +27,6 @@ describe('giving pilot migration', () => {
   it('guards destructive down before any DDL and never seeds General', () => {
     expect(GIVING_PILOT_DOWN_SQL.indexOf('RAISE EXCEPTION')).toBeLessThan(GIVING_PILOT_DOWN_SQL.indexOf('DROP TABLE'))
     expect(GIVING_PILOT_UP_SQL).not.toMatch(/INSERT[\s\S]+General/i)
-  })
-
-  it('keeps the latest schema snapshot aligned without preview or E2E collections', () => {
-    const snapshot = JSON.parse(readFileSync(new URL('../migrations/20260817_014428_giving_schema_snapshot.json', import.meta.url), 'utf8'))
-    expect(snapshot.tables).toHaveProperty('public.giving_checkouts')
-    expect(snapshot.tables).not.toHaveProperty('public.giving_e2e_runs')
   })
 
   it('executes both directions atomically', async () => {

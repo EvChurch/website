@@ -58,6 +58,27 @@ describe('giving Rock identity', () => {
     expect(rockClient.createPerson).not.toHaveBeenCalled()
   })
 
+  it('binds a local synthetic identity without reading or mutating Rock', async () => {
+    const repo = repository()
+    const rockClient = {
+      findActivePeopleByEmail: vi.fn(),
+      createPerson: vi.fn(),
+      findPersonByGuid: vi.fn(),
+      getPersonByAlias: vi.fn(),
+    }
+
+    await expect(resolveGivingIdentity({
+      contextKey: 'sandbox', environment: 'sandbox', synthetic: true, checkoutId: 10,
+      identity: { kind: 'guest', firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.com' },
+    }, { rockClient: rockClient as never, repository: repo as never, fingerprintSecret })).resolves.toMatchObject({
+      giverId: 501, personAliasId: 10, bankReference: 'EV10',
+    })
+    expect(rockClient.findActivePeopleByEmail).not.toHaveBeenCalled()
+    expect(rockClient.createPerson).not.toHaveBeenCalled()
+    expect(rockClient.findPersonByGuid).not.toHaveBeenCalled()
+    expect(rockClient.getPersonByAlias).not.toHaveBeenCalled()
+  })
+
   it.each([[[]], [[person(42, 84), person(43, 85)]]])('creates for zero or multiple exact matches', async (matches) => {
     const repo = repository()
     const rockClient = {

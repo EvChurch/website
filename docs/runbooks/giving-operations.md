@@ -1,6 +1,6 @@
 # Giving operations
 
-This runbook covers everyday tracing, reconciliation, cancellation and exceptions for the giving pilot. It is not a production-release checklist. Production giving remains blocked until the separate certification and controlled real-money gates are complete.
+This runbook covers everyday tracing, reconciliation, cancellation and exceptions for the giving pilot. It is not a production-release checklist; complete the separate certification and controlled real-money checks before enabling BlinkPay for visitors in PostHog.
 
 Release evidence and activation gates are tracked separately in [Giving release gates](./giving-release.md).
 
@@ -46,4 +46,4 @@ Exact admins may create, order, activate and deactivate public funds. There must
 
 ## Acquisition incidents
 
-If new giving acquisition must stop, disable the approved PostHog acquisition audience and keep compatible webhook ingestion, reconciliation, Payload administration and cancellation running for existing schedules. Production activation, credentials, subscription registration, rotation, rollout and real-money smoke procedures belong in the future release runbook, not here.
+If new giving acquisition must stop, disable the approved PostHog acquisition audience and keep compatible webhook ingestion, reconciliation, Payload administration and cancellation running for existing schedules. Production credentials, subscription registration, rotation, rollout and real-money smoke procedures belong in the release runbook, not here.

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { resolveCurrentGivingMemberIdentity, givingIdentityForMemberSubmission } from '@/auth/giving-member-identity'
 import { getBlinkPayRuntimeClient } from '@/lib/giving/blinkpay/runtime-client'
 import { loadBlinkPayConfig } from '@/lib/giving/blinkpay/config'
+import { configuredGivingEnvironment } from '@/lib/giving/availability'
 import { GIVING_REQUEST_MARKERS, type GivingContext } from '@/lib/giving/contracts'
 import { createGivingRockClient } from '@/lib/giving/rock-client'
 import { createGivingIdentityRepository, resolveGivingIdentity } from '@/lib/giving/rock-identity'
@@ -17,10 +18,12 @@ export const dynamic = 'force-dynamic'
 export const GIVING_CHECKOUT_TURNSTILE_ACTION = 'giving-checkout'
 
 type Authority = GivingContext | null
-export function productionGivingCheckoutAuthority(config: ReturnType<typeof loadBlinkPayConfig>): Authority {
-  return config.environment === 'production'
-    ? { contextKey: 'production', environment: 'production', synthetic: false }
-    : null
+export function configuredGivingCheckoutAuthority(config: ReturnType<typeof loadBlinkPayConfig>): GivingContext {
+  return {
+    contextKey: config.environment,
+    environment: config.environment,
+    synthetic: config.environment === 'sandbox',
+  }
 }
 export interface GivingCheckoutRouteDependencies {
   authority(request: NextRequest): Promise<Authority>
@@ -37,14 +40,20 @@ function response(value: unknown, status: number, retryAfter?: number) {
 }
 async function defaultAuthority(_request: NextRequest): Promise<Authority> {
   return resolveGivingCheckoutAuthority({
-    loadProduction: () => loadBlinkPayConfig('production'),
+    loadConfig: loadBlinkPayConfig,
   })
 }
 
 export async function resolveGivingCheckoutAuthority(input: {
-  loadProduction(): ReturnType<typeof loadBlinkPayConfig>
+  environment?: string
+  loadConfig(environment: 'sandbox' | 'production'): ReturnType<typeof loadBlinkPayConfig>
 }): Promise<Authority> {
-  try { return productionGivingCheckoutAuthority(input.loadProduction()) } catch { return null }
+  try {
+    const environment = configuredGivingEnvironment(input.environment)
+    if (!environment) return null
+    const config = input.loadConfig(environment)
+    return config.environment === environment ? configuredGivingCheckoutAuthority(config) : null
+  } catch { return null }
 }
 
 async function defaultStart(authority: GivingContext, submission: GivingCheckoutSubmission, _request: NextRequest) {
@@ -66,7 +75,7 @@ async function defaultStart(authority: GivingContext, submission: GivingCheckout
       return resolveGivingIdentity({ ...input, identity }, {
         rockClient: rock,
         repository: identityRepository,
-        fingerprintSecret: process.env.GIVING_IDENTITY_FINGERPRINT_SECRET ?? '',
+        fingerprintSecret: process.env.GIVING_CHECKOUT_DIGEST_SECRET ?? '',
       })
     },
   })

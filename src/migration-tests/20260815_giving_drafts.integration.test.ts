@@ -13,53 +13,30 @@ function assertDisposableDatabase(value: string) {
   }
 }
 
-describe.skipIf(!databaseUrl)('giving draft capability redemption on PostgreSQL', () => {
+describe.skipIf(!databaseUrl)('giving draft cleanup on PostgreSQL', () => {
   let first: Client
-  let second: Client
 
   beforeAll(async () => {
     assertDisposableDatabase(databaseUrl!)
     first = new Client({ connectionString: databaseUrl })
-    second = new Client({ connectionString: databaseUrl })
-    await Promise.all([first.connect(), second.connect()])
+    await first.connect()
     await first.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public; CREATE TABLE payload_locked_documents_rels(id serial PRIMARY KEY);')
     await first.query(GIVING_DRAFTS_UP_SQL)
   })
 
   afterAll(async () => {
-    await Promise.all([first?.end(), second?.end()])
-  })
-
-  it('allows exactly one concurrent single-use redemption', async () => {
-    await first.query('DELETE FROM giving_drafts')
-    await first.query(`INSERT INTO giving_drafts
-      (token_digest,binding_digest,purpose,audience,answers,expires_at)
-      VALUES ($1,$2,'giving-draft-resume-v1','guest',$3,now()+interval '15 minutes')`, [
-      'token-digest',
-      'binding-digest',
-      JSON.stringify({ amountMinor: 5000 }),
-    ])
-    const redeem = (client: Client) => client.query(`UPDATE giving_drafts
-      SET consumed_at=now(),updated_at=now()
-      WHERE token_digest=$1 AND binding_digest=$2
-        AND purpose='giving-draft-resume-v1' AND audience='guest'
-        AND consumed_at IS NULL AND expires_at > now()
-      RETURNING id`, ['token-digest', 'binding-digest'])
-
-    const results = await Promise.all([redeem(first), redeem(second)])
-    expect(results.map(({ rowCount }) => rowCount).sort()).toEqual([0, 1])
-    expect((await first.query('SELECT count(*)::int AS count FROM giving_drafts WHERE consumed_at IS NOT NULL')).rows[0].count).toBe(1)
+    await first?.end()
   })
 
   it('deletes a bounded batch of consumed or expired PII while preserving a live draft', async () => {
     await first.query('DELETE FROM giving_drafts')
     const answers = JSON.stringify({ firstName:'Ada',lastName:'Lovelace',email:'ada@example.com' })
     await first.query(`INSERT INTO giving_drafts(token_digest,binding_digest,purpose,audience,answers,expires_at,consumed_at)
-      SELECT 'expired-'||value,'binding','giving-draft-resume-v1','guest',$1,now()-interval '1 minute',NULL
+      SELECT 'expired-'||value,'binding','giving-draft-session-v1','guest',$1,now()-interval '1 minute',NULL
       FROM generate_series(1,$2) value`, [answers,GIVING_DRAFT_CLEANUP_LIMIT+1])
     await first.query(`INSERT INTO giving_drafts(token_digest,binding_digest,purpose,audience,answers,expires_at,consumed_at) VALUES
-      ('consumed','binding','giving-draft-resume-v1','guest',$1,now()+interval '10 minutes',now()),
-      ('live','binding','giving-draft-resume-v1','guest',$1,now()+interval '10 minutes',NULL)`, [answers])
+      ('consumed','binding','giving-draft-session-v1','guest',$1,now()+interval '10 minutes',now()),
+      ('live','binding','giving-draft-session-v1','guest',$1,now()+interval '10 minutes',NULL)`, [answers])
     const pool = new Pool({ connectionString:databaseUrl,max:1 })
     try { expect(await cleanupGivingDrafts(pool,new Date())).toBe(GIVING_DRAFT_CLEANUP_LIMIT) }
     finally { await pool.end() }

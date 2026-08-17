@@ -2,6 +2,8 @@ import type { GivingEnvironment } from '../contracts'
 
 export const BLINKPAY_PERIODS = ['daily', 'weekly', 'fortnightly', 'monthly', 'annual'] as const
 export type BlinkPayPeriod = (typeof BLINKPAY_PERIODS)[number]
+export const GIVING_FREQUENCIES = ['one-off', ...BLINKPAY_PERIODS] as const
+export type GivingFrequency = (typeof GIVING_FREQUENCIES)[number]
 
 export interface BlinkPayAmount {
   total: string

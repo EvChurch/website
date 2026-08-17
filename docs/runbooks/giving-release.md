@@ -1,11 +1,13 @@
 # Giving release controls
 
-PostHog is the sole rollout control for which visitors are offered BlinkPay. The server still fails closed when production credentials or URLs are missing or invalid.
+PostHog is the sole rollout control for which visitors are offered BlinkPay. The disabled and unresolved states use the direct bank-transfer path.
+
+`BLINKPAY_DEFAULT_ENVIRONMENT` selects the server-owned BlinkPay environment and defaults to `sandbox`. Keep Sandbox credentials in the `BLINKPAY_SANDBOX_*` variables. Change the selector to `production` only after the production evidence below is complete; never place Sandbox credentials in the production variables.
 
 ## Evidence boundaries
 
 - Vitest and PostgreSQL tests prove local contracts, failure handling, idempotency and concurrency without provider writes.
-- PNZ sandbox evidence must be labelled provider-backed. A signature-valid mocked failed webhook is acceptable only where PNZ cannot produce that lifecycle.
+- BlinkPay sandbox evidence must be labelled provider-backed. A signature-valid mocked failed webhook is acceptable only where the sandbox cannot produce that lifecycle.
 - Only controlled real-money tests can prove production credentials and settlement.
 
 ## Operational verification
@@ -23,12 +25,12 @@ These checks are operational guidance rather than runtime blockers:
 - Verified EV reconciliation, alerting and operator response evidence.
 - Acquisition shutdown and lifecycle-sustainment rehearsal.
 
-The server accepts production BlinkPay checkouts when the production configuration is valid. PostHog controls audience rollout.
+The server accepts BlinkPay checkouts when the selected environment configuration is valid. PostHog controls which visitors the website offers BlinkPay to; it is not an API authorization boundary.
 
 ## Required evidence sequence
 
 1. Complete focused tests, guarded PostgreSQL migrations, generated types and production build.
-2. Complete PNZ one-off, enduring-consent, fixed-schedule, return, cancellation and scheduled-completion evidence. Record which failures are provider-backed versus mocked.
+2. Complete BlinkPay sandbox one-off, enduring-consent, fixed-schedule, return, cancellation and scheduled-completion evidence. Record which failures are provider-backed versus mocked.
 3. Confirm production endpoint/credential pairing, callback origin, Gateway origin, issued scopes and webhook keyring. Inspect the client bundle for secrets.
 4. Register webhooks through controlled merchant onboarding and retain delivery proof; the application does not manage subscriptions.
 5. Configure monitoring for settlement, consent state, schedule state, webhook exceptions, unknown age and flow completion.
@@ -37,13 +39,13 @@ The server accepts production BlinkPay checkouts when the production configurati
 
 ## Credential rotation
 
-BlinkPay OAuth credentials, BlinkPay webhook secrets and the Rock giving credential each require a named owner, new-secret provisioning, overlapping verification where supported, deployment, authoritative read/health checks, old-secret revocation and post-rotation monitoring. Never place secret values in this runbook, tickets, screenshots or test artifacts. If overlap is unsupported, schedule a controlled change window and preserve the last verified application release for rollback.
+BlinkPay OAuth credentials, BlinkPay webhook secrets and the shared Rock credential each require a named owner, new-secret provisioning, overlapping verification where supported, deployment, authoritative read/health checks, old-secret revocation and post-rotation monitoring. Never place secret values in this runbook, tickets, screenshots or test artifacts. If overlap is unsupported, schedule a controlled change window and preserve the last verified application release for rollback.
 
 ## Rollback and incidents
 
 Rollback has two independent planes:
 
-- **Acquisition shutdown:** disable the targeted PostHog audience and keep the server production gate closed to stop new checkouts.
+- **Website acquisition shutdown:** disable the targeted PostHog audience to send new gifts through the direct bank-transfer path instead of BlinkPay. Existing same-origin request controls, Turnstile and rate limits remain the public API protections.
 - **Lifecycle sustainment:** keep compatible webhook ingestion, scheduled reconciliation, Payload financial administration and schedule cancellation deployed while any real recurring obligation exists.
 
 Do not roll back the giving schema after financial or audit writes. Unknown provider mutations remain blocked from retry until authoritative reconciliation. Use [giving operations](./giving-operations.md) for everyday tracing and exceptions.

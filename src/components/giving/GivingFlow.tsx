@@ -118,6 +118,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   const [bankTransfer, setBankTransfer] = useState<GivingBankTransferPreparation | null>(null)
   const [bankAcknowledging, setBankAcknowledging] = useState(false)
   const [bankAcknowledged, setBankAcknowledged] = useState(false)
+  const [paymentMode, setPaymentMode] = useState<'blinkpay' | 'bank-transfer' | null>(null)
   const giving = useGivingExperience()
   const flowRef = useRef<HTMLElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -155,7 +156,16 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   useEffect(() => {
     setBankTransfer(null)
     setBankAcknowledged(false)
-  }, [answerFingerprint, giving.blinkPayEnabled])
+  }, [answerFingerprint, paymentMode])
+  useEffect(() => {
+    if (!giving.givingViewActive) {
+      setPaymentMode(null)
+      return
+    }
+    if (state.step === 'review' && paymentMode === null && giving.flagState !== 'unresolved') {
+      setPaymentMode(giving.blinkPayEnabled ? 'blinkpay' : 'bank-transfer')
+    }
+  }, [giving.blinkPayEnabled, giving.flagState, giving.givingViewActive, paymentMode, state.step])
   const currentOperation = useCallback(() => ({ generation: asyncGeneration.current, signal: asyncAbort.current.signal }), [])
   const operationIsCurrent = useCallback((operation: { generation: number; signal: AbortSignal }) => operation.generation === asyncGeneration.current && !operation.signal.aborted, [])
   const cancelAsyncWork = useCallback(() => {
@@ -330,18 +340,13 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   }, [cancelAsyncWork])
 
   const next = () => { scrollIntent.current = 'forward'; setError(undefined); dispatch({ type: 'next' }) }
-  const persistDraft = async (method:'POST'|'PUT', signal?: AbortSignal) => {
+  const persistDraft = async (signal?: AbortSignal) => {
     const operation = currentOperation()
-    const answers = draftAnswers(state.answers, window.location.pathname)
+    const answers = draftAnswers(state.answers)
     if (!answers) throw new Error('invalid draft')
-    const response = await fetch('/api/giving/drafts', { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(answers), signal: signal ?? operation.signal })
+    const response = await fetch('/api/giving/drafts', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(answers), signal: signal ?? operation.signal })
     if (!operationIsCurrent(operation)) throw new DOMException('Giving flow closed', 'AbortError')
     if (!response.ok) throw new Error('draft unavailable')
-    if(method==='PUT')return null
-    const { resumePath } = await response.json() as { resumePath?:unknown }
-    if (!operationIsCurrent(operation)) throw new DOMException('Giving flow closed', 'AbortError')
-    if(typeof resumePath!=='string'||!resumePath.startsWith('/give/resume/'))throw new Error('draft unavailable')
-    return resumePath
   }
   const submit = async () => {
     if (!turnstileToken || state.step !== 'review' || verifiedFingerprint.current !== answerFingerprint || !state.answers.amountMinor || !state.answers.fund || !state.answers.frequency) return
@@ -353,7 +358,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     leavingFlow.current = true
     setCheckout({ type: 'submitting' });setError(undefined)
     try {
-      await persistDraft('PUT', submitAbort.signal)
+      await persistDraft(submitAbort.signal)
       const response = await fetch('/api/giving/checkouts', { method:'POST',headers:{'content-type':'application/json','x-ev-giving-request':'checkout-v1'},body:JSON.stringify({submissionKey:flowSubmissionKey.current,amountMinor:state.answers.amountMinor,fundId:state.answers.fund.id,frequency:state.answers.frequency,firstPaymentDate:state.answers.frequency==='one-off'?null:state.answers.startDate,firstName:state.answers.firstName,lastName:state.answers.lastName,email:state.answers.email,turnstileToken}),signal:submitAbort.signal })
       const value = await response.json() as { outcome?: unknown; retryAllowed?: unknown; gatewayRedirectUri?: unknown }
       if (!operationIsCurrent(operation)) return
@@ -427,9 +432,9 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     }
   }, [answerFingerprint, currentOperation, operationIsCurrent, state.answers, turnstileToken])
   useEffect(() => {
-    if (giving.blinkPayEnabled || state.step !== 'review' || checkout.type !== 'configuring' || bankTransfer || !turnstileToken) return
+    if (paymentMode !== 'bank-transfer' || state.step !== 'review' || checkout.type !== 'configuring' || bankTransfer || !turnstileToken) return
     void prepareBankTransfer()
-  }, [bankTransfer, checkout.type, giving.blinkPayEnabled, prepareBankTransfer, state.step, turnstileToken])
+  }, [bankTransfer, checkout.type, paymentMode, prepareBankTransfer, state.step, turnstileToken])
   const acknowledgeBankSetup = async () => {
     if (bankAcknowledging || bankAcknowledged) return
     if (!bankTransfer) return
@@ -478,7 +483,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
 
   let content
   if (restoring) content = <p role="status">Restoring your gift…</p>
-  else if (checkout.type === 'submitting') content = <p role="status">{giving.blinkPayEnabled ? 'Opening secure bank authorisation…' : 'Preparing your bank transfer details…'} Please wait.</p>
+  else if (checkout.type === 'submitting') content = <p role="status">{paymentMode === 'blinkpay' ? 'Opening secure bank authorisation…' : 'Preparing your bank transfer details…'} Please wait.</p>
   else if (checkout.type === 'status') {
     const { status, delayed } = checkout
     const presentation = givingCheckoutPresentation(status,delayed)
@@ -496,7 +501,9 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
         : <IdentityStep field={field} value={state.answers[field]} onChange={(value) => {editedIdentity.current.add(field);dispatch({ type: 'setIdentity', field, value })}} onContinue={continueIdentity} />;break
     }
     case 'review': {
-      if (giving.blinkPayEnabled) {
+      if (paymentMode === null) {
+        content = <p role="status" className="text-sm text-dark-grey">Preparing your payment options…</p>
+      } else if (paymentMode === 'blinkpay') {
         content = <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-warm-grey/60"><p className="text-lg leading-relaxed text-dark-grey">You’ll now be taken to BlinkPay to complete your payment setup with your bank. BlinkPay is a trusted third party that uses open banking technology.</p><div className="mt-6"><TurnstileWidget siteKey={turnstileSiteKey} action="giving-checkout" resetKey={turnstileReset} onToken={handleTurnstileToken} onError={setError} /><p className="mt-4 rounded-2xl bg-warm-grey/35 px-5 py-4 font-semibold text-brand-black">{givingHandoffSummary(state.answers)}</p><button type="button" disabled={!turnstileToken} onClick={() => void submit()} className="mt-4 min-h-14 w-full rounded-full bg-rich-red px-5 font-semibold text-white transition hover:bg-deep-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red focus-visible:ring-offset-2 disabled:opacity-50">Continue to BlinkPay</button></div></div>
       } else {
         content = bankTransfer
@@ -506,7 +513,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
       break
     }
   }
-  const heading = checkout.type === 'status' ? 'Your giving result' : checkout.type === 'submitting' ? (giving.blinkPayEnabled ? 'Secure bank authorisation' : 'Bank transfer details') : customDateOpen && state.step === 'starting-date' ? 'OK, choose a start date' : state.step === 'review' ? (giving.blinkPayEnabled ? 'Continue with BlinkPay' : 'Bank transfer details') : titles[state.step]
+  const heading = checkout.type === 'status' ? 'Your giving result' : checkout.type === 'submitting' ? (paymentMode === 'blinkpay' ? 'Secure bank authorisation' : 'Bank transfer details') : customDateOpen && state.step === 'starting-date' ? 'OK, choose a start date' : state.step === 'review' ? (paymentMode === 'blinkpay' ? 'Continue with BlinkPay' : paymentMode === 'bank-transfer' ? 'Bank transfer details' : 'Payment details') : titles[state.step]
   const progress = checkout.type === 'configuring' ? givingProgress(state.step, state.answers.frequency) : 100
   const transitionKey = checkout.type === 'configuring' ? state.step : checkout.type
   const highlightedQuestion = checkout.type === 'configuring' && state.step !== 'amount' && state.step !== 'review'

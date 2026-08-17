@@ -268,6 +268,25 @@ export async function resolveGivingIdentity(
   const fingerprint = createIdentityFingerprint(email, dependencies.fingerprintSecret)
 
   return dependencies.repository.withFingerprintLock(fingerprint, async () => {
+    if (input.synthetic) {
+      const alias = input.checkoutId
+      const correlationKey = `synthetic-alias:${alias}`
+      const operation = await dependencies.repository.prepareOperation({
+        ...input,
+        action: 'rock.resolve-giver',
+        correlationKey,
+        requestDigest: requestDigest([input.contextKey, String(input.checkoutId), correlationKey, fingerprint]),
+      })
+      if (operation.status === 'prepared') await dependencies.repository.markSubmitted(operation.id)
+      return bindResolvedIdentity(
+        input,
+        operation.status === 'prepared' ? { ...operation, status: 'submitted' } : operation,
+        alias,
+        identity,
+        dependencies.repository,
+      )
+    }
+
     const priorCreate = await dependencies.repository.findOperation(input.checkoutId, 'rock.create-giver')
     if (priorCreate) {
       const expectedDigest = requestDigest([

@@ -32,9 +32,12 @@ function cancellableResponse(status: number, headers: Record<string,string> = { 
 }
 
 describe('giving Rock client', () => {
-  afterEach(() => vi.restoreAllMocks())
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
+  })
 
-  it('uses the dedicated exact API origin and bounded active email query', async () => {
+  it('uses the exact API origin and bounded active email query', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(jsonResponse([]))
     const client = createGivingRockClient({ ...config, fetchImpl })
 
@@ -49,6 +52,19 @@ describe('giving Rock client', () => {
     expect(new URL(url).searchParams.get('$top')).toBe('3')
     expect(init).toMatchObject({ redirect: 'error', cache: 'no-store' })
     expect(init.headers).toMatchObject({ 'Authorization-Token': 'test-key' })
+  })
+
+  it('uses the shared Rock configuration by default', async () => {
+    vi.stubEnv('ROCK_API_URL', config.apiUrl)
+    vi.stubEnv('ROCK_API_KEY', config.apiKey)
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse([]))
+    const client = createGivingRockClient({ fetchImpl })
+
+    await client.findActivePeopleByEmail('ada@example.com')
+
+    expect(fetchImpl.mock.calls[0]?.[1]?.headers).toMatchObject({
+      'Authorization-Token': config.apiKey,
+    })
   })
 
   it('resolves a signed-in subject only through the exact Auth0 login and fresh person read', async () => {

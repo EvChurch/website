@@ -2,19 +2,20 @@ import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto'
 
 import type { Pool, PoolClient } from 'pg'
 
-import type { GivingFrequency } from '@/components/giving/giving-state'
 import type { GivingIdentityInput, ResolvedGivingIdentity } from './rock-identity'
 import { isGivingCapabilityToken, type GivingCheckoutStatus, type GivingContext, type ProviderOperationAction, type ProviderOperationStatus } from './contracts'
-import type {
-  BlinkPayAmount,
-  BlinkPayConsent,
-  BlinkPayFixedRecurringPayment,
-  BlinkPayMutationResult,
-  BlinkPayOperationKeys,
-  BlinkPayQuickPayment,
-  CreateEnduringConsentRequest,
-  CreateFixedRecurringPaymentRequest,
-  CreateQuickPaymentRequest,
+import {
+  GIVING_FREQUENCIES,
+  type BlinkPayAmount,
+  type BlinkPayConsent,
+  type BlinkPayFixedRecurringPayment,
+  type BlinkPayMutationResult,
+  type BlinkPayOperationKeys,
+  type BlinkPayQuickPayment,
+  type CreateEnduringConsentRequest,
+  type CreateFixedRecurringPaymentRequest,
+  type CreateQuickPaymentRequest,
+  type GivingFrequency,
 } from './blinkpay/types'
 import { minorUnitsToNzd, validateNzDate, validatePeriod } from './blinkpay/validation'
 import { givingBankCode, givingBankTransferDetails, type GivingBankTransferPreparation } from './bank-transfer'
@@ -157,7 +158,7 @@ export function validateGivingCheckoutSubmission(value: unknown): GivingCheckout
   const frequency = String(value.frequency)
   if (!isGivingCapabilityToken(value.submissionKey) || !Number.isSafeInteger(value.amountMinor) || Number(value.amountMinor) <= 0 ||
       !Number.isSafeInteger(value.fundId) || Number(value.fundId) <= 0 ||
-      !['one-off','daily','weekly','fortnightly','monthly','annual'].includes(frequency) ||
+      !GIVING_FREQUENCIES.includes(frequency as GivingFrequency) ||
       !boundedText(value.firstName, 100) || !boundedText(value.lastName, 100) || !boundedText(value.email, 320) || !boundedText(value.turnstileToken, 4096)) {
     throw new GivingCheckoutError('invalid')
   }
@@ -331,7 +332,6 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
     if (created.disposition === 'recover') return { outcome: 'unknown', retryAllowed: false, statusToken, correlationKey: checkout.correlationKey, reused: created.reused } satisfies GivingCheckoutStartResult
     const identity: GivingIdentityInput = { kind: 'guest', firstName: submission.firstName, lastName: submission.lastName, email: submission.email }
     const resolvedIdentity = await dependencies.resolveIdentity({ contextKey: checkout.contextKey, environment: checkout.environment, synthetic: checkout.synthetic, checkoutId: checkout.id, identity })
-    checkout = (await dependencies.repository.get(checkout.id)) ?? checkout
     checkout = { ...checkout, giverId: resolvedIdentity.giverId, bankReference: resolvedIdentity.bankReference }
     try {
       const gatewayRedirectUri = await executeHosted(checkout, checkout.frequency === 'one-off' ? 'blinkpay.create-payment' : 'blinkpay.create-consent', returnToken)

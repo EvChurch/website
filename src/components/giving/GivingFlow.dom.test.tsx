@@ -12,12 +12,14 @@ const trackGivingEvent=vi.hoisted(()=>vi.fn())
 vi.mock('@/lib/giving/analytics',()=>({trackGivingEvent}))
 const givingContext=vi.hoisted(()=>({
   active:true,
+  flagState:'enabled' as 'unresolved'|'enabled'|'disabled'|'failed',
   blinkPayEnabled:true,
   back:null as (()=>boolean)|null,
   close:null as (()=>boolean)|null,
 }))
 vi.mock('./GivingExperienceProvider',()=>({useGivingExperience:()=>({
   givingViewActive:givingContext.active,
+  flagState:givingContext.flagState,
   blinkPayEnabled:givingContext.blinkPayEnabled,
   registerGivingBackHandler:(handler:()=>boolean)=>{givingContext.back=handler;return()=>{if(givingContext.back===handler)givingContext.back=null}},
   registerGivingCloseHandler:(handler:()=>boolean)=>{givingContext.close=handler;return()=>{if(givingContext.close===handler)givingContext.close=null}},
@@ -80,6 +82,7 @@ describe('GivingFlow', () => {
     root = createRoot(container)
     vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 204 })))
     givingContext.active=true
+    givingContext.flagState='enabled'
     givingContext.blinkPayEnabled=true
     givingContext.back=null
     givingContext.close=null
@@ -210,6 +213,7 @@ describe('GivingFlow', () => {
   })
 
   it('shows direct bank-transfer details when the BlinkPay rollout flag is off', async () => {
+    givingContext.flagState='disabled'
     givingContext.blinkPayEnabled=false
     vi.mocked(fetch).mockImplementation(async(input)=>{
       if(String(input)==='/api/giving/bank-transfer')return new Response(JSON.stringify({accountName:'Auckland Evangelical Church Trust',accountNumber:'01-1845-0008260-05',particulars:'GENERAL',code:'ALOVELACE',reference:'EV123',acknowledgementToken:'A'.repeat(43)}),{status:201,headers:{'content-type':'application/json'}})
@@ -242,7 +246,29 @@ describe('GivingFlow', () => {
     expect(container.querySelector('[data-turnstile]')).toBeNull()
   })
 
+  it('waits for the rollout decision and freezes one payment method for the flow', async () => {
+    givingContext.flagState='unresolved'
+    givingContext.blinkPayEnabled=false
+    await reachSignedInReview(container, root)
+    expect(container.textContent).toContain('Preparing your payment options')
+    expect(container.querySelector('[data-turnstile]')).toBeNull()
+    expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input) === '/api/giving/bank-transfer')).toBe(false)
+
+    givingContext.flagState='enabled'
+    givingContext.blinkPayEnabled=true
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
+    expect(container.textContent).toContain('Continue with BlinkPay')
+    expect(container.querySelector('[data-turnstile]')).toBeTruthy()
+
+    givingContext.flagState='disabled'
+    givingContext.blinkPayEnabled=false
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
+    expect(container.textContent).toContain('Continue with BlinkPay')
+    expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input) === '/api/giving/bank-transfer')).toBe(false)
+  })
+
   it('resolves the real Rock reference before displaying production bank-transfer instructions', async () => {
+    givingContext.flagState='disabled'
     givingContext.blinkPayEnabled=false
     vi.mocked(fetch).mockImplementation(async (input) => {
       if (String(input) === '/api/giving/bank-transfer') return new Response(JSON.stringify({
@@ -276,6 +302,7 @@ describe('GivingFlow', () => {
     ['a server failure', new Response(JSON.stringify({ error: 'Giving unavailable' }), { status: 503, headers: { 'content-type': 'application/json' } })],
     ['an invalid response', new Response(JSON.stringify({ accountName: 'Wrong account' }), { status: 200, headers: { 'content-type': 'application/json' } })],
   ])('keeps bank-transfer preparation retryable after %s', async (_label, bankResponse) => {
+    givingContext.flagState = 'disabled'
     givingContext.blinkPayEnabled = false
     vi.mocked(fetch).mockImplementation(async (input) => String(input) === '/api/giving/bank-transfer'
       ? bankResponse.clone()
@@ -360,7 +387,7 @@ describe('GivingFlow', () => {
     window.history.replaceState(null, '', '/events')
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ answers: {
       amountMinor: 5000, fundId: 2, frequency: 'monthly', startDate: '2026-09-01',
-      firstName: '', lastName: '', email: '', returnPathname: '/events',
+      firstName: '', lastName: '', email: '',
     } }), { status: 200, headers: { 'content-type': 'application/json' } }))
     await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested identity={{ signedIn: true, firstName: 'Fresh', lastName: 'Member', email: 'fresh@example.com' }} />))
     await act(async () => Promise.resolve())
@@ -374,7 +401,7 @@ describe('GivingFlow', () => {
       ? new Response(JSON.stringify({signedIn:true,firstName:'Fresh',lastName:'Member'}),{status:200,headers:{'content-type':'application/json'}})
       : new Response(JSON.stringify({ answers: {
           amountMinor: 5000, fundId: 2, frequency: 'monthly', startDate: '2026-09-01',
-          firstName: '', lastName: '', email: '', returnPathname: '/',
+          firstName: '', lastName: '', email: '',
         } }), { status: 200, headers: { 'content-type': 'application/json' } }))
     await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested identity={{ signedIn: true, firstName: 'Fresh', lastName: 'Member' }} />))
     await act(async () => Promise.resolve())
