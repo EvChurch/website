@@ -1,7 +1,9 @@
 import type { CollectionConfig } from 'payload'
 
 import { generateBlurPlaceholder } from '@/hooks/generateBlurPlaceholder'
+import { createCacheInvalidationHook } from '@/hooks/revalidateCacheTags'
 import { isEditor } from '@/access/roles'
+import { CACHE_TAGS } from '@/lib/cache-tags'
 
 export const Media: CollectionConfig = {
   slug: 'media',
@@ -35,7 +37,10 @@ export const Media: CollectionConfig = {
     focalPoint: true,
   },
   hooks: {
-    afterChange: [generateBlurPlaceholder],
+    afterChange: [
+      generateBlurPlaceholder,
+      createCacheInvalidationHook(CACHE_TAGS.pages),
+    ],
   },
   access: {
     read: () => true,
