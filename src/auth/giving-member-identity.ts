@@ -26,6 +26,17 @@ function usableSubject(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0
 }
 
+export async function currentGivingMemberSubject(
+  getSession?: () => Promise<SessionData | null>,
+) {
+  const readSession = getSession ?? (async () => {
+    const { getAuth0Client } = await import('./auth0-client')
+    return getAuth0Client().getSession()
+  })
+  const subject = (await readSession())?.user?.sub
+  return usableSubject(subject) ? subject : null
+}
+
 export async function resolveCurrentGivingMemberIdentity({
   getSession,
   rockClient,

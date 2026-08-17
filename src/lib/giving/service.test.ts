@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createGivingCheckoutService, GivingCheckoutError, prepareGivingBankTransfer, type GivingCheckoutBlinkPayClient, type GivingCheckoutOperation, type GivingCheckoutRecord, type GivingCheckoutRepository } from './service'
+import { createGivingCheckoutService, GivingCheckoutError, prepareGivingBankTransfer, type GivingCheckoutBlinkPayClient, type GivingCheckoutOperation, type GivingCheckoutRecord, type GivingCheckoutRepository, type GivingCheckoutStartResult } from './service'
 import type { ResolvedGivingIdentity } from './rock-identity'
 
 const context = { contextKey: 'sandbox', environment: 'sandbox' as const, synthetic: true }
@@ -22,7 +22,12 @@ function repository(): GivingCheckoutRepository & { checkouts: GivingCheckoutRec
         if (existing.submissionDigest !== input.submissionDigest) throw new GivingCheckoutError('conflict')
         const operation = operations.find((item) => (item as GivingCheckoutOperation & { checkoutId?: number }).checkoutId === existing.id)
         if (existing.gatewayRedirectUri) {
-          return { checkout: existing, reused: true, disposition: [...returns.values()].includes(existing.id) ? 'redirect' as const : 'recover' as const }
+          const returnCapabilityLive = [...returns.values()].includes(existing.id)
+          if (returnCapabilityLive) {
+            for (const [digest,id] of returns) if (id === existing.id) returns.delete(digest)
+            returns.set(input.returnCapabilityDigest, existing.id)
+          }
+          return { checkout: existing, reused: true, disposition: returnCapabilityLive ? 'redirect' as const : 'recover' as const }
         }
         if (operation && ['submitted','succeeded','unknown'].includes(operation.status)) {
           existing.status = 'unknown'; existing.resultCode = 'unknown'
@@ -65,6 +70,7 @@ function repository(): GivingCheckoutRepository & { checkouts: GivingCheckoutRec
 
 function service(repo = repository(), overrides: Partial<GivingCheckoutBlinkPayClient> = {}, resolveIdentity?: () => Promise<ResolvedGivingIdentity>) {
   let uuid = 0
+  let random = 0
   const blinkPay = {
     createQuickPayment: vi.fn(async (_input, keys) => ({ outcome: 'succeeded' as const, value: { quick_payment_id: 'quick-1', redirect_uri: 'https://sandbox.debit.blinkpay.co.nz/gateway/quick' }, metadata: keys })),
     getQuickPayment: vi.fn(async () => ({ quick_payment_id: 'quick-1', consent: { consent_id: 'consent-1', status: 'Authorised', creation_timestamp: '2026-08-15T00:00:00Z', status_updated_timestamp: '2026-08-15T00:00:00Z', detail: {}, payments: [{ payment_id: 'payment-1', type: 'single', status: 'AcceptedSettlementCompleted', creation_timestamp: '2026-08-15T00:00:00Z', status_updated_timestamp: '2026-08-15T00:00:01Z', detail: {}, refunds: [] }] } })),
@@ -75,8 +81,13 @@ function service(repo = repository(), overrides: Partial<GivingCheckoutBlinkPayC
     isPaymentSettled: (value: { status: string }) => value.status === 'AcceptedSettlementCompleted', isConsentAuthorised: (value: { status: string }) => value.status === 'Authorised', isFixedRecurringPaymentActive: (value: { status: string }) => value.status === 'active',
   } satisfies GivingCheckoutBlinkPayClient
   const client: GivingCheckoutBlinkPayClient = { ...blinkPay, ...overrides }
-  const checkout = createGivingCheckoutService({ repository: repo, blinkPay: client, digestSecret: 's'.repeat(32), now: () => new Date('2026-08-15T00:00:00Z'), randomBytes: () => Buffer.alloc(32, 1), uuid: () => `00000000-0000-4000-8000-${String(++uuid).padStart(12,'0')}`, resolveIdentity: resolveIdentity ?? (async () => { repo.checkouts[0].giverId=9; repo.checkouts[0].bankReference='EV123'; return { giverId:9,personAliasId:123,bankReference:'EV123',firstName:'Ada',lastName:'Lovelace',email:'ada@example.com' } }) })
+  const checkout = createGivingCheckoutService({ repository: repo, blinkPay: client, digestSecret: 's'.repeat(32), now: () => new Date('2026-08-15T00:00:00Z'), randomBytes: () => Buffer.alloc(32, ++random), uuid: () => `00000000-0000-4000-8000-${String(++uuid).padStart(12,'0')}`, resolveIdentity: resolveIdentity ?? (async () => { repo.checkouts[0].giverId=9; repo.checkouts[0].bankReference='EV123'; return { giverId:9,personAliasId:123,bankReference:'EV123',firstName:'Ada',lastName:'Lovelace',email:'ada@example.com' } }) })
   return { checkout, blinkPay, repo }
+}
+
+function returnToken(result: GivingCheckoutStartResult) {
+  if (result.outcome !== 'redirect' || !result.returnToken) throw new Error('Expected a new hosted redirect')
+  return result.returnToken
 }
 
 describe('giving checkout orchestration', () => {
@@ -118,9 +129,8 @@ describe('giving checkout orchestration', () => {
     expect(blinkPay.createQuickPayment).toHaveBeenCalledTimes(1)
     expect(blinkPay.createQuickPayment.mock.calls[0][0].pcr).toEqual({ particulars: 'GEN', code: 'ALOVELACE', reference: 'EV123' })
     expect(blinkPay.createQuickPayment.mock.calls[0][1]).toEqual({ requestId: repo.operations[0].requestId, idempotencyKey: repo.operations[0].idempotencyKey })
-    const callback = blinkPay.createQuickPayment.mock.calls[0][0].flow.detail.redirect_uri
-    const token = callback.split('/').at(-1)!
-    const returned = await checkout.consumeReturn(token)
+    expect(blinkPay.createQuickPayment.mock.calls[0][0].flow.detail.redirect_uri).toBe('https://www.ev.church/give/return')
+    const returned = await checkout.consumeReturn(returnToken(second))
     expect(await checkout.status(returned.statusToken)).toEqual({ state: 'verified', retryAllowed: false, kind: 'one-off' })
   })
 
@@ -131,7 +141,7 @@ describe('giving checkout orchestration', () => {
     expect(first).toMatchObject({ outcome: 'unknown', retryAllowed: false, reused: false })
     const second = await checkout.start({ ...context, submission: baseSubmission })
     expect(second).toMatchObject({ outcome: 'unknown', retryAllowed: false, reused: true })
-    await expect(checkout.status(first.statusToken)).resolves.toEqual({ state: 'unknown', retryAllowed: false, kind: 'one-off' })
+    await expect(checkout.status(second.statusToken)).resolves.toEqual({ state: 'unknown', retryAllowed: false, kind: 'one-off' })
     expect(createQuickPayment).toHaveBeenCalledTimes(1)
   })
 
@@ -149,6 +159,17 @@ describe('giving checkout orchestration', () => {
     expect(repo.operations[0]).toMatchObject({ status: 'unknown', providerId })
     await expect(checkout.start({ ...context, submission: { ...baseSubmission, frequency, firstPaymentDate } })).resolves.toMatchObject({ outcome:'unknown',retryAllowed:false,reused:true })
     expect(frequency==='one-off'?blinkPay.createQuickPayment:blinkPay.createEnduringConsent).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns a no-retry unknown outcome when both provider-acceptance writes fail', async () => {
+    const repo = repository()
+    vi.spyOn(repo, 'recordHostedSuccess').mockRejectedValue(new Error('database unavailable'))
+    vi.spyOn(repo, 'recordAcceptedUnknown').mockRejectedValue(new Error('database still unavailable'))
+    const { checkout, blinkPay } = service(repo)
+
+    await expect(checkout.start({ ...context, submission: baseSubmission })).resolves.toMatchObject({ outcome: 'unknown', retryAllowed: false })
+    await expect(checkout.start({ ...context, submission: baseSubmission })).resolves.toMatchObject({ outcome: 'unknown', retryAllowed: false, reused: true })
+    expect(blinkPay.createQuickPayment).toHaveBeenCalledTimes(1)
   })
 
   it('conflicts when the same submission key is reused with a changed canonical body', async () => {
@@ -169,7 +190,7 @@ describe('giving checkout orchestration', () => {
     const repo = repository()
     let attempts = 0
     const resolved = { giverId:9,personAliasId:123,bankReference:'EV123',firstName:'Ada',lastName:'Lovelace',email:'ada@example.com' }
-    const { checkout, blinkPay } = service(repo, {}, async () => {
+    const { checkout } = service(repo, {}, async () => {
       attempts += 1
       if (attempts === 1) throw new Error('crash before provider operation')
       repo.checkouts[0].giverId = 9
@@ -177,44 +198,44 @@ describe('giving checkout orchestration', () => {
       return resolved
     })
     await expect(checkout.start({ ...context, submission: baseSubmission })).rejects.toThrow()
-    await checkout.start({ ...context, submission: baseSubmission })
-    const returnToken = blinkPay.createQuickPayment.mock.calls[0][0].flow.detail.redirect_uri.split('/').at(-1)!
-    await expect(checkout.consumeReturn(returnToken)).resolves.toBeDefined()
+    const result = await checkout.start({ ...context, submission: baseSubmission })
+    await expect(checkout.consumeReturn(returnToken(result))).resolves.toBeDefined()
   })
 
-  it('keeps the original live return capability when reusing a hosted Gateway URL', async () => {
-    const { checkout, blinkPay } = service()
+  it('rotates the live return capability when reusing a hosted Gateway URL', async () => {
+    const { checkout } = service()
     const first = await checkout.start({ ...context, submission: baseSubmission })
-    const originalToken = blinkPay.createQuickPayment.mock.calls[0][0].flow.detail.redirect_uri.split('/').at(-1)!
+    const originalToken = returnToken(first)
     const reused = await checkout.start({ ...context, submission: baseSubmission })
     expect(reused).toMatchObject({ outcome: 'redirect', reused: true, gatewayRedirectUri: first.outcome === 'redirect' ? first.gatewayRedirectUri : undefined })
-    await expect(checkout.consumeReturn(originalToken)).resolves.toBeDefined()
+    const reusedToken = returnToken(reused)
+    expect(reusedToken).not.toBe(originalToken)
+    await expect(checkout.consumeReturn(originalToken)).rejects.toMatchObject({ code: 'unavailable' })
+    await expect(checkout.consumeReturn(reusedToken)).resolves.toBeDefined()
   })
 
   it('returns explicit no-retry recovery when a reused Gateway capability was consumed', async () => {
     const { checkout, blinkPay } = service()
-    await checkout.start({ ...context, submission: baseSubmission })
-    const originalToken = blinkPay.createQuickPayment.mock.calls[0][0].flow.detail.redirect_uri.split('/').at(-1)!
+    const started = await checkout.start({ ...context, submission: baseSubmission })
+    const originalToken = returnToken(started)
     await checkout.consumeReturn(originalToken)
     await expect(checkout.start({ ...context, submission: baseSubmission })).resolves.toMatchObject({ outcome: 'unknown', retryAllowed: false, reused: true })
     expect(blinkPay.createQuickPayment).toHaveBeenCalledTimes(1)
   })
 
   it('exchanges a valid return capability even when authoritative retrieval is temporarily unavailable', async () => {
-    const { checkout, blinkPay } = service(repository(), { getQuickPayment: vi.fn(async () => { throw new Error('provider unavailable') }) })
-    await checkout.start({ ...context, submission: baseSubmission })
-    const token = blinkPay.createQuickPayment.mock.calls[0][0].flow.detail.redirect_uri.split('/').at(-1)!
-    const returned = await checkout.consumeReturn(token)
+    const { checkout } = service(repository(), { getQuickPayment: vi.fn(async () => { throw new Error('provider unavailable') }) })
+    const started = await checkout.start({ ...context, submission: baseSubmission })
+    const returned = await checkout.consumeReturn(returnToken(started))
     expect(await checkout.status(returned.statusToken)).toEqual({ state: 'processing', retryAllowed: false, kind: 'one-off' })
   })
 
   it('returns the persisted status capability when recovery setProcessing also fails', async () => {
     const repo = repository()
     vi.spyOn(repo, 'setProcessing').mockRejectedValue(new Error('database unavailable'))
-    const { checkout, blinkPay } = service(repo, { getQuickPayment: vi.fn(async () => { throw new Error('provider unavailable') }) })
-    await checkout.start({ ...context, submission: baseSubmission })
-    const token = blinkPay.createQuickPayment.mock.calls[0][0].flow.detail.redirect_uri.split('/').at(-1)!
-    await expect(checkout.consumeReturn(token)).resolves.toMatchObject({ statusToken: expect.any(String), checkoutId: 1 })
+    const { checkout } = service(repo, { getQuickPayment: vi.fn(async () => { throw new Error('provider unavailable') }) })
+    const started = await checkout.start({ ...context, submission: baseSubmission })
+    await expect(checkout.consumeReturn(returnToken(started))).resolves.toMatchObject({ statusToken: expect.any(String), checkoutId: 1 })
   })
 
   it('reconciles a transient return failure on status poll and completes one gift exactly once', async () => {
@@ -222,28 +243,27 @@ describe('giving checkout orchestration', () => {
     const completeOneOff = vi.spyOn(repo, 'completeOneOff')
     const settled = { quick_payment_id: 'quick-1', consent: { consent_id: 'consent-1', status: 'Authorised', creation_timestamp: '2026-08-15T00:00:00Z', status_updated_timestamp: '2026-08-15T00:00:00Z', detail: {}, payments: [{ payment_id: 'payment-1', type: 'single', status: 'AcceptedSettlementCompleted', creation_timestamp: '2026-08-15T00:00:00Z', status_updated_timestamp: '2026-08-15T00:00:01Z', detail: {}, refunds: [] }] } }
     const getQuickPayment = vi.fn().mockRejectedValueOnce(new Error('temporarily unavailable')).mockResolvedValue(settled)
-    const { checkout, blinkPay } = service(repo, { getQuickPayment })
-    await checkout.start({ ...context, submission: baseSubmission })
-    const token = blinkPay.createQuickPayment.mock.calls[0][0].flow.detail.redirect_uri.split('/').at(-1)!
-    const returned = await checkout.consumeReturn(token)
+    const { checkout } = service(repo, { getQuickPayment })
+    const started = await checkout.start({ ...context, submission: baseSubmission })
+    const returned = await checkout.consumeReturn(returnToken(started))
     expect(await checkout.status(returned.statusToken)).toEqual({ state: 'verified', retryAllowed: false, kind: 'one-off' })
     expect(await checkout.status(returned.statusToken)).toEqual({ state: 'verified', retryAllowed: false, kind: 'one-off' })
     expect(completeOneOff).toHaveBeenCalledTimes(1)
   })
 
   it('rejects a mismatched callback alias without consuming the return capability', async () => {
-    const { checkout, blinkPay } = service()
-    await checkout.start({ ...context, submission: baseSubmission })
-    const token = blinkPay.createQuickPayment.mock.calls[0][0].flow.detail.redirect_uri.split('/').at(-1)!
+    const { checkout } = service()
+    const started = await checkout.start({ ...context, submission: baseSubmission })
+    const token = returnToken(started)
     await expect(checkout.consumeReturn(token, 'quick-other')).rejects.toMatchObject({ code: 'unavailable' })
     await expect(checkout.consumeReturn(token, 'quick-1')).resolves.toBeDefined()
   })
 
   it('creates exactly one schedule after authoritative consent authorisation and verifies it active', async () => {
     const { checkout, blinkPay } = service()
-    await checkout.start({ ...context, submission: { ...baseSubmission, frequency: 'monthly', firstPaymentDate: '2026-09-01' } })
-    const callback = blinkPay.createEnduringConsent.mock.calls[0][0].flow.detail.redirect_uri
-    await checkout.consumeReturn(callback.split('/').at(-1)!)
+    const started = await checkout.start({ ...context, submission: { ...baseSubmission, frequency: 'monthly', firstPaymentDate: '2026-09-01' } })
+    expect(blinkPay.createEnduringConsent.mock.calls[0][0].flow.detail.redirect_uri).toBe('https://www.ev.church/give/return')
+    await checkout.consumeReturn(returnToken(started))
     await checkout.verify(1)
     expect(blinkPay.createFixedRecurringPayment).toHaveBeenCalledTimes(1)
     expect(blinkPay.createFixedRecurringPayment.mock.calls[0][0].pcr).toEqual({ particulars: 'GEN', code: 'ALOVELACE', reference: 'EV123' })
@@ -253,19 +273,17 @@ describe('giving checkout orchestration', () => {
 
   it('marks a definitive schedule rejection failed instead of leaving it submitted', async () => {
     const createFixedRecurringPayment = vi.fn(async () => { throw { code: 'request-rejected' } })
-    const { checkout, blinkPay } = service(repository(), { createFixedRecurringPayment })
-    await checkout.start({ ...context, submission: { ...baseSubmission, frequency: 'monthly', firstPaymentDate: '2026-09-01' } })
-    const token = blinkPay.createEnduringConsent.mock.calls[0][0].flow.detail.redirect_uri.split('/').at(-1)!
-    const returned = await checkout.consumeReturn(token)
+    const { checkout } = service(repository(), { createFixedRecurringPayment })
+    const started = await checkout.start({ ...context, submission: { ...baseSubmission, frequency: 'monthly', firstPaymentDate: '2026-09-01' } })
+    const returned = await checkout.consumeReturn(returnToken(started))
     expect(await checkout.status(returned.statusToken)).toEqual({ state: 'rejected', retryAllowed: true, kind: 'recurring' })
   })
 
   it('marks an ambiguous schedule exception unknown and does not retry it', async () => {
     const createFixedRecurringPayment = vi.fn(async () => { throw new TypeError('network unavailable') })
-    const { checkout, blinkPay } = service(repository(), { createFixedRecurringPayment })
-    await checkout.start({ ...context, submission: { ...baseSubmission, frequency: 'monthly', firstPaymentDate: '2026-09-01' } })
-    const token = blinkPay.createEnduringConsent.mock.calls[0][0].flow.detail.redirect_uri.split('/').at(-1)!
-    const returned = await checkout.consumeReturn(token)
+    const { checkout } = service(repository(), { createFixedRecurringPayment })
+    const started = await checkout.start({ ...context, submission: { ...baseSubmission, frequency: 'monthly', firstPaymentDate: '2026-09-01' } })
+    const returned = await checkout.consumeReturn(returnToken(started))
     expect(await checkout.status(returned.statusToken)).toEqual({ state: 'unknown', retryAllowed: false, kind: 'recurring' })
     await checkout.verify(1)
     expect(createFixedRecurringPayment).toHaveBeenCalledTimes(1)
@@ -276,9 +294,8 @@ describe('giving checkout orchestration', () => {
     vi.spyOn(repo, 'bindScheduleProviderId').mockRejectedValue(new Error('database unavailable'))
     const acceptedUnknown = vi.spyOn(repo, 'recordAcceptedUnknown')
     const { checkout, blinkPay } = service(repo)
-    await checkout.start({ ...context, submission: { ...baseSubmission, frequency: 'monthly', firstPaymentDate: '2026-09-01' } })
-    const token = blinkPay.createEnduringConsent.mock.calls[0][0].flow.detail.redirect_uri.split('/').at(-1)!
-    const returned = await checkout.consumeReturn(token)
+    const started = await checkout.start({ ...context, submission: { ...baseSubmission, frequency: 'monthly', firstPaymentDate: '2026-09-01' } })
+    const returned = await checkout.consumeReturn(returnToken(started))
     expect(acceptedUnknown).toHaveBeenCalledWith(expect.objectContaining({ action: 'blinkpay.create-schedule', providerId: 'schedule-1' }))
     await checkout.verify(1)
     expect(blinkPay.createFixedRecurringPayment).toHaveBeenCalledTimes(1)

@@ -444,6 +444,51 @@ describe('GivingFlow', () => {
     expect(vi.mocked(fetch).mock.calls.some(([input])=>String(input).startsWith('/give/resume/'))).toBe(false)
   })
 
+  it('rotates the submission key after a definitive server rejection', async () => {
+    const checkoutBodies: Array<Record<string, unknown>> = []
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      const url = String(input)
+      if (url === '/api/giving/drafts' && init?.method === 'PUT') return new Response(null, { status: 204 })
+      if (url === '/api/giving/checkouts') {
+        checkoutBodies.push(JSON.parse(String(init?.body)))
+        return new Response(JSON.stringify({ error: 'Giving unavailable', retryAllowed: true }), {
+          status: 503,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      return new Response(null, { status: 204 })
+    })
+    await reachSignedInReview(container, root)
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    await act(async () => button(container, 'Continue to BlinkPay')?.click())
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    await act(async () => button(container, 'Continue to BlinkPay')?.click())
+
+    expect(checkoutBodies).toHaveLength(2)
+    expect(checkoutBodies[0].submissionKey).not.toBe(checkoutBodies[1].submissionKey)
+  })
+
+  it('preserves the submission key after an unclassified server failure', async () => {
+    const checkoutBodies: Array<Record<string, unknown>> = []
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      const url = String(input)
+      if (url === '/api/giving/drafts' && init?.method === 'PUT') return new Response(null, { status: 204 })
+      if (url === '/api/giving/checkouts') {
+        checkoutBodies.push(JSON.parse(String(init?.body)))
+        return new Response(JSON.stringify({ error: 'Giving unavailable' }), { status: 503, headers: { 'content-type': 'application/json' } })
+      }
+      return new Response(null, { status: 204 })
+    })
+    await reachSignedInReview(container, root)
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    await act(async () => button(container, 'Continue to BlinkPay')?.click())
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    await act(async () => button(container, 'Continue to BlinkPay')?.click())
+
+    expect(checkoutBodies).toHaveLength(2)
+    expect(checkoutBodies[0].submissionKey).toBe(checkoutBodies[1].submissionKey)
+  })
+
   it('requires a fresh Turnstile token after leaving the BlinkPay handoff', async () => {
     await reachSignedInReview(container, root)
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())

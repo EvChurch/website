@@ -3,10 +3,17 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   givingIdentityForMemberSubmission,
+  currentGivingMemberSubject,
   resolveCurrentGivingMemberIdentity,
 } from './giving-member-identity'
 
 describe('giving member identity', () => {
+  it('recognises only a non-empty server session subject for member rate limits', async () => {
+    await expect(currentGivingMemberSubject(vi.fn().mockResolvedValue({ user: { sub: 'auth0|member' } } as SessionData))).resolves.toBe('auth0|member')
+    await expect(currentGivingMemberSubject(vi.fn().mockResolvedValue({ user: { sub: '' } } as SessionData))).resolves.toBeNull()
+    await expect(currentGivingMemberSubject(vi.fn().mockResolvedValue(null))).resolves.toBeNull()
+  })
+
   it('uses only the server session subject and accepts a partial fresh Rock identity', async () => {
     const resolveSignedInPerson = vi.fn().mockResolvedValue({
       id: 42, primaryAliasId: 84, guid: '22e31fd2-e649-43d5-b350-8a620f68ca1d', firstName: 'Ada', lastName: null, email: null,
