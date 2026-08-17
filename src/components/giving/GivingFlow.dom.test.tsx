@@ -301,7 +301,7 @@ describe('GivingFlow', () => {
   it.each([
     ['a server failure', new Response(JSON.stringify({ error: 'Giving unavailable' }), { status: 503, headers: { 'content-type': 'application/json' } })],
     ['an invalid response', new Response(JSON.stringify({ accountName: 'Wrong account' }), { status: 200, headers: { 'content-type': 'application/json' } })],
-  ])('keeps bank-transfer preparation retryable after %s', async (_label, bankResponse) => {
+  ])('requires an explicit bank-transfer retry after %s', async (_label, bankResponse) => {
     givingContext.flagState = 'disabled'
     givingContext.blinkPayEnabled = false
     vi.mocked(fetch).mockImplementation(async (input) => String(input) === '/api/giving/bank-transfer'
@@ -311,7 +311,11 @@ describe('GivingFlow', () => {
     await act(async () => container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
     expect(container.querySelector('[role="alert"]')?.textContent).toContain('could not prepare your bank transfer details')
     expect(button(container, 'Show bank transfer details')).toBeUndefined()
+    expect(button(container, 'Try again')).toBeTruthy()
     expect(container.querySelector<HTMLButtonElement>('[data-turnstile]')).toBeTruthy()
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    expect(vi.mocked(fetch).mock.calls.filter(([input]) => String(input) === '/api/giving/bank-transfer')).toHaveLength(1)
+    await act(async () => button(container, 'Try again')?.click())
     await act(async () => container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
     expect(vi.mocked(fetch).mock.calls.filter(([input]) => String(input) === '/api/giving/bank-transfer')).toHaveLength(2)
   })

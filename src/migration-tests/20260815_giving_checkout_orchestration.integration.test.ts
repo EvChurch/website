@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 import { createPostgresGivingRateLimitStore } from '../lib/giving/rate-limit'
 import { createPostgresGivingLifecycleStore } from '../lib/giving/reconciliation'
+import { markProviderOperationSubmitted } from '../lib/giving/repository'
 import { createGivingCheckoutService, createPostgresGivingCheckoutRepository, GivingCheckoutError } from '../lib/giving/service'
 import { GIVING_PILOT_UP_SQL } from '../migrations/20260815_170000_giving_pilot'
 import { GIVING_CHECKOUT_ORCHESTRATION_UP_SQL } from '../migrations/20260815_230000_giving_checkout_orchestration'
@@ -73,6 +74,33 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     expect(await repository.acknowledgeBankSetup('bank-ack-digest', now)).toBe(true)
     expect(await repository.acknowledgeBankSetup('bank-ack-digest', now)).toBe(true)
     expect((await pool.query('SELECT status,bank_setup_acknowledged_at FROM giving_checkouts WHERE id=$1', [created.checkout.id])).rows[0]).toMatchObject({ status: 'draft', bank_setup_acknowledged_at: now })
+  })
+
+  it('transitions a prepared Rock operation without ambiguous PostgreSQL parameter types', async () => {
+    const repository = createPostgresGivingCheckoutRepository(pool)
+    const created = await repository.createOrReuse(input('rock-transition', 0))
+    const operation = await pool.query<{ id: number }>(`
+      INSERT INTO giving_provider_operations(
+        context_key,environment,synthetic,checkout_id,provider,action,logical_version,
+        request_digest,correlation_key,status
+      ) VALUES('sandbox','sandbox',true,$1,'rock','rock.resolve-giver',1,'digest','rock-alias:123','prepared')
+      RETURNING id
+    `, [created.checkout.id])
+    const client = await pool.connect()
+    try {
+      await markProviderOperationSubmitted(client, operation.rows[0].id, {})
+    } finally {
+      client.release()
+    }
+
+    expect((await pool.query(
+      'SELECT status FROM giving_provider_operations WHERE id=$1',
+      [operation.rows[0].id],
+    )).rows).toEqual([{ status: 'submitted' }])
+    expect((await pool.query(
+      'SELECT attempt_number,outcome FROM giving_provider_operation_attempts WHERE operation_id=$1',
+      [operation.rows[0].id],
+    )).rows).toEqual([{ attempt_number: 1, outcome: 'submitted' }])
   })
 
   it('isolates key idempotency by context and conflicts on changed canonical body', async () => {

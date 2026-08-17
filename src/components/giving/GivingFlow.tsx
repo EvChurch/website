@@ -116,6 +116,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   const [turnstileReset, setTurnstileReset] = useState(0)
   const [identityLoading, setIdentityLoading] = useState(false)
   const [bankTransfer, setBankTransfer] = useState<GivingBankTransferPreparation | null>(null)
+  const [bankPreparationRetryRequired, setBankPreparationRetryRequired] = useState(false)
   const [bankAcknowledging, setBankAcknowledging] = useState(false)
   const [bankAcknowledged, setBankAcknowledged] = useState(false)
   const [paymentMode, setPaymentMode] = useState<'blinkpay' | 'bank-transfer' | null>(null)
@@ -156,6 +157,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   useEffect(() => {
     setBankTransfer(null)
     setBankAcknowledged(false)
+    setBankPreparationRetryRequired(false)
   }, [answerFingerprint, paymentMode])
   useEffect(() => {
     if (!giving.givingViewActive) {
@@ -417,13 +419,14 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
         throw new Error('bank transfer unavailable')
       }
       setBankTransfer(value as GivingBankTransferPreparation)
+      setBankPreparationRetryRequired(false)
       setCheckout({ type: 'configuring' })
     } catch {
       if (operationIsCurrent(operation)) {
         verifiedFingerprint.current = null
         setCheckout({ type: 'configuring' })
         setTurnstileToken('')
-        setTurnstileReset((value) => value + 1)
+        setBankPreparationRetryRequired(true)
         setError('We could not prepare your bank transfer details. Please try again.')
       }
     } finally {
@@ -432,9 +435,16 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     }
   }, [answerFingerprint, currentOperation, operationIsCurrent, state.answers, turnstileToken])
   useEffect(() => {
-    if (paymentMode !== 'bank-transfer' || state.step !== 'review' || checkout.type !== 'configuring' || bankTransfer || !turnstileToken) return
+    if (paymentMode !== 'bank-transfer' || state.step !== 'review' || checkout.type !== 'configuring' || bankTransfer || bankPreparationRetryRequired || !turnstileToken) return
     void prepareBankTransfer()
-  }, [bankTransfer, checkout.type, paymentMode, prepareBankTransfer, state.step, turnstileToken])
+  }, [bankPreparationRetryRequired, bankTransfer, checkout.type, paymentMode, prepareBankTransfer, state.step, turnstileToken])
+  const retryBankTransferPreparation = () => {
+    verifiedFingerprint.current = null
+    setError(undefined)
+    setTurnstileToken('')
+    setBankPreparationRetryRequired(false)
+    setTurnstileReset((value) => value + 1)
+  }
   const acknowledgeBankSetup = async () => {
     if (bankAcknowledging || bankAcknowledged) return
     if (!bankTransfer) return
@@ -508,7 +518,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
       } else {
         content = bankTransfer
           ? <BankTransferHandoff details={bankTransfer} summary={givingHandoffSummary(state.answers)} acknowledged={bankAcknowledged} acknowledging={bankAcknowledging} onAcknowledge={() => void acknowledgeBankSetup()} />
-          : <div className="py-3"><TurnstileWidget siteKey={turnstileSiteKey} action="giving-checkout" resetKey={turnstileReset} onToken={handleTurnstileToken} onError={setError} /><p role="status" className="text-sm text-dark-grey">Preparing your bank details…</p></div>
+          : <div className="py-3"><TurnstileWidget siteKey={turnstileSiteKey} action="giving-checkout" resetKey={turnstileReset} onToken={handleTurnstileToken} onError={setError} />{bankPreparationRetryRequired ? <button type="button" className="mt-4 min-h-12 w-full rounded-full bg-rich-red px-5 font-semibold text-white transition hover:bg-deep-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red focus-visible:ring-offset-2" onClick={retryBankTransferPreparation}>Try again</button> : <p role="status" className="text-sm text-dark-grey">Preparing your bank details…</p>}</div>
       }
       break
     }

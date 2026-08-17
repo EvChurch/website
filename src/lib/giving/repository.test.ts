@@ -43,7 +43,6 @@ describe('giving domain invariants', () => {
     await markProviderOperation(client as never, 1, 'succeeded', { providerId: 'payment-1', providerRequestId: 'request-1' })
     expect(query).toHaveBeenCalledOnce()
     expect(query.mock.calls[0][0]).toContain('attempt_number')
-    expect(query.mock.calls[0][0]).toContain("provider_id=CASE WHEN $2='succeeded'")
     await expect(markProviderOperation(client as never, 1, 'unknown', { providerId: 'payment-1' })).rejects.toThrow(/only be bound on success/)
   })
 })

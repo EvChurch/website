@@ -90,11 +90,11 @@ export async function markProviderOperation(client: PoolClient, operationId: num
   const legalFrom: Record<Exclude<ProviderOperationStatus, 'prepared'>, ProviderOperationStatus[]> = { submitted: ['prepared'], succeeded: ['submitted','unknown'], unknown: ['submitted'], failed: ['prepared','submitted','unknown'] }
   if (attempt.providerId && status !== 'succeeded') throw new Error('Provider ID can only be bound on success')
   const transitioned = await client.query(`WITH updated AS (
-      UPDATE giving_provider_operations SET status=$2,provider_request_id=COALESCE($3,provider_request_id),provider_id=CASE WHEN $2='succeeded' THEN COALESCE($4,provider_id) ELSE provider_id END,updated_at=now()
+      UPDATE giving_provider_operations SET status=$2::varchar,provider_request_id=COALESCE($3,provider_request_id),provider_id=CASE WHEN $2::varchar='succeeded' THEN COALESCE($4,provider_id) ELSE provider_id END,updated_at=now()
       WHERE id=$1 AND status=ANY($6::varchar[]) AND ($4::varchar IS NULL OR provider_id IS NULL OR provider_id=$4) RETURNING id
     ), next_attempt AS (SELECT COALESCE(MAX(attempt_number),0)+1 AS value FROM giving_provider_operation_attempts WHERE operation_id=$1)
     INSERT INTO giving_provider_operation_attempts(operation_id,attempt_number,outcome,provider_request_id,error_code)
-    SELECT updated.id,next_attempt.value,$2,$3,$5 FROM updated CROSS JOIN next_attempt RETURNING id`, [operationId,status,attempt.providerRequestId ?? null,attempt.providerId ?? null,attempt.errorCode ?? null,legalFrom[status]])
+    SELECT updated.id,next_attempt.value,$2::varchar,$3,$5 FROM updated CROSS JOIN next_attempt RETURNING id`, [operationId,status,attempt.providerRequestId ?? null,attempt.providerId ?? null,attempt.errorCode ?? null,legalFrom[status]])
   if (transitioned.rowCount !== 1) throw new Error(`Illegal or stale provider operation transition to ${status}`)
 }
 
