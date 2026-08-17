@@ -13,4 +13,10 @@ describe('canonical host redirects', () => {
       permanent: true,
     })
   })
+
+  it('keeps the local /give page and its child routes out of redirect handling', async () => {
+    const redirects = await nextConfig.redirects?.()
+    expect(redirects).not.toContainEqual(expect.objectContaining({ source: '/give' }))
+    expect(redirects).not.toContainEqual(expect.objectContaining({ source: '/give/:path*' }))
+  })
 })

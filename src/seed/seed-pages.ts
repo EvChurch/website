@@ -1606,7 +1606,7 @@ async function seed() {
         text: "Please don't feel any obligation to give. The service and the morning tea are on us.",
         colorPreset: 'primary-red',
         buttons: [
-          { label: 'Give online', href: 'https://give.ev.church', variant: 'primary' },
+          { label: 'Give online', href: '/give', variant: 'primary' },
           { label: 'Our 2030 vision', href: '/vision', variant: 'secondary' },
         ],
       },

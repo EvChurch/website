@@ -5,6 +5,8 @@ import { AnnouncementBanner } from '@/components/layout/AnnouncementBanner'
 import { Footer } from '@/components/layout/Footer'
 import { PublicChrome } from '@/components/layout/PublicChrome'
 import { OrganizationJsonLd } from '@/components/seo/OrganizationJsonLd'
+import { resolveGivingRuntimeConfiguration } from '@/lib/giving/availability'
+import { getCachedActiveGivingFunds } from '@/lib/giving/funds'
 import { loadLauncherData } from '@/lib/launcher/service-guide'
 import { loadSiteFeedbackSettings } from '@/lib/site-feedback/settings'
 import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
@@ -80,10 +82,20 @@ export const viewport: Viewport = {
 }
 
 export default async function FrontendLayout({ children }: { children: ReactNode }) {
-  const [launcher, feedback] = await Promise.all([
+  const loadGivingFunds = async () => {
+    try {
+      return await getCachedActiveGivingFunds()
+    } catch {
+      console.error('Giving funds are unavailable.')
+      return []
+    }
+  }
+  const [launcher, feedback, givingFunds] = await Promise.all([
     loadLauncherData(),
     loadSiteFeedbackSettings(),
+    loadGivingFunds(),
   ])
+  const givingRuntime = resolveGivingRuntimeConfiguration()
 
   return (
     <html lang="en" className={fontVariables}>
@@ -96,6 +108,8 @@ export default async function FrontendLayout({ children }: { children: ReactNode
           feedback={feedback}
           announcement={<AnnouncementBanner />}
           footer={<Footer />}
+          givingFunds={givingFunds}
+          givingRuntime={givingRuntime}
         >
           {children}
         </PublicChrome>

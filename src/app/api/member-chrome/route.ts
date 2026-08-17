@@ -4,7 +4,9 @@ import { getAuth0Client } from '@/auth/auth0-client'
 import { getMemberImpersonationFromSession } from '@/auth/member-impersonation'
 import { getMemberProfileStateFromSession } from '@/auth/member-session'
 import { isCurrentPayloadAdmin } from '@/auth/payload-admin-session'
+import { givingCapabilityCookieNames } from '@/lib/giving/drafts'
 import { ANONYMOUS_MEMBER_CHROME, type MemberChromeState } from '@/lib/member-chrome'
+import { getTurnstileSiteKey } from '@/lib/rock-forms/config'
 
 const PRIVATE_HEADERS = {
   'Cache-Control': 'private, no-store, max-age=0',
@@ -22,16 +24,36 @@ function hasSessionCookie(request: NextRequest) {
   )
 }
 
-function anonymousResponse() {
-  return NextResponse.json(ANONYMOUS_MEMBER_CHROME, { headers: PRIVATE_HEADERS })
+function givingResumeRequested(request: NextRequest) {
+  const secure = request.nextUrl.protocol === 'https:'
+  return Boolean(
+    request.cookies.get(givingCapabilityCookieNames(secure).resume)?.value ||
+    request.cookies.get('__Host-ev_giving_checkout')?.value,
+  )
+}
+
+async function anonymousResponse(request: NextRequest) {
+  return NextResponse.json({
+    ...ANONYMOUS_MEMBER_CHROME,
+    givingResumeRequested: givingResumeRequested(request),
+    givingTurnstileSiteKey: turnstileSiteKey(),
+  }, { headers: PRIVATE_HEADERS })
+}
+
+function turnstileSiteKey() {
+  try {
+    return getTurnstileSiteKey()
+  } catch {
+    return null
+  }
 }
 
 export async function GET(request: NextRequest) {
-  if (!hasSessionCookie(request)) return anonymousResponse()
+  if (!hasSessionCookie(request)) return anonymousResponse(request)
 
   try {
     const session = await getAuth0Client().getSession(request)
-    if (!session?.user.sub) return anonymousResponse()
+    if (!session?.user.sub) return anonymousResponse(request)
 
     const profileState = getMemberProfileStateFromSession(session)
     const impersonation = getMemberImpersonationFromSession(session)
@@ -51,10 +73,12 @@ export async function GET(request: NextRequest) {
       memberCampusSlug: profileState?.profile.campusSlug ?? null,
       adminHref: payloadAdmin ? '/admin/impersonate' : null,
       impersonation,
+      givingResumeRequested: givingResumeRequested(request),
+      givingTurnstileSiteKey: turnstileSiteKey(),
     } satisfies MemberChromeState
 
     return NextResponse.json(state, { headers: PRIVATE_HEADERS })
   } catch {
-    return anonymousResponse()
+    return anonymousResponse(request)
   }
 }

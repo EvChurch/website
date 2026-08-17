@@ -24,6 +24,7 @@ export const CACHE_TAGS = {
   navigation: 'navigation',
   siteSettings: 'site-settings',
   sermonPipeline: 'sermon-pipeline',
+  givingFunds: 'giving-funds',
   missingPaths: 'missing-paths',
 } as const
 

@@ -33,6 +33,28 @@ describe('launcherReducer', () => {
       campusSlug: 'north',
     })
   })
+
+  it('opens giving with a home history entry and clears it completely on close', () => {
+    const giving = launcherReducer(createLauncherState('central'), {
+      type: 'openGiving',
+      presentation: 'fullscreen',
+    })
+
+    expect(giving).toMatchObject({
+      presentation: 'fullscreen',
+      view: { type: 'giving' },
+      history: [{ type: 'home' }],
+    })
+    expect(launcherReducer(giving, { type: 'back' })).toMatchObject({
+      view: { type: 'home' },
+      history: [],
+    })
+    expect(launcherReducer(giving, { type: 'close' })).toMatchObject({
+      presentation: 'collapsed',
+      view: { type: 'home' },
+      history: [],
+    })
+  })
 })
 
 describe('launcher campus and search helpers', () => {

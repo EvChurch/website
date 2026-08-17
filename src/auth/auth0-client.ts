@@ -19,7 +19,11 @@ function logCallbackFailure(reason: 'invalid_callback' | 'provisioning_failed') 
 }
 
 function isPublicMemberReturnTo(value: unknown) {
-  return typeof value === 'string' && safeMemberReturnTo(value) === value
+  return typeof value === 'string' && (
+    safeMemberReturnTo(value) === value ||
+    value === '/give' ||
+    value.startsWith('/give/')
+  )
 }
 
 export function getAuth0Client() {

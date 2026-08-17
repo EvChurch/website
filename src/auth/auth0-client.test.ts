@@ -132,6 +132,27 @@ describe('Auth0 callback', () => {
     )
   })
 
+  it('preserves the local giving capability path through the Auth0 callback', async () => {
+    const response = await callback()(
+      null,
+      { returnTo: '/give/resume/abcdefghijklmnopqrstuvwxyz0123456789_ABCDEF' },
+      verifiedSession,
+    )
+
+    expect(provisionAuth0User).not.toHaveBeenCalled()
+    expect(response.headers.get('location')).toBe(
+      'https://www.ev.church/member-auth/complete?returnTo=%2Fgive%2Fresume%2Fabcdefghijklmnopqrstuvwxyz0123456789_ABCDEF',
+    )
+  })
+
+  it('does not route malformed giving returns through admin provisioning', async () => {
+    const response = await callback()(null, { returnTo: '/give/return/not-a-resume' }, verifiedSession)
+    expect(provisionAuth0User).not.toHaveBeenCalled()
+    expect(response.headers.get('location')).toBe(
+      'https://www.ev.church/member-auth/complete?returnTo=%2F',
+    )
+  })
+
   it.each([
     ['an SDK error', new Error('callback failed'), verifiedSession],
     ['a missing session', null, null],

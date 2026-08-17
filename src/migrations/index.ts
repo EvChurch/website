@@ -31,6 +31,13 @@ import * as migration_20260813_230000_feedback_triage_assessment from './2026081
 import * as migration_20260813_site_feedback_email_notifications from './20260813_site_feedback_email_notifications';
 import * as migration_20260814_leader_resource_shares from './20260814_leader_resource_shares';
 import * as migration_20260814_143000_fix_leader_resource_share_lock_relation from './20260814_143000_fix_leader_resource_share_lock_relation';
+import * as migration_20260815_170000_giving_pilot from './20260815_170000_giving_pilot';
+import * as migration_20260815_210000_giving_drafts from './20260815_210000_giving_drafts';
+import * as migration_20260815_230000_giving_checkout_orchestration from './20260815_230000_giving_checkout_orchestration';
+import * as migration_20260816_000000_giving_webhook_jobs from './20260816_000000_giving_webhook_jobs';
+import * as migration_20260816_010000_giving_administration from './20260816_010000_giving_administration';
+import * as migration_20260817_010000_giving_bank_code from './20260817_010000_giving_bank_code';
+import * as migration_20260817_020000_giving_bank_acknowledgement from './20260817_020000_giving_bank_acknowledgement';
 
 export const migrations = [
   {
@@ -197,5 +204,40 @@ export const migrations = [
     up: migration_20260814_143000_fix_leader_resource_share_lock_relation.up,
     down: migration_20260814_143000_fix_leader_resource_share_lock_relation.down,
     name: '20260814_143000_fix_leader_resource_share_lock_relation',
+  },
+  {
+    up: migration_20260815_170000_giving_pilot.up,
+    down: migration_20260815_170000_giving_pilot.down,
+    name: '20260815_170000_giving_pilot',
+  },
+  {
+    up: migration_20260815_210000_giving_drafts.up,
+    down: migration_20260815_210000_giving_drafts.down,
+    name: '20260815_210000_giving_drafts',
+  },
+  {
+    up: migration_20260815_230000_giving_checkout_orchestration.up,
+    down: migration_20260815_230000_giving_checkout_orchestration.down,
+    name: '20260815_230000_giving_checkout_orchestration',
+  },
+  {
+    up: migration_20260816_000000_giving_webhook_jobs.up,
+    down: migration_20260816_000000_giving_webhook_jobs.down,
+    name: '20260816_000000_giving_webhook_jobs',
+  },
+  {
+    up: migration_20260816_010000_giving_administration.up,
+    down: migration_20260816_010000_giving_administration.down,
+    name: '20260816_010000_giving_administration',
+  },
+  {
+    up: migration_20260817_010000_giving_bank_code.up,
+    down: migration_20260817_010000_giving_bank_code.down,
+    name: '20260817_010000_giving_bank_code',
+  },
+  {
+    up: migration_20260817_020000_giving_bank_acknowledgement.up,
+    down: migration_20260817_020000_giving_bank_acknowledgement.down,
+    name: '20260817_020000_giving_bank_acknowledgement',
   },
 ];

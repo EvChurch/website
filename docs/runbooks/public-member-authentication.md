@@ -6,6 +6,7 @@ This runbook enables the Rock-backed public member sign-in. It does not grant Pa
 
 - Use the website's single Auth0 application for both public-member and Payload-admin sign-in. Do not create a member-specific application.
 - Use the website's existing Rock API configuration for member identity, profile, and photo reads.
+- Giving uses a separate least-privilege Rock credential (`GIVING_ROCK_API_URL` and `GIVING_ROCK_API_KEY`) for its bounded person/login reads and final person creation. Do not reuse the broader website `ROCK_API_KEY` for giving or grant giving access to unrelated Rock entities.
 - The website resolves only the case-sensitive OIDC `sub` stored by Rock in the Auth0 `UserLogin` username as `AUTH0_<sub>`. Email is a display field, never an identity key or fallback.
 - The website does not create or link Rock people. The existing Auth0-to-Rock connection owns that behavior.
 - Treat Auth0 subjects, Rock person IDs, cookies, and profile data as private. Do not place them in logs, screenshots, tickets, or deployment evidence.
@@ -34,6 +35,16 @@ Both application flows use the same Auth0 settings:
 | `AUTH0_CLIENT_SECRET` | Client secret of the single Rock-connected website application |
 | `ROCK_API_URL` | Existing Rock REST base, such as `https://rock.example.church/api` |
 | `ROCK_API_KEY` | Existing website Rock API credential |
+
+Giving configuration is deliberately separate from public-member authentication:
+
+| Setting | Purpose |
+|---|---|
+| `GIVING_ROCK_API_URL` | Exact HTTPS Rock REST base ending in `/api`; requests reject redirects |
+| `GIVING_ROCK_API_KEY` | Dedicated credential limited to the giving identity reads and person creation contract |
+| `GIVING_IDENTITY_FINGERPRINT_SECRET` | Dedicated server-only HMAC secret used to serialize identity resolution without storing email in the operation key or logs |
+
+Never place the credential, fingerprint, raw identity, or Rock response in public test evidence.
 
 Store secrets in the deployment secret store, restrict operator access, and never print their values. Public-member and Payload-admin sign-in use the existing `/auth/*` routes and encrypted Auth0 session. Payload roles remain the sole admin authorization gate; a member session without a recognized Payload role cannot access `/admin`.
 
@@ -122,5 +133,6 @@ Rollback does not delete Auth0 users, Rock people, or Rock user logins. Investig
 - Rotate `AUTH0_CLIENT_SECRET` on the single website Auth0 application and in the deployment secret store, deploy, then revoke the old value. Coordinate this across both sign-in flows.
 - Rotate `AUTH0_SECRET` during a coordinated session reset; rotation invalidates the shared website session.
 - Rotate `ROCK_API_KEY` through the website's existing Rock credential procedure and retest all Rock-backed features, including member profile and avatar reads.
+- Rotate `GIVING_ROCK_API_KEY` independently, then prove exact Auth0-login lookup, bounded active-email lookup, GUID recovery, alias retrieval, and one controlled non-production person creation. Rotation must not change `ROCK_API_KEY` or the configured synthetic test alias.
 
 Rotate one boundary at a time and repeat sign-in, profile, avatar, logout, and admin-isolation smoke tests after each change. Record only secret version identifiers and timestamps, never secret values.

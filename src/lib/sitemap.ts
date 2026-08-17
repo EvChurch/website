@@ -20,8 +20,6 @@ export interface SitemapSection {
   links: SitemapLink[]
 }
 
-const REDIRECTING_PAGE_SLUGS = new Set(['give'])
-
 function updatedAt(value?: string | null): Date {
   return value ? new Date(value) : new Date()
 }
@@ -109,7 +107,7 @@ async function fetchSitemapSections(): Promise<SitemapSection[]> {
       title: 'Pages',
       links: [
         ...pages.docs
-          .filter((page) => !isRetiredPageSlug(page.slug) && !REDIRECTING_PAGE_SLUGS.has(page.slug))
+          .filter((page) => !isRetiredPageSlug(page.slug))
           .map((page) => link(page.title, page.slug === 'home' ? '/' : `/${page.slug}`, {
             lastModified: page.updatedAt,
             changeFrequency: 'monthly',

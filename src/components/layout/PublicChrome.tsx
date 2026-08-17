@@ -5,11 +5,16 @@ import { usePathname } from 'next/navigation'
 
 import { AudioPlayerBar } from '@/components/audio/AudioPlayerBar'
 import { AudioPlayerSpacer } from '@/components/audio/AudioPlayerSpacer'
+import { GivingExperienceProvider } from '@/components/giving/GivingExperienceProvider'
+import { GivingFlow } from '@/components/giving/GivingFlow'
+import { GivingUnavailable } from '@/components/giving/GivingUnavailable'
 import { NextStepsLauncher } from '@/components/launcher/NextStepsLauncher'
 import { MediaPlayerProvider } from '@/components/media/MediaPlayerProvider'
 import { VideoContainer } from '@/components/media/VideoContainer'
 import { AnalyticsManager } from '@/components/seo/AnalyticsManager'
 import type { LauncherData } from '@/lib/launcher/types'
+import type { GivingRuntimeConfiguration } from '@/lib/giving/availability'
+import type { PublicGivingFund } from '@/lib/giving/contracts'
 import {
   ANONYMOUS_MEMBER_CHROME,
   isAnonymousMemberChrome,
@@ -27,17 +32,23 @@ export function PublicChrome({
   launcher,
   announcement,
   footer,
+  givingFunds,
+  givingRuntime,
 }: {
   children: ReactNode
   feedback: PublicSiteFeedbackSettings | null
   launcher: LauncherData
   announcement: ReactNode
   footer: ReactNode
+  givingFunds: PublicGivingFund[]
+  givingRuntime: GivingRuntimeConfiguration | null
 }) {
   const pathname = usePathname()
   const sharedResource = matchesPathPrefix(pathname, '/shared/leader-resources')
   const initialRoute = useRef(true)
   const [memberChrome, setMemberChrome] = useState<MemberChromeState>(ANONYMOUS_MEMBER_CHROME)
+  const [givingResumeRequested, setGivingResumeRequested] = useState(false)
+  const [givingTurnstileSiteKey, setGivingTurnstileSiteKey] = useState('')
 
   useLayoutEffect(() => {
     if (initialRoute.current) {
@@ -73,6 +84,8 @@ export function PublicChrome({
               ? current
               : state,
           )
+          setGivingResumeRequested(state.givingResumeRequested)
+          setGivingTurnstileSiteKey(state.givingTurnstileSiteKey ?? '')
         }
       })
       .catch(() => {
@@ -90,28 +103,46 @@ export function PublicChrome({
     </div>
   }
 
+  const givingExperience = givingFunds.length > 0
+    ? <GivingFlow
+        funds={givingFunds}
+        identity={{ signedIn: memberChrome.memberProfile !== null }}
+        resumeRequested={givingResumeRequested}
+        turnstileSiteKey={givingTurnstileSiteKey}
+        gatewayOrigins={givingRuntime?.gatewayOrigins ?? []}
+      />
+    : <GivingUnavailable />
+
   return (
-    <MediaPlayerProvider>
-      <AnalyticsManager />
-      {announcement}
-      <SiteHeader
-        feedback={feedback}
-        memberProfile={memberChrome.memberProfile}
-        adminHref={memberChrome.adminHref ?? undefined}
-        impersonation={memberChrome.impersonation}
-      />
-      <main>{children}</main>
-      {footer}
-      <AudioPlayerSpacer />
-      <AudioPlayerBar />
-      <VideoContainer />
-      <NextStepsLauncher
-        campuses={launcher.campuses}
-        items={launcher.available ? launcher.items : null}
-        memberCampusSlug={memberChrome.memberCampusSlug}
-        feedback={feedback}
-        signedInEmail={memberChrome.memberProfile?.email}
-      />
-    </MediaPlayerProvider>
+    <GivingExperienceProvider
+      serverEligibility={givingRuntime?.eligibility ?? null}
+      resumeRequested={givingResumeRequested}
+      givingExperience={givingExperience}
+    >
+      <MediaPlayerProvider>
+        <AnalyticsManager />
+        {announcement}
+        <SiteHeader
+          feedback={feedback}
+          memberProfile={memberChrome.memberProfile}
+          adminHref={memberChrome.adminHref ?? undefined}
+          impersonation={memberChrome.impersonation}
+        />
+        <main>{children}</main>
+        {footer}
+        <AudioPlayerSpacer />
+        <AudioPlayerBar />
+        <VideoContainer />
+        <NextStepsLauncher
+          campuses={launcher.campuses}
+          items={launcher.available ? launcher.items : null}
+          memberCampusSlug={memberChrome.memberCampusSlug}
+          feedback={feedback}
+          signedInEmail={memberChrome.memberProfile?.email}
+          memberProfile={memberChrome.memberProfile}
+          adminHref={memberChrome.adminHref ?? undefined}
+        />
+      </MediaPlayerProvider>
+    </GivingExperienceProvider>
   )
 }

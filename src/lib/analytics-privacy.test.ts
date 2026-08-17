@@ -10,6 +10,7 @@ describe('analytics privacy boundaries', () => {
     '/contact',
     '/contact/pastoral-care',
     '/give',
+    '/give/return/status',
     '/member-auth/complete',
     '/member-avatar',
     '/member-sign-in/error',

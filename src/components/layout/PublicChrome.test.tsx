@@ -27,6 +27,15 @@ vi.mock('@/components/media/MediaPlayerProvider', () => ({ MediaPlayerProvider: 
 vi.mock('@/components/media/VideoContainer', () => ({ VideoContainer: () => null }))
 vi.mock('@/components/audio/AudioPlayerBar', () => ({ AudioPlayerBar: () => null }))
 vi.mock('@/components/audio/AudioPlayerSpacer', () => ({ AudioPlayerSpacer: () => null }))
+vi.mock('@/components/giving/GivingExperienceProvider', () => ({
+  GivingExperienceProvider: ({ children, serverEligibility }: { children: React.ReactNode; serverEligibility: string | null }) => (
+    <div data-giving-eligibility={serverEligibility ?? 'disabled'}>{children}</div>
+  ),
+}))
+vi.mock('@/components/giving/GivingFlow', () => ({
+  GivingFlow: ({ synthetic }: { synthetic: boolean }) => <div data-giving-flow={synthetic ? 'synthetic' : 'real'} />,
+}))
+vi.mock('@/components/giving/GivingUnavailable', () => ({ GivingUnavailable: () => <div data-giving-unavailable /> }))
 vi.mock('@/components/launcher/NextStepsLauncher', () => ({
   NextStepsLauncher: ({ memberCampusSlug, signedInEmail }: { memberCampusSlug?: string | null; signedInEmail?: string }) => (
     <div data-launcher>{memberCampusSlug ?? ''}|{signedInEmail ?? ''}</div>
@@ -36,6 +45,10 @@ vi.mock('@/components/launcher/NextStepsLauncher', () => ({
 import { PublicChrome } from './PublicChrome'
 
 const launcher = { available: false, campuses: [], items: [] }
+const givingProps = {
+  givingFunds: [],
+  givingRuntime: null,
+}
 
 describe('PublicChrome', () => {
   beforeEach(() => {
@@ -51,7 +64,7 @@ describe('PublicChrome', () => {
 
   it('keeps anonymous HTML signed out and contains no private member data', () => {
     const markup = renderToStaticMarkup(
-      <PublicChrome launcher={launcher} feedback={null} announcement={null} footer={<div data-footer />}><p>Page</p></PublicChrome>,
+      <PublicChrome {...givingProps} launcher={launcher} feedback={null} announcement={null} footer={<div data-footer />}><p>Page</p></PublicChrome>,
     )
 
     expect(markup).toContain('signed-out')
@@ -65,13 +78,15 @@ describe('PublicChrome', () => {
       memberCampusSlug: 'north',
       adminHref: '/admin/impersonate',
       impersonation: { personId: 42, name: 'Aroha Ngata', email: 'aroha@example.com' },
+      givingResumeRequested: false,
+      givingTurnstileSiteKey: 'turnstile-key',
     }), { status: 200, headers: { 'content-type': 'application/json' } }))
     const container = document.createElement('div')
     document.body.append(container)
     const root = createRoot(container)
 
     await act(async () => root.render(
-      <PublicChrome launcher={launcher} feedback={null} announcement={null} footer={<div data-footer />}><p>Page</p></PublicChrome>,
+      <PublicChrome {...givingProps} launcher={launcher} feedback={null} announcement={null} footer={<div data-footer />}><p>Page</p></PublicChrome>,
     ))
 
     expect(fetch).toHaveBeenCalledWith('/api/member-chrome', {
@@ -94,7 +109,7 @@ describe('PublicChrome', () => {
     const root = createRoot(container)
 
     await act(async () => root.render(
-      <PublicChrome launcher={launcher} feedback={null} announcement={null} footer={<div data-footer />}><p>Shared</p></PublicChrome>,
+      <PublicChrome {...givingProps} launcher={launcher} feedback={null} announcement={null} footer={<div data-footer />}><p>Shared</p></PublicChrome>,
     ))
 
     expect(container.querySelector('[data-basic-header]')).not.toBeNull()
@@ -112,19 +127,21 @@ describe('PublicChrome', () => {
       memberCampusSlug: null,
       adminHref: null,
       impersonation: null,
+      givingResumeRequested: false,
+      givingTurnstileSiteKey: 'turnstile-key',
     }), { status: 200, headers: { 'content-type': 'application/json' } }))
     const container = document.createElement('div')
     document.body.append(container)
     const root = createRoot(container)
 
     await act(async () => root.render(
-      <PublicChrome launcher={launcher} feedback={null} announcement={null} footer={<div data-footer />}><p>Page</p></PublicChrome>,
+      <PublicChrome {...givingProps} launcher={launcher} feedback={null} announcement={null} footer={<div data-footer />}><p>Page</p></PublicChrome>,
     ))
     expect(document.documentElement.dataset.routeTransition).toBeUndefined()
 
     mocks.pathname = '/about'
     await act(async () => root.render(
-      <PublicChrome launcher={launcher} feedback={null} announcement={null} footer={<div data-footer />}><p>About</p></PublicChrome>,
+      <PublicChrome {...givingProps} launcher={launcher} feedback={null} announcement={null} footer={<div data-footer />}><p>About</p></PublicChrome>,
     ))
     expect(document.documentElement.dataset.routeTransition).toBe('true')
 

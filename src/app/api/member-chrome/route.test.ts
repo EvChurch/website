@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   isCurrentPayloadAdmin: vi.fn(),
+  getTurnstileSiteKey: vi.fn(),
 }))
 
 vi.mock('@/auth/auth0-client', () => ({
@@ -12,6 +13,7 @@ vi.mock('@/auth/auth0-client', () => ({
 vi.mock('@/auth/payload-admin-session', () => ({
   isCurrentPayloadAdmin: mocks.isCurrentPayloadAdmin,
 }))
+vi.mock('@/lib/rock-forms/config', () => ({ getTurnstileSiteKey: mocks.getTurnstileSiteKey }))
 
 import { GET } from './route'
 
@@ -25,6 +27,7 @@ describe('member chrome route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.isCurrentPayloadAdmin.mockResolvedValue(false)
+    mocks.getTurnstileSiteKey.mockReturnValue('turnstile-key')
   })
 
   it('short-circuits anonymous requests before initializing Auth0', async () => {
@@ -33,6 +36,16 @@ describe('member chrome route', () => {
     expect(response.status).toBe(200)
     expect(mocks.getSession).not.toHaveBeenCalled()
     expect(mocks.isCurrentPayloadAdmin).not.toHaveBeenCalled()
+  })
+
+  it('preserves a resumable giving session for anonymous chrome', async () => {
+    const response = await GET(request(`__Host-ev_giving_resume=${'A'.repeat(43)}`))
+
+    await expect(response.json()).resolves.toMatchObject({
+      memberProfile: null,
+      givingResumeRequested: true,
+    })
+    expect(mocks.getSession).not.toHaveBeenCalled()
   })
 
   it('returns a private anonymous response without invoking Payload admin auth', async () => {
@@ -48,6 +61,8 @@ describe('member chrome route', () => {
       memberCampusSlug: null,
       adminHref: null,
       impersonation: null,
+      givingResumeRequested: false,
+      givingTurnstileSiteKey: 'turnstile-key',
     })
     expect(mocks.isCurrentPayloadAdmin).not.toHaveBeenCalled()
   })
@@ -93,6 +108,8 @@ describe('member chrome route', () => {
         name: 'Aroha Ngata',
         email: 'aroha@example.com',
       },
+      givingResumeRequested: false,
+      givingTurnstileSiteKey: 'turnstile-key',
     })
   })
 

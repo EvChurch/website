@@ -19,6 +19,8 @@ describe('Footer social links', () => {
     expect(markup).toContain('href="/sitemap"')
     expect(markup).toContain('>Sitemap<')
     expect(markup).toContain('>Blog<')
+    expect(markup).toContain('href="/give"')
+    expect(markup).not.toContain('give.ev.church')
   })
 
   it('uses accessible footer text colors on the warm-white background', () => {

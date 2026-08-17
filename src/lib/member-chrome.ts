@@ -11,6 +11,8 @@ export interface MemberChromeState {
     name: string
     email: string
   } | null
+  givingResumeRequested: boolean
+  givingTurnstileSiteKey: string | null
 }
 
 export const ANONYMOUS_MEMBER_CHROME = {
@@ -18,6 +20,8 @@ export const ANONYMOUS_MEMBER_CHROME = {
   memberCampusSlug: null,
   adminHref: null,
   impersonation: null,
+  givingResumeRequested: false,
+  givingTurnstileSiteKey: null,
 } as const satisfies MemberChromeState
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -47,7 +51,9 @@ export function parseMemberChromeState(value: unknown): MemberChromeState | null
   if (impersonation !== null && !isImpersonation(impersonation)) return null
   if (
     !(typeof value.memberCampusSlug === 'string' || value.memberCampusSlug === null) ||
-    !(typeof value.adminHref === 'string' || value.adminHref === null)
+    !(typeof value.adminHref === 'string' || value.adminHref === null) ||
+    typeof value.givingResumeRequested !== 'boolean' ||
+    !(typeof value.givingTurnstileSiteKey === 'string' || value.givingTurnstileSiteKey === null)
   ) return null
 
   return {
@@ -55,6 +61,8 @@ export function parseMemberChromeState(value: unknown): MemberChromeState | null
     memberCampusSlug: value.memberCampusSlug,
     adminHref: value.adminHref,
     impersonation,
+    givingResumeRequested: value.givingResumeRequested,
+    givingTurnstileSiteKey: value.givingTurnstileSiteKey,
   }
 }
 
@@ -62,5 +70,7 @@ export function isAnonymousMemberChrome(state: MemberChromeState): boolean {
   return state.memberProfile === null &&
     state.memberCampusSlug === null &&
     state.adminHref === null &&
-    state.impersonation === null
+    state.impersonation === null &&
+    !state.givingResumeRequested &&
+    state.givingTurnstileSiteKey === null
 }

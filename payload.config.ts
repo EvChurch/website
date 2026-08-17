@@ -32,6 +32,15 @@ import { DailyBibleReadings } from '@/collections/DailyBibleReadings'
 import { MissingPaths } from '@/collections/MissingPaths'
 import { SiteFeedback } from '@/collections/SiteFeedback'
 import { LeaderResourceShares } from '@/collections/LeaderResourceShares'
+import { GivingFunds } from '@/collections/GivingFunds'
+import { GivingGivers } from '@/collections/GivingGivers'
+import { GivingCheckouts } from '@/collections/GivingCheckouts'
+import { GivingGifts } from '@/collections/GivingGifts'
+import { GivingConsents } from '@/collections/GivingConsents'
+import { GivingSchedules } from '@/collections/GivingSchedules'
+import { GivingProviderOperations } from '@/collections/GivingProviderOperations'
+import { BlinkPayWebhookEvents } from '@/collections/BlinkPayWebhookEvents'
+import { GivingDrafts } from '@/collections/GivingDrafts'
 import { isAdmin } from '@/access/roles'
 
 // Globals
@@ -42,6 +51,7 @@ import {
   notificationJobConfigs,
   SITE_FEEDBACK_NOTIFICATION_AUTO_RUN,
 } from '@/jobs/site-feedback-notification'
+import { givingJobConfigs, GIVING_LIFECYCLE_AUTO_RUN } from '@/jobs/giving'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -85,6 +95,15 @@ export const applicationCollections: CollectionConfig[] = [
   Categories,
   Scriptures,
   SermonAudio,
+  GivingFunds,
+  GivingGivers,
+  GivingCheckouts,
+  GivingGifts,
+  GivingConsents,
+  GivingSchedules,
+  GivingProviderOperations,
+  BlinkPayWebhookEvents,
+  GivingDrafts,
 ]
 
 export const applicationGlobals: GlobalConfig[] = [
@@ -93,6 +112,19 @@ export const applicationGlobals: GlobalConfig[] = [
   ServiceGuideSyncState,
 ]
 
+export const mcpExcludedCollectionSlugs = new Set([
+  'leader-resource-shares',
+  'giving-funds',
+  'giving-givers',
+  'giving-checkouts',
+  'giving-gifts',
+  'giving-consents',
+  'giving-schedules',
+  'giving-provider-operations',
+  'blinkpay-webhook-events',
+  'giving-drafts',
+])
+
 function enableMcpEntities<T extends { slug: string }>(entities: T[]) {
   return Object.fromEntries(
     entities.map(({ slug }) => [slug, { enabled: true as const }]),
@@ -100,7 +132,7 @@ function enableMcpEntities<T extends { slug: string }>(entities: T[]) {
 }
 
 export const mcpCollections = enableMcpEntities(
-  applicationCollections.filter(({ slug }) => slug !== 'leader-resource-shares'),
+  applicationCollections.filter(({ slug }) => !mcpExcludedCollectionSlugs.has(slug)),
 ) satisfies NonNullable<
   MCPPluginConfig['collections']
 >
@@ -187,6 +219,7 @@ export default buildConfig({
   jobs: {
     tasks: [
       ...notificationJobConfigs,
+      ...givingJobConfigs,
       {
         slug: 'fullSermonSync',
         retries: 2,
@@ -247,6 +280,7 @@ export default buildConfig({
     ],
     autoRun: [
       SITE_FEEDBACK_NOTIFICATION_AUTO_RUN,
+      GIVING_LIFECYCLE_AUTO_RUN,
       { cron: '*/15 * * * *', queue: 'default', limit: 10 },
       { cron: '0 6 * * 1', queue: 'pipeline', limit: 5 },
     ],

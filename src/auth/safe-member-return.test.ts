@@ -5,6 +5,9 @@ import { safeMemberReturnTo } from './safe-member-return'
 describe('safe member return destinations', () => {
   it('keeps public paths and query strings', () => {
     expect(safeMemberReturnTo('/events?campus=East')).toBe('/events?campus=East')
+    const token = 'abcdefghijklmnopqrstuvwxyz0123456789_ABCDEF'
+    expect(token).toHaveLength(43)
+    expect(safeMemberReturnTo(`/give/resume/${token}`)).toBe(`/give/resume/${token}`)
   })
 
   it.each([
@@ -18,6 +21,11 @@ describe('safe member return destinations', () => {
     '/auth/login',
     '/member-auth/complete',
     '/events/%2f%2fevil.example',
+    '/give',
+    '/give/return/token',
+    '/give/resume/short',
+    '/give/resume/abcdefghijklmnopqrstuvwxyz0123456789_ABCDEF?copy=1',
+    '/give/resume/abcdefghijklmnopqrstuvwxyz0123456789_ABCDEF#copy',
   ])('rejects %s', (value) => {
     expect(safeMemberReturnTo(value)).toBe('/')
   })

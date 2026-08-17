@@ -313,7 +313,7 @@ describe('seeded page content and giving navigation', () => {
     expect(goodNewsSection).not.toContain('not a list of things to believe')
   })
 
-  it('routes Give links directly to the giving site', () => {
+  it('routes Give links to the local giving experience', () => {
     const givingSection = sourceSection("await upsertPage('give'", "await upsertPage('good-news'")
     const header = readFileSync(
       new URL('../components/layout/Header.tsx', import.meta.url),
@@ -327,8 +327,9 @@ describe('seeded page content and giving navigation', () => {
     expect(givingSection).toContain('Everything we have is given to us by God')
     expect(givingSection).toContain('glad, planned, and free')
     expect(givingSection).toContain("Please don't feel any obligation to give")
-    expect(givingSection).toContain("href: 'https://give.ev.church'")
-    expect(header.match(/href="https:\/\/give\.ev\.church"/g)).toHaveLength(2)
-    expect(footer).toContain("{ label: 'Give', href: 'https://give.ev.church' }")
+    expect(givingSection).toContain("href: '/give'")
+    expect(header.match(/href="\/give"/g)).toHaveLength(2)
+    expect(footer).toContain("{ label: 'Give', href: '/give' }")
+    expect(`${givingSection}${header}${footer}`).not.toContain('give.ev.church')
   })
 })

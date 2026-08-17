@@ -39,7 +39,7 @@ describe('sitemap', () => {
     expect(urls).toContain('https://www.ev.church/about')
     expect(urls).toContain('https://www.ev.church/sitemap')
     expect(urls).not.toContain('https://www.ev.church/next-steps')
-    expect(urls).not.toContain('https://www.ev.church/give')
+    expect(urls).toContain('https://www.ev.church/give')
   })
 
   it('uses all source tags and a short fallback for mixed sitemap content', () => {
