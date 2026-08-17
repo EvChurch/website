@@ -22,7 +22,7 @@ vi.mock('@/components/layout/SiteHeader', () => ({
 vi.mock('@/components/layout/Header', () => ({ Header: () => <div data-basic-header /> }))
 vi.mock('@/components/layout/Footer', () => ({ Footer: () => <div data-footer /> }))
 vi.mock('@/components/layout/AnnouncementBanner', () => ({ AnnouncementBanner: () => null }))
-vi.mock('@/components/seo/AnalyticsManager', () => ({ AnalyticsManager: () => null }))
+vi.mock('@/components/seo/AnalyticsManager', () => ({ AnalyticsManager: ({ postHogIdentity }: { postHogIdentity?: { distinctId: string } | null }) => <div data-posthog-identity={postHogIdentity?.distinctId ?? (postHogIdentity === null ? 'anonymous' : 'pending')} /> }))
 vi.mock('@/components/media/MediaPlayerProvider', () => ({ MediaPlayerProvider: ({ children }: { children: React.ReactNode }) => children }))
 vi.mock('@/components/media/VideoContainer', () => ({ VideoContainer: () => null }))
 vi.mock('@/components/audio/AudioPlayerBar', () => ({ AudioPlayerBar: () => null }))
@@ -80,6 +80,7 @@ describe('PublicChrome', () => {
       impersonation: { personId: 42, name: 'Aroha Ngata', email: 'aroha@example.com' },
       givingResumeRequested: false,
       givingTurnstileSiteKey: 'turnstile-key',
+      postHogIdentity: { distinctId: 'A'.repeat(43), name: 'Aroha Ngata', email: 'aroha@example.com' },
     }), { status: 200, headers: { 'content-type': 'application/json' } }))
     const container = document.createElement('div')
     document.body.append(container)
@@ -99,6 +100,7 @@ describe('PublicChrome', () => {
     expect(container.querySelector('[data-launcher]')?.textContent).toBe(
       'north|aroha@example.com',
     )
+    expect(container.querySelector('[data-posthog-identity]')?.getAttribute('data-posthog-identity')).toBe('A'.repeat(43))
     await act(async () => root.unmount())
   })
 

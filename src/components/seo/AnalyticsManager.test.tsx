@@ -7,7 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const navigation = vi.hoisted(() => ({ pathname: '/sermons' }))
 const posthog = vi.hoisted(() => ({
   capture: vi.fn(),
+  get_property: vi.fn(),
   init: vi.fn(),
+  identify: vi.fn(),
   isFeatureEnabled: vi.fn(),
   onFeatureFlags: vi.fn((_callback: (
     flags: string[],
@@ -16,6 +18,7 @@ const posthog = vi.hoisted(() => ({
   ) => void) => vi.fn()),
   opt_in_capturing: vi.fn(),
   opt_out_capturing: vi.fn(),
+  reset: vi.fn(),
   startExceptionAutocapture: vi.fn(),
   startSessionRecording: vi.fn(),
   stopExceptionAutocapture: vi.fn(),
@@ -73,7 +76,7 @@ describe('AnalyticsManager', () => {
         disable_session_recording: false,
         mask_all_element_attributes: false,
         mask_all_text: false,
-        person_profiles: 'never',
+        person_profiles: 'identified_only',
         respect_dnt: false,
         session_recording: expect.objectContaining({
           blockSelector: '[data-giving-private]',
@@ -134,6 +137,40 @@ describe('AnalyticsManager', () => {
     expect(beforeSend(realError)).toEqual({ event: '$exception', properties: {} })
   })
 
+  it('keeps only the allowed signed-in identity properties', async () => {
+    await act(async () => root.render(<AnalyticsManager />))
+
+    const { before_send: beforeSend } = posthog.init.mock.calls[0][1] as {
+      before_send: (event: unknown) => unknown
+    }
+    const identity = {
+      event: '$identify',
+      properties: {
+        distinct_id: 'a'.repeat(43),
+        $anon_distinct_id: 'anonymous-browser-id',
+        $set: {
+          email: 'tester@example.com',
+          name: 'Test Member',
+          amount: '100.00',
+          bankReference: 'EV123',
+          role: 'admin',
+        },
+      },
+    }
+
+    expect(beforeSend(identity)).toEqual({
+      event: '$identify',
+      properties: {
+        distinct_id: 'a'.repeat(43),
+        $anon_distinct_id: 'anonymous-browser-id',
+        $set: {
+          email: 'tester@example.com',
+          name: 'Test Member',
+        },
+      },
+    })
+  })
+
   it('keeps PostHog off when its UI host is missing', async () => {
     vi.stubEnv('NEXT_PUBLIC_POSTHOG_UI_HOST', '')
 
@@ -169,6 +206,41 @@ describe('AnalyticsManager', () => {
     posthog.isFeatureEnabled.mockReturnValue(undefined)
     await act(async () => callback([], {}, { errorsLoading: false }))
     expect(container.querySelector('[data-flag-state]')?.textContent).toBe('failed')
+  })
+
+  it('falls back when PostHog never resolves feature flags', async () => {
+    vi.useFakeTimers()
+    function FlagStateProbe() {
+      return <output data-flag-state>{useGivingExperience().flagState}</output>
+    }
+    await act(async () => root.render(
+      <GivingExperienceProvider serverEligibility="sandbox">
+        <AnalyticsManager />
+        <FlagStateProbe />
+      </GivingExperienceProvider>,
+    ))
+    expect(container.querySelector('[data-flag-state]')?.textContent).toBe('unresolved')
+    await act(async () => vi.advanceTimersByTimeAsync(3_000))
+    expect(container.querySelector('[data-flag-state]')?.textContent).toBe('failed')
+    vi.useRealTimers()
+  })
+
+  it('identifies signed-in members and resets anonymous browsers', async () => {
+    const identity = { distinctId: 'A'.repeat(43), name: 'Aroha Ngata', email: 'aroha@example.com' }
+    await act(async () => root.render(<AnalyticsManager postHogIdentity={identity} />))
+    expect(posthog.identify).toHaveBeenCalledWith(identity.distinctId, {
+      email: identity.email,
+      name: identity.name,
+    })
+
+    await act(async () => root.render(<AnalyticsManager postHogIdentity={null} />))
+    expect(posthog.reset).toHaveBeenCalledOnce()
+  })
+
+  it('does not rotate a genuinely anonymous PostHog identity', async () => {
+    posthog.get_property.mockReturnValue(undefined)
+    await act(async () => root.render(<AnalyticsManager postHogIdentity={null} />))
+    expect(posthog.reset).not.toHaveBeenCalled()
   })
 
   it.each([

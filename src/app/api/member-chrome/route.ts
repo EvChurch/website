@@ -1,3 +1,5 @@
+import { createHmac } from 'node:crypto'
+
 import { NextRequest, NextResponse } from 'next/server'
 
 import { getAuth0Client } from '@/auth/auth0-client'
@@ -48,6 +50,16 @@ function turnstileSiteKey() {
   }
 }
 
+export function postHogMemberIdentity(subject: string, profile: { name: string; email: string }) {
+  const secret = process.env.POSTHOG_IDENTITY_SECRET
+  if (!secret || secret.length < 32) return null
+  return {
+    distinctId: createHmac('sha256', secret).update(`ev-member\0${subject}`).digest('base64url'),
+    name: profile.name,
+    email: profile.email,
+  }
+}
+
 export async function GET(request: NextRequest) {
   if (!hasSessionCookie(request)) return anonymousResponse(request)
 
@@ -75,6 +87,9 @@ export async function GET(request: NextRequest) {
       impersonation,
       givingResumeRequested: givingResumeRequested(request),
       givingTurnstileSiteKey: turnstileSiteKey(),
+      postHogIdentity: profileState
+        ? postHogMemberIdentity(session.user.sub, profileState.profile)
+        : null,
     } satisfies MemberChromeState
 
     return NextResponse.json(state, { headers: PRIVATE_HEADERS })

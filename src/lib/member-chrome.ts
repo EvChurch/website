@@ -13,6 +13,11 @@ export interface MemberChromeState {
   } | null
   givingResumeRequested: boolean
   givingTurnstileSiteKey: string | null
+  postHogIdentity: {
+    distinctId: string
+    name: string
+    email: string
+  } | null
 }
 
 export const ANONYMOUS_MEMBER_CHROME = {
@@ -22,6 +27,7 @@ export const ANONYMOUS_MEMBER_CHROME = {
   impersonation: null,
   givingResumeRequested: false,
   givingTurnstileSiteKey: null,
+  postHogIdentity: null,
 } as const satisfies MemberChromeState
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -42,13 +48,23 @@ function isImpersonation(value: unknown): value is NonNullable<MemberChromeState
     typeof value.email === 'string'
 }
 
+function isPostHogIdentity(value: unknown): value is NonNullable<MemberChromeState['postHogIdentity']> {
+  return isRecord(value) &&
+    typeof value.distinctId === 'string' &&
+    /^[A-Za-z0-9_-]{43}$/u.test(value.distinctId) &&
+    typeof value.name === 'string' &&
+    typeof value.email === 'string'
+}
+
 export function parseMemberChromeState(value: unknown): MemberChromeState | null {
   if (!isRecord(value)) return null
 
   const profile = value.memberProfile
   const impersonation = value.impersonation
+  const postHogIdentity = value.postHogIdentity ?? null
   if (profile !== null && !isMemberProfile(profile)) return null
   if (impersonation !== null && !isImpersonation(impersonation)) return null
+  if (postHogIdentity !== null && !isPostHogIdentity(postHogIdentity)) return null
   if (
     !(typeof value.memberCampusSlug === 'string' || value.memberCampusSlug === null) ||
     !(typeof value.adminHref === 'string' || value.adminHref === null) ||
@@ -63,6 +79,7 @@ export function parseMemberChromeState(value: unknown): MemberChromeState | null
     impersonation,
     givingResumeRequested: value.givingResumeRequested,
     givingTurnstileSiteKey: value.givingTurnstileSiteKey,
+    postHogIdentity,
   }
 }
 
@@ -72,5 +89,6 @@ export function isAnonymousMemberChrome(state: MemberChromeState): boolean {
     state.adminHref === null &&
     state.impersonation === null &&
     !state.givingResumeRequested &&
-    state.givingTurnstileSiteKey === null
+    state.givingTurnstileSiteKey === null &&
+    state.postHogIdentity === null
 }
