@@ -3,7 +3,6 @@ import { NextRequest } from 'next/server'
 
 const state = vi.hoisted(() => ({
   subject: null as string | null,
-  create: vi.fn(async () => ({ token: 'abcdefghijklmnopqrstuvwxyz0123456789_ABCDEF' })),
   createSession: vi.fn(async()=>({token:'SESSIONabcdefghijklmnopqrstuvwxyz0123456789'})),
   readSession: vi.fn(async () => ({ amountMinor: 5000 })),
   revokeSession: vi.fn(async () => undefined),
@@ -19,7 +18,6 @@ vi.mock('@/lib/giving/drafts', async (importOriginal) => {
     ...original,
     createPayloadGivingDraftStore: () => ({}),
     createGivingDraftService: () => ({
-      create: state.create,
       createSession:state.createSession,
       readSession: state.readSession,
       revokeSession: state.revokeSession,
@@ -27,7 +25,7 @@ vi.mock('@/lib/giving/drafts', async (importOriginal) => {
   }
 })
 
-import { DELETE, GET, POST, PUT } from './route'
+import { DELETE, GET, PUT } from './route'
 
 const answers = {
   amountMinor: 5000,
@@ -37,16 +35,8 @@ const answers = {
   firstName: '',
   lastName: '',
   email: '',
-  returnPathname: '/events',
 }
 
-function post(body: unknown, headers: Record<string, string> = {}) {
-  return new NextRequest('https://www.ev.church/api/giving/drafts', {
-    method: 'POST',
-    headers: { origin: 'https://www.ev.church', 'content-type': 'application/json', ...headers },
-    body: JSON.stringify(body),
-  })
-}
 function put(body:unknown,headers:Record<string,string>={}){return new NextRequest('https://www.ev.church/api/giving/drafts',{method:'PUT',headers:{origin:'https://www.ev.church','content-type':'application/json',...headers},body:JSON.stringify(body)})}
 
 describe('giving drafts route', () => {
@@ -57,25 +47,32 @@ describe('giving drafts route', () => {
   })
   afterEach(() => vi.unstubAllEnvs())
 
-  it('creates a guest draft with strict input handling, a nonce binding, and private headers', async () => {
-    const response = await POST(post(answers))
-    expect(response.status).toBe(201)
-    expect(state.create).toHaveBeenCalledWith({
+  it('creates a private cookie-bound guest recovery session', async () => {
+    const result = await PUT(put(answers))
+
+    expect(result.status).toBe(204)
+    expect(state.createSession).toHaveBeenCalledWith({
       answers,
       binding: { audience: 'guest', nonce: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/u) },
     })
-    expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0')
-    expect(response.headers.get('referrer-policy')).toBe('no-referrer')
-    expect(response.headers.get('x-robots-tag')).toContain('noindex')
-    expect(response.headers.get('set-cookie')).toContain('__Host-ev_giving_guest=')
-    expect(response.headers.get('set-cookie')).toContain('Secure')
+    expect(result.headers.get('cache-control')).toBe('private, no-store, max-age=0')
+    expect(result.headers.get('referrer-policy')).toBe('no-referrer')
+    expect(result.headers.get('x-robots-tag')).toContain('noindex')
+    expect(result.headers.get('set-cookie')).toContain('__Host-ev_giving_guest=')
+    expect(result.headers.get('set-cookie')).toContain('__Host-ev_giving_resume=SESSION')
+    expect(result.headers.get('set-cookie')).toContain('Secure')
   })
 
-  it('binds a signed-in draft to the server subject and does not issue a guest nonce', async () => {
+  it('binds a signed-in recovery session to the server subject', async () => {
     state.subject = 'auth0|member'
-    const response = await POST(post(answers))
-    expect(state.create).toHaveBeenCalledWith({ answers, binding: { audience: 'member', subject: 'auth0|member' } })
-    expect(response.headers.get('set-cookie')).toBeNull()
+    const result = await PUT(put(answers))
+
+    expect(result.status).toBe(204)
+    expect(state.createSession).toHaveBeenCalledWith({
+      answers,
+      binding: { audience: 'member', subject: 'auth0|member' },
+    })
+    expect(result.headers.get('set-cookie')).not.toContain('__Host-ev_giving_guest=')
   })
 
   it('replaces the strict checkout recovery session without a resume-page fetch',async()=>{
@@ -98,36 +95,6 @@ describe('giving drafts route', () => {
     const result=await PUT(put(answers,{cookie:'__Host-ev_giving_guest=guest-nonce; __Host-ev_giving_resume=prior-session'}))
     expect(result.status).toBe(400)
     expect(result.headers.get('set-cookie')).toBeNull()
-  })
-
-  it.each([
-    ['cross origin', post(answers, { origin: 'https://evil.test' }), 403],
-    ['wrong content type', post(answers, { 'content-type': 'text/plain' }), 415],
-    ['extra body field', post({ ...answers, environment: 'production' }), 400],
-    ['oversized declared body', post(answers, { 'content-length': '9000' }), 400],
-  ])('rejects %s before persistence', async (_label, request, status) => {
-    const response = await POST(request)
-    expect(response.status).toBe(status)
-    expect(state.create).not.toHaveBeenCalled()
-  })
-
-  it('rejects missing production origin and an oversized chunked body before persistence', async () => {
-    vi.stubEnv('NODE_ENV', 'production')
-    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'www.ev.church')
-    const missingOrigin = await POST(new NextRequest('https://www.ev.church/api/giving/drafts', {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(answers),
-    }))
-    expect(missingOrigin.status).toBe(403)
-
-    const encoder = new TextEncoder()
-    const oversized = new ReadableStream<Uint8Array>({
-      start(controller) { controller.enqueue(encoder.encode(`{"padding":"${'x'.repeat(9_000)}"}`)); controller.close() },
-    })
-    const chunked = await POST(new NextRequest('https://www.ev.church/api/giving/drafts', {
-      method: 'POST', headers: { origin: 'https://www.ev.church', 'content-type': 'application/json' }, body: oversized, duplex: 'half',
-    }))
-    expect(chunked.status).toBe(400)
-    expect(state.create).not.toHaveBeenCalled()
   })
 
   it('restores only from a cookie-bound session and uses one uniform unavailable response', async () => {

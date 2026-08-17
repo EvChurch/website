@@ -1,16 +1,15 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 
 import type { Payload } from 'payload'
 import type { Pool } from 'pg'
 import { sql } from '@payloadcms/db-postgres'
 
-import type { GivingFrequency } from '@/components/giving/giving-state'
+import { GIVING_FREQUENCIES, type GivingFrequency } from '@/lib/giving/blinkpay/types'
+import { isGivingCapabilityToken } from '@/lib/giving/contracts'
 import { drizzleResultRows } from '@/lib/rock-connection-signups/db-result'
-import { matchesPathPrefix, normalizePublicPath } from '@/lib/public-paths'
 
-export const GIVING_DRAFT_PURPOSE = 'giving-draft-resume-v1' as const
 export const GIVING_DRAFT_SESSION_PURPOSE = 'giving-draft-session-v1' as const
-export type GivingDraftPurpose = typeof GIVING_DRAFT_PURPOSE | typeof GIVING_DRAFT_SESSION_PURPOSE
+export type GivingDraftPurpose = typeof GIVING_DRAFT_SESSION_PURPOSE
 export const GIVING_DRAFT_TTL_MS = 15 * 60 * 1000
 export const GIVING_DRAFT_CLEANUP_LIMIT = 500
 export function givingCapabilityCookieNames(secure: boolean) {
@@ -27,7 +26,6 @@ export interface GivingDraftAnswers {
   firstName: string
   lastName: string
   email: string
-  returnPathname: string
 }
 
 export type GivingDraftBinding =
@@ -46,13 +44,6 @@ export interface GivingDraftRecord {
 
 export interface GivingDraftStore {
   create(record: GivingDraftRecord): Promise<void>
-  redeem(input: {
-    tokenDigest: string
-    bindingDigest: string
-    purpose: GivingDraftPurpose
-    audience: GivingDraftBinding['audience']
-    now: Date
-  }): Promise<GivingDraftRecord | null>
   read(input: {
     tokenDigest: string
     bindingDigest: string
@@ -70,16 +61,6 @@ export class GivingDraftCapabilityError extends Error {
   }
 }
 
-const PRIVATE_GIVING_RETURN_PREFIXES = [
-  '/admin', '/api', '/auth', '/give', '/member-auth',
-  '/member-avatar', '/member-sign-in', '/members', '/shared', '/_next',
-] as const
-
-export function isSafeGivingReturnPathname(value: string) {
-  return normalizePublicPath(value) === value &&
-    !PRIVATE_GIVING_RETURN_PREFIXES.some((prefix) => matchesPathPrefix(value, prefix))
-}
-
 function digest(value: string) {
   return createHash('sha256').update(value).digest('base64url')
 }
@@ -88,29 +69,26 @@ function bindingValue(binding: GivingDraftBinding) {
   return binding.audience === 'guest' ? binding.nonce : binding.subject
 }
 
-function validToken(value: string) {
-  return /^[A-Za-z0-9_-]{43}$/u.test(value)
-}
-
 export function validateGivingDraftAnswers(value: unknown): GivingDraftAnswers {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new GivingDraftCapabilityError()
   const candidate = value as Record<string, unknown>
   const keys = Object.keys(candidate).sort()
-  const expected = ['amountMinor', 'email', 'firstName', 'frequency', 'fundId', 'lastName', 'returnPathname', 'startDate'].sort()
-  if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) throw new GivingDraftCapabilityError()
+  const expected = ['amountMinor', 'email', 'firstName', 'frequency', 'fundId', 'lastName', 'startDate'].sort()
+  const legacyExpected = [...expected, 'returnPathname'].sort()
+  const matches = (shape: string[]) => keys.length === shape.length && keys.every((key, index) => key === shape[index])
+  if (!matches(expected) && !matches(legacyExpected)) throw new GivingDraftCapabilityError()
   const frequency = candidate.frequency
   if (!Number.isSafeInteger(candidate.amountMinor) || Number(candidate.amountMinor) <= 0 ||
       !Number.isSafeInteger(candidate.fundId) || Number(candidate.fundId) <= 0 ||
-      !['one-off', 'daily', 'weekly', 'fortnightly', 'monthly', 'annual'].includes(String(frequency)) ||
+      !GIVING_FREQUENCIES.includes(frequency as GivingFrequency) ||
       (candidate.startDate !== null && (typeof candidate.startDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/u.test(candidate.startDate))) ||
       typeof candidate.firstName !== 'string' || candidate.firstName.length > 150 ||
       typeof candidate.lastName !== 'string' || candidate.lastName.length > 150 ||
-      typeof candidate.email !== 'string' || candidate.email.length > 320 ||
-      typeof candidate.returnPathname !== 'string' ||
-      !isSafeGivingReturnPathname(candidate.returnPathname)) {
+      typeof candidate.email !== 'string' || candidate.email.length > 320) {
     throw new GivingDraftCapabilityError()
   }
-  return candidate as unknown as GivingDraftAnswers
+  const { returnPathname: _legacyReturnPathname, ...answers } = candidate
+  return answers as unknown as GivingDraftAnswers
 }
 
 export function createGivingDraftService(
@@ -119,14 +97,14 @@ export function createGivingDraftService(
 ) {
   const random = dependencies.randomBytes ?? randomBytes
   const currentTime = dependencies.now ?? (() => new Date())
-  const issue = async (purpose: GivingDraftPurpose, input: { answers: GivingDraftAnswers; binding: GivingDraftBinding }) => {
+  const issue = async (input: { answers: GivingDraftAnswers; binding: GivingDraftBinding }) => {
       const answers = validateGivingDraftAnswers(input.answers)
       const token = random(32).toString('base64url')
       const now = currentTime()
       await store.create({
-        tokenDigest: digest(`${purpose}\0${token}`),
+        tokenDigest: digest(`${GIVING_DRAFT_SESSION_PURPOSE}\0${token}`),
         bindingDigest: digest(`${input.binding.audience}\0${bindingValue(input.binding)}`),
-        purpose,
+        purpose: GIVING_DRAFT_SESSION_PURPOSE,
         audience: input.binding.audience,
         answers,
         expiresAt: new Date(now.getTime() + GIVING_DRAFT_TTL_MS),
@@ -135,26 +113,11 @@ export function createGivingDraftService(
       return { token, expiresAt: new Date(now.getTime() + GIVING_DRAFT_TTL_MS) }
   }
   return {
-    create(input: { answers: GivingDraftAnswers; binding: GivingDraftBinding }) {
-      return issue(GIVING_DRAFT_PURPOSE, input)
-    },
-    async redeem(input: { token: string; binding: GivingDraftBinding }) {
-      if (!validToken(input.token)) throw new GivingDraftCapabilityError()
-      const record = await store.redeem({
-        tokenDigest: digest(`${GIVING_DRAFT_PURPOSE}\0${input.token}`),
-        bindingDigest: digest(`${input.binding.audience}\0${bindingValue(input.binding)}`),
-        purpose: GIVING_DRAFT_PURPOSE,
-        audience: input.binding.audience,
-        now: currentTime(),
-      })
-      if (!record) throw new GivingDraftCapabilityError()
-      return validateGivingDraftAnswers(record.answers)
-    },
     createSession(input: { answers: GivingDraftAnswers; binding: GivingDraftBinding }) {
-      return issue(GIVING_DRAFT_SESSION_PURPOSE, input)
+      return issue(input)
     },
     async readSession(input: { token: string; binding: GivingDraftBinding }) {
-      if (!validToken(input.token)) throw new GivingDraftCapabilityError()
+      if (!isGivingCapabilityToken(input.token)) throw new GivingDraftCapabilityError()
       const record = await store.read({
         tokenDigest: digest(`${GIVING_DRAFT_SESSION_PURPOSE}\0${input.token}`),
         bindingDigest: digest(`${input.binding.audience}\0${bindingValue(input.binding)}`),
@@ -166,7 +129,7 @@ export function createGivingDraftService(
       return validateGivingDraftAnswers(record.answers)
     },
     revokeSession(token: string) {
-      if (!validToken(token)) return Promise.resolve()
+      if (!isGivingCapabilityToken(token)) return Promise.resolve()
       return store.revoke(digest(`${GIVING_DRAFT_SESSION_PURPOSE}\0${token}`), currentTime())
     },
   }
@@ -187,19 +150,6 @@ export function createPayloadGivingDraftStore(payload: Payload): GivingDraftStor
           expiresAt: record.expiresAt.toISOString(),
         },
       })
-    },
-    async redeem(input) {
-      const result = await payload.db.drizzle.execute(sql`
-        UPDATE "giving_drafts" SET "consumed_at" = ${input.now}, "updated_at" = ${input.now}
-        WHERE "token_digest" = ${input.tokenDigest}
-          AND "binding_digest" = ${input.bindingDigest}
-          AND "purpose" = ${input.purpose}
-          AND "audience" = ${input.audience}
-          AND "consumed_at" IS NULL
-          AND "expires_at" > ${input.now}
-        RETURNING "token_digest", "binding_digest", "purpose", "audience", "answers", "expires_at", "consumed_at"
-      `)
-      return rowToRecord(drizzleResultRows(result)[0])
     },
     async read(input) {
       const result = await payload.db.drizzle.execute(sql`
@@ -241,28 +191,15 @@ function rowToRecord(value: unknown): GivingDraftRecord | null {
   if (!value || typeof value !== 'object') return null
   const row = value as Record<string, unknown>
   if (typeof row.token_digest !== 'string' || typeof row.binding_digest !== 'string' ||
-      ![GIVING_DRAFT_PURPOSE, GIVING_DRAFT_SESSION_PURPOSE].includes(row.purpose as never) ||
+      row.purpose !== GIVING_DRAFT_SESSION_PURPOSE ||
       !['guest', 'member'].includes(String(row.audience))) return null
   return {
     tokenDigest: row.token_digest,
     bindingDigest: row.binding_digest,
-    purpose: row.purpose as GivingDraftPurpose,
+    purpose: GIVING_DRAFT_SESSION_PURPOSE,
     audience: row.audience as GivingDraftBinding['audience'],
     answers: validateGivingDraftAnswers(row.answers),
     expiresAt: new Date(String(row.expires_at)),
     consumedAt: row.consumed_at ? new Date(String(row.consumed_at)) : null,
   }
-}
-
-export function equalCapabilityDigest(left: string, right: string) {
-  const leftBytes = Buffer.from(left)
-  const rightBytes = Buffer.from(right)
-  return leftBytes.length === rightBytes.length && timingSafeEqual(leftBytes, rightBytes)
-}
-
-export function givingResumeRedirectUrl(requestUrl: string, returnPathname: string) {
-  if (!isSafeGivingReturnPathname(returnPathname)) {
-    throw new GivingDraftCapabilityError()
-  }
-  return new URL(returnPathname, requestUrl)
 }

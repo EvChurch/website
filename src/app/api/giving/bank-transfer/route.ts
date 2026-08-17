@@ -52,7 +52,7 @@ async function defaultPrepare(submission: GivingCheckoutSubmission) {
       return resolveGivingIdentity({ ...input, identity }, {
         rockClient: rock,
         repository: createGivingIdentityRepository(pool),
-        fingerprintSecret: process.env.GIVING_IDENTITY_FINGERPRINT_SECRET ?? '',
+        fingerprintSecret: process.env.GIVING_CHECKOUT_DIGEST_SECRET ?? '',
       })
     },
   })

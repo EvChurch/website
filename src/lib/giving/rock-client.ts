@@ -185,9 +185,10 @@ async function boundedJson(response: Response, create: boolean): Promise<unknown
 }
 
 export function createGivingRockClient(options: GivingRockClientOptions = {}): GivingRockClient {
+  const apiKey = options.apiKey ?? process.env.ROCK_API_KEY ?? ''
   const baseUrl = validateConfiguration(
-    options.apiUrl ?? process.env.GIVING_ROCK_API_URL ?? '',
-    options.apiKey ?? process.env.GIVING_ROCK_API_KEY ?? '',
+    options.apiUrl ?? process.env.ROCK_API_URL ?? '',
+    apiKey,
   )
   const fetchImpl = options.fetchImpl ?? fetch
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
@@ -211,7 +212,7 @@ export function createGivingRockClient(options: GivingRockClientOptions = {}): G
         const response = await fetchImpl(url, {
           method,
           headers: {
-            'Authorization-Token': options.apiKey ?? process.env.GIVING_ROCK_API_KEY ?? '',
+            'Authorization-Token': apiKey,
             Accept: 'application/json',
             ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
           },

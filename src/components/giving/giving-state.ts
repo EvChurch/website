@@ -1,8 +1,8 @@
 import type { PublicGivingFund } from '@/lib/giving/contracts'
-import type { BlinkPayPeriod } from '@/lib/giving/blinkpay/types'
+import type { GivingFrequency } from '@/lib/giving/blinkpay/types'
 import { isGivingStartDateValid } from './steps/StartingDateStep'
 
-export type GivingFrequency = 'one-off' | BlinkPayPeriod
+export type { GivingFrequency } from '@/lib/giving/blinkpay/types'
 export type GivingIdentityField = 'firstName' | 'lastName' | 'email'
 export type GivingStep =
   | 'amount'
@@ -149,7 +149,7 @@ export function givingReducer(state: GivingState, action: GivingAction): GivingS
   }
 }
 
-export function draftAnswers(answers: GivingAnswers, returnPathname: string) {
+export function draftAnswers(answers: GivingAnswers) {
   if (!answers.fund || !answers.frequency || answers.amountMinor === null) return null
   return {
     amountMinor: answers.amountMinor,
@@ -159,6 +159,5 @@ export function draftAnswers(answers: GivingAnswers, returnPathname: string) {
     firstName: answers.firstName,
     lastName: answers.lastName,
     email: answers.email,
-    returnPathname,
   }
 }

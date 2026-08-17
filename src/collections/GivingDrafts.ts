@@ -10,7 +10,7 @@ export const GivingDrafts: CollectionConfig = {
   fields: [
     { name: 'tokenDigest', type: 'text', required: true, unique: true, index: true },
     { name: 'bindingDigest', type: 'text', required: true, index: true },
-    { name: 'purpose', type: 'select', required: true, options: ['giving-draft-resume-v1', 'giving-draft-session-v1'], index: true },
+    { name: 'purpose', type: 'select', required: true, options: ['giving-draft-session-v1'], index: true },
     { name: 'audience', type: 'select', required: true, options: ['guest', 'member'], index: true },
     { name: 'answers', type: 'json', required: true },
     { name: 'expiresAt', type: 'date', required: true, index: true },
