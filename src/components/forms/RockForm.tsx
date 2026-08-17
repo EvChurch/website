@@ -10,6 +10,7 @@ import {
   type RefObject,
 } from 'react'
 import { SafeRockHtml } from './SafeRockHtml'
+import { FormSelect } from './FormSelect'
 import { TurnstileWidget } from './TurnstileWidget'
 import { formInputClass as inputClass, formLabelClass as labelClass } from './form-styles'
 import {
@@ -114,8 +115,7 @@ function PersonFields({
       {visible(configuration.genderOption) && (
         <label className={labelClass}>
           {fieldPrefix}Gender{required(configuration.genderOption) && ' *'}
-          <select
-            className={inputClass}
+          <FormSelect
             value={values.personGender == null ? '' : String(values.personGender)}
             onChange={(event) =>
               set(
@@ -129,7 +129,7 @@ function PersonFields({
             <option value="0">Unknown</option>
             <option value="1">Male</option>
             <option value="2">Female</option>
-          </select>
+          </FormSelect>
         </label>
       )}
       {visible(configuration.birthDateOption) && (
@@ -266,14 +266,14 @@ function RockField({
     )
   } else if (type === ROCK_FIELD_TYPES.singleSelect) {
     control = (
-      <select {...shared} value={value} onChange={(event) => onChange(event.target.value)}>
+      <FormSelect required={Boolean(required)} value={value} onChange={(event) => onChange(event.target.value)}>
         <option value="">Select…</option>
         {options.map((option) => (
           <option key={option.value} value={option.value} disabled={Boolean(option.disabled)}>
             {option.text}
           </option>
         ))}
-      </select>
+      </FormSelect>
     )
   } else if (
     type === ROCK_FIELD_TYPES.multiSelect ||
@@ -303,20 +303,20 @@ function RockField({
     )
   } else if (type === ROCK_FIELD_TYPES.boolean) {
     control = (
-      <select {...shared} value={value} onChange={(event) => onChange(event.target.value)}>
+      <FormSelect required={Boolean(required)} value={value} onChange={(event) => onChange(event.target.value)}>
         <option value="">Select…</option>
         <option value="True">{configuration.truetext || 'Yes'}</option>
         <option value="False">{configuration.falsetext || 'No'}</option>
-      </select>
+      </FormSelect>
     )
   } else if (type === ROCK_FIELD_TYPES.gender) {
     control = (
-      <select {...shared} value={value} onChange={(event) => onChange(event.target.value)}>
+      <FormSelect required={Boolean(required)} value={value} onChange={(event) => onChange(event.target.value)}>
         <option value="">Select…</option>
         <option value="0">Unknown</option>
         <option value="1">Male</option>
         <option value="2">Female</option>
-      </select>
+      </FormSelect>
     )
   } else if (type === ROCK_FIELD_TYPES.address) {
     control = <AddressInputs value={value} onChange={onChange} required={required} />
@@ -851,7 +851,7 @@ export function RockForm({
         <SafeRockHtml value={schema.headerHtml} />
 
         {schema.personEntry && personEntryValues && (
-          <section className="space-y-5">
+          <section className="space-y-5 py-4">
           <SafeRockHtml value={schema.personEntry.preHtml} />
           {schema.personEntry.title && (
             <h3 className="text-2xl font-semibold text-brand-black">
@@ -864,8 +864,7 @@ export function RockForm({
           {schema.personEntry.isCampusVisible && (
             <label className={labelClass}>
               Campus *
-              <select
-                className={inputClass}
+              <FormSelect
                 value={personEntryValues.campusGuid || ''}
                 onChange={(event) =>
                   setPersonEntryValues({
@@ -881,7 +880,7 @@ export function RockForm({
                     {campus.text}
                   </option>
                 ))}
-              </select>
+              </FormSelect>
             </label>
           )}
           <PersonFields
@@ -961,7 +960,7 @@ export function RockForm({
 
         {schema.sections.map((section) =>
           isRockRuleVisible(section.visibilityRule, fieldValues) ? (
-            <section key={section.id} className="space-y-5">
+            <section key={section.id} className="space-y-5 py-4">
               {section.title && (
                 <h3 className="text-2xl font-semibold text-brand-black">
                   {section.title}

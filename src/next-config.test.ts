@@ -19,4 +19,14 @@ describe('canonical host redirects', () => {
     expect(redirects).not.toContainEqual(expect.objectContaining({ source: '/give' }))
     expect(redirects).not.toContainEqual(expect.objectContaining({ source: '/give/:path*' }))
   })
+
+  it('redirects /connect to the homepage Connect Card launcher state', async () => {
+    const redirects = await nextConfig.redirects?.()
+
+    expect(redirects).toContainEqual({
+      source: '/connect',
+      destination: '/?launcher=connect',
+      permanent: true,
+    })
+  })
 })

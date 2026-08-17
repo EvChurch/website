@@ -25,6 +25,7 @@ type RockWorkflowType = {
   IsActive: boolean
   IsFormBuilder: boolean
   IsLoginRequired: boolean
+  FormBuilderTemplateId?: number | null
 }
 
 function escapeODataString(value: string): string {
@@ -57,7 +58,7 @@ export async function getPublicRockWorkflow(
     endpoint: 'WorkflowTypes',
     params: {
       '$filter': `Guid eq guid'${escapeODataString(workflowTypeGuid)}' and IsActive eq true and IsFormBuilder eq true and IsLoginRequired eq false`,
-      '$select': 'Guid,Name,IsActive,IsFormBuilder,IsLoginRequired',
+      '$select': 'Guid,Name,IsActive,IsFormBuilder,IsLoginRequired,FormBuilderTemplateId',
       '$top': '1',
     },
   })
@@ -67,12 +68,14 @@ export async function getPublicRockWorkflow(
     ? {
         guid: workflow.Guid.toLowerCase(),
         name: workflow.Name,
+        formBuilderTemplateId: workflow.FormBuilderTemplateId ?? null,
       }
     : null
 }
 
 type WorkflowEntryRequest = {
   context: { sessionGuid: string; interactionGuid: string }
+  personId?: number | null
   workflowGuid?: string | null
   actionTypeGuid?: string | null
   actionStartDateTime?: string | null
@@ -89,7 +92,10 @@ async function callWorkflowEntry(
     method: 'POST',
     body: {
       __context: {
-        pageParameters: { WorkflowTypeGuid: workflowTypeGuid },
+        pageParameters: {
+          WorkflowTypeGuid: workflowTypeGuid,
+          ...(request.personId ? { PersonId: String(request.personId) } : {}),
+        },
         ...request.context,
       },
       workflowGuid: request.workflowGuid ?? null,
@@ -101,8 +107,145 @@ async function callWorkflowEntry(
   })
 }
 
+type RockPersonEntryBehavior = {
+  hideIfCurrentPersonKnown: boolean
+}
+
+async function getPersonEntryBehavior(
+  workflow: RockWorkflowOption,
+  actionTypeGuid: string,
+): Promise<RockPersonEntryBehavior> {
+  try {
+    if (workflow.formBuilderTemplateId) {
+      const template = await rockFetch<{
+        AllowPersonEntry?: boolean
+        PersonEntrySettingsJson?: string | null
+      }>({
+        endpoint: `WorkflowFormBuilderTemplates/${workflow.formBuilderTemplateId}`,
+        params: { '$select': 'AllowPersonEntry,PersonEntrySettingsJson' },
+      })
+      if (template.AllowPersonEntry && template.PersonEntrySettingsJson) {
+        const settings = JSON.parse(template.PersonEntrySettingsJson) as Record<string, unknown>
+        return {
+          hideIfCurrentPersonKnown:
+            settings.hideIfCurrentPersonKnown === true ||
+            settings.HideIfCurrentPersonKnown === true,
+        }
+      }
+    }
+
+    const actionTypes = await rockFetch<Array<{ WorkflowFormId?: number | null }>>({
+      endpoint: 'WorkflowActionTypes',
+      params: {
+        '$filter': `Guid eq guid'${escapeODataString(actionTypeGuid)}'`,
+        '$select': 'WorkflowFormId',
+        '$top': '1',
+      },
+    })
+    const workflowFormId = actionTypes[0]?.WorkflowFormId
+    if (!workflowFormId) return { hideIfCurrentPersonKnown: false }
+
+    const form = await rockFetch<{ PersonEntryHideIfCurrentPersonKnown?: boolean }>({
+      endpoint: `WorkflowActionForms/${workflowFormId}`,
+      params: { '$select': 'PersonEntryHideIfCurrentPersonKnown' },
+    })
+    return {
+      hideIfCurrentPersonKnown:
+        form.PersonEntryHideIfCurrentPersonKnown === true,
+    }
+  } catch {
+    return { hideIfCurrentPersonKnown: false }
+  }
+}
+
+type RockPersonForEntry = {
+  FirstName?: string | null
+  NickName?: string | null
+  LastName?: string | null
+  Email?: string | null
+  Gender?: number | null
+  BirthDate?: string | null
+  PrimaryCampusId?: number | null
+  MaritalStatusValueId?: number | null
+  RaceValueId?: number | null
+  EthnicityValueId?: number | null
+  PhoneNumbers?: Array<{
+    CountryCode?: string | null
+    Number?: string | null
+    NumberTypeValueId?: number | null
+    IsMessagingEnabled?: boolean | null
+  }>
+}
+
+async function getGuidForId(
+  endpoint: 'Campuses' | 'DefinedValues',
+  id?: number | null,
+): Promise<string | null> {
+  if (!id) return null
+  const value = await rockFetch<{ Guid?: string | null }>({
+    endpoint: `${endpoint}/${id}`,
+    params: { '$select': 'Guid' },
+  })
+  return value.Guid || null
+}
+
+async function getKnownPersonEntryValues(
+  personId: number,
+  configuration: NonNullable<RockFormSchema['personEntry']>,
+): Promise<RockPersonEntryValues | null> {
+  try {
+    const person = await rockFetch<RockPersonForEntry>({
+      endpoint: `People/${personId}`,
+      params: { '$expand': 'PhoneNumbers' },
+    })
+    const mobileTypes = configuration.mobilePhoneOption !== 0
+      ? await rockFetch<Array<{ Id?: number }>>({
+          endpoint: 'DefinedValues',
+          params: {
+            '$filter': "Guid eq guid'407E7E45-7B2E-4FCD-9605-ECB1339F2453'",
+            '$select': 'Id',
+            '$top': '1',
+          },
+        })
+      : []
+    const mobile = person.PhoneNumbers?.find(
+      (phone) => phone.NumberTypeValueId === mobileTypes[0]?.Id,
+    )
+    const [campusGuid, maritalStatusGuid, raceGuid, ethnicityGuid] =
+      await Promise.all([
+        getGuidForId('Campuses', person.PrimaryCampusId),
+        getGuidForId('DefinedValues', person.MaritalStatusValueId),
+        getGuidForId('DefinedValues', person.RaceValueId),
+        getGuidForId('DefinedValues', person.EthnicityValueId),
+      ])
+
+    return {
+      person: {
+        firstName: person.FirstName || null,
+        nickName: person.NickName || null,
+        lastName: person.LastName || null,
+        email: person.Email || null,
+        personGender: person.Gender ?? null,
+        personBirthDate: person.BirthDate || null,
+        personRace: raceGuid,
+        personEthnicity: ethnicityGuid,
+        mobilePhoneCountryCode: mobile?.CountryCode || null,
+        mobilePhoneNumber: mobile?.Number || null,
+        isMessagingEnabled: mobile?.IsMessagingEnabled === true,
+      },
+      spouse: null,
+      campusGuid,
+      maritalStatusGuid,
+      address: null,
+    }
+  } catch {
+    return null
+  }
+}
+
 export async function startRockForm(
   workflowTypeGuid: string,
+  personId: number | null = null,
 ): Promise<RockFormSchema> {
   const workflow = await getPublicRockWorkflow(workflowTypeGuid)
 
@@ -114,31 +257,51 @@ export async function startRockForm(
   const interactionGuid = randomUUID()
   const action = await callWorkflowEntry(workflow.guid, {
     context: { sessionGuid, interactionGuid },
+    personId,
   })
 
-  return buildRockFormSchema({ workflow, action, sessionGuid, interactionGuid })
+  return await buildRockFormSchema({
+    workflow,
+    action,
+    sessionGuid,
+    interactionGuid,
+    personId,
+  })
 }
 
-export function buildRockFormSchema({
+export async function buildRockFormSchema({
   workflow,
   action,
   sessionGuid,
   interactionGuid,
+  personId = null,
   clearPersonDefaults = true,
 }: {
   workflow: RockWorkflowOption
   action: RockInteractiveAction
   sessionGuid: string
   interactionGuid: string
+  personId?: number | null
   clearPersonDefaults?: boolean
-}): RockFormSchema {
+}): Promise<RockFormSchema> {
   const parsed = parseRockInteractiveAction(action)
   if (parsed.buttons.length === 0) {
     throw new Error('Rock did not provide an action for this form')
   }
-  const initialPersonEntryValues = clearPersonDefaults
-    ? replaceApiPersonDefaults(parsed.initialPersonEntryValues)
-    : parsed.initialPersonEntryValues
+  const personEntryBehavior = personId && parsed.personEntry
+    ? await getPersonEntryBehavior(workflow, parsed.actionTypeGuid)
+    : null
+  const knownPersonEntryValues = personId && parsed.personEntry
+    ? await getKnownPersonEntryValues(personId, parsed.personEntry)
+    : null
+  const initialPersonEntryValues = knownPersonEntryValues || (
+    clearPersonDefaults
+      ? replaceApiPersonDefaults(parsed.initialPersonEntryValues)
+      : parsed.initialPersonEntryValues
+  )
+  const hidePersonEntryWhenKnown = Boolean(
+    personId && personEntryBehavior?.hideIfCurrentPersonKnown,
+  )
   const allowedFields = parsed.fields.map((field) => {
     const rawBinaryFileType =
       field.attribute.configurationValues.binaryFileType || ''
@@ -164,6 +327,9 @@ export function buildRockFormSchema({
   const context: RockFormContext = {
     version: 1,
     workflowTypeGuid: workflow.guid,
+    personId,
+    hidePersonEntryWhenKnown,
+    knownPersonEntryValues,
     workflowGuid: action.workflowGuid || null,
     sessionGuid,
     interactionGuid,
@@ -190,9 +356,10 @@ export function buildRockFormSchema({
     footerHtml: parsed.footerHtml,
     sections: parsed.sections,
     fields: publicFields,
-    personEntry: parsed.personEntry,
+    personEntry: hidePersonEntryWhenKnown ? null : parsed.personEntry,
     initialFieldValues: parsed.initialFieldValues,
-    initialPersonEntryValues,
+    initialPersonEntryValues:
+      hidePersonEntryWhenKnown ? null : initialPersonEntryValues,
     buttons: parsed.buttons,
     contextToken: createRockFormContextToken(context),
     turnstileSiteKey: getTurnstileSiteKey(),
@@ -266,6 +433,7 @@ export async function submitRockForm({
       sessionGuid: context.sessionGuid,
       interactionGuid: context.interactionGuid,
     },
+    personId: context.personId,
     workflowGuid: context.workflowGuid,
     actionTypeGuid: context.actionTypeGuid,
     actionStartDateTime: context.actionStartDateTime,

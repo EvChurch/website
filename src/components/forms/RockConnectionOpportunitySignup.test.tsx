@@ -103,6 +103,8 @@ describe('Rock Connection Opportunity signup UI', () => {
     expect(markup).not.toContain('I agree to receive text messages')
     expect(markup).toContain('&lt;script&gt;')
     expect(markup).not.toContain('<script>')
+    expect(markup).toContain('data-form-select="true"')
+    expect(markup).toContain('appearance-none')
   })
 
   it('hides a sole campus while preserving it in the submission', () => {

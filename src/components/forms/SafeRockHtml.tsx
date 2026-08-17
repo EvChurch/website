@@ -2,7 +2,28 @@
 
 import DOMPurify from 'dompurify'
 
-const ALLOWED_TAGS = ['p', 'br', 'strong', 'em', 'b', 'i', 'ul', 'ol', 'li', 'a']
+const ALLOWED_TAGS = [
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'div',
+  'p',
+  'br',
+  'strong',
+  'em',
+  'b',
+  'i',
+  'ul',
+  'ol',
+  'li',
+  'a',
+]
+
+const ROCK_TEXT_SPACING_CLASS =
+  '[&_h1]:my-6 [&_h2]:my-5 [&_h3]:my-5 [&_h4]:my-4 [&_h5]:my-4 [&_h6]:my-4 [&_p]:my-4'
 
 export function classifyRockHref(
   rawHref: string,
@@ -36,7 +57,7 @@ export function sanitizeRockHtml(value: string): string {
   if (typeof DOMPurify.sanitize !== 'function' || typeof DOMParser === 'undefined') {
     return escapeHtml(value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim())
   }
-  const clean = DOMPurify.sanitize(value, {
+  const clean = DOMPurify.sanitize(`<div>${value}</div>`, {
     ALLOWED_TAGS,
     ALLOWED_ATTR: ['href', 'data-launcher-cta'],
     FORBID_TAGS: ['script', 'style', 'svg', 'math', 'iframe', 'object', 'embed', 'form'],
@@ -67,5 +88,10 @@ export function sanitizeRockHtml(value: string): string {
 
 export function SafeRockHtml({ value }: { value?: string | null }) {
   if (!value) return null
-  return <div dangerouslySetInnerHTML={{ __html: sanitizeRockHtml(value) }} />
+  return (
+    <div
+      className={ROCK_TEXT_SPACING_CLASS}
+      dangerouslySetInnerHTML={{ __html: sanitizeRockHtml(value) }}
+    />
+  )
 }

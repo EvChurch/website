@@ -4,8 +4,12 @@ import { act, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const navigation = {
+  pathname: "/about",
+};
+
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/about",
+  usePathname: () => navigation.pathname,
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("@/components/forms/RockForm", () => ({
@@ -162,6 +166,8 @@ describe("NextStepsLauncher", () => {
   let root: Root;
 
   beforeEach(() => {
+    navigation.pathname = "/about";
+    window.history.replaceState(null, "", "/about");
     window.localStorage.clear();
     mockMobileViewport(false);
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
@@ -286,7 +292,7 @@ describe("NextStepsLauncher", () => {
     );
     expect(
       button(container, "Open full screen")?.parentElement?.className,
-    ).toContain("right-4");
+    ).toContain("left-4");
     expect(panelText.indexOf("Plan a Visit")).toBeLessThan(
       panelText.indexOf("Give Now"),
     );
@@ -323,7 +329,7 @@ describe("NextStepsLauncher", () => {
     );
     expect(
       button(container, "Open full screen")?.parentElement?.className,
-    ).toContain("right-4");
+    ).toContain("left-4");
     await act(async () => button(container, "Back")?.click());
     await act(async () => button(container, "Connect Card")?.click());
     expect(
@@ -331,6 +337,23 @@ describe("NextStepsLauncher", () => {
         `input[aria-label="Workflow ${CONNECT_CARD_WORKFLOW_GUID}"]`,
       ),
     ).not.toBeNull();
+  });
+
+  it("opens the Connect Card when the homepage carries the connect launcher state", async () => {
+    navigation.pathname = "/";
+    window.history.replaceState(null, "", "/?launcher=connect");
+
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+
+    expect(
+      container.querySelector(
+        `input[aria-label="Workflow ${CONNECT_CARD_WORKFLOW_GUID}"]`,
+      ),
+    ).not.toBeNull();
+    expect(button(container, "Back")).toBeTruthy();
+    expect(button(container, "Close next steps")).toBeTruthy();
   });
 
   it("opens one private giving view from desktop, mobile, and launcher anchors only after positive enablement", async () => {
@@ -354,11 +377,13 @@ describe("NextStepsLauncher", () => {
     expect(button(container, "Back")).toBeTruthy();
     expect(button(container, "Open full screen")).toBeTruthy();
     expect(button(container, "Close next steps")).toBeTruthy();
-    expect(
-      container
-        .querySelector('[aria-label="Next steps launcher"]')
-        ?.querySelector('a[aria-label="Sign in"]'),
-    ).not.toBeNull();
+    const signIn = container
+      .querySelector('[aria-label="Next steps launcher"]')
+      ?.querySelector<HTMLAnchorElement>('a[aria-label="Sign in"]');
+    expect(signIn?.textContent?.trim()).toBe("Sign in");
+    expect(signIn?.className).toContain("rounded-full");
+    expect(signIn?.className).toContain("bg-white");
+    expect(signIn?.lastElementChild?.hasAttribute("data-member-sign-in-icon")).toBe(true);
 
     await act(async () => button(container, "Back")?.click());
     const launcherGive = container.querySelector<HTMLAnchorElement>(

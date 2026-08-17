@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getAuth0Client } from '@/auth/auth0-client'
+import { getMemberProfileStateFromSession } from '@/auth/member-session'
 import { verifyRockFormContextToken } from '@/lib/rock-forms/context-token'
 import {
   isGuid,
@@ -174,6 +176,15 @@ function publicSubmissionError(error: unknown) {
 
 type RouteContext = { params: Promise<{ workflowTypeGuid: string }> }
 
+async function authenticatedPersonId(request: NextRequest): Promise<number | null> {
+  try {
+    const session = await getAuth0Client().getSession(request)
+    return getMemberProfileStateFromSession(session)?.profile.personId ?? null
+  } catch {
+    return null
+  }
+}
+
 export async function GET(_request: NextRequest, context: RouteContext) {
   const { workflowTypeGuid } = await context.params
 
@@ -220,7 +231,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
     })
 
     if (isStart) {
-      return NextResponse.json(await startRockForm(workflowTypeGuid))
+      return NextResponse.json(
+        await startRockForm(workflowTypeGuid, await authenticatedPersonId(request)),
+      )
     }
 
     const contextToken = String(body.get('contextToken') || '')
@@ -228,6 +241,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     if (formContext.workflowTypeGuid !== workflowTypeGuid.toLowerCase()) {
       return jsonError('The form context does not match this form', 400)
+    }
+    if (
+      formContext.personId &&
+      formContext.personId !== (await authenticatedPersonId(request))
+    ) {
+      return jsonError('The signed-in person does not match this form', 403)
     }
     const knownFields = new Map(
       formContext.allowedFields.map((field) => [field.attributeGuid, field]),
@@ -276,12 +295,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
       fieldValues[attributeGuid] = JSON.stringify(uploaded)
     }
 
-    const personEntryValues = sanitizePersonEntry(
-      parseObject<RockPersonEntryValues | null>(
-        body.get('personEntryValues'),
-        null,
-      ),
-    )
+    const personEntryValues =
+      formContext.personId && formContext.hidePersonEntryWhenKnown
+      ? sanitizePersonEntry(formContext.knownPersonEntryValues || null)
+      : sanitizePersonEntry(
+          parseObject<RockPersonEntryValues | null>(
+            body.get('personEntryValues'),
+            null,
+          ),
+        )
     const requestedButton = String(body.get('button') || '')
     if (
       !requestedButton ||
@@ -302,11 +324,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
     ) {
       return NextResponse.json({
         status: 'next',
-        form: buildRockFormSchema({
+        form: await buildRockFormSchema({
           workflow,
           action: result,
           sessionGuid: formContext.sessionGuid,
           interactionGuid: formContext.interactionGuid,
+          personId: formContext.personId,
           clearPersonDefaults: false,
         }),
       })

@@ -16,7 +16,7 @@ export interface MemberDisplayProfile {
   avatarUrl: string | null
 }
 
-type MemberAccountVariant = 'desktop' | 'mobile-icon' | 'drawer'
+type MemberAccountVariant = 'desktop' | 'mobile-icon' | 'drawer' | 'launcher'
 type MemberAccountTone = 'light' | 'dark'
 
 interface MemberAccountControlProps {
@@ -232,6 +232,7 @@ export function MemberAccountControl({
   }, [close, open])
 
   const isDrawer = variant === 'drawer'
+  const isLauncher = variant === 'launcher'
   const iconTone = tone === 'dark'
     ? 'text-brand-black hover:bg-warm-white'
     : 'text-white hover:bg-white/10'
@@ -244,12 +245,16 @@ export function MemberAccountControl({
           rel="nofollow"
           aria-label="Admin"
           data-header-account-control={!isDrawer ? true : undefined}
-          className={isDrawer
-            ? 'flex min-h-12 w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold text-brand-black transition-colors hover:bg-warm-white'
-            : `flex min-h-10 min-w-10 items-center justify-center rounded-full transition-colors ${iconTone}`}
+          className={
+            isDrawer
+              ? 'flex min-h-12 w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold text-brand-black transition-colors hover:bg-warm-white'
+              : isLauncher
+                ? 'flex min-h-10 items-center gap-3 rounded-full bg-white py-1 pr-1 pl-4 text-sm font-semibold text-brand-black shadow-sm transition hover:bg-warm-grey/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red'
+                : `flex min-h-10 min-w-10 items-center justify-center rounded-full transition-colors ${iconTone}`
+          }
         >
+          <span className={isDrawer || isLauncher ? '' : 'sr-only'}>Admin</span>
           <PersonIcon />
-          <span className={isDrawer ? '' : 'sr-only'}>Admin</span>
         </a>
       )
     }
@@ -260,12 +265,16 @@ export function MemberAccountControl({
         rel="nofollow"
         aria-label="Sign in"
         data-header-account-control={!isDrawer ? true : undefined}
-        className={isDrawer
-          ? 'flex min-h-12 w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold text-brand-black transition-colors hover:bg-warm-white'
-          : `flex min-h-10 min-w-10 items-center justify-center rounded-full transition-colors ${iconTone}`}
+        className={
+          isDrawer
+            ? 'flex min-h-12 w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold text-brand-black transition-colors hover:bg-warm-white'
+            : isLauncher
+              ? 'flex min-h-10 items-center gap-3 rounded-full bg-white py-1 pr-1 pl-4 text-sm font-semibold text-brand-black shadow-sm transition hover:bg-warm-grey/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red'
+              : `flex min-h-10 min-w-10 items-center justify-center rounded-full transition-colors ${iconTone}`
+        }
       >
+        {(isDrawer || isLauncher) && <span>Sign in</span>}
         <PersonIcon />
-        {isDrawer && <span>Sign in</span>}
       </a>
     )
   }
