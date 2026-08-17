@@ -121,6 +121,99 @@ describe('giving checkout orchestration', () => {
     expect(repo.operations).toHaveLength(0)
   })
 
+  it('recovers an interrupted direct-bank identity binding with the same submission key', async () => {
+    const repo = repository()
+    const interrupted: GivingCheckoutRecord = {
+      id: 16,
+      contextKey: 'production',
+      environment: 'production',
+      synthetic: false,
+      giverId: null,
+      bankReference: null,
+      bankCode: 'ALOVELACE',
+      fundId: 1,
+      fundName: 'General',
+      fundCode: 'GEN',
+      fundAccountingKey: 'general',
+      amountMinor: baseSubmission.amountMinor,
+      frequency: baseSubmission.frequency,
+      firstPaymentDate: baseSubmission.firstPaymentDate,
+      correlationKey: 'interrupted-checkout',
+      submissionKeyDigest: 'submission-key',
+      submissionDigest: 'submission',
+      gatewayRedirectUri: null,
+      status: 'unknown',
+      resultCode: 'unknown',
+    }
+    repo.createOrReuse = vi.fn(async () => ({ checkout: interrupted, reused: true, disposition: 'start' as const }))
+    const resolveIdentity = vi.fn(async () => ({
+      giverId: 1,
+      personAliasId: 8604,
+      bankReference: 'EV8604',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      email: 'ada@example.com',
+    }))
+
+    await expect(prepareGivingBankTransfer({
+      contextKey: 'production',
+      environment: 'production',
+      synthetic: false,
+      submission: baseSubmission,
+    }, {
+      repository: repo,
+      digestSecret: 's'.repeat(32),
+      randomBytes: () => Buffer.alloc(32, 1),
+      uuid: () => '00000000-0000-4000-8000-000000000001',
+      resolveIdentity,
+    })).resolves.toMatchObject({ reference: 'EV8604' })
+    expect(resolveIdentity).toHaveBeenCalledOnce()
+  })
+
+  it('does not turn an ambiguous BlinkPay checkout into direct-bank instructions', async () => {
+    const repo = repository()
+    const blinkPayCheckout: GivingCheckoutRecord = {
+      id: 17,
+      contextKey: 'production',
+      environment: 'production',
+      synthetic: false,
+      giverId: 1,
+      bankReference: 'EV8604',
+      bankCode: 'ALOVELACE',
+      fundId: 1,
+      fundName: 'General',
+      fundCode: 'GEN',
+      fundAccountingKey: 'general',
+      amountMinor: baseSubmission.amountMinor,
+      frequency: baseSubmission.frequency,
+      firstPaymentDate: baseSubmission.firstPaymentDate,
+      correlationKey: 'blinkpay-checkout',
+      submissionKeyDigest: 'submission-key',
+      submissionDigest: 'submission',
+      gatewayRedirectUri: null,
+      status: 'unknown',
+      resultCode: 'unknown',
+    }
+    repo.createOrReuse = vi.fn(async () => ({
+      checkout: blinkPayCheckout,
+      reused: true,
+      disposition: 'recover' as const,
+    }))
+
+    await expect(prepareGivingBankTransfer({
+      contextKey: 'production',
+      environment: 'production',
+      synthetic: false,
+      submission: baseSubmission,
+    }, {
+      repository: repo,
+      digestSecret: 's'.repeat(32),
+      randomBytes: () => Buffer.alloc(32, 1),
+      uuid: () => '00000000-0000-4000-8000-000000000001',
+      resolveIdentity: vi.fn(),
+    })).rejects.toMatchObject({ code: 'conflict' })
+  })
+
   it('reuses an identical submission, commits caller-owned keys before the call and verifies one-off settlement authoritatively', async () => {
     const { checkout, blinkPay, repo } = service()
     const first = await checkout.start({ ...context, submission: baseSubmission })

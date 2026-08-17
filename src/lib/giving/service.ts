@@ -533,12 +533,6 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
             existing.environment === input.environment &&
             existing.synthetic === input.synthetic
           if (!sameRequest) throw new GivingCheckoutError('conflict')
-          const reachedProvider = Boolean((await client.query<{ reached: boolean }>(`
-            SELECT EXISTS(
-              SELECT 1 FROM giving_provider_operations
-              WHERE checkout_id=$1 AND status IN ('submitted','succeeded','unknown')
-            ) AS reached
-          `, [existing.id])).rows[0]?.reached)
           if (existing.gatewayRedirectUri) {
             const returnCapabilityLive = existingResult.return_capability_consumed_at === null &&
               existingResult.return_capability_expires_at instanceof Date &&
@@ -557,9 +551,22 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
             }
             return { checkout: existing, reused: true, disposition: returnCapabilityLive ? 'redirect' : 'recover' }
           }
-          if (reachedProvider && !existing.gatewayRedirectUri) {
+          const reached = (await client.query<{ blinkpay: boolean; rock: boolean }>(`
+            SELECT
+              EXISTS(SELECT 1 FROM giving_provider_operations WHERE checkout_id=$1 AND provider='blinkpay') AS blinkpay,
+              EXISTS(SELECT 1 FROM giving_provider_operations WHERE checkout_id=$1 AND provider='rock' AND status IN ('submitted','succeeded','unknown')) AS rock
+          `, [existing.id])).rows[0]
+          if (reached?.blinkpay && !existing.gatewayRedirectUri) {
             await client.query(`UPDATE giving_checkouts SET status='unknown',result_code='unknown',updated_at=now() WHERE id=$1`, [existing.id])
             return { checkout: { ...existing, status: 'unknown', resultCode: 'unknown' }, reused: true, disposition: 'recover' }
+          }
+          if (reached?.rock) {
+            await client.query(`
+              UPDATE giving_checkouts
+              SET return_capability_digest=$2,return_capability_expires_at=$3,return_capability_consumed_at=NULL,updated_at=now()
+              WHERE id=$1
+            `, [existing.id, input.returnCapabilityDigest, input.returnCapabilityExpiresAt])
+            return { checkout: existing, reused: true, disposition: 'start' }
           }
           const rotated = checkoutRow((await client.query(`
             UPDATE giving_checkouts
