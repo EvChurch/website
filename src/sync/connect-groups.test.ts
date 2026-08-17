@@ -19,7 +19,11 @@ vi.mock('./rock-group-members', () => ({
   fetchActiveGroupMembers: mocks.fetchActiveGroupMembers,
 }))
 
-import { CONNECT_GROUP_COACH_SECURITY_GROUP_ID, syncConnectGroups } from './connect-groups'
+import {
+  CONNECT_GROUP_COACH_SECURITY_GROUP_ID,
+  CONNECT_GROUP_COACHING_PARENT_IDS,
+  syncConnectGroups,
+} from './connect-groups'
 
 describe('syncConnectGroups', () => {
   beforeEach(() => {
@@ -30,7 +34,7 @@ describe('syncConnectGroups', () => {
     mocks.create.mockResolvedValue({})
     mocks.update.mockResolvedValue({})
     mocks.delete.mockResolvedValue({})
-    mocks.rockFetchAll.mockResolvedValue([group(1, 'North Group', 10)])
+    mockRockGroups([group(1, 'North Group', 10)])
     mocks.fetchActiveGroupMembers.mockImplementation((groupId: number) => {
       if (groupId === 1) {
         return Promise.resolve([
@@ -80,6 +84,14 @@ describe('syncConnectGroups', () => {
       params: {
         $filter: '(GroupTypeId eq 25 or GroupTypeId eq 46) and IsActive eq true',
         $expand: 'GroupLocations,Campus',
+        $orderby: 'Name,Id',
+      },
+    })
+    expect(mocks.rockFetchAll).toHaveBeenCalledWith({
+      endpoint: 'Groups',
+      getKey: expect.any(Function),
+      params: {
+        $filter: `(${CONNECT_GROUP_COACHING_PARENT_IDS.map((id) => `ParentGroupId eq ${id}`).join(' or ')}) and GroupTypeId eq 23 and IsActive eq true`,
         $orderby: 'Name,Id',
       },
     })
@@ -150,7 +162,7 @@ describe('syncConnectGroups', () => {
   })
 
   it('fetches group and coach memberships sequentially', async () => {
-    mocks.rockFetchAll.mockResolvedValue([
+    mockRockGroups([
       group(1, 'First Group'),
       group(2, 'Second Group'),
     ])
@@ -176,18 +188,25 @@ describe('syncConnectGroups', () => {
     ])
   })
 
-  it('maps child groups to the coach leading their parent group', async () => {
-    mocks.rockFetchAll.mockResolvedValue([
-      group(1, 'Tuesday Central Connect', null, 90),
-      group(2, 'Thursday Central Connect', null, 90),
-    ])
+  it('maps groups led by coaching-group members to that coaching group leaders', async () => {
+    mockRockGroups(
+      [
+        group(1, 'Tuesday Central Connect'),
+        group(2, 'Thursday Central Connect'),
+      ],
+      [group(90, "Alex's Coaching Group")],
+    )
     mocks.fetchActiveGroupMembers.mockImplementation((groupId: number) => {
       if (groupId === 1) {
         return Promise.resolve([
           membership(301, 1, 101, 'Leader', true, 'Alex Coach'),
         ])
       }
-      if (groupId === 2) return Promise.resolve([])
+      if (groupId === 2) {
+        return Promise.resolve([
+          membership(302, 2, 102, 'Leader', true, 'Blair Leader'),
+        ])
+      }
       if (groupId === CONNECT_GROUP_COACH_SECURITY_GROUP_ID) {
         return Promise.resolve([
           membership(401, groupId, 101, 'Member', false, 'Alex Coach'),
@@ -196,6 +215,7 @@ describe('syncConnectGroups', () => {
       if (groupId === 90) {
         return Promise.resolve([
           membership(501, 90, 101, 'Coach', true, 'Alex Coach'),
+          membership(502, 90, 102, 'Member', false, 'Blair Leader'),
         ])
       }
       throw new Error(`Unexpected group ${groupId}`)
@@ -263,18 +283,19 @@ describe('syncConnectGroups', () => {
     expect(mocks.delete).not.toHaveBeenCalled()
   })
 
-  it('leaves Payload untouched when a parent membership fetch fails', async () => {
-    mocks.rockFetchAll.mockResolvedValue([
-      group(1, 'Tuesday Central Connect', null, 90),
-    ])
+  it('leaves Payload untouched when a coaching-group membership fetch fails', async () => {
+    mockRockGroups(
+      [group(1, 'Tuesday Central Connect')],
+      [group(90, "Alex's Coaching Group")],
+    )
     mocks.fetchActiveGroupMembers.mockImplementation((groupId: number) => {
-      if (groupId === 90) return Promise.reject(new Error('parent members failed'))
+      if (groupId === 90) return Promise.reject(new Error('coaching group members failed'))
       return Promise.resolve([])
     })
 
     const result = await syncConnectGroups()
 
-    expect(result.errors).toEqual(['Error: parent members failed'])
+    expect(result.errors).toEqual(['Error: coaching group members failed'])
     expect(mocks.getPayloadClient).not.toHaveBeenCalled()
     expect(mocks.beginTransaction).not.toHaveBeenCalled()
     expect(mocks.create).not.toHaveBeenCalled()
@@ -295,7 +316,7 @@ describe('syncConnectGroups', () => {
   })
 
   it('rejects an empty snapshot instead of deleting existing mirrors', async () => {
-    mocks.rockFetchAll.mockResolvedValue([])
+    mockRockGroups([])
     mocks.fetchActiveGroupMembers.mockResolvedValue([])
 
     const result = await syncConnectGroups()
@@ -352,6 +373,15 @@ describe('syncConnectGroups', () => {
     expect(mocks.commitTransaction).not.toHaveBeenCalled()
   })
 })
+
+function mockRockGroups(
+  connectGroups: ReturnType<typeof group>[],
+  coachingGroups: ReturnType<typeof group>[] = [],
+) {
+  mocks.rockFetchAll.mockImplementation(({ params }: { params: { $filter: string } }) =>
+    Promise.resolve(params.$filter.includes('ParentGroupId eq') ? coachingGroups : connectGroups),
+  )
+}
 
 function group(
   Id: number,
