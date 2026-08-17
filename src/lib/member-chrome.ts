@@ -1,5 +1,3 @@
-import type { GivingRuntimeConfiguration } from '@/lib/giving/availability'
-
 export interface MemberChromeState {
   memberProfile: {
     name: string
@@ -13,7 +11,6 @@ export interface MemberChromeState {
     name: string
     email: string
   } | null
-  givingRuntime: GivingRuntimeConfiguration | null
   givingResumeRequested: boolean
   givingTurnstileSiteKey: string | null
 }
@@ -23,7 +20,6 @@ export const ANONYMOUS_MEMBER_CHROME = {
   memberCampusSlug: null,
   adminHref: null,
   impersonation: null,
-  givingRuntime: null,
   givingResumeRequested: false,
   givingTurnstileSiteKey: null,
 } as const satisfies MemberChromeState
@@ -60,21 +56,11 @@ export function parseMemberChromeState(value: unknown): MemberChromeState | null
     !(typeof value.givingTurnstileSiteKey === 'string' || value.givingTurnstileSiteKey === null)
   ) return null
 
-  const givingRuntime = value.givingRuntime
-  if (givingRuntime !== null && (
-    !isRecord(givingRuntime) ||
-    givingRuntime.eligibility !== 'protected-e2e' ||
-    givingRuntime.synthetic !== true ||
-    !Array.isArray(givingRuntime.gatewayOrigins) ||
-    !givingRuntime.gatewayOrigins.every((origin) => typeof origin === 'string')
-  )) return null
-
   return {
     memberProfile: profile,
     memberCampusSlug: value.memberCampusSlug,
     adminHref: value.adminHref,
     impersonation,
-    givingRuntime: givingRuntime as GivingRuntimeConfiguration | null,
     givingResumeRequested: value.givingResumeRequested,
     givingTurnstileSiteKey: value.givingTurnstileSiteKey,
   }
@@ -85,7 +71,6 @@ export function isAnonymousMemberChrome(state: MemberChromeState): boolean {
     state.memberCampusSlug === null &&
     state.adminHref === null &&
     state.impersonation === null &&
-    state.givingRuntime === null &&
     !state.givingResumeRequested &&
     state.givingTurnstileSiteKey === null
 }

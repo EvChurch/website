@@ -71,7 +71,7 @@ export class GivingDraftCapabilityError extends Error {
 }
 
 const PRIVATE_GIVING_RETURN_PREFIXES = [
-  '/admin', '/api', '/auth', '/give', '/giving-e2e', '/member-auth',
+  '/admin', '/api', '/auth', '/give', '/member-auth',
   '/member-avatar', '/member-sign-in', '/members', '/shared', '/_next',
 ] as const
 

@@ -42,10 +42,9 @@ Giving configuration is deliberately separate from public-member authentication:
 |---|---|
 | `GIVING_ROCK_API_URL` | Exact HTTPS Rock REST base ending in `/api`; requests reject redirects |
 | `GIVING_ROCK_API_KEY` | Dedicated credential limited to the giving identity reads and person creation contract |
-| `GIVING_ROCK_E2E_PERSON_ALIAS_ID` | Positive alias of the dedicated synthetic test person; protected E2E must use only this alias and must never create a Rock person |
 | `GIVING_IDENTITY_FINGERPRINT_SECRET` | Dedicated server-only HMAC secret used to serialize identity resolution without storing email in the operation key or logs |
 
-Keep the synthetic alias non-production in purpose and clearly marked in Rock. Changing it requires a read-only alias-resolution proof before the next protected E2E run. Never place the alias, credential, fingerprint, raw identity, or Rock response in public test evidence.
+Never place the credential, fingerprint, raw identity, or Rock response in public test evidence.
 
 Store secrets in the deployment secret store, restrict operator access, and never print their values. Public-member and Payload-admin sign-in use the existing `/auth/*` routes and encrypted Auth0 session. Payload roles remain the sole admin authorization gate; a member session without a recognized Payload role cannot access `/admin`.
 

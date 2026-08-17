@@ -60,10 +60,10 @@ export async function withIdentityFingerprintLock<T>(pool: Pool, fingerprint: st
 }
 
 export async function upsertGiverByAlias(client: PoolClient, input: GivingContext & { rockPersonAliasId: number; bankReference: string; name: string; email: string }): Promise<number> {
-  const result = await client.query<{ id: number }>(`INSERT INTO giving_givers (context_key, environment, synthetic, e2e_run_id, rock_person_alias_id, bank_reference, name, email)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+  const result = await client.query<{ id: number }>(`INSERT INTO giving_givers (context_key, environment, synthetic, rock_person_alias_id, bank_reference, name, email)
+    VALUES ($1,$2,$3,$4,$5,$6,$7)
     ON CONFLICT (context_key, rock_person_alias_id) DO UPDATE SET name=EXCLUDED.name,email=EXCLUDED.email,updated_at=now()
-    RETURNING id`, [input.contextKey, input.environment, input.synthetic, input.e2eRunId, input.rockPersonAliasId, input.bankReference, input.name, input.email])
+    RETURNING id`, [input.contextKey, input.environment, input.synthetic, input.rockPersonAliasId, input.bankReference, input.name, input.email])
   return result.rows[0].id
 }
 
@@ -77,9 +77,9 @@ export interface PreparedProviderOperation { id: number; status: ProviderOperati
 export async function prepareProviderOperation(client: PoolClient, input: PrepareProviderOperationInput): Promise<PreparedProviderOperation> {
   const contextKey = input.contextKey
   await client.query(`INSERT INTO giving_provider_operations
-    (context_key,environment,synthetic,e2e_run_id,checkout_id,provider,action,logical_version,request_digest,correlation_key,request_id,idempotency_key,status)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'prepared')
-    ON CONFLICT (checkout_id,provider,action,logical_version) DO NOTHING`, [contextKey, input.environment, input.synthetic, input.e2eRunId, input.checkoutId, input.provider, input.action, input.logicalVersion, input.requestDigest, input.correlationKey, input.requestId ?? null, input.idempotencyKey ?? null])
+    (context_key,environment,synthetic,checkout_id,provider,action,logical_version,request_digest,correlation_key,request_id,idempotency_key,status)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'prepared')
+    ON CONFLICT (checkout_id,provider,action,logical_version) DO NOTHING`, [contextKey, input.environment, input.synthetic, input.checkoutId, input.provider, input.action, input.logicalVersion, input.requestDigest, input.correlationKey, input.requestId ?? null, input.idempotencyKey ?? null])
   const result = await client.query<{ id: number; status: ProviderOperationStatus; provider_id: string | null; request_digest: string; correlation_key: string; context_key: string; request_id: string | null; idempotency_key: string | null }>(`SELECT id,status,provider_id,request_digest,correlation_key,context_key,request_id,idempotency_key FROM giving_provider_operations WHERE checkout_id=$1 AND provider=$2 AND action=$3 AND logical_version=$4 FOR UPDATE`, [input.checkoutId,input.provider,input.action,input.logicalVersion])
   const operation = result.rows[0]
   if (!operation || operation.request_digest !== input.requestDigest || operation.correlation_key !== input.correlationKey || operation.context_key !== contextKey || operation.request_id !== (input.requestId ?? null) || operation.idempotency_key !== (input.idempotencyKey ?? null)) throw new Error('Provider operation does not match the prepared semantic action')

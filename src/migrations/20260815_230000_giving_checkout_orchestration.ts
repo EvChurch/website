@@ -38,11 +38,6 @@ ALTER TABLE giving_provider_operations ADD CONSTRAINT giving_provider_operations
 CREATE UNIQUE INDEX IF NOT EXISTS giving_consents_checkout_unique ON giving_consents(checkout_id);
 CREATE UNIQUE INDEX IF NOT EXISTS giving_schedules_checkout_unique ON giving_schedules(checkout_id);
 
-ALTER TABLE giving_e2e_runs
-  ADD COLUMN IF NOT EXISTS csrf_digest varchar,
-  ADD COLUMN IF NOT EXISTS activated_at timestamptz NOT NULL DEFAULT now();
-CREATE UNIQUE INDEX IF NOT EXISTS giving_e2e_runs_csrf_digest_unique ON giving_e2e_runs(csrf_digest) WHERE csrf_digest IS NOT NULL;
-
 CREATE TABLE IF NOT EXISTS giving_checkout_rate_limits (
   id bigserial PRIMARY KEY,
   bucket_digest varchar NOT NULL,
@@ -60,14 +55,11 @@ SET LOCAL lock_timeout = '5s'; SET LOCAL statement_timeout = '60s';
 DO $$ BEGIN
   IF EXISTS(SELECT 1 FROM giving_checkouts WHERE submission_key_digest IS NOT NULL OR submission_digest IS NOT NULL OR return_capability_digest IS NOT NULL OR status_capability_digest IS NOT NULL)
     OR EXISTS(SELECT 1 FROM giving_provider_operations WHERE request_id IS NOT NULL OR idempotency_key IS NOT NULL)
-    OR EXISTS(SELECT 1 FROM giving_e2e_runs WHERE csrf_digest IS NOT NULL)
   THEN RAISE EXCEPTION 'Cannot roll back giving checkout orchestration after checkout activity'; END IF;
 END $$;
 DROP TABLE IF EXISTS giving_checkout_rate_limits;
 DROP INDEX IF EXISTS giving_schedules_checkout_unique;
 DROP INDEX IF EXISTS giving_consents_checkout_unique;
-DROP INDEX IF EXISTS giving_e2e_runs_csrf_digest_unique;
-ALTER TABLE giving_e2e_runs DROP COLUMN IF EXISTS activated_at, DROP COLUMN IF EXISTS csrf_digest;
 ALTER TABLE giving_provider_operations DROP CONSTRAINT IF EXISTS giving_provider_operations_blinkpay_keys;
 DROP INDEX IF EXISTS giving_provider_operations_idempotency_key_unique;
 DROP INDEX IF EXISTS giving_provider_operations_request_id_unique;

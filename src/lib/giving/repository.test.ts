@@ -10,10 +10,10 @@ import { markProviderOperation, prepareProviderOperation } from './repository'
 
 describe('giving domain invariants', () => {
   it('accepts only production real data or sandbox synthetic data', () => {
-    expect(() => assertGivingContext('production', false, null)).not.toThrow()
-    expect(() => assertGivingContext('sandbox', true, 42)).not.toThrow()
-    expect(() => assertGivingContext('production', true, 42)).toThrow(/production/i)
-    expect(() => assertGivingContext('sandbox', false, null)).toThrow(/sandbox/i)
+    expect(() => assertGivingContext('production', false)).not.toThrow()
+    expect(() => assertGivingContext('sandbox', true)).not.toThrow()
+    expect(() => assertGivingContext('production', true)).toThrow(/production/i)
+    expect(() => assertGivingContext('sandbox', false)).toThrow(/sandbox/i)
   })
 
   it('allows monotonic payment transitions and rejects settled regressions', () => {
@@ -31,7 +31,7 @@ describe('giving domain invariants', () => {
       .mockResolvedValueOnce({ rowCount: 0, rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 1, status: 'prepared', provider_id: null, request_digest: 'other', correlation_key: 'corr', context_key: 'production' }] })
     await expect(prepareProviderOperation({ query } as never, {
-      contextKey: 'production', environment: 'production', synthetic: false, e2eRunId: null,
+      contextKey: 'production', environment: 'production', synthetic: false,
       checkoutId: 1, provider: 'rock', action: 'rock.resolve-giver', logicalVersion: 1,
       requestDigest: 'digest', correlationKey: 'corr',
     })).rejects.toThrow(/does not match/)

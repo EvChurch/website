@@ -26,7 +26,6 @@ export type GivingIdentityErrorCode =
   | 'identity-unknown'
   | 'identity-failed'
   | 'bank-reference-invalid'
-  | 'synthetic-alias-invalid'
 
 export class GivingIdentityResolutionError extends Error {
   constructor(public readonly code: GivingIdentityErrorCode) {
@@ -35,7 +34,6 @@ export class GivingIdentityResolutionError extends Error {
       'identity-unknown': 'Giving identity resolution is unknown',
       'identity-failed': 'Giving identity resolution failed',
       'bank-reference-invalid': 'Rock alias must produce a bank reference of 12 characters or fewer',
-      'synthetic-alias-invalid': 'Configured synthetic Rock alias is invalid',
     }
     super(detail[code])
     this.name = 'GivingIdentityResolutionError'
@@ -98,7 +96,6 @@ interface ResolveGivingIdentityDependencies {
   rockClient: GivingRockClient
   repository: GivingIdentityRepository
   fingerprintSecret: string
-  syntheticPersonAliasId?: number
   createGuid?: () => string
 }
 
@@ -148,15 +145,6 @@ export function bankReferenceForAlias(personAliasId: number): string {
   return reference
 }
 
-export function configuredSyntheticPersonAliasId(
-  value: string | undefined = process.env.GIVING_ROCK_E2E_PERSON_ALIAS_ID,
-): number {
-  if (!value || !/^\d+$/u.test(value)) throw new GivingIdentityResolutionError('synthetic-alias-invalid')
-  const alias = Number(value)
-  if (!positiveInteger(alias)) throw new GivingIdentityResolutionError('synthetic-alias-invalid')
-  return alias
-}
-
 function requestDigest(parts: string[]) {
   return createHash('sha256').update(parts.join(':')).digest('hex')
 }
@@ -193,7 +181,6 @@ async function bindResolvedIdentity(
     contextKey: input.contextKey,
     environment: input.environment,
     synthetic: input.synthetic,
-    e2eRunId: input.e2eRunId,
     checkoutId: input.checkoutId,
     operation,
     rockPersonAliasId: alias,
@@ -281,26 +268,6 @@ export async function resolveGivingIdentity(
   const fingerprint = createIdentityFingerprint(email, dependencies.fingerprintSecret)
 
   return dependencies.repository.withFingerprintLock(fingerprint, async () => {
-    if (input.synthetic) {
-      const alias = dependencies.syntheticPersonAliasId ?? configuredSyntheticPersonAliasId()
-      if (!positiveInteger(alias)) throw new GivingIdentityResolutionError('synthetic-alias-invalid')
-      const correlationKey = `rock-alias:${alias}`
-      const operation = await dependencies.repository.prepareOperation({
-        ...input,
-        action: 'rock.resolve-giver',
-        correlationKey,
-        requestDigest: requestDigest([input.contextKey, String(input.checkoutId), correlationKey, fingerprint]),
-      })
-      if (operation.status === 'prepared') await dependencies.repository.markSubmitted(operation.id)
-      return bindResolvedIdentity(
-        input,
-        operation.status === 'prepared' ? { ...operation, status: 'submitted' } : operation,
-        alias,
-        identity,
-        dependencies.repository,
-      )
-    }
-
     const priorCreate = await dependencies.repository.findOperation(input.checkoutId, 'rock.create-giver')
     if (priorCreate) {
       const expectedDigest = requestDigest([

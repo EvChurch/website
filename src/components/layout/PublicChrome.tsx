@@ -47,7 +47,6 @@ export function PublicChrome({
   const sharedResource = matchesPathPrefix(pathname, '/shared/leader-resources')
   const initialRoute = useRef(true)
   const [memberChrome, setMemberChrome] = useState<MemberChromeState>(ANONYMOUS_MEMBER_CHROME)
-  const [protectedGivingRuntime, setProtectedGivingRuntime] = useState<GivingRuntimeConfiguration | null>(null)
   const [givingResumeRequested, setGivingResumeRequested] = useState(false)
   const [givingTurnstileSiteKey, setGivingTurnstileSiteKey] = useState('')
 
@@ -85,9 +84,6 @@ export function PublicChrome({
               ? current
               : state,
           )
-          setProtectedGivingRuntime(
-            state.givingRuntime?.eligibility === 'protected-e2e' ? state.givingRuntime : null,
-          )
           setGivingResumeRequested(state.givingResumeRequested)
           setGivingTurnstileSiteKey(state.givingTurnstileSiteKey ?? '')
         }
@@ -107,21 +103,19 @@ export function PublicChrome({
     </div>
   }
 
-  const activeGivingRuntime = protectedGivingRuntime ?? givingRuntime
   const givingExperience = givingFunds.length > 0
     ? <GivingFlow
         funds={givingFunds}
         identity={{ signedIn: memberChrome.memberProfile !== null }}
         resumeRequested={givingResumeRequested}
         turnstileSiteKey={givingTurnstileSiteKey}
-        synthetic={activeGivingRuntime?.synthetic ?? false}
-        gatewayOrigins={activeGivingRuntime?.gatewayOrigins ?? []}
+        gatewayOrigins={givingRuntime?.gatewayOrigins ?? []}
       />
     : <GivingUnavailable />
 
   return (
     <GivingExperienceProvider
-      serverEligibility={activeGivingRuntime?.eligibility ?? null}
+      serverEligibility={givingRuntime?.eligibility ?? null}
       resumeRequested={givingResumeRequested}
       givingExperience={givingExperience}
     >

@@ -5,8 +5,6 @@ Status: **blocked — do not enable production giving or a public PostHog audien
 ## Evidence boundaries
 
 - Vitest and PostgreSQL tests prove local contracts, failure handling, idempotency and concurrency without provider writes.
-- `giving-mocked-ui-contract` Playwright tests prove composed browser behavior with mocked API contracts. They are not BlinkPay sandbox proof.
-- `giving-production-origin-sandbox` is manual and non-default. It requires an explicit production base URL, exact-admin credentials and authenticated storage state. It proves deployed routing and synthetic isolation only.
 - PNZ sandbox evidence must be labelled provider-backed. A signature-valid mocked failed webhook is acceptable only where PNZ cannot produce that lifecycle.
 - Only controlled real-money tests can prove production credentials and settlement.
 
@@ -30,14 +28,12 @@ The server production gate remains closed while any readiness diagnostic is bloc
 ## Required evidence sequence
 
 1. Complete focused tests, guarded PostgreSQL migrations, generated types and production build.
-2. Run mocked composed UI coverage explicitly: `pnpm test:e2e:giving:mocked`.
-3. Complete PNZ one-off, enduring-consent, fixed-schedule, return, cancellation and scheduled-completion evidence. Record which failures are provider-backed versus mocked.
-4. Run the manual headed production-origin sandbox project only with approved exact-admin access: `pnpm test:e2e:giving:production-origin-sandbox`. The authenticated browser must be in the `launcher-giving-pilot` PostHog test cohort, use the dedicated E2E Rock alias, and allow the operator to complete any interaction-only Turnstile prompt. Verify the visible TEST DATA warning before submission, stop the one-off journey once the exact BlinkPay sandbox Gateway origin loads without bank authorisation, verify every resulting record is synthetic, and tear down the run.
-5. Confirm production endpoint/credential pairing, callback origin, Gateway origin, issued scopes and webhook keyring. Inspect the client bundle for secrets.
-6. Register webhooks through controlled merchant onboarding and retain delivery proof; the application does not manage subscriptions.
-7. Configure monitoring for settlement, consent state, schedule state, webhook exceptions, unknown age and flow completion.
-8. Execute approved low-value real-money one-off and recurring setup/cancellation tests, reconcile all records, and confirm operator ownership.
-9. Enable a narrowly targeted PostHog audience only after every gate above has linked evidence and approval.
+2. Complete PNZ one-off, enduring-consent, fixed-schedule, return, cancellation and scheduled-completion evidence. Record which failures are provider-backed versus mocked.
+3. Confirm production endpoint/credential pairing, callback origin, Gateway origin, issued scopes and webhook keyring. Inspect the client bundle for secrets.
+4. Register webhooks through controlled merchant onboarding and retain delivery proof; the application does not manage subscriptions.
+5. Configure monitoring for settlement, consent state, schedule state, webhook exceptions, unknown age and flow completion.
+6. Execute approved low-value real-money one-off and recurring setup/cancellation tests, reconcile all records, and confirm operator ownership.
+7. Enable a narrowly targeted PostHog audience only after every gate above has linked evidence and approval.
 
 ## Credential rotation
 

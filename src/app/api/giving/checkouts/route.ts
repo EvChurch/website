@@ -4,7 +4,6 @@ import { resolveCurrentGivingMemberIdentity, givingIdentityForMemberSubmission }
 import { getBlinkPayRuntimeClient } from '@/lib/giving/blinkpay/runtime-client'
 import { loadBlinkPayConfig } from '@/lib/giving/blinkpay/config'
 import { GIVING_REQUEST_MARKERS, type GivingContext } from '@/lib/giving/contracts'
-import { createPayloadGivingE2ESessionStore, createGivingE2ESessionService, GIVING_E2E_COOKIE } from '@/lib/giving/e2e-session'
 import { createGivingRockClient } from '@/lib/giving/rock-client'
 import { createGivingIdentityRepository, resolveGivingIdentity } from '@/lib/giving/rock-identity'
 import { createPostgresGivingRateLimitStore, enforceGivingRateLimits, GivingRateLimitError, trustedGivingClientAddress, type GivingRateLimitStore } from '@/lib/giving/rate-limit'
@@ -20,7 +19,7 @@ export const GIVING_CHECKOUT_TURNSTILE_ACTION = 'giving-checkout'
 type Authority = GivingContext | null
 export function productionGivingCheckoutAuthority(config: ReturnType<typeof loadBlinkPayConfig>): Authority {
   return config.environment === 'production' && config.productionEnabled && !config.readiness.some((item) => item.blocking)
-    ? { contextKey: 'production', environment: 'production', synthetic: false, e2eRunId: null }
+    ? { contextKey: 'production', environment: 'production', synthetic: false }
     : null
 }
 export interface GivingCheckoutRouteDependencies {
@@ -36,24 +35,17 @@ function response(value: unknown, status: number, retryAfter?: number) {
     headers: { ...GIVING_PRIVATE_HEADERS, ...(retryAfter ? { 'Retry-After': String(retryAfter) } : {}) },
   })
 }
-async function defaultAuthority(request: NextRequest): Promise<Authority> {
-  const payload = await getPayloadClient()
-  const token = request.cookies.get(GIVING_E2E_COOKIE)?.value
+async function defaultAuthority(_request: NextRequest): Promise<Authority> {
   return resolveGivingCheckoutAuthority({
-    e2eToken: token,
-    readE2E: (candidate) => createGivingE2ESessionService(createPayloadGivingE2ESessionStore(payload)).read(candidate),
     productionEnabled: process.env.BLINKPAY_PRODUCTION_ENABLED,
     loadProduction: () => loadBlinkPayConfig('production'),
   })
 }
 
 export async function resolveGivingCheckoutAuthority(input: {
-  e2eToken?: string
-  readE2E(token: string): Promise<GivingContext | null>
   productionEnabled?: string
   loadProduction(): ReturnType<typeof loadBlinkPayConfig>
 }): Promise<Authority> {
-  if (input.e2eToken !== undefined) return input.readE2E(input.e2eToken)
   if (input.productionEnabled !== 'true') return null
   try { return productionGivingCheckoutAuthority(input.loadProduction()) } catch { return null }
 }
@@ -82,7 +74,6 @@ async function defaultStart(authority: GivingContext, submission: GivingCheckout
         rockClient: rock,
         repository: identityRepository,
         fingerprintSecret: process.env.GIVING_IDENTITY_FINGERPRINT_SECRET ?? '',
-        syntheticPersonAliasId: authority.synthetic ? Number(process.env.GIVING_ROCK_E2E_PERSON_ALIAS_ID) : undefined,
       })
     },
   })

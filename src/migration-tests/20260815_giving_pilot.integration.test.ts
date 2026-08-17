@@ -17,9 +17,8 @@ describe.skipIf(!databaseUrl)('giving pilot migration on PostgreSQL', () => {
   }
   it('enforces context, amount and environment-scoped provider identifiers', async () => {
     await reset(); await client.query(GIVING_PILOT_UP_SQL)
-    await client.query("INSERT INTO giving_e2e_runs(run_id,context_key,actor_id,token_digest,expires_at) VALUES('r','sandbox:e2e:r',1,'digest',now()+interval '1 hour')")
     await expect(client.query("INSERT INTO giving_givers(context_key,environment,synthetic,rock_person_alias_id,bank_reference,name,email) VALUES('production','production',true,1,'EV1','A','a@example.com')")).rejects.toMatchObject({ code: '23514' })
-    await expect(client.query("INSERT INTO giving_givers(context_key,environment,synthetic,e2e_run_id,rock_person_alias_id,bank_reference,name,email) VALUES('sandbox:e2e:r','sandbox',true,1,1,'EV1','A','a@example.com')")).resolves.toBeDefined()
+    await expect(client.query("INSERT INTO giving_givers(context_key,environment,synthetic,rock_person_alias_id,bank_reference,name,email) VALUES('sandbox','sandbox',true,1,'EV1','A','a@example.com')")).resolves.toBeDefined()
   })
   it('rolls down empty and refuses atomically after any giving write', async () => {
     await reset(); await client.query(GIVING_PILOT_UP_SQL); await client.query(GIVING_PILOT_DOWN_SQL)

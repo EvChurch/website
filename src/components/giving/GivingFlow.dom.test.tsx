@@ -211,16 +211,23 @@ describe('GivingFlow', () => {
 
   it('shows direct bank-transfer details when the BlinkPay rollout flag is off', async () => {
     givingContext.blinkPayEnabled=false
-    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} sandboxPreview identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
+    vi.mocked(fetch).mockImplementation(async(input)=>{
+      if(String(input)==='/api/giving/bank-transfer')return new Response(JSON.stringify({accountName:'Auckland Evangelical Church Trust',accountNumber:'01-1845-0008260-05',particulars:'GENERAL',code:'ALOVELACE',reference:'EV123',acknowledgementToken:'A'.repeat(43)}),{status:201,headers:{'content-type':'application/json'}})
+      if(String(input)==='/api/giving/bank-transfer/acknowledge')return new Response(JSON.stringify({acknowledged:true,verified:false}),{status:200,headers:{'content-type':'application/json'}})
+      return new Response(null,{status:204})
+    })
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
     await act(async()=>change(container.querySelector('input')!,'25'))
     await act(async()=>button(container,'Continue')?.click())
     await act(async()=>button(container,'General')?.click())
     await act(async()=>button(container,'Just this once')?.click())
+    await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    await act(async()=>Promise.resolve())
     expect(container.textContent).toContain('Use these details in your banking app')
     expect(container.textContent).toContain('Auckland Evangelical Church Trust')
     expect(container.textContent).toContain('01-1845-0008260-05')
     expect(container.textContent).toContain('GENERAL')
-    expect(container.textContent).toContain('EVPREVIEW')
+    expect(container.textContent).toContain('EV123')
     expect(container.textContent).toContain("I've set this up")
     expect(container.querySelectorAll('button[aria-label^="Copy "]')).toHaveLength(5)
     expect(container.querySelectorAll('a[data-bank-shortcut]')).toHaveLength(0)
@@ -406,32 +413,6 @@ describe('GivingFlow', () => {
     expect(vi.mocked(fetch).mock.calls.some(([input])=>String(input).startsWith('/give/resume/'))).toBe(false)
   })
 
-  it('uses the direct Sandbox endpoint in preview without creating a saved EV draft', async () => {
-    vi.mocked(fetch).mockImplementation(async (input) => {
-      if (String(input) === '/api/giving/preview-checkouts') {
-        return new Response(JSON.stringify({ outcome: 'unknown', retryAllowed: false }), {
-          status: 202,
-          headers: { 'content-type': 'application/json' },
-        })
-      }
-      return new Response(null, { status: 404 })
-    })
-    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} sandboxPreview identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
-    await act(async()=>change(container.querySelector('input')!,'25'))
-    await act(async()=>button(container,'Continue')?.click())
-    await act(async()=>button(container,'General')?.click())
-    await act(async()=>button(container,'Just this once')?.click())
-    await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
-    await act(async()=>button(container,'Continue to BlinkPay')?.click())
-
-    expect(vi.mocked(fetch).mock.calls.some(([input])=>String(input)==='/api/giving/preview-checkouts')).toBe(true)
-    expect(vi.mocked(fetch).mock.calls.some(([input])=>String(input)==='/api/giving/drafts')).toBe(false)
-    expect(container.textContent).toContain('Sandbox may have received this request')
-    await act(async()=>givingContext.back?.())
-    expect(container.textContent).toContain('How often?')
-    expect(container.textContent).not.toContain('Sandbox may have received this request')
-  })
-
   it('requires a fresh Turnstile token after leaving the BlinkPay handoff', async () => {
     await reachSignedInReview(container, root)
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
@@ -596,10 +577,10 @@ describe('GivingFlow', () => {
     expect(container.textContent).toContain('How much would you like to give')
   })
 
-  it('auto-opens an unknown synthetic return without a retry action',async()=>{
+  it('auto-opens an unknown return without a retry action',async()=>{
     window.history.replaceState(null,'','/?giving=return')
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({state:'unknown',retryAllowed:false,kind:'recurring'}),{status:200,headers:{'content-type':'application/json'}}))
-    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested synthetic/>))
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested/>))
     await act(async()=>Promise.resolve())
     expect(container.textContent).not.toContain('TEST DATA')
     expect(container.textContent).toContain('still checking the outcome')
@@ -615,16 +596,16 @@ describe('GivingFlow', () => {
     expect(givingCheckoutPresentation({state:'verified',retryAllowed:false,kind:'recurring'}).message).toContain('schedule is active')
   })
 
-  it('emits only deduped allowlisted synthetic lifecycle events',async()=>{
+  it('emits only deduped allowlisted lifecycle events',async()=>{
     window.history.replaceState(null,'','/?giving=return')
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({state:'verified',retryAllowed:false,kind:'one-off'}),{status:200,headers:{'content-type':'application/json'}}))
-    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested synthetic/>))
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested/>))
     await act(async()=>Promise.resolve())
     expect(trackGivingEvent.mock.calls).toEqual(expect.arrayContaining([
-      ['giving_flow_started',{outcome:'started',synthetic:true}],
-      ['giving_step_viewed',{step:'amount',outcome:'continued',synthetic:true}],
-      ['giving_provider_returned',{step:'result',outcome:'returned',synthetic:true}],
-      ['giving_outcome_verified',{step:'result',outcome:'verified',synthetic:true}],
+      ['giving_flow_started',{outcome:'started'}],
+      ['giving_step_viewed',{step:'amount',outcome:'continued'}],
+      ['giving_provider_returned',{step:'result',outcome:'returned'}],
+      ['giving_outcome_verified',{step:'result',outcome:'verified'}],
     ]))
     expect(trackGivingEvent.mock.calls.filter(([event])=>event==='giving_provider_returned')).toHaveLength(1)
     expect(trackGivingEvent.mock.calls.filter(([event])=>event==='giving_outcome_verified')).toHaveLength(1)

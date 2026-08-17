@@ -78,7 +78,6 @@ describe('PublicChrome', () => {
       memberCampusSlug: 'north',
       adminHref: '/admin/impersonate',
       impersonation: { personId: 42, name: 'Aroha Ngata', email: 'aroha@example.com' },
-      givingRuntime: null,
       givingResumeRequested: false,
       givingTurnstileSiteKey: 'turnstile-key',
     }), { status: 200, headers: { 'content-type': 'application/json' } }))
@@ -121,39 +120,6 @@ describe('PublicChrome', () => {
     await act(async () => root.unmount())
   })
 
-  it('switches to the protected sandbox runtime returned by private chrome', async () => {
-    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
-      memberProfile: { name: 'Admin', email: 'admin@example.com', avatarUrl: null },
-      memberCampusSlug: null,
-      adminHref: '/admin/impersonate',
-      impersonation: null,
-      givingRuntime: {
-        eligibility: 'protected-e2e',
-        gatewayOrigins: ['https://sandbox.secure.blinkpay.co.nz'],
-        synthetic: true,
-      },
-      givingResumeRequested: false,
-      givingTurnstileSiteKey: 'turnstile-key',
-    }), { status: 200, headers: { 'content-type': 'application/json' } }))
-    const container = document.createElement('div')
-    document.body.append(container)
-    const root = createRoot(container)
-
-    await act(async () => root.render(
-      <PublicChrome
-        {...givingProps}
-        givingFunds={[{ id: 1, name: 'General', code: 'GENERAL', sortOrder: 0, isDefault: true }]}
-        launcher={launcher}
-        feedback={null}
-        announcement={null}
-        footer={<div data-footer />}
-      ><p>Page</p></PublicChrome>,
-    ))
-
-    expect(container.querySelector('[data-giving-eligibility]')?.getAttribute('data-giving-eligibility')).toBe('protected-e2e')
-    await act(async () => root.unmount())
-  })
-
   it('keeps first-load content static and enables animation after route changes', async () => {
     vi.useFakeTimers()
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
@@ -161,7 +127,6 @@ describe('PublicChrome', () => {
       memberCampusSlug: null,
       adminHref: null,
       impersonation: null,
-      givingRuntime: null,
       givingResumeRequested: false,
       givingTurnstileSiteKey: 'turnstile-key',
     }), { status: 200, headers: { 'content-type': 'application/json' } }))

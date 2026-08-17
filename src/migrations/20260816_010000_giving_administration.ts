@@ -60,7 +60,6 @@ DELETE FROM giving_funds
 WHERE name='General' AND code='GEN' AND accounting_key='general'
   AND description='General giving' AND active AND is_default AND sort_order=0
   AND (SELECT count(*) FROM giving_funds)=1
-  AND NOT EXISTS(SELECT 1 FROM giving_e2e_runs)
   AND NOT EXISTS(SELECT 1 FROM giving_givers)
   AND NOT EXISTS(SELECT 1 FROM giving_checkouts)
   AND NOT EXISTS(SELECT 1 FROM giving_gifts)

@@ -39,7 +39,6 @@ import { GivingGifts } from '@/collections/GivingGifts'
 import { GivingConsents } from '@/collections/GivingConsents'
 import { GivingSchedules } from '@/collections/GivingSchedules'
 import { GivingProviderOperations } from '@/collections/GivingProviderOperations'
-import { GivingE2ERuns } from '@/collections/GivingE2ERuns'
 import { BlinkPayWebhookEvents } from '@/collections/BlinkPayWebhookEvents'
 import { GivingDrafts } from '@/collections/GivingDrafts'
 import { isAdmin } from '@/access/roles'
@@ -103,7 +102,6 @@ export const applicationCollections: CollectionConfig[] = [
   GivingConsents,
   GivingSchedules,
   GivingProviderOperations,
-  GivingE2ERuns,
   BlinkPayWebhookEvents,
   GivingDrafts,
 ]
@@ -123,7 +121,6 @@ export const mcpExcludedCollectionSlugs = new Set([
   'giving-consents',
   'giving-schedules',
   'giving-provider-operations',
-  'giving-e2e-runs',
   'blinkpay-webhook-events',
   'giving-drafts',
 ])

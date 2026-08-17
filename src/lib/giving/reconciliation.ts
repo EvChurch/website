@@ -170,7 +170,7 @@ function checkoutFromRow(row: Record<string, unknown>): GivingCheckoutRecord {
     : row.first_payment_date ? String(row.first_payment_date).slice(0,10) : null
   return {
     id: Number(row.checkout_id), contextKey: String(row.context_key), environment: row.environment as GivingEnvironment,
-    synthetic: Boolean(row.synthetic), e2eRunId: row.e2e_run_id === null ? null : Number(row.e2e_run_id), giverId: Number(row.giver_id),
+    synthetic: Boolean(row.synthetic), giverId: Number(row.giver_id),
     bankReference: String(row.bank_reference), bankCode: String(row.bank_code), fundId: Number(row.fund_id), fundName: String(row.fund_name), fundCode: String(row.fund_code),
     fundAccountingKey: String(row.fund_accounting_key), amountMinor: Number(row.amount_minor), frequency: row.frequency as GivingCheckoutRecord['frequency'],
     firstPaymentDate, correlationKey: String(row.correlation_key),
@@ -197,12 +197,12 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
         }
         const table = input.referenceType === 'payment' ? 'giving_gifts' : input.referenceType === 'schedule' ? 'giving_schedules' : 'giving_consents'
         const column = input.referenceType === 'payment' ? 'provider_payment_id' : input.referenceType === 'schedule' ? 'provider_schedule_id' : 'provider_consent_id'
-        const matched = (await client.query(`SELECT context_key,synthetic,e2e_run_id FROM ${table} WHERE environment=$1 AND ${column}=$2`, [input.environment,input.referenceId])).rows[0]
+        const matched = (await client.query(`SELECT context_key,synthetic FROM ${table} WHERE environment=$1 AND ${column}=$2`, [input.environment,input.referenceId])).rows[0]
         const unresolvedRecurringPayment = input.referenceType === 'payment' && !matched
         const status = matched || unresolvedRecurringPayment ? 'pending' : 'quarantined'
         const contextKey = matched?.context_key ?? `${input.environment}:unmatched`
-        const inserted = await client.query(`INSERT INTO blinkpay_webhook_events(context_key,environment,synthetic,e2e_run_id,provider_event_id,event_type,provider_reference_type,provider_reference_id,payload_digest,payload,status,next_attempt_at)
-          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`, [contextKey,input.environment,matched ? matched.synthetic : input.environment === 'sandbox',matched?.e2e_run_id ?? null,input.eventId,input.eventType,input.referenceType,input.referenceId,input.payloadDigest,input.payload,status,matched || unresolvedRecurringPayment ? input.now : null])
+        const inserted = await client.query(`INSERT INTO blinkpay_webhook_events(context_key,environment,synthetic,provider_event_id,event_type,provider_reference_type,provider_reference_id,payload_digest,payload,status,next_attempt_at)
+          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`, [contextKey,input.environment,matched ? matched.synthetic : input.environment === 'sandbox',input.eventId,input.eventType,input.referenceType,input.referenceId,input.payloadDigest,input.payload,status,matched || unresolvedRecurringPayment ? input.now : null])
         return { outcome: matched || unresolvedRecurringPayment ? 'inserted' : 'quarantined', eventId: Number(inserted.rows[0].id) }
       })
     },
@@ -264,7 +264,6 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
              AND checkout.environment=consent.environment
              AND checkout.giver_id=consent.giver_id
              AND checkout.synthetic=consent.synthetic
-             AND checkout.e2e_run_id IS NOT DISTINCT FROM consent.e2e_run_id
             WHERE consent.environment=$1 AND consent.provider_consent_id=$2
             FOR UPDATE OF consent
           `, [event.environment,o.paymentConsentId])).rows[0]
@@ -278,7 +277,7 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
           const provenance = (await client.query(`
             SELECT consent.id consent_id, schedule.id schedule_id,
                    checkout.id checkout_id, checkout.context_key, checkout.environment,
-                   checkout.synthetic, checkout.e2e_run_id, checkout.giver_id,
+                   checkout.synthetic, checkout.giver_id,
                    checkout.fund_id, checkout.fund_name, checkout.fund_code,
                    checkout.fund_accounting_key, schedule.amount_minor schedule_amount_minor
             FROM giving_consents consent
@@ -293,8 +292,6 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
               AND checkout.giver_id=consent.giver_id
               AND schedule.synthetic=consent.synthetic
               AND checkout.synthetic=consent.synthetic
-              AND schedule.e2e_run_id IS NOT DISTINCT FROM consent.e2e_run_id
-              AND checkout.e2e_run_id IS NOT DISTINCT FROM consent.e2e_run_id
               AND schedule.amount_minor=checkout.amount_minor
             FOR UPDATE OF consent,schedule,checkout
           `, [event.environment,o.paymentConsentId])).rows[0]
@@ -304,34 +301,34 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
             throw new GivingLifecycleCorrelationPendingError()
           }
           await client.query(`INSERT INTO giving_gifts(
-              context_key,environment,synthetic,e2e_run_id,checkout_id,giver_id,consent_id,schedule_id,
+              context_key,environment,synthetic,checkout_id,giver_id,consent_id,schedule_id,
               fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,provider_payment_id,status)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'pending')
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending')
             ON CONFLICT(environment,provider_payment_id) DO NOTHING`, [
-            provenance.context_key,provenance.environment,provenance.synthetic,provenance.e2e_run_id,
+            provenance.context_key,provenance.environment,provenance.synthetic,
             provenance.checkout_id,provenance.giver_id,provenance.consent_id,provenance.schedule_id,
             provenance.fund_id,provenance.fund_name,provenance.fund_code,provenance.fund_accounting_key,
             provenance.schedule_amount_minor,o.referenceId,
           ])
           aggregate = (await client.query(`SELECT id,status,provider_status,provider_status_updated_at,
-              context_key,synthetic,e2e_run_id,consent_id,schedule_id
+              context_key,synthetic,consent_id,schedule_id
             FROM giving_gifts WHERE environment=$1 AND provider_payment_id=$2 FOR UPDATE`, [event.environment,o.referenceId])).rows[0]
           if (!aggregate || Number(aggregate.consent_id) !== Number(provenance.consent_id) || Number(aggregate.schedule_id) !== Number(provenance.schedule_id) || aggregate.context_key !== provenance.context_key) {
             return quarantine('payment-correlation-conflict')
           }
-          await client.query(`UPDATE blinkpay_webhook_events SET context_key=$3,synthetic=$4,e2e_run_id=$5,updated_at=$6
-            WHERE id=$1 AND lease_token=$2`, [input.eventId,input.leaseToken,provenance.context_key,provenance.synthetic,provenance.e2e_run_id,o.verifiedAt])
+          await client.query(`UPDATE blinkpay_webhook_events SET context_key=$3,synthetic=$4,updated_at=$5
+            WHERE id=$1 AND lease_token=$2`, [input.eventId,input.leaseToken,provenance.context_key,provenance.synthetic,o.verifiedAt])
         }
         if (!aggregate) throw new Error(`Webhook ${o.referenceType} correlation is stale`)
 
         if (o.referenceType === 'payment' && event.context_key === `${event.environment}:unmatched`) {
-          const provenance = (await client.query(`SELECT gift.context_key,gift.synthetic,gift.e2e_run_id,consent.provider_consent_id
+          const provenance = (await client.query(`SELECT gift.context_key,gift.synthetic,consent.provider_consent_id
             FROM giving_gifts gift
             JOIN giving_consents consent ON consent.id=gift.consent_id AND consent.context_key=gift.context_key
             WHERE gift.id=$1`, [aggregate.id])).rows[0]
           if (!provenance || provenance.provider_consent_id !== o.paymentConsentId) return quarantine('payment-correlation-conflict')
-          await client.query(`UPDATE blinkpay_webhook_events SET context_key=$3,synthetic=$4,e2e_run_id=$5,updated_at=$6
-            WHERE id=$1 AND lease_token=$2`, [input.eventId,input.leaseToken,provenance.context_key,provenance.synthetic,provenance.e2e_run_id,o.verifiedAt])
+          await client.query(`UPDATE blinkpay_webhook_events SET context_key=$3,synthetic=$4,updated_at=$5
+            WHERE id=$1 AND lease_token=$2`, [input.eventId,input.leaseToken,provenance.context_key,provenance.synthetic,o.verifiedAt])
         }
 
         const currentTimestamp = aggregate.provider_status_updated_at
@@ -448,7 +445,7 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
       return result.rows.map((row) => Number(row.id))
     },
     async authorisedConsentsWithoutSchedule(limit = 100) {
-      const result = await pool.query(`SELECT c.provider_consent_id,co.id checkout_id,co.context_key,co.environment,co.synthetic,co.e2e_run_id,co.giver_id,g.bank_reference,co.bank_code,co.fund_id,co.fund_name,co.fund_code,co.fund_accounting_key,co.amount_minor,co.frequency,co.first_payment_date,co.correlation_key,co.submission_key_digest,co.submission_digest,co.gateway_redirect_uri,co.status checkout_status,co.result_code
+      const result = await pool.query(`SELECT c.provider_consent_id,co.id checkout_id,co.context_key,co.environment,co.synthetic,co.giver_id,g.bank_reference,co.bank_code,co.fund_id,co.fund_name,co.fund_code,co.fund_accounting_key,co.amount_minor,co.frequency,co.first_payment_date,co.correlation_key,co.submission_key_digest,co.submission_digest,co.gateway_redirect_uri,co.status checkout_status,co.result_code
         FROM giving_consents c JOIN giving_checkouts co ON co.id=c.checkout_id AND co.context_key=c.context_key JOIN giving_givers g ON g.id=co.giver_id AND g.context_key=co.context_key LEFT JOIN giving_schedules s ON s.consent_id=c.id WHERE c.status='authorised' AND s.id IS NULL ORDER BY c.updated_at LIMIT $1`, [limit])
       return result.rows.map((row) => ({ checkout: checkoutFromRow(row), providerConsentId: String(row.provider_consent_id) }))
     },

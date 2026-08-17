@@ -51,8 +51,8 @@ describe.skipIf(!databaseUrl)('giving webhook PostgreSQL leases and failure reco
     const processor = createGivingLifecycleProcessor({store,provider:()=>({getPayment} as never),now:()=>at})
     expect(await Promise.all(records.map((record) => processor.process(record.eventId)))).toEqual([{status:'processed'},{status:'processed'}])
     expect(getPayment).toHaveBeenCalledTimes(2)
-    expect((await pool.query(`SELECT context_key,environment,synthetic,e2e_run_id,checkout_id,giver_id,consent_id,schedule_id,fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,status FROM giving_gifts WHERE provider_payment_id=$1`,[paymentId])).rows).toEqual([{
-      context_key:'production',environment:'production',synthetic:false,e2e_run_id:null,checkout_id:recurring.checkoutId,giver_id:recurring.giverId,consent_id:recurring.consentId,schedule_id:recurring.scheduleId,fund_id:1,fund_name:'General',fund_code:'GEN',fund_accounting_key:'general',amount_minor:'4200',status:'settled',
+    expect((await pool.query(`SELECT context_key,environment,synthetic,checkout_id,giver_id,consent_id,schedule_id,fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,status FROM giving_gifts WHERE provider_payment_id=$1`,[paymentId])).rows).toEqual([{
+      context_key:'production',environment:'production',synthetic:false,checkout_id:recurring.checkoutId,giver_id:recurring.giverId,consent_id:recurring.consentId,schedule_id:recurring.scheduleId,fund_id:1,fund_name:'General',fund_code:'GEN',fund_accounting_key:'general',amount_minor:'4200',status:'settled',
     }])
     expect((await pool.query(`SELECT status,context_key FROM blinkpay_webhook_events WHERE id=ANY($1::int[]) ORDER BY id`,[records.map((record)=>record.eventId)])).rows).toEqual([{status:'processed',context_key:'production'},{status:'processed',context_key:'production'}])
   })

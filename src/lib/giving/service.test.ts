@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createGivingCheckoutService, GivingCheckoutError, prepareGivingBankTransfer, type GivingCheckoutBlinkPayClient, type GivingCheckoutOperation, type GivingCheckoutRecord, type GivingCheckoutRepository } from './service'
 import type { ResolvedGivingIdentity } from './rock-identity'
 
-const context = { contextKey: 'sandbox:e2e:run-1', environment: 'sandbox' as const, synthetic: true, e2eRunId: 7 }
+const context = { contextKey: 'sandbox', environment: 'sandbox' as const, synthetic: true }
 const baseSubmission = { submissionKey: 'A'.repeat(43), amountMinor: 2500, fundId: 1, frequency: 'one-off' as const, firstPaymentDate: null, firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.com', turnstileToken: 'turnstile' }
 
 interface TestSchedule { checkoutId: number; consentId: number; providerScheduleId: string; status: 'pending' | 'active' }
@@ -32,7 +32,7 @@ function repository(): GivingCheckoutRepository & { checkouts: GivingCheckoutRec
         returns.set(input.returnCapabilityDigest, existing.id)
         return { checkout: existing, reused: true, disposition: 'start' as const }
       }
-      const checkout: GivingCheckoutRecord = { contextKey: input.contextKey, environment: input.environment, synthetic: input.synthetic, e2eRunId: input.e2eRunId, id: checkouts.length + 1, giverId: null, bankReference: null, bankCode: 'ALOVELACE', fundId: 1, fundName: 'General', fundCode: 'GEN', fundAccountingKey: 'general', amountMinor: input.submission.amountMinor, frequency: input.submission.frequency, firstPaymentDate: input.submission.firstPaymentDate, correlationKey: input.correlationKey, submissionKeyDigest: input.submissionKeyDigest, submissionDigest: input.submissionDigest, gatewayRedirectUri: null, status: 'draft', resultCode: null }
+      const checkout: GivingCheckoutRecord = { contextKey: input.contextKey, environment: input.environment, synthetic: input.synthetic, id: checkouts.length + 1, giverId: null, bankReference: null, bankCode: 'ALOVELACE', fundId: 1, fundName: 'General', fundCode: 'GEN', fundAccountingKey: 'general', amountMinor: input.submission.amountMinor, frequency: input.submission.frequency, firstPaymentDate: input.submission.firstPaymentDate, correlationKey: input.correlationKey, submissionKeyDigest: input.submissionKeyDigest, submissionDigest: input.submissionDigest, gatewayRedirectUri: null, status: 'draft', resultCode: null }
       checkouts.push(checkout); returns.set(input.returnCapabilityDigest, checkout.id)
       return { checkout, reused: false, disposition: 'start' as const }
     },
@@ -161,7 +161,7 @@ describe('giving checkout orchestration', () => {
     const repo = repository()
     const { checkout } = service(repo)
     await checkout.start({ ...context, submission: baseSubmission })
-    await checkout.start({ contextKey: 'sandbox:e2e:run-2', environment: 'sandbox', synthetic: true, e2eRunId: 8, submission: baseSubmission })
+    await checkout.start({ contextKey: 'production', environment: 'production', synthetic: false, submission: baseSubmission })
     expect(repo.checkouts).toHaveLength(2)
   })
 

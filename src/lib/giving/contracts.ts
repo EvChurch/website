@@ -5,7 +5,6 @@ export type GivingContext = {
   contextKey: string
   environment: GivingEnvironment
   synthetic: boolean
-  e2eRunId: number | null
 }
 
 export const PAYMENT_STATUSES = ['pending', 'settled', 'failed', 'cancelled'] as const

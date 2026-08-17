@@ -8,7 +8,7 @@ import {
   resolveGivingIdentity,
 } from './rock-identity'
 
-const context = { contextKey: 'production', environment: 'production' as const, synthetic: false, e2eRunId: null }
+const context = { contextKey: 'production', environment: 'production' as const, synthetic: false }
 const person = (id: number, alias: number, email: string | null = 'ada@example.com') => ({
   id, primaryAliasId: alias, guid: '22e31fd2-e649-43d5-b350-8a620f68ca1d', firstName: 'Different', lastName: 'Name', email,
 })
@@ -160,18 +160,6 @@ describe('giving Rock identity', () => {
     }, { rockClient: rockClient as never, repository: repo as never, fingerprintSecret: 'x'.repeat(32) })
     expect(result.personAliasId).toBe(84)
     expect(repo.commitSuccess).toHaveBeenCalledWith(expect.objectContaining({ rockPersonAliasId: 84 }))
-  })
-
-  it('uses only the configured synthetic alias and performs no Rock call', async () => {
-    const repo = repository()
-    const rockClient = { findActivePeopleByEmail: vi.fn(), createPerson: vi.fn(), findPersonByGuid: vi.fn(), getPersonByAlias: vi.fn() }
-    const result = await resolveGivingIdentity({
-      contextKey: 'sandbox:e2e:7', environment: 'sandbox', synthetic: true, e2eRunId: 7, checkoutId: 10,
-      identity: { kind: 'guest', firstName: 'Test', lastName: 'Giver', email: 'giving-e2e@example.invalid' },
-    }, { rockClient: rockClient as never, repository: repo as never, fingerprintSecret: 'x'.repeat(32), syntheticPersonAliasId: 123 })
-    expect(result).toMatchObject({ personAliasId: 123, bankReference: 'EV123' })
-    expect(rockClient.findActivePeopleByEmail).not.toHaveBeenCalled()
-    expect(rockClient.createPerson).not.toHaveBeenCalled()
   })
 
   it('serializes simultaneous identical submissions and creates at most one Rock person', async () => {

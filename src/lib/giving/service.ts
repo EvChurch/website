@@ -178,7 +178,7 @@ function hmac(secret: string, value: string) {
 }
 
 function submissionKeyDigest(secret: string, context: GivingContext, submissionKey: string) {
-  return hmac(secret, `giving-checkout-key-v1\0${context.contextKey}\0${context.environment}\0${context.e2eRunId ?? ''}\0${submissionKey}`)
+  return hmac(secret, `giving-checkout-key-v1\0${context.contextKey}\0${context.environment}\0${submissionKey}`)
 }
 
 function canonicalSubmissionDigest(secret: string, submission: GivingCheckoutSubmission) {
@@ -229,7 +229,6 @@ export async function prepareGivingBankTransfer(
       contextKey: created.checkout.contextKey,
       environment: created.checkout.environment,
       synthetic: created.checkout.synthetic,
-      e2eRunId: created.checkout.e2eRunId,
       checkoutId: created.checkout.id,
       identity: {
         kind: 'guest',
@@ -331,7 +330,7 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
     if (created.disposition === 'redirect' && checkout.gatewayRedirectUri) return { outcome: 'redirect', gatewayRedirectUri: checkout.gatewayRedirectUri, statusToken, correlationKey: checkout.correlationKey, reused: true } satisfies GivingCheckoutStartResult
     if (created.disposition === 'recover') return { outcome: 'unknown', retryAllowed: false, statusToken, correlationKey: checkout.correlationKey, reused: created.reused } satisfies GivingCheckoutStartResult
     const identity: GivingIdentityInput = { kind: 'guest', firstName: submission.firstName, lastName: submission.lastName, email: submission.email }
-    const resolvedIdentity = await dependencies.resolveIdentity({ contextKey: checkout.contextKey, environment: checkout.environment, synthetic: checkout.synthetic, e2eRunId: checkout.e2eRunId, checkoutId: checkout.id, identity })
+    const resolvedIdentity = await dependencies.resolveIdentity({ contextKey: checkout.contextKey, environment: checkout.environment, synthetic: checkout.synthetic, checkoutId: checkout.id, identity })
     checkout = (await dependencies.repository.get(checkout.id)) ?? checkout
     checkout = { ...checkout, giverId: resolvedIdentity.giverId, bankReference: resolvedIdentity.bankReference }
     try {
@@ -485,7 +484,6 @@ function checkoutRow(row: CheckoutRow | undefined): GivingCheckoutRecord | null 
     contextKey: String(row.context_key),
     environment: row.environment as GivingContext['environment'],
     synthetic: Boolean(row.synthetic),
-    e2eRunId: row.e2e_run_id === null ? null : Number(row.e2e_run_id),
     giverId: row.giver_id === null ? null : Number(row.giver_id),
     bankReference: row.bank_reference ? String(row.bank_reference) : null,
     bankCode: String(row.bank_code),
@@ -516,7 +514,7 @@ function operationRow(row: CheckoutRow | undefined): GivingCheckoutOperation | n
     requestDigest: String(row.request_digest),
   }
 }
-const CHECKOUT_COLUMNS = 'id,context_key,environment,synthetic,e2e_run_id,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,bank_code,amount_minor,frequency,first_payment_date,correlation_key,submission_key_digest,submission_digest,gateway_redirect_uri,status,result_code'
+const CHECKOUT_COLUMNS = 'id,context_key,environment,synthetic,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,bank_code,amount_minor,frequency,first_payment_date,correlation_key,submission_key_digest,submission_digest,gateway_redirect_uri,status,result_code'
 const CHECKOUT_SELECT = `${CHECKOUT_COLUMNS},(SELECT bank_reference FROM giving_givers WHERE giving_givers.id=giving_checkouts.giver_id) AS bank_reference`
 
 export function createPostgresGivingCheckoutRepository(pool: Pool): GivingCheckoutRepository {
@@ -533,8 +531,7 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
           const sameRequest = existing.submissionDigest === input.submissionDigest &&
             existing.contextKey === input.contextKey &&
             existing.environment === input.environment &&
-            existing.synthetic === input.synthetic &&
-            existing.e2eRunId === input.e2eRunId
+            existing.synthetic === input.synthetic
           if (!sameRequest) throw new GivingCheckoutError('conflict')
           const reachedProvider = Boolean((await client.query<{ reached: boolean }>(`
             SELECT EXISTS(
@@ -573,13 +570,13 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
         if (!fund) throw new GivingCheckoutError('invalid')
         const result = await client.query(`
           INSERT INTO giving_checkouts(
-            context_key,environment,synthetic,e2e_run_id,fund_id,fund_name,fund_code,fund_accounting_key,
+            context_key,environment,synthetic,fund_id,fund_name,fund_code,fund_accounting_key,
             bank_code,amount_minor,frequency,first_payment_date,correlation_key,submission_key_digest,submission_digest,
             return_capability_digest,return_capability_expires_at,status
-          ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'draft')
+          ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'draft')
           RETURNING ${CHECKOUT_COLUMNS}
         `, [
-          input.contextKey, input.environment, input.synthetic, input.e2eRunId,
+          input.contextKey, input.environment, input.synthetic,
           fund.id, fund.name, fund.code, fund.accounting_key,
           givingBankCode(input.submission.firstName, input.submission.lastName),
           input.submission.amountMinor, input.submission.frequency, input.submission.firstPaymentDate,
@@ -601,8 +598,8 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
       if (result.rowCount !== 1) throw new GivingCheckoutError('unavailable')
     },
     prepareOperation(checkout,action,digest,operationKeys) { return tx(pool, async (client) => {
-      await client.query(`INSERT INTO giving_provider_operations(context_key,environment,synthetic,e2e_run_id,checkout_id,provider,action,logical_version,request_digest,correlation_key,request_id,idempotency_key,status)
-        VALUES($1,$2,$3,$4,$5,'blinkpay',$6,1,$7,$8,$9,$10,'prepared') ON CONFLICT(checkout_id,provider,action,logical_version) DO NOTHING`, [checkout.contextKey,checkout.environment,checkout.synthetic,checkout.e2eRunId,checkout.id,action,digest,checkout.correlationKey,operationKeys.requestId,operationKeys.idempotencyKey])
+      await client.query(`INSERT INTO giving_provider_operations(context_key,environment,synthetic,checkout_id,provider,action,logical_version,request_digest,correlation_key,request_id,idempotency_key,status)
+        VALUES($1,$2,$3,$4,'blinkpay',$5,1,$6,$7,$8,$9,'prepared') ON CONFLICT(checkout_id,provider,action,logical_version) DO NOTHING`, [checkout.contextKey,checkout.environment,checkout.synthetic,checkout.id,action,digest,checkout.correlationKey,operationKeys.requestId,operationKeys.idempotencyKey])
       const row = (await client.query('SELECT id,action,status,provider_id,request_id,idempotency_key,request_digest FROM giving_provider_operations WHERE checkout_id=$1 AND provider=\'blinkpay\' AND action=$2 AND logical_version=1 FOR UPDATE',[checkout.id,action])).rows[0]
       const operation = operationRow(row)
       if (!operation || operation.requestDigest !== digest) throw new GivingCheckoutError('conflict')
@@ -751,9 +748,9 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
         if (!checkout.giverId) throw new GivingCheckoutError('conflict')
         const gift = await client.query(`
           INSERT INTO giving_gifts(
-            context_key,environment,synthetic,e2e_run_id,checkout_id,giver_id,fund_id,fund_name,fund_code,
+            context_key,environment,synthetic,checkout_id,giver_id,fund_id,fund_name,fund_code,
             fund_accounting_key,amount_minor,provider_payment_id,status,provider_observed_at,provider_request_id
-          ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'settled',$13,$14)
+          ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'settled',$12,$13)
           ON CONFLICT(checkout_id) DO UPDATE SET
             provider_observed_at=GREATEST(giving_gifts.provider_observed_at,EXCLUDED.provider_observed_at)
           WHERE giving_gifts.context_key=EXCLUDED.context_key
@@ -763,7 +760,7 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
             AND giving_gifts.amount_minor=EXCLUDED.amount_minor
             AND giving_gifts.provider_payment_id=EXCLUDED.provider_payment_id
           RETURNING id
-        `, [checkout.contextKey,checkout.environment,checkout.synthetic,checkout.e2eRunId,checkout.id,checkout.giverId,checkout.fundId,checkout.fundName,checkout.fundCode,checkout.fundAccountingKey,checkout.amountMinor,paymentId,observedAt,providerRequestId??null])
+        `, [checkout.contextKey,checkout.environment,checkout.synthetic,checkout.id,checkout.giverId,checkout.fundId,checkout.fundName,checkout.fundCode,checkout.fundAccountingKey,checkout.amountMinor,paymentId,observedAt,providerRequestId??null])
         if (gift.rowCount !== 1) throw new GivingCheckoutError('conflict')
         const completed = await client.query(`UPDATE giving_checkouts SET status='completed',result_code='verified',updated_at=now() WHERE id=$1 AND context_key=$2 AND status IN ('authorising','verifying','unknown') RETURNING id`, [checkout.id, checkout.contextKey])
         if (completed.rowCount !== 1) throw new GivingCheckoutError('conflict')
@@ -773,8 +770,8 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
       return tx(pool, async (client) => {
         if (!checkout.giverId) throw new GivingCheckoutError('conflict')
         const result = await client.query(`
-          INSERT INTO giving_consents(context_key,environment,synthetic,e2e_run_id,checkout_id,giver_id,provider_consent_id,status,provider_observed_at,provider_request_id)
-          VALUES($1,$2,$3,$4,$5,$6,$7,'authorised',$8,$9)
+          INSERT INTO giving_consents(context_key,environment,synthetic,checkout_id,giver_id,provider_consent_id,status,provider_observed_at,provider_request_id)
+          VALUES($1,$2,$3,$4,$5,$6,'authorised',$7,$8)
           ON CONFLICT(environment,provider_consent_id) DO UPDATE SET
             status=CASE
               WHEN giving_consents.status IN ('revoked','expired','failed') THEN giving_consents.status
@@ -793,7 +790,7 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
             AND giving_consents.checkout_id=EXCLUDED.checkout_id
             AND giving_consents.giver_id=EXCLUDED.giver_id
           RETURNING id,status
-        `, [checkout.contextKey,checkout.environment,checkout.synthetic,checkout.e2eRunId,checkout.id,checkout.giverId,consentId,observedAt,providerRequestId??null])
+        `, [checkout.contextKey,checkout.environment,checkout.synthetic,checkout.id,checkout.giverId,consentId,observedAt,providerRequestId??null])
         if (result.rowCount !== 1) throw new GivingCheckoutError('conflict')
         return result.rows[0].status === 'authorised' ? Number(result.rows[0].id) : null
       })
@@ -802,15 +799,15 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
       return tx(pool, async (client) => {
         if (!checkout.giverId) throw new GivingCheckoutError('conflict')
         const schedule = await client.query(`
-          INSERT INTO giving_schedules(context_key,environment,synthetic,e2e_run_id,checkout_id,giver_id,consent_id,provider_schedule_id,status,frequency,amount_minor)
-          VALUES($1,$2,$3,$4,$5,$6,$7,$8,'pending',$9,$10)
+          INSERT INTO giving_schedules(context_key,environment,synthetic,checkout_id,giver_id,consent_id,provider_schedule_id,status,frequency,amount_minor)
+          VALUES($1,$2,$3,$4,$5,$6,$7,'pending',$8,$9)
           ON CONFLICT(consent_id) DO UPDATE SET provider_schedule_id=EXCLUDED.provider_schedule_id
           WHERE giving_schedules.context_key=EXCLUDED.context_key
             AND giving_schedules.checkout_id=EXCLUDED.checkout_id
             AND giving_schedules.giver_id=EXCLUDED.giver_id
             AND giving_schedules.provider_schedule_id=EXCLUDED.provider_schedule_id
           RETURNING id
-        `, [checkout.contextKey,checkout.environment,checkout.synthetic,checkout.e2eRunId,checkout.id,checkout.giverId,consentId,providerId,checkout.frequency,checkout.amountMinor])
+        `, [checkout.contextKey,checkout.environment,checkout.synthetic,checkout.id,checkout.giverId,consentId,providerId,checkout.frequency,checkout.amountMinor])
         if (schedule.rowCount !== 1) throw new GivingCheckoutError('conflict')
         const result = await client.query(`
           WITH updated AS (
@@ -831,23 +828,22 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
         if (!checkout.giverId || operation.providerId !== provider.fixed_recurring_payment_id) throw new GivingCheckoutError('conflict')
         const schedule = await client.query(`
           INSERT INTO giving_schedules(
-            context_key,environment,synthetic,e2e_run_id,checkout_id,giver_id,consent_id,
+            context_key,environment,synthetic,checkout_id,giver_id,consent_id,
             provider_schedule_id,status,frequency,amount_minor,next_payment_date,provider_observed_at
           )
-          SELECT $1::varchar,$2::varchar,$3::boolean,$4::integer,$5::integer,$6::integer,consent.id,
-                 $8::varchar,'active',$9::varchar,$10::numeric,$11::timestamptz,$12::timestamptz
+          SELECT $1::varchar,$2::varchar,$3::boolean,$4::integer,$5::integer,consent.id,
+                 $7::varchar,'active',$8::varchar,$9::numeric,$10::timestamptz,$11::timestamptz
           FROM giving_consents consent
-          WHERE consent.id=$7 AND consent.context_key=$1 AND consent.environment=$2
-            AND consent.synthetic=$3 AND consent.e2e_run_id IS NOT DISTINCT FROM $4
-            AND consent.checkout_id=$5 AND consent.giver_id=$6
-            AND consent.provider_consent_id=$13 AND consent.status='authorised'
+          WHERE consent.id=$6 AND consent.context_key=$1 AND consent.environment=$2
+            AND consent.synthetic=$3
+            AND consent.checkout_id=$4 AND consent.giver_id=$5
+            AND consent.provider_consent_id=$12 AND consent.status='authorised'
           ON CONFLICT(consent_id) DO UPDATE SET
             status='active',next_payment_date=EXCLUDED.next_payment_date,
             provider_observed_at=GREATEST(giving_schedules.provider_observed_at,EXCLUDED.provider_observed_at),updated_at=now()
           WHERE giving_schedules.context_key=EXCLUDED.context_key
             AND giving_schedules.environment=EXCLUDED.environment
             AND giving_schedules.synthetic=EXCLUDED.synthetic
-            AND giving_schedules.e2e_run_id IS NOT DISTINCT FROM EXCLUDED.e2e_run_id
             AND giving_schedules.checkout_id=EXCLUDED.checkout_id
             AND giving_schedules.giver_id=EXCLUDED.giver_id
             AND giving_schedules.provider_schedule_id=EXCLUDED.provider_schedule_id
@@ -855,7 +851,7 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
             AND giving_schedules.amount_minor=EXCLUDED.amount_minor
             AND giving_schedules.status IN ('pending','unknown','active')
           RETURNING id
-        `, [checkout.contextKey,checkout.environment,checkout.synthetic,checkout.e2eRunId,checkout.id,checkout.giverId,consentId,provider.fixed_recurring_payment_id,checkout.frequency,checkout.amountMinor,provider.next_payment_date,observedAt,provider.consent_id])
+        `, [checkout.contextKey,checkout.environment,checkout.synthetic,checkout.id,checkout.giverId,consentId,provider.fixed_recurring_payment_id,checkout.frequency,checkout.amountMinor,provider.next_payment_date,observedAt,provider.consent_id])
         if (schedule.rowCount !== 1) throw new GivingCheckoutError('conflict')
         const operationResult = await client.query(`
           WITH updated AS (

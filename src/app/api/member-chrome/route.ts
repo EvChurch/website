@@ -4,15 +4,8 @@ import { getAuth0Client } from '@/auth/auth0-client'
 import { getMemberImpersonationFromSession } from '@/auth/member-impersonation'
 import { getMemberProfileStateFromSession } from '@/auth/member-session'
 import { isCurrentPayloadAdmin } from '@/auth/payload-admin-session'
-import { resolveGivingRuntimeConfiguration } from '@/lib/giving/availability'
 import { givingCapabilityCookieNames } from '@/lib/giving/drafts'
-import {
-  createGivingE2ESessionService,
-  createPayloadGivingE2ESessionStore,
-  GIVING_E2E_COOKIE,
-} from '@/lib/giving/e2e-session'
 import { ANONYMOUS_MEMBER_CHROME, type MemberChromeState } from '@/lib/member-chrome'
-import { getPayloadClient } from '@/lib/payload'
 import { getTurnstileSiteKey } from '@/lib/rock-forms/config'
 
 const PRIVATE_HEADERS = {
@@ -39,25 +32,9 @@ function givingResumeRequested(request: NextRequest) {
   )
 }
 
-async function protectedGivingRuntime(request: NextRequest) {
-  const token = request.cookies.get(GIVING_E2E_COOKIE)?.value
-  if (!token) return null
-
-  try {
-    const payload = await getPayloadClient()
-    const authority = await createGivingE2ESessionService(
-      createPayloadGivingE2ESessionStore(payload),
-    ).read(token)
-    return authority ? resolveGivingRuntimeConfiguration({ protectedE2E: true }) : null
-  } catch {
-    return null
-  }
-}
-
 async function anonymousResponse(request: NextRequest) {
   return NextResponse.json({
     ...ANONYMOUS_MEMBER_CHROME,
-    givingRuntime: await protectedGivingRuntime(request),
     givingResumeRequested: givingResumeRequested(request),
     givingTurnstileSiteKey: turnstileSiteKey(),
   }, { headers: PRIVATE_HEADERS })
@@ -96,7 +73,6 @@ export async function GET(request: NextRequest) {
       memberCampusSlug: profileState?.profile.campusSlug ?? null,
       adminHref: payloadAdmin ? '/admin/impersonate' : null,
       impersonation,
-      givingRuntime: await protectedGivingRuntime(request),
       givingResumeRequested: givingResumeRequested(request),
       givingTurnstileSiteKey: turnstileSiteKey(),
     } satisfies MemberChromeState

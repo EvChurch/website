@@ -4,8 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   isCurrentPayloadAdmin: vi.fn(),
-  readGivingE2E: vi.fn(),
-  resolveGivingRuntimeConfiguration: vi.fn(),
   getTurnstileSiteKey: vi.fn(),
 }))
 
@@ -14,15 +12,6 @@ vi.mock('@/auth/auth0-client', () => ({
 }))
 vi.mock('@/auth/payload-admin-session', () => ({
   isCurrentPayloadAdmin: mocks.isCurrentPayloadAdmin,
-}))
-vi.mock('@/lib/payload', () => ({ getPayloadClient: async () => ({}) }))
-vi.mock('@/lib/giving/e2e-session', () => ({
-  GIVING_E2E_COOKIE: '__Host-ev_giving_e2e',
-  createPayloadGivingE2ESessionStore: () => ({}),
-  createGivingE2ESessionService: () => ({ read: mocks.readGivingE2E }),
-}))
-vi.mock('@/lib/giving/availability', () => ({
-  resolveGivingRuntimeConfiguration: mocks.resolveGivingRuntimeConfiguration,
 }))
 vi.mock('@/lib/rock-forms/config', () => ({ getTurnstileSiteKey: mocks.getTurnstileSiteKey }))
 
@@ -38,8 +27,6 @@ describe('member chrome route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.isCurrentPayloadAdmin.mockResolvedValue(false)
-    mocks.readGivingE2E.mockResolvedValue(null)
-    mocks.resolveGivingRuntimeConfiguration.mockReturnValue(null)
     mocks.getTurnstileSiteKey.mockReturnValue('turnstile-key')
   })
 
@@ -74,7 +61,6 @@ describe('member chrome route', () => {
       memberCampusSlug: null,
       adminHref: null,
       impersonation: null,
-      givingRuntime: null,
       givingResumeRequested: false,
       givingTurnstileSiteKey: 'turnstile-key',
     })
@@ -122,29 +108,9 @@ describe('member chrome route', () => {
         name: 'Aroha Ngata',
         email: 'aroha@example.com',
       },
-      givingRuntime: null,
       givingResumeRequested: false,
       givingTurnstileSiteKey: 'turnstile-key',
     })
-  })
-
-  it('returns a validated protected E2E runtime to the client chrome', async () => {
-    mocks.getSession.mockResolvedValue({ user: { sub: 'auth0|admin' } })
-    mocks.readGivingE2E.mockResolvedValue({ runId: 'run-1' })
-    const runtime = {
-      eligibility: 'protected-e2e',
-      gatewayOrigins: ['https://sandbox.secure.blinkpay.co.nz'],
-      synthetic: true,
-    }
-    mocks.resolveGivingRuntimeConfiguration.mockReturnValue(runtime)
-
-    const response = await GET(request(
-      '__Host-ev_admin_session=opaque; __Host-ev_giving_e2e=synthetic-token',
-    ))
-
-    await expect(response.json()).resolves.toMatchObject({ givingRuntime: runtime })
-    expect(mocks.readGivingE2E).toHaveBeenCalledWith('synthetic-token')
-    expect(mocks.resolveGivingRuntimeConfiguration).toHaveBeenCalledWith({ protectedE2E: true })
   })
 
   it('fails closed when the Auth0 session cannot be read', async () => {

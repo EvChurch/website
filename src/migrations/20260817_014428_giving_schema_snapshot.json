@@ -16730,12 +16730,6 @@
           "notNull": true,
           "default": false
         },
-        "e2e_run_id": {
-          "name": "e2e_run_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "rock_person_alias_id": {
           "name": "rock_person_alias_id",
           "type": "numeric",
@@ -16811,21 +16805,6 @@
           "columns": [
             {
               "expression": "synthetic",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "giving_givers_e2e_run_idx": {
-          "name": "giving_givers_e2e_run_idx",
-          "columns": [
-            {
-              "expression": "e2e_run_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -16912,21 +16891,7 @@
           "with": {}
         }
       },
-      "foreignKeys": {
-        "giving_givers_e2e_run_id_giving_e2e_runs_id_fk": {
-          "name": "giving_givers_e2e_run_id_giving_e2e_runs_id_fk",
-          "tableFrom": "giving_givers",
-          "tableTo": "giving_e2e_runs",
-          "columnsFrom": [
-            "e2e_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -16963,12 +16928,6 @@
           "notNull": true,
           "default": false
         },
-        "e2e_run_id": {
-          "name": "e2e_run_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "giver_id": {
           "name": "giver_id",
           "type": "integer",
@@ -16999,6 +16958,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "bank_code": {
+          "name": "bank_code",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
         "amount_minor": {
           "name": "amount_minor",
           "type": "numeric",
@@ -17023,6 +16988,72 @@
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
+        },
+        "submission_key_digest": {
+          "name": "submission_key_digest",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "submission_digest": {
+          "name": "submission_digest",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "return_capability_digest": {
+          "name": "return_capability_digest",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "return_capability_expires_at": {
+          "name": "return_capability_expires_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "return_capability_consumed_at": {
+          "name": "return_capability_consumed_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_setup_acknowledged_at": {
+          "name": "bank_setup_acknowledged_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status_capability_digest": {
+          "name": "status_capability_digest",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status_capability_expires_at": {
+          "name": "status_capability_expires_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status_binding_digest": {
+          "name": "status_binding_digest",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gateway_redirect_uri": {
+          "name": "gateway_redirect_uri",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "result_code": {
+          "name": "result_code",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
         },
         "status": {
           "name": "status",
@@ -17093,21 +17124,6 @@
           "method": "btree",
           "with": {}
         },
-        "giving_checkouts_e2e_run_idx": {
-          "name": "giving_checkouts_e2e_run_idx",
-          "columns": [
-            {
-              "expression": "e2e_run_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "giving_checkouts_giver_idx": {
           "name": "giving_checkouts_giver_idx",
           "columns": [
@@ -17143,6 +17159,66 @@
           "columns": [
             {
               "expression": "correlation_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "giving_checkouts_submission_key_digest_idx": {
+          "name": "giving_checkouts_submission_key_digest_idx",
+          "columns": [
+            {
+              "expression": "submission_key_digest",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "giving_checkouts_submission_digest_idx": {
+          "name": "giving_checkouts_submission_digest_idx",
+          "columns": [
+            {
+              "expression": "submission_digest",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "giving_checkouts_return_capability_digest_idx": {
+          "name": "giving_checkouts_return_capability_digest_idx",
+          "columns": [
+            {
+              "expression": "return_capability_digest",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "giving_checkouts_status_capability_digest_idx": {
+          "name": "giving_checkouts_status_capability_digest_idx",
+          "columns": [
+            {
+              "expression": "status_capability_digest",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -17200,19 +17276,6 @@
         }
       },
       "foreignKeys": {
-        "giving_checkouts_e2e_run_id_giving_e2e_runs_id_fk": {
-          "name": "giving_checkouts_e2e_run_id_giving_e2e_runs_id_fk",
-          "tableFrom": "giving_checkouts",
-          "tableTo": "giving_e2e_runs",
-          "columnsFrom": [
-            "e2e_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "giving_checkouts_giver_id_giving_givers_id_fk": {
           "name": "giving_checkouts_giver_id_giving_givers_id_fk",
           "tableFrom": "giving_checkouts",
@@ -17276,12 +17339,6 @@
           "notNull": true,
           "default": false
         },
-        "e2e_run_id": {
-          "name": "e2e_run_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "checkout_id": {
           "name": "checkout_id",
           "type": "integer",
@@ -17299,6 +17356,18 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "consent_id": {
+          "name": "consent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "schedule_id": {
+          "name": "schedule_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "fund_name": {
           "name": "fund_name",
@@ -17336,6 +17405,31 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
+        },
+        "provider_status": {
+          "name": "provider_status",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_status_updated_at": {
+          "name": "provider_status_updated_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_verified_at": {
+          "name": "provider_verified_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_source": {
+          "name": "provider_source",
+          "type": "enum_giving_gifts_provider_source",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
         },
         "provider_observed_at": {
           "name": "provider_observed_at",
@@ -17410,21 +17504,6 @@
           "method": "btree",
           "with": {}
         },
-        "giving_gifts_e2e_run_idx": {
-          "name": "giving_gifts_e2e_run_idx",
-          "columns": [
-            {
-              "expression": "e2e_run_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "giving_gifts_checkout_idx": {
           "name": "giving_gifts_checkout_idx",
           "columns": [
@@ -17460,6 +17539,36 @@
           "columns": [
             {
               "expression": "fund_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "giving_gifts_consent_idx": {
+          "name": "giving_gifts_consent_idx",
+          "columns": [
+            {
+              "expression": "consent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "giving_gifts_schedule_idx": {
+          "name": "giving_gifts_schedule_idx",
+          "columns": [
+            {
+              "expression": "schedule_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -17547,19 +17656,6 @@
         }
       },
       "foreignKeys": {
-        "giving_gifts_e2e_run_id_giving_e2e_runs_id_fk": {
-          "name": "giving_gifts_e2e_run_id_giving_e2e_runs_id_fk",
-          "tableFrom": "giving_gifts",
-          "tableTo": "giving_e2e_runs",
-          "columnsFrom": [
-            "e2e_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "giving_gifts_checkout_id_giving_checkouts_id_fk": {
           "name": "giving_gifts_checkout_id_giving_checkouts_id_fk",
           "tableFrom": "giving_gifts",
@@ -17592,6 +17688,32 @@
           "tableTo": "giving_funds",
           "columnsFrom": [
             "fund_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "giving_gifts_consent_id_giving_consents_id_fk": {
+          "name": "giving_gifts_consent_id_giving_consents_id_fk",
+          "tableFrom": "giving_gifts",
+          "tableTo": "giving_consents",
+          "columnsFrom": [
+            "consent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "giving_gifts_schedule_id_giving_schedules_id_fk": {
+          "name": "giving_gifts_schedule_id_giving_schedules_id_fk",
+          "tableFrom": "giving_gifts",
+          "tableTo": "giving_schedules",
+          "columnsFrom": [
+            "schedule_id"
           ],
           "columnsTo": [
             "id"
@@ -17636,12 +17758,6 @@
           "notNull": true,
           "default": false
         },
-        "e2e_run_id": {
-          "name": "e2e_run_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "checkout_id": {
           "name": "checkout_id",
           "type": "integer",
@@ -17666,6 +17782,31 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
+        },
+        "provider_status": {
+          "name": "provider_status",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_status_updated_at": {
+          "name": "provider_status_updated_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_verified_at": {
+          "name": "provider_verified_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_source": {
+          "name": "provider_source",
+          "type": "enum_giving_consents_provider_source",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
         },
         "provider_observed_at": {
           "name": "provider_observed_at",
@@ -17730,21 +17871,6 @@
           "columns": [
             {
               "expression": "synthetic",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "giving_consents_e2e_run_idx": {
-          "name": "giving_consents_e2e_run_idx",
-          "columns": [
-            {
-              "expression": "e2e_run_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -17862,19 +17988,6 @@
         }
       },
       "foreignKeys": {
-        "giving_consents_e2e_run_id_giving_e2e_runs_id_fk": {
-          "name": "giving_consents_e2e_run_id_giving_e2e_runs_id_fk",
-          "tableFrom": "giving_consents",
-          "tableTo": "giving_e2e_runs",
-          "columnsFrom": [
-            "e2e_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "giving_consents_checkout_id_giving_checkouts_id_fk": {
           "name": "giving_consents_checkout_id_giving_checkouts_id_fk",
           "tableFrom": "giving_consents",
@@ -17938,12 +18051,6 @@
           "notNull": true,
           "default": false
         },
-        "e2e_run_id": {
-          "name": "e2e_run_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "checkout_id": {
           "name": "checkout_id",
           "type": "integer",
@@ -17990,6 +18097,31 @@
         "next_payment_date": {
           "name": "next_payment_date",
           "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_status": {
+          "name": "provider_status",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_status_updated_at": {
+          "name": "provider_status_updated_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_verified_at": {
+          "name": "provider_verified_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_source": {
+          "name": "provider_source",
+          "type": "enum_giving_schedules_provider_source",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": false
         },
@@ -18056,21 +18188,6 @@
           "columns": [
             {
               "expression": "synthetic",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "giving_schedules_e2e_run_idx": {
-          "name": "giving_schedules_e2e_run_idx",
-          "columns": [
-            {
-              "expression": "e2e_run_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -18203,19 +18320,6 @@
         }
       },
       "foreignKeys": {
-        "giving_schedules_e2e_run_id_giving_e2e_runs_id_fk": {
-          "name": "giving_schedules_e2e_run_id_giving_e2e_runs_id_fk",
-          "tableFrom": "giving_schedules",
-          "tableTo": "giving_e2e_runs",
-          "columnsFrom": [
-            "e2e_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "giving_schedules_checkout_id_giving_checkouts_id_fk": {
           "name": "giving_schedules_checkout_id_giving_checkouts_id_fk",
           "tableFrom": "giving_schedules",
@@ -18292,17 +18396,29 @@
           "notNull": true,
           "default": false
         },
-        "e2e_run_id": {
-          "name": "e2e_run_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "checkout_id": {
           "name": "checkout_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "schedule_id": {
+          "name": "schedule_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
         },
         "provider": {
           "name": "provider",
@@ -18334,6 +18450,18 @@
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
         },
         "status": {
           "name": "status",
@@ -18415,11 +18543,11 @@
           "method": "btree",
           "with": {}
         },
-        "giving_provider_operations_e2e_run_idx": {
-          "name": "giving_provider_operations_e2e_run_idx",
+        "giving_provider_operations_checkout_idx": {
+          "name": "giving_provider_operations_checkout_idx",
           "columns": [
             {
-              "expression": "e2e_run_id",
+              "expression": "checkout_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -18430,11 +18558,26 @@
           "method": "btree",
           "with": {}
         },
-        "giving_provider_operations_checkout_idx": {
-          "name": "giving_provider_operations_checkout_idx",
+        "giving_provider_operations_schedule_idx": {
+          "name": "giving_provider_operations_schedule_idx",
           "columns": [
             {
-              "expression": "checkout_id",
+              "expression": "schedule_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "giving_provider_operations_actor_idx": {
+          "name": "giving_provider_operations_actor_idx",
+          "columns": [
+            {
+              "expression": "actor_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -18486,6 +18629,36 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "giving_provider_operations_request_id_idx": {
+          "name": "giving_provider_operations_request_id_idx",
+          "columns": [
+            {
+              "expression": "request_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "giving_provider_operations_idempotency_key_idx": {
+          "name": "giving_provider_operations_idempotency_key_idx",
+          "columns": [
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -18567,19 +18740,6 @@
         }
       },
       "foreignKeys": {
-        "giving_provider_operations_e2e_run_id_giving_e2e_runs_id_fk": {
-          "name": "giving_provider_operations_e2e_run_id_giving_e2e_runs_id_fk",
-          "tableFrom": "giving_provider_operations",
-          "tableTo": "giving_e2e_runs",
-          "columnsFrom": [
-            "e2e_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "giving_provider_operations_checkout_id_giving_checkouts_id_fk": {
           "name": "giving_provider_operations_checkout_id_giving_checkouts_id_fk",
           "tableFrom": "giving_provider_operations",
@@ -18592,201 +18752,23 @@
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.giving_e2e_runs": {
-      "name": "giving_e2e_runs",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
         },
-        "run_id": {
-          "name": "run_id",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "context_key": {
-          "name": "context_key",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "environment": {
-          "name": "environment",
-          "type": "enum_giving_e2e_runs_environment",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'sandbox'"
-        },
-        "synthetic": {
-          "name": "synthetic",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "actor_id": {
-          "name": "actor_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "token_digest": {
-          "name": "token_digest",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "revoked_at": {
-          "name": "revoked_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "giving_e2e_runs_run_id_idx": {
-          "name": "giving_e2e_runs_run_id_idx",
-          "columns": [
-            {
-              "expression": "run_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+        "giving_provider_operations_schedule_id_giving_schedules_id_fk": {
+          "name": "giving_provider_operations_schedule_id_giving_schedules_id_fk",
+          "tableFrom": "giving_provider_operations",
+          "tableTo": "giving_schedules",
+          "columnsFrom": [
+            "schedule_id"
           ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "giving_e2e_runs_context_key_idx": {
-          "name": "giving_e2e_runs_context_key_idx",
-          "columns": [
-            {
-              "expression": "context_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+          "columnsTo": [
+            "id"
           ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
-        "giving_e2e_runs_actor_idx": {
-          "name": "giving_e2e_runs_actor_idx",
-          "columns": [
-            {
-              "expression": "actor_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "giving_e2e_runs_token_digest_idx": {
-          "name": "giving_e2e_runs_token_digest_idx",
-          "columns": [
-            {
-              "expression": "token_digest",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "giving_e2e_runs_expires_at_idx": {
-          "name": "giving_e2e_runs_expires_at_idx",
-          "columns": [
-            {
-              "expression": "expires_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "giving_e2e_runs_updated_at_idx": {
-          "name": "giving_e2e_runs_updated_at_idx",
-          "columns": [
-            {
-              "expression": "updated_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "giving_e2e_runs_created_at_idx": {
-          "name": "giving_e2e_runs_created_at_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "giving_e2e_runs_actor_id_users_id_fk": {
-          "name": "giving_e2e_runs_actor_id_users_id_fk",
-          "tableFrom": "giving_e2e_runs",
+        "giving_provider_operations_actor_id_users_id_fk": {
+          "name": "giving_provider_operations_actor_id_users_id_fk",
+          "tableFrom": "giving_provider_operations",
           "tableTo": "users",
           "columnsFrom": [
             "actor_id"
@@ -18834,12 +18816,6 @@
           "notNull": true,
           "default": false
         },
-        "e2e_run_id": {
-          "name": "e2e_run_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "provider_event_id": {
           "name": "provider_event_id",
           "type": "varchar",
@@ -18852,11 +18828,30 @@
           "primaryKey": false,
           "notNull": true
         },
+        "provider_reference_type": {
+          "name": "provider_reference_type",
+          "type": "enum_blinkpay_webhook_events_provider_reference_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_reference_id": {
+          "name": "provider_reference_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
         "payload_digest": {
           "name": "payload_digest",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
+        },
+        "last_conflicting_digest": {
+          "name": "last_conflicting_digest",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
         },
         "payload": {
           "name": "payload",
@@ -18996,21 +18991,6 @@
           "method": "btree",
           "with": {}
         },
-        "blinkpay_webhook_events_e2e_run_idx": {
-          "name": "blinkpay_webhook_events_e2e_run_idx",
-          "columns": [
-            {
-              "expression": "e2e_run_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "blinkpay_webhook_events_provider_event_id_idx": {
           "name": "blinkpay_webhook_events_provider_event_id_idx",
           "columns": [
@@ -19031,6 +19011,21 @@
           "columns": [
             {
               "expression": "event_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "blinkpay_webhook_events_provider_reference_id_idx": {
+          "name": "blinkpay_webhook_events_provider_reference_id_idx",
+          "columns": [
+            {
+              "expression": "provider_reference_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -19117,21 +19112,205 @@
           "with": {}
         }
       },
-      "foreignKeys": {
-        "blinkpay_webhook_events_e2e_run_id_giving_e2e_runs_id_fk": {
-          "name": "blinkpay_webhook_events_e2e_run_id_giving_e2e_runs_id_fk",
-          "tableFrom": "blinkpay_webhook_events",
-          "tableTo": "giving_e2e_runs",
-          "columnsFrom": [
-            "e2e_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.giving_drafts": {
+      "name": "giving_drafts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "token_digest": {
+          "name": "token_digest",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "binding_digest": {
+          "name": "binding_digest",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purpose": {
+          "name": "purpose",
+          "type": "enum_giving_drafts_purpose",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "audience": {
+          "name": "audience",
+          "type": "enum_giving_drafts_audience",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "answers": {
+          "name": "answers",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "consumed_at": {
+          "name": "consumed_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         }
       },
+      "indexes": {
+        "giving_drafts_token_digest_idx": {
+          "name": "giving_drafts_token_digest_idx",
+          "columns": [
+            {
+              "expression": "token_digest",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "giving_drafts_binding_digest_idx": {
+          "name": "giving_drafts_binding_digest_idx",
+          "columns": [
+            {
+              "expression": "binding_digest",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "giving_drafts_purpose_idx": {
+          "name": "giving_drafts_purpose_idx",
+          "columns": [
+            {
+              "expression": "purpose",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "giving_drafts_audience_idx": {
+          "name": "giving_drafts_audience_idx",
+          "columns": [
+            {
+              "expression": "audience",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "giving_drafts_expires_at_idx": {
+          "name": "giving_drafts_expires_at_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "giving_drafts_consumed_at_idx": {
+          "name": "giving_drafts_consumed_at_idx",
+          "columns": [
+            {
+              "expression": "consumed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "giving_drafts_updated_at_idx": {
+          "name": "giving_drafts_updated_at_idx",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "giving_drafts_created_at_idx": {
+          "name": "giving_drafts_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -20659,14 +20838,14 @@
           "primaryKey": false,
           "notNull": false
         },
-        "giving_e2e_runs_id": {
-          "name": "giving_e2e_runs_id",
+        "blinkpay_webhook_events_id": {
+          "name": "blinkpay_webhook_events_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
-        "blinkpay_webhook_events_id": {
-          "name": "blinkpay_webhook_events_id",
+        "giving_drafts_id": {
+          "name": "giving_drafts_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -21189,11 +21368,11 @@
           "method": "btree",
           "with": {}
         },
-        "payload_locked_documents_rels_giving_e2e_runs_id_idx": {
-          "name": "payload_locked_documents_rels_giving_e2e_runs_id_idx",
+        "payload_locked_documents_rels_blinkpay_webhook_events_id_idx": {
+          "name": "payload_locked_documents_rels_blinkpay_webhook_events_id_idx",
           "columns": [
             {
-              "expression": "giving_e2e_runs_id",
+              "expression": "blinkpay_webhook_events_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -21204,11 +21383,11 @@
           "method": "btree",
           "with": {}
         },
-        "payload_locked_documents_rels_blinkpay_webhook_events_id_idx": {
-          "name": "payload_locked_documents_rels_blinkpay_webhook_events_id_idx",
+        "payload_locked_documents_rels_giving_drafts_id_idx": {
+          "name": "payload_locked_documents_rels_giving_drafts_id_idx",
           "columns": [
             {
-              "expression": "blinkpay_webhook_events_id",
+              "expression": "giving_drafts_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -21652,12 +21831,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "payload_locked_documents_rels_giving_e2e_runs_fk": {
-          "name": "payload_locked_documents_rels_giving_e2e_runs_fk",
+        "payload_locked_documents_rels_blinkpay_webhook_events_fk": {
+          "name": "payload_locked_documents_rels_blinkpay_webhook_events_fk",
           "tableFrom": "payload_locked_documents_rels",
-          "tableTo": "giving_e2e_runs",
+          "tableTo": "blinkpay_webhook_events",
           "columnsFrom": [
-            "giving_e2e_runs_id"
+            "blinkpay_webhook_events_id"
           ],
           "columnsTo": [
             "id"
@@ -21665,12 +21844,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "payload_locked_documents_rels_blinkpay_webhook_events_fk": {
-          "name": "payload_locked_documents_rels_blinkpay_webhook_events_fk",
+        "payload_locked_documents_rels_giving_drafts_fk": {
+          "name": "payload_locked_documents_rels_giving_drafts_fk",
           "tableFrom": "payload_locked_documents_rels",
-          "tableTo": "blinkpay_webhook_events",
+          "tableTo": "giving_drafts",
           "columnsFrom": [
-            "blinkpay_webhook_events_id"
+            "giving_drafts_id"
           ],
           "columnsTo": [
             "id"
@@ -23429,6 +23608,15 @@
         "cancelled"
       ]
     },
+    "public.enum_giving_gifts_provider_source": {
+      "name": "enum_giving_gifts_provider_source",
+      "schema": "public",
+      "values": [
+        "return",
+        "webhook",
+        "reconciliation"
+      ]
+    },
     "public.enum_giving_consents_environment": {
       "name": "enum_giving_consents_environment",
       "schema": "public",
@@ -23446,6 +23634,15 @@
         "revoked",
         "expired",
         "failed"
+      ]
+    },
+    "public.enum_giving_consents_provider_source": {
+      "name": "enum_giving_consents_provider_source",
+      "schema": "public",
+      "values": [
+        "return",
+        "webhook",
+        "reconciliation"
       ]
     },
     "public.enum_giving_schedules_environment": {
@@ -23466,6 +23663,16 @@
         "cancel_pending",
         "cancelled",
         "failed"
+      ]
+    },
+    "public.enum_giving_schedules_provider_source": {
+      "name": "enum_giving_schedules_provider_source",
+      "schema": "public",
+      "values": [
+        "return",
+        "webhook",
+        "reconciliation",
+        "cancellation"
       ]
     },
     "public.enum_giving_provider_operations_environment": {
@@ -23495,19 +23702,21 @@
         "failed"
       ]
     },
-    "public.enum_giving_e2e_runs_environment": {
-      "name": "enum_giving_e2e_runs_environment",
-      "schema": "public",
-      "values": [
-        "sandbox"
-      ]
-    },
     "public.enum_blinkpay_webhook_events_environment": {
       "name": "enum_blinkpay_webhook_events_environment",
       "schema": "public",
       "values": [
         "sandbox",
         "production"
+      ]
+    },
+    "public.enum_blinkpay_webhook_events_provider_reference_type": {
+      "name": "enum_blinkpay_webhook_events_provider_reference_type",
+      "schema": "public",
+      "values": [
+        "payment",
+        "schedule",
+        "consent"
       ]
     },
     "public.enum_blinkpay_webhook_events_status": {
@@ -23522,6 +23731,22 @@
         "dead"
       ]
     },
+    "public.enum_giving_drafts_purpose": {
+      "name": "enum_giving_drafts_purpose",
+      "schema": "public",
+      "values": [
+        "giving-draft-resume-v1",
+        "giving-draft-session-v1"
+      ]
+    },
+    "public.enum_giving_drafts_audience": {
+      "name": "enum_giving_drafts_audience",
+      "schema": "public",
+      "values": [
+        "guest",
+        "member"
+      ]
+    },
     "public.enum_payload_jobs_log_task_slug": {
       "name": "enum_payload_jobs_log_task_slug",
       "schema": "public",
@@ -23529,6 +23754,8 @@
         "inline",
         "sendSiteFeedbackNotification",
         "reconcileSiteFeedbackNotifications",
+        "processBlinkPayWebhookEvent",
+        "reconcileGivingLifecycle",
         "fullSermonSync",
         "youtubeSync",
         "transcriptSync"
@@ -23549,6 +23776,8 @@
         "inline",
         "sendSiteFeedbackNotification",
         "reconcileSiteFeedbackNotifications",
+        "processBlinkPayWebhookEvent",
+        "reconcileGivingLifecycle",
         "fullSermonSync",
         "youtubeSync",
         "transcriptSync"
@@ -23576,6 +23805,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "075352b0-0e2e-47b3-8823-701977570c4e",
+  "id": "2d4a0df2-1b30-451c-8587-17fdc6974ea9",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

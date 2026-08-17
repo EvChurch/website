@@ -39,7 +39,6 @@ export interface GivingAnalyticsProperties {
   frequency?: GivingAnalyticsFrequency
   outcome?: GivingAnalyticsOutcome
   elapsed_bucket?: GivingElapsedBucket
-  synthetic: boolean
 }
 
 export type GivingAnalyticsEvent =

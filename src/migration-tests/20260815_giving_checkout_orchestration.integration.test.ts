@@ -36,45 +36,38 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     await pool.query("INSERT INTO giving_funds(name,code,accounting_key,is_default) VALUES('General','GEN','general',true)")
   })
 
-  async function seedRun(runId: string) {
-    const result = await pool.query<{ id: number }>(`
-      INSERT INTO giving_e2e_runs(run_id,context_key,actor_id,token_digest,csrf_digest,expires_at)
-      VALUES($1,$2,1,$3,$4,now()+interval '1 hour') RETURNING id
-    `, [runId, `sandbox:e2e:${runId}`, `token-${runId}`, `csrf-${runId}`])
-    return result.rows[0].id
-  }
+  async function seedScope(_scope: string) { return 0 }
 
-  function input(runId: string, e2eRunId: number, overrides: { keyDigest?: string; requestDigest?: string; returnDigest?: string } = {}) {
+  function input(scope: string, _scopeId: number, overrides: { keyDigest?: string; requestDigest?: string; returnDigest?: string } = {}) {
     return {
-      contextKey: `sandbox:e2e:${runId}`,
+      contextKey: 'sandbox',
       environment: 'sandbox' as const,
       synthetic: true,
-      e2eRunId,
       submission: {
         submissionKey: 'A'.repeat(43), amountMinor: 2500, fundId: 1, frequency: 'one-off' as const,
         firstPaymentDate: null, firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.com', turnstileToken: 'token',
       },
-      submissionKeyDigest: overrides.keyDigest ?? `key-${runId}`,
+      submissionKeyDigest: overrides.keyDigest ?? `key-${scope}`,
       submissionDigest: overrides.requestDigest ?? 'canonical-request',
-      correlationKey: `correlation-${runId}-${overrides.keyDigest ?? 'default'}`,
-      returnCapabilityDigest: overrides.returnDigest ?? `return-${runId}`,
+      correlationKey: `correlation-${scope}-${overrides.keyDigest ?? 'default'}`,
+      returnCapabilityDigest: overrides.returnDigest ?? `return-${scope}`,
       returnCapabilityExpiresAt: new Date(Date.now() + 60_000),
       currentTime: new Date(),
     }
   }
 
-  async function bindGiver(checkoutId: number, runId: string, e2eRunId: number, alias: number) {
+  async function bindGiver(checkoutId: number, _scope: string, _scopeId: number, alias: number) {
     const giver = await pool.query<{ id: number }>(`
-      INSERT INTO giving_givers(context_key,environment,synthetic,e2e_run_id,rock_person_alias_id,bank_reference,name,email)
-      VALUES($1,'sandbox',true,$2,$3,$4,'Ada','ada@example.com') RETURNING id
-    `, [`sandbox:e2e:${runId}`, e2eRunId, alias, `EV${alias}`])
+      INSERT INTO giving_givers(context_key,environment,synthetic,rock_person_alias_id,bank_reference,name,email)
+      VALUES('sandbox','sandbox',true,$1,$2,'Ada','ada@example.com') RETURNING id
+    `, [alias, `EV${alias}`])
     await pool.query('UPDATE giving_checkouts SET giver_id=$2 WHERE id=$1', [checkoutId, giver.rows[0].id])
     return giver.rows[0].id
   }
 
   it('records a direct-bank setup acknowledgement without marking the checkout completed', async () => {
     const repository = createPostgresGivingCheckoutRepository(pool)
-    const run = await seedRun('bank-ack')
+    const run = await seedScope('bank-ack')
     const created = await repository.createOrReuse(input('bank-ack', run, { returnDigest: 'bank-ack-digest' }))
     const now = new Date()
     expect(await repository.acknowledgeBankSetup('bank-ack-digest', now)).toBe(true)
@@ -84,8 +77,8 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
 
   it('isolates key idempotency by context and conflicts on changed canonical body', async () => {
     const repository = createPostgresGivingCheckoutRepository(pool)
-    const run1 = await seedRun('r1')
-    const run2 = await seedRun('r2')
+    const run1 = await seedScope('r1')
+    const run2 = await seedScope('r2')
     const firstInput = input('r1', run1)
     const concurrent = await Promise.all([repository.createOrReuse(firstInput), repository.createOrReuse(firstInput)])
     expect(new Set(concurrent.map((item) => item.checkout.id)).size).toBe(1)
@@ -99,12 +92,12 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
 
     const isolated = await repository.createOrReuse(input('r2', run2))
     expect(isolated.checkout.id).not.toBe(concurrent[0].checkout.id)
-    expect(isolated.checkout.contextKey).toBe('sandbox:e2e:r2')
+    expect(isolated.checkout.contextKey).toBe('sandbox')
   })
 
   it('rotates return capability only before an operation reaches submitted', async () => {
     const repository = createPostgresGivingCheckoutRepository(pool)
-    const run = await seedRun('rotate')
+    const run = await seedScope('rotate')
     const initial = await repository.createOrReuse(input('rotate', run, { returnDigest: 'return-initial' }))
     const rotated = await repository.createOrReuse(input('rotate', run, { returnDigest: 'return-rotated' }))
     expect(rotated.disposition).toBe('start')
@@ -124,7 +117,7 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
 
   it('keeps a live hosted return capability and recovers instead of rotating after consumption', async () => {
     const repository = createPostgresGivingCheckoutRepository(pool)
-    const run = await seedRun('hosted-reuse')
+    const run = await seedScope('hosted-reuse')
     const initialInput = input('hosted-reuse', run, { returnDigest: 'return-hosted-original' })
     const created = await repository.createOrReuse(initialInput)
     await bindGiver(created.checkout.id, 'hosted-reuse', run, 125)
@@ -145,7 +138,7 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     expect(consumed.disposition).toBe('recover')
     expect((await pool.query('SELECT return_capability_digest FROM giving_checkouts WHERE id=$1',[checkout.id])).rows[0].return_capability_digest).toBe('return-hosted-original')
 
-    const expiredRun = await seedRun('hosted-expired')
+    const expiredRun = await seedScope('hosted-expired')
     const expiredInput = input('hosted-expired', expiredRun, { returnDigest: 'return-hosted-expired-original' })
     const expiredCreated = await repository.createOrReuse(expiredInput)
     await bindGiver(expiredCreated.checkout.id, 'hosted-expired', expiredRun, 128)
@@ -161,7 +154,7 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
 
   it('persists an accepted unknown provider ID and exposes it to authoritative reconciliation', async () => {
     const repository = createPostgresGivingCheckoutRepository(pool)
-    const run = await seedRun('accepted-unknown')
+    const run = await seedScope('accepted-unknown')
     const created = await repository.createOrReuse(input('accepted-unknown', run))
     await bindGiver(created.checkout.id, 'accepted-unknown', run, 126)
     const checkout = (await repository.get(created.checkout.id))!
@@ -176,12 +169,12 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
 
   it('preserves terminal consent state and newer observations against stale Authorised reads', async () => {
     const repository = createPostgresGivingCheckoutRepository(pool)
-    const run = await seedRun('consent-order')
+    const run = await seedScope('consent-order')
     const created = await repository.createOrReuse(input('consent-order', run))
     const giverId = await bindGiver(created.checkout.id, 'consent-order', run, 127)
     const checkout = (await repository.get(created.checkout.id))!
     const newer = new Date('2026-08-15T12:00:00Z')
-    await pool.query(`INSERT INTO giving_consents(context_key,environment,synthetic,e2e_run_id,checkout_id,giver_id,provider_consent_id,status,provider_observed_at,provider_request_id) VALUES($1,'sandbox',true,$2,$3,$4,'consent-terminal','failed',$5,'newer-request')`,[checkout.contextKey,run,checkout.id,giverId,newer])
+    await pool.query(`INSERT INTO giving_consents(context_key,environment,synthetic,checkout_id,giver_id,provider_consent_id,status,provider_observed_at,provider_request_id) VALUES($1,'sandbox',true,$2,$3,'consent-terminal','failed',$4,'newer-request')`,[checkout.contextKey,checkout.id,giverId,newer])
     const id = await repository.recordConsentAuthorised(checkout,'consent-terminal',new Date('2026-08-15T11:00:00Z'),'stale-request')
     expect(id).toBeNull()
     expect((await pool.query("SELECT status,provider_observed_at,provider_request_id FROM giving_consents WHERE provider_consent_id='consent-terminal'")).rows[0]).toMatchObject({ status:'failed',provider_observed_at:newer,provider_request_id:'newer-request' })
@@ -189,7 +182,7 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
 
   it('validates a returned provider alias before consuming the capability', async () => {
     const repository = createPostgresGivingCheckoutRepository(pool)
-    const run = await seedRun('alias')
+    const run = await seedScope('alias')
     const created = await repository.createOrReuse(input('alias', run))
     await bindGiver(created.checkout.id, 'alias', run, 124)
     const checkout = (await repository.get(created.checkout.id))!
@@ -208,23 +201,23 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
 
   it('rejects conflicting gift and schedule rows without completing the checkout', async () => {
     const repository = createPostgresGivingCheckoutRepository(pool)
-    const run = await seedRun('aggregate')
+    const run = await seedScope('aggregate')
     const created = await repository.createOrReuse(input('aggregate', run))
     const giverId = await bindGiver(created.checkout.id, 'aggregate', run, 321)
     await pool.query("UPDATE giving_checkouts SET status='verifying' WHERE id=$1", [created.checkout.id])
     const checkout = (await repository.get(created.checkout.id))!
 
     await pool.query(`
-      INSERT INTO giving_gifts(context_key,environment,synthetic,e2e_run_id,checkout_id,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,provider_payment_id,status)
-      VALUES($1,'sandbox',true,$2,$3,$4,1,'General','GEN','general',2500,'payment-existing','settled')
-    `, [checkout.contextKey, run, checkout.id, giverId])
+      INSERT INTO giving_gifts(context_key,environment,synthetic,checkout_id,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,provider_payment_id,status)
+      VALUES($1,'sandbox',true,$2,$3,1,'General','GEN','general',2500,'payment-existing','settled')
+    `, [checkout.contextKey, checkout.id, giverId])
     await expect(repository.completeOneOff(checkout, 'payment-different', new Date())).rejects.toBeInstanceOf(GivingCheckoutError)
     expect((await repository.get(checkout.id))?.status).toBe('verifying')
 
     const consent = await pool.query<{ id: number }>(`
-      INSERT INTO giving_consents(context_key,environment,synthetic,e2e_run_id,checkout_id,giver_id,provider_consent_id,status)
-      VALUES($1,'sandbox',true,$2,$3,$4,'consent-existing','authorised') RETURNING id
-    `, [checkout.contextKey, run, checkout.id, giverId])
+      INSERT INTO giving_consents(context_key,environment,synthetic,checkout_id,giver_id,provider_consent_id,status)
+      VALUES($1,'sandbox',true,$2,$3,'consent-existing','authorised') RETURNING id
+    `, [checkout.contextKey, checkout.id, giverId])
     const other = await repository.createOrReuse(input('aggregate', run, {
       keyDigest: 'key-aggregate-other', requestDigest: 'canonical-other', returnDigest: 'return-other',
     }))
@@ -233,9 +226,9 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     await expect(repository.recordConsentAuthorised(otherCheckout, 'consent-existing', new Date())).rejects.toBeInstanceOf(GivingCheckoutError)
     expect((await repository.get(otherCheckout.id))?.status).toBe('draft')
     await pool.query(`
-      INSERT INTO giving_schedules(context_key,environment,synthetic,e2e_run_id,checkout_id,giver_id,consent_id,provider_schedule_id,status,frequency,amount_minor)
-      VALUES($1,'sandbox',true,$2,$3,$4,$5,'schedule-existing','pending','monthly',2500)
-    `, [checkout.contextKey, run, checkout.id, giverId, consent.rows[0].id])
+      INSERT INTO giving_schedules(context_key,environment,synthetic,checkout_id,giver_id,consent_id,provider_schedule_id,status,frequency,amount_minor)
+      VALUES($1,'sandbox',true,$2,$3,$4,'schedule-existing','pending','monthly',2500)
+    `, [checkout.contextKey, checkout.id, giverId, consent.rows[0].id])
     const scheduleOperation = await repository.prepareOperation(checkout, 'blinkpay.create-schedule', 'schedule-request', {
       requestId: 'request-key-00000002', idempotencyKey: 'idempotency-key-00000002',
     })
@@ -252,7 +245,7 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
 
   it('recovers a provider-accepted schedule after local binding failed without creating it again', async () => {
     const repository = createPostgresGivingCheckoutRepository(pool)
-    const run = await seedRun('schedule-recovery')
+    const run = await seedScope('schedule-recovery')
     const created = await repository.createOrReuse(input('schedule-recovery', run))
     await bindGiver(created.checkout.id, 'schedule-recovery', run, 323)
     await pool.query("UPDATE giving_checkouts SET frequency='monthly',first_payment_date='2026-09-01',status='unknown',result_code='unknown' WHERE id=$1", [created.checkout.id])
@@ -289,9 +282,9 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
 
     expect(createFixedRecurringPayment).not.toHaveBeenCalled()
     expect(getFixedRecurringPayment).toHaveBeenCalledWith(providerScheduleId)
-    expect((await pool.query(`SELECT context_key,environment,synthetic,e2e_run_id,checkout_id,giver_id,consent_id,provider_schedule_id,status,frequency,amount_minor
+    expect((await pool.query(`SELECT context_key,environment,synthetic,checkout_id,giver_id,consent_id,provider_schedule_id,status,frequency,amount_minor
       FROM giving_schedules WHERE checkout_id=$1`,[checkout.id])).rows).toEqual([{
-      context_key:checkout.contextKey,environment:'sandbox',synthetic:true,e2e_run_id:run,checkout_id:checkout.id,giver_id:checkout.giverId,
+      context_key:checkout.contextKey,environment:'sandbox',synthetic:true,checkout_id:checkout.id,giver_id:checkout.giverId,
       consent_id:consent,provider_schedule_id:providerScheduleId,status:'active',frequency:'monthly',amount_minor:'2500',
     }])
     expect((await repository.findOperation(checkout.id,'blinkpay.create-schedule'))?.status).toBe('succeeded')

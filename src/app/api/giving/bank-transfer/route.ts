@@ -37,7 +37,6 @@ async function defaultPrepare(submission: GivingCheckoutSubmission) {
     contextKey: 'production',
     environment: 'production',
     synthetic: false,
-    e2eRunId: null,
     submission,
   }, {
     repository: createPostgresGivingCheckoutRepository(pool),

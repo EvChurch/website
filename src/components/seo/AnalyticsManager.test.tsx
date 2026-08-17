@@ -204,7 +204,6 @@ describe('AnalyticsManager', () => {
   it.each([
     '/give',
     '/give/return/status',
-    '/giving-e2e/session/status',
   ])('does not send giving-private route %s to analytics or replay', async (pathname) => {
     navigation.pathname = pathname
 

@@ -5,9 +5,9 @@ export function assertPositiveMinorUnits(value: number): number {
   return value
 }
 
-export function assertGivingContext(environment: GivingEnvironment, synthetic: boolean, e2eRunId: number | null): void {
-  if (environment === 'production' && (synthetic || e2eRunId !== null)) throw new Error('Production giving records must be real and cannot belong to an E2E run')
-  if (environment === 'sandbox' && (!synthetic || e2eRunId === null)) throw new Error('Sandbox giving records must be synthetic and belong to an E2E run')
+export function assertGivingContext(environment: GivingEnvironment, synthetic: boolean): void {
+  if (environment === 'production' && synthetic) throw new Error('Production giving records must be real')
+  if (environment === 'sandbox' && !synthetic) throw new Error('Sandbox giving records must be synthetic')
 }
 
 function transition<T extends string>(current: T, next: T, allowed: Readonly<Record<T, readonly T[]>>, terminal: readonly T[]): T {
