@@ -18,7 +18,7 @@ export const GIVING_CHECKOUT_TURNSTILE_ACTION = 'giving-checkout'
 
 type Authority = GivingContext | null
 export function productionGivingCheckoutAuthority(config: ReturnType<typeof loadBlinkPayConfig>): Authority {
-  return config.environment === 'production' && config.productionEnabled
+  return config.environment === 'production'
     ? { contextKey: 'production', environment: 'production', synthetic: false }
     : null
 }
@@ -37,16 +37,13 @@ function response(value: unknown, status: number, retryAfter?: number) {
 }
 async function defaultAuthority(_request: NextRequest): Promise<Authority> {
   return resolveGivingCheckoutAuthority({
-    productionEnabled: process.env.BLINKPAY_PRODUCTION_ENABLED,
     loadProduction: () => loadBlinkPayConfig('production'),
   })
 }
 
 export async function resolveGivingCheckoutAuthority(input: {
-  productionEnabled?: string
   loadProduction(): ReturnType<typeof loadBlinkPayConfig>
 }): Promise<Authority> {
-  if (input.productionEnabled !== 'true') return null
   try { return productionGivingCheckoutAuthority(input.loadProduction()) } catch { return null }
 }
 

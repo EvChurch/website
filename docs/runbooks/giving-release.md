@@ -1,6 +1,6 @@
 # Giving release controls
 
-PostHog controls which visitors are offered BlinkPay. `BLINKPAY_PRODUCTION_ENABLED` remains the server-side emergency switch; there are no additional hardcoded readiness diagnostics.
+PostHog is the sole rollout control for which visitors are offered BlinkPay. The server still fails closed when production credentials or URLs are missing or invalid.
 
 ## Evidence boundaries
 
@@ -23,7 +23,7 @@ These checks are operational guidance rather than runtime blockers:
 - Verified EV reconciliation, alerting and operator response evidence.
 - Acquisition shutdown and lifecycle-sustainment rehearsal.
 
-The server accepts production BlinkPay checkouts when `BLINKPAY_PRODUCTION_ENABLED=true` and the production configuration is valid. PostHog controls audience rollout.
+The server accepts production BlinkPay checkouts when the production configuration is valid. PostHog controls audience rollout.
 
 ## Required evidence sequence
 

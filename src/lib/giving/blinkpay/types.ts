@@ -138,7 +138,6 @@ export interface BlinkPayConfig {
   clientId: string
   clientSecret: string
   webhookSecrets: readonly string[]
-  productionEnabled: boolean
 }
 
 export interface BlinkPayAccessToken {

@@ -81,7 +81,6 @@ export function loadBlinkPayConfig(
     clientId: requiredSecret(env[`${prefix}_CLIENT_ID`]),
     clientSecret: requiredSecret(env[`${prefix}_CLIENT_SECRET`]),
     webhookSecrets: optionalSecrets(env[`${prefix}_WEBHOOK_SECRETS`] ?? env[`${prefix}_WEBHOOK_SECRET`]),
-    productionEnabled: environment === 'production' && env.BLINKPAY_PRODUCTION_ENABLED === 'true',
   }
   return Object.freeze(config)
 }
