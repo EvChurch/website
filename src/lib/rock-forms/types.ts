@@ -119,6 +119,7 @@ export type RockFormSchema = {
 export type RockWorkflowOption = {
   guid: string
   name: string
+  formBuilderTemplateId?: number | null
 }
 
 export type RockInteractiveAction = {
@@ -144,6 +145,9 @@ export type RockInteractiveAction = {
 export type RockFormContext = {
   version: 1
   workflowTypeGuid: string
+  personId?: number | null
+  hidePersonEntryWhenKnown?: boolean
+  knownPersonEntryValues?: RockPersonEntryValues | null
   workflowGuid: string | null
   sessionGuid: string
   interactionGuid: string

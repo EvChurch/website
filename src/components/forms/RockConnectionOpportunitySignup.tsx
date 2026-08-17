@@ -14,6 +14,7 @@ import type {
 } from '@/lib/rock-connection-signups/types'
 import { RockAttributeField } from './RockAttributeField'
 import { formInputClass, formLabelClass } from './form-styles'
+import { FormSelect } from './FormSelect'
 import { SafeRockHtml } from './SafeRockHtml'
 import { TurnstileWidget } from './TurnstileWidget'
 import { trackSuccessfulFormSubmission } from '@/lib/analytics'
@@ -194,10 +195,10 @@ export function ConnectionSignupFields({
       {schema.campuses.length > 1 && (
         <label className={formLabelClass}>
           Campus <span aria-hidden="true">*</span>
-          <select className={formInputClass} value={values.campusId} onChange={(event) => set('campusId', event.target.value)} required>
+          <FormSelect value={values.campusId} onChange={(event) => set('campusId', event.target.value)} required>
             <option value="">Select…</option>
             {schema.campuses.map((campus) => <option key={campus.value} value={campus.value}>{campus.text}</option>)}
-          </select>
+          </FormSelect>
         </label>
       )}
 

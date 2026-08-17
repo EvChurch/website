@@ -8,6 +8,16 @@ const mocks = vi.hoisted(() => ({
   getSiteKey: vi.fn(),
   startForm: vi.fn(),
   submitForm: vi.fn(),
+  getSession: vi.fn(),
+  getProfileState: vi.fn(),
+}))
+
+vi.mock('@/auth/auth0-client', () => ({
+  getAuth0Client: () => ({ getSession: mocks.getSession }),
+}))
+
+vi.mock('@/auth/member-session', () => ({
+  getMemberProfileStateFromSession: mocks.getProfileState,
 }))
 
 vi.mock('@/lib/rock-forms/published', () => ({
@@ -52,6 +62,8 @@ describe('Rock form route', () => {
     vi.clearAllMocks()
     mocks.isPublished.mockResolvedValue(true)
     mocks.getSiteKey.mockReturnValue('test-site-key')
+    mocks.getSession.mockResolvedValue(null)
+    mocks.getProfileState.mockReturnValue(null)
     process.env.ROCK_WORKFLOW_REDIRECT_ORIGINS = 'https://www.ev.church'
   })
 
@@ -77,7 +89,24 @@ describe('Rock form route', () => {
     const response = await POST(postRequest(body), routeContext)
     expect(response.status).toBe(200)
     expect(mocks.verifyTurnstile).toHaveBeenCalledOnce()
-    expect(mocks.startForm).toHaveBeenCalledWith(workflowTypeGuid)
+    expect(mocks.startForm).toHaveBeenCalledWith(workflowTypeGuid, null)
+  })
+
+  it('starts a Rock workflow for the authenticated member person', async () => {
+    mocks.getSession.mockResolvedValue({ user: { sub: 'auth0|member' } })
+    mocks.getProfileState.mockReturnValue({
+      profile: { personId: 42 },
+      needsRefresh: false,
+    })
+    mocks.startForm.mockResolvedValue({ workflowName: 'Connect Card' })
+    const body = new FormData()
+    body.set('intent', 'start')
+    body.set('turnstileToken', 'verified-token')
+
+    const response = await POST(postRequest(body), routeContext)
+
+    expect(response.status).toBe(200)
+    expect(mocks.startForm).toHaveBeenCalledWith(workflowTypeGuid, 42)
   })
 
   it('uses the Railway public hostname for Turnstile behind the production proxy', async () => {

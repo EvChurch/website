@@ -30,6 +30,11 @@ const nextConfig: NextConfig = {
         destination: 'https://www.ev.church/:path*',
         permanent: true,
       },
+      {
+        source: '/connect',
+        destination: '/?launcher=connect',
+        permanent: true,
+      },
       // Old campus URLs → new slug-based URLs
       { source: '/campus/2', destination: '/campus/north', permanent: true },
       {

@@ -165,6 +165,56 @@ describe('RockForm', () => {
     expect(markup).not.toContain('Preparing secure form')
   })
 
+  it('uses the shared native select styling for Rock select fields', () => {
+    const selectFields: RockFormSchema['fields'] = [
+      {
+        attribute: {
+          fieldTypeGuid: ROCK_FIELD_TYPES.singleSelect,
+          attributeGuid: '22222222-2222-4222-8222-222222222222',
+          name: 'Campus',
+          key: 'Campus',
+          configurationValues: {
+            values: JSON.stringify([
+              { text: 'North', value: '1' },
+              { text: 'Central', value: '2' },
+            ]),
+          },
+        },
+        isRequired: true,
+      },
+      {
+        attribute: {
+          fieldTypeGuid: ROCK_FIELD_TYPES.boolean,
+          attributeGuid: '33333333-3333-4333-8333-333333333333',
+          name: 'First visit',
+          key: 'FirstVisit',
+          configurationValues: {},
+        },
+      },
+      {
+        attribute: {
+          fieldTypeGuid: ROCK_FIELD_TYPES.gender,
+          attributeGuid: '44444444-4444-4444-8444-444444444444',
+          name: 'Gender',
+          key: 'Gender',
+          configurationValues: {},
+        },
+      },
+    ]
+    const markup = renderToStaticMarkup(
+      <RockForm
+        workflowTypeGuid={workflowTypeGuid}
+        initialSchema={{ ...schema(), fields: selectFields }}
+      />,
+    )
+
+    expect(markup.match(/data-form-select="true"/g)).toHaveLength(3)
+    expect(markup).toContain('<select required=""')
+    expect(markup).toContain('North')
+    expect(markup).toContain('First visit')
+    expect(markup).toContain('Female')
+  })
+
   it('shows the retry and contact fallback when the startup security check fails', async () => {
     vi.stubGlobal(
       'fetch',

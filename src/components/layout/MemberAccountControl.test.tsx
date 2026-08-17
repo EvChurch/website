@@ -64,6 +64,18 @@ describe('MemberAccountControl', () => {
     expect(container.textContent).not.toContain('Aroha')
   })
 
+  it('renders the launcher sign-in action as a labelled pill with the icon last', async () => {
+    await act(async () => root.render(
+      <MemberAccountControl profile={null} variant="launcher" tone="dark" />,
+    ))
+
+    const link = container.querySelector<HTMLAnchorElement>('a[aria-label="Sign in"]')
+    expect(link?.textContent?.trim()).toBe('Sign in')
+    expect(link?.className).toContain('rounded-full')
+    expect(link?.className).toContain('bg-white')
+    expect(link?.lastElementChild?.hasAttribute('data-member-sign-in-icon')).toBe(true)
+  })
+
   it('offers Admin to exact admins even without a resolved Rock profile', async () => {
     await act(async () => root.render(
       <MemberAccountControl

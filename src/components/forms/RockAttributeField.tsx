@@ -3,6 +3,7 @@
 import type { RockConnectionSignupAttribute } from '@/lib/rock-connection-signups/types'
 import { getConnectionAttributeControl } from '@/lib/rock-connection-signups/field-types'
 import { formInputClass, formLabelClass } from './form-styles'
+import { FormSelect } from './FormSelect'
 
 export function RockAttributeField({
   attribute,
@@ -31,10 +32,16 @@ export function RockAttributeField({
     field = <textarea {...shared} rows={5} maxLength={control.maxLength} value={value} onChange={(event) => onChange(event.target.value)} />
   } else if (control.kind === 'singleSelect') {
     field = (
-      <select {...shared} value={value} onChange={(event) => onChange(event.target.value)}>
+      <FormSelect
+        id={id}
+        required={attribute.isRequired}
+        aria-describedby={descriptionId}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
         <option value="">Select…</option>
         {control.options?.map((option) => <option key={option.value} value={option.value}>{option.text}</option>)}
-      </select>
+      </FormSelect>
     )
   } else if (control.kind === 'multiSelect') {
     const selected = value ? value.split(',') : []
@@ -58,11 +65,17 @@ export function RockAttributeField({
     )
   } else if (control.kind === 'boolean') {
     field = (
-      <select {...shared} value={value} onChange={(event) => onChange(event.target.value)}>
+      <FormSelect
+        id={id}
+        required={attribute.isRequired}
+        aria-describedby={descriptionId}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
         <option value="">Select…</option>
         <option value="True">{attribute.configurationValues.truetext || 'Yes'}</option>
         <option value="False">{attribute.configurationValues.falsetext || 'No'}</option>
-      </select>
+      </FormSelect>
     )
   } else {
     const inputType = control.kind === 'integer' || control.kind === 'currency'

@@ -186,6 +186,19 @@ export function NextStepsLauncher({
   const previousPathnameRef = useRef(pathname);
   const restoreTriggerFocusRef = useRef(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handledLauncherTargetRef = useRef<string | null>(null);
+
+  const connectCardImageUrl = useMemo(() => {
+    for (const item of items ?? []) {
+      if (
+        item.action.type === "workflow" &&
+        item.action.workflowTypeGuid === CONNECT_CARD_WORKFLOW_GUID
+      ) {
+        return item.action.imageUrl;
+      }
+    }
+    return undefined;
+  }, [items]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(MOBILE_LAUNCHER_QUERY);
@@ -226,6 +239,31 @@ export function NextStepsLauncher({
       presentation: isMobile ? "fullscreen" : "compact",
     });
   }, [giving.consumeGivingRequest, giving.givingRequestId, isMobile]);
+
+  useEffect(() => {
+    const launcherTarget = new URLSearchParams(window.location.search).get(
+      "launcher",
+    );
+    if (launcherTarget !== "connect") {
+      handledLauncherTargetRef.current = null;
+      return;
+    }
+    if (handledLauncherTargetRef.current === launcherTarget) return;
+    handledLauncherTargetRef.current = launcherTarget;
+    dispatch({
+      type: "open",
+      presentation: isMobile ? "fullscreen" : "compact",
+    });
+    dispatch({
+      type: "push",
+      view: {
+        type: "workflow",
+        title: "Connect Card",
+        workflowTypeGuid: CONNECT_CARD_WORKFLOW_GUID,
+        imageUrl: connectCardImageUrl,
+      },
+    });
+  }, [connectCardImageUrl, isMobile, pathname]);
 
   useEffect(() => {
     const active = state.presentation !== "collapsed" && !isClosing && state.view.type === "giving";
@@ -377,17 +415,6 @@ export function NextStepsLauncher({
     [selectedCampusItems, state.query],
   );
 
-  const connectCardImageUrl = useMemo(() => {
-    for (const item of items ?? []) {
-      if (
-        item.action.type === "workflow" &&
-        item.action.workflowTypeGuid === CONNECT_CARD_WORKFLOW_GUID
-      ) {
-        return item.action.imageUrl;
-      }
-    }
-    return undefined;
-  }, [items]);
   const formViewHasBanner =
     (state.view.type === "workflow" || state.view.type === "connection") &&
     Boolean(state.view.imageUrl);
@@ -783,54 +810,56 @@ export function NextStepsLauncher({
             }
           >
             <header className="relative flex min-h-[4.5rem] shrink-0 items-center justify-center bg-warm-white px-4 pt-[max(.75rem,env(safe-area-inset-top))] pb-2 sm:px-5">
-              {state.history.length > 0 && (
-                <div className="absolute left-4 top-[max(.75rem,env(safe-area-inset-top))] sm:left-5">
-                  <button
-                    type="button"
-                    className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-brand-black shadow-sm transition hover:bg-warm-grey/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red"
-                    aria-label="Back"
-                    onClick={() => {
-                      if (state.view.type === "giving" && giving.handleGivingBack()) return;
-                      dispatch({ type: "back" });
-                    }}
-                  >
-                    <HiArrowLeft className="h-5 w-5" aria-hidden="true" />
-                  </button>
+              {(state.history.length > 0 || !isMobile) && (
+                <div className="absolute left-4 top-[max(.75rem,env(safe-area-inset-top))] flex items-center gap-1 sm:left-5">
+                  {state.history.length > 0 && (
+                    <button
+                      type="button"
+                      className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-brand-black shadow-sm transition hover:bg-warm-grey/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red"
+                      aria-label="Back"
+                      onClick={() => {
+                        if (state.view.type === "giving" && giving.handleGivingBack()) return;
+                        dispatch({ type: "back" });
+                      }}
+                    >
+                      <HiArrowLeft className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                  )}
+                  {!isMobile && (
+                    <button
+                      type="button"
+                      className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-brand-black shadow-sm transition hover:bg-warm-grey/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red"
+                      aria-label={
+                        state.presentation === "fullscreen"
+                          ? "Exit full screen"
+                          : "Open full screen"
+                      }
+                      onClick={() => dispatch({ type: "toggleFullscreen" })}
+                    >
+                      {state.presentation === "fullscreen" ? (
+                        <HiArrowsPointingIn
+                          className="h-5 w-5"
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <HiArrowsPointingOut
+                          className="h-5 w-5"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </button>
+                  )}
                 </div>
               )}
               <div className="absolute right-4 top-[max(.75rem,env(safe-area-inset-top))] flex items-center gap-1 sm:right-5">
                 {(memberProfile !== undefined || adminHref) && (
                   <MemberAccountControl
                     profile={memberProfile ?? null}
-                    variant="mobile-icon"
+                    variant="launcher"
                     tone="dark"
                     active={!isClosing}
                     adminHref={adminHref}
                   />
-                )}
-                {!isMobile && (
-                  <button
-                    type="button"
-                    className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-brand-black shadow-sm transition hover:bg-warm-grey/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red"
-                    aria-label={
-                      state.presentation === "fullscreen"
-                        ? "Exit full screen"
-                        : "Open full screen"
-                    }
-                    onClick={() => dispatch({ type: "toggleFullscreen" })}
-                  >
-                    {state.presentation === "fullscreen" ? (
-                      <HiArrowsPointingIn
-                        className="h-5 w-5"
-                        aria-hidden="true"
-                      />
-                    ) : (
-                      <HiArrowsPointingOut
-                        className="h-5 w-5"
-                        aria-hidden="true"
-                      />
-                    )}
-                  </button>
                 )}
               </div>
               {state.view.type !== "home" && (
