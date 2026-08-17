@@ -1,5 +1,20 @@
 import { randomUUID } from 'node:crypto'
 
+import axios, { type AxiosResponse } from 'axios'
+import {
+  BlinkDebitClient,
+  BlinkClientException,
+  BlinkForbiddenException,
+  BlinkInvalidValueException,
+  BlinkResourceNotFoundException,
+  BlinkUnauthorisedException,
+  type Consent as SdkConsent,
+  type EnduringConsentRequest as SdkEnduringConsentRequest,
+  type Payment as SdkPayment,
+  type QuickPaymentRequest as SdkQuickPaymentRequest,
+  type QuickPaymentResponse as SdkQuickPaymentResponse,
+} from 'blink-debit-api-client-node'
+
 import type {
   BlinkPayAccessToken,
   BlinkPayAmount,
@@ -58,12 +73,49 @@ export class BlinkPayClientError extends Error {
 export interface CreateBlinkPayClientOptions {
   config: Readonly<BlinkPayConfig>
   fetchImpl?: typeof fetch
+  sdkClient?: BlinkPaySdkClient
   now?: () => Date
   sleep?: (ms: number) => Promise<void>
   uuid?: () => string
   timeoutMs?: number
   getRetries?: number
   retryDelayMs?: number
+}
+
+export interface BlinkPaySdkClient {
+  createQuickPaymentAsync(input: SdkQuickPaymentRequest, params: SdkOperationParameters): Promise<AxiosResponse<SdkQuickPaymentCreateResponse>>
+  getQuickPaymentAsync(id: string, params?: SdkOperationParameters): Promise<AxiosResponse<SdkQuickPaymentResponse>>
+  createEnduringConsentAsync(input: SdkEnduringConsentRequest, params: SdkOperationParameters): Promise<AxiosResponse<SdkEnduringConsentCreateResponse>>
+  getEnduringConsentAsync(id: string, params?: SdkOperationParameters): Promise<AxiosResponse<SdkConsent>>
+  getPaymentAsync(id: string, params?: SdkOperationParameters): Promise<AxiosResponse<SdkPayment>>
+}
+
+interface SdkQuickPaymentCreateResponse {
+  quickPaymentId: string
+  redirectUri?: string
+}
+
+interface SdkEnduringConsentCreateResponse {
+  consentId: string
+  redirectUri?: string
+}
+
+interface SdkOperationParameters {
+  requestId?: string
+  xCorrelationId?: string
+  idempotencyKey?: string
+}
+
+function assertSdkEnvironment(config: Readonly<BlinkPayConfig>) {
+  const expected = {
+    BLINKPAY_DEBIT_URL: new URL(config.apiBaseUrl).origin,
+    BLINKPAY_CLIENT_ID: config.clientId,
+    BLINKPAY_CLIENT_SECRET: config.clientSecret,
+  } as const
+  for (const [name, value] of Object.entries(expected)) {
+    const ambient = process.env[name]
+    if (ambient !== undefined && ambient !== value) throw new BlinkPayClientError('configuration-invalid')
+  }
 }
 
 interface RequestContext {
@@ -155,11 +207,6 @@ function parseConsent(value: unknown): BlinkPayConsent {
   }
 }
 
-function parseQuickPayment(value: unknown): BlinkPayQuickPayment {
-  if (!record(value)) throw new BlinkPayClientError('response-invalid')
-  return { quick_payment_id: requiredUuid(value.quick_payment_id), consent: parseConsent(value.consent) }
-}
-
 function parseFixedRecurringPayment(value: unknown): BlinkPayFixedRecurringPayment {
   if (!record(value)) throw new BlinkPayClientError('response-invalid')
   const retryStrategy = requiredString(value.retry_strategy)
@@ -226,6 +273,19 @@ export function createBlinkPayClient(options: CreateBlinkPayClientOptions) {
   const getRetries = options.getRetries ?? DEFAULT_GET_RETRIES
   const retryDelayMs = options.retryDelayMs ?? 100
   const baseUrl = new URL(options.config.apiBaseUrl)
+  if (options.sdkClient === undefined) assertSdkEnvironment(options.config)
+  const sdkClient: BlinkPaySdkClient = options.sdkClient ?? new BlinkDebitClient(axios.create({
+        headers: { Accept: 'application/json' },
+        maxContentLength: MAX_RESPONSE_BYTES,
+      }), {
+        blinkpay: {
+          debitUrl: baseUrl.origin,
+          clientId: options.config.clientId,
+          clientSecret: options.config.clientSecret,
+          timeout: timeoutMs,
+          retryEnabled: true,
+        },
+      })
 
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || !Number.isInteger(getRetries) || getRetries < 0 || getRetries > 3 || retryDelayMs < 0) {
     throw new BlinkPayClientError('configuration-invalid')
@@ -301,6 +361,89 @@ export function createBlinkPayClient(options: CreateBlinkPayClientOptions) {
       throw new BlinkPayClientError('configuration-invalid')
     }
     return { requestId: keys.requestId, idempotencyKey: keys.idempotencyKey }
+  }
+
+  function sdkParameters(context: RequestContext): SdkOperationParameters {
+    return {
+      requestId: context.requestId,
+      xCorrelationId: context.requestId,
+      idempotencyKey: context.idempotencyKey,
+    }
+  }
+
+  function sdkMetadata(context: RequestContext, response?: AxiosResponse<unknown>) {
+    const correlation = response?.headers?.['x-correlation-id']
+    return metadata(context, typeof correlation === 'string' ? correlation : undefined)
+  }
+
+  function sdkStatus(error: unknown): number | undefined {
+    const candidate = error instanceof Error && 'innerException' in error
+      ? (error as Error & { innerException?: unknown }).innerException
+      : error
+    if (axios.isAxiosError(candidate)) return candidate.response?.status
+    if (error instanceof BlinkUnauthorisedException) return 401
+    if (error instanceof BlinkForbiddenException) return 403
+    if (error instanceof BlinkResourceNotFoundException) return 404
+    if (error instanceof BlinkInvalidValueException) return 422
+    if (error instanceof BlinkClientException) return 400
+    return undefined
+  }
+
+  function sdkMutationFailure<T>(error: unknown, context: RequestContext): BlinkPayMutationResult<T> {
+    const status = sdkStatus(error)
+    if (status !== undefined && status < 500 && status !== 408 && status !== 429) {
+      throw new BlinkPayClientError('request-rejected', status, metadata(context))
+    }
+    return { outcome: 'unknown', reason: 'request-ambiguous', metadata: metadata(context) }
+  }
+
+  function sdkReadFailure(error: unknown, context: RequestContext): never {
+    const status = sdkStatus(error)
+    throw new BlinkPayClientError(
+      status === undefined || status === 408 || status === 429 || status >= 500 ? 'request-unavailable' : 'request-rejected',
+      status,
+      metadata(context),
+    )
+  }
+
+  function timestampValue(value: unknown) {
+    return value instanceof Date ? value.toISOString() : value
+  }
+
+  function paymentFromSdk(value: SdkPayment) {
+    return parsePayment({
+      payment_id: value.paymentId,
+      type: value.type,
+      status: value.status,
+      accepted_reason: value.acceptedReason,
+      creation_timestamp: timestampValue(value.creationTimestamp),
+      status_updated_timestamp: timestampValue(value.statusUpdatedTimestamp),
+      detail: {
+        consent_id: value.detail.consentId,
+        ...(value.detail.pcr ? { pcr: value.detail.pcr } : {}),
+        ...(value.detail.amount ? { amount: value.detail.amount } : {}),
+      },
+      refunds: value.refunds,
+    })
+  }
+
+  function consentFromSdk(value: SdkConsent) {
+    return parseConsent({
+      consent_id: value.consentId,
+      status: value.status,
+      creation_timestamp: timestampValue(value.creationTimestamp),
+      status_updated_timestamp: timestampValue(value.statusUpdatedTimestamp),
+      detail: value.detail,
+      payments: value.payments.map(paymentFromSdk),
+    })
+  }
+
+  function withProviderCorrelation<T extends object>(value: T, response: AxiosResponse<unknown>) {
+    const correlation = response.headers?.['x-correlation-id']
+    if (typeof correlation === 'string') {
+      Object.defineProperty(value, 'provider_correlation_id', { value: correlation, enumerable: false })
+    }
+    return value
   }
 
   async function request(
@@ -412,14 +555,32 @@ export function createBlinkPayClient(options: CreateBlinkPayClientOptions) {
     assertCallbackUri(input.flow.detail.redirect_uri, options.config.callbackOrigin)
     assertAmount(input.amount)
     validatePcr(input.pcr)
-    return create<CreateQuickPaymentResponse>('quick-payments', input, keys, (value) => {
-      if (!record(value)) throw new BlinkPayClientError('response-invalid')
-      const redirectUri = requiredString(value.redirect_uri)
-      return {
-        quick_payment_id: requiredUuid(value.quick_payment_id),
-        redirect_uri: assertRedirectUri(redirectUri, options.config.gatewayOrigins),
-      }
-    })
+    const context = callerOperationContext(keys)
+    return (async () => {
+        try {
+          const response = await sdkClient.createQuickPaymentAsync({
+          type: 'single',
+          flow: { detail: { type: 'gateway', redirectUri: input.flow.detail.redirect_uri } },
+          amount: input.amount,
+          pcr: input.pcr,
+          ...(input.hashed_customer_identifier ? { hashedCustomerIdentifier: input.hashed_customer_identifier } : {}),
+        } as SdkQuickPaymentRequest, sdkParameters(context))
+          try {
+            return {
+            outcome: 'succeeded' as const,
+            value: {
+              quick_payment_id: requiredUuid(response.data.quickPaymentId),
+              redirect_uri: assertRedirectUri(requiredString(response.data.redirectUri), options.config.gatewayOrigins),
+            },
+            metadata: sdkMetadata(context, response),
+          }
+          } catch {
+            return { outcome: 'unknown' as const, reason: 'response-invalid' as const, metadata: sdkMetadata(context, response) }
+          }
+        } catch (error) {
+          return sdkMutationFailure<CreateQuickPaymentResponse>(error, context)
+        }
+    })()
   }
 
   function createEnduringConsent(input: CreateEnduringConsentRequest, keys: BlinkPayOperationKeys) {
@@ -443,17 +604,40 @@ export function createBlinkPayClient(options: CreateBlinkPayClientOptions) {
     if (amountMinor(input.maximum_amount_payment) > amountMinor(input.maximum_amount_period)) {
       throw new BlinkPayClientError('configuration-invalid')
     }
-    return create<CreateEnduringConsentResponse>('enduring-consents', input, keys, (value) => {
-      if (!record(value)) throw new BlinkPayClientError('response-invalid')
-      const redirectUri = requiredString(value.redirect_uri)
-      return {
-        consent_id: requiredUuid(value.consent_id),
-        redirect_uri: assertRedirectUri(redirectUri, options.config.gatewayOrigins),
-      }
-    })
+    const context = callerOperationContext(keys)
+    return (async () => {
+        try {
+          const response = await sdkClient.createEnduringConsentAsync({
+          type: 'enduring',
+          flow: { detail: { type: 'gateway', redirectUri: input.flow.detail.redirect_uri } },
+          fromTimestamp: new Date(input.from_timestamp),
+          ...(input.expiry_timestamp ? { expiryTimestamp: new Date(input.expiry_timestamp) } : {}),
+          period: input.period,
+          maximumAmountPeriod: input.maximum_amount_period,
+          maximumAmountPayment: input.maximum_amount_payment,
+          ...(input.hashed_customer_identifier ? { hashedCustomerIdentifier: input.hashed_customer_identifier } : {}),
+        } as SdkEnduringConsentRequest, sdkParameters(context))
+          try {
+            return {
+            outcome: 'succeeded' as const,
+            value: {
+              consent_id: requiredUuid(response.data.consentId),
+              redirect_uri: assertRedirectUri(requiredString(response.data.redirectUri), options.config.gatewayOrigins),
+            },
+            metadata: sdkMetadata(context, response),
+          }
+          } catch {
+            return { outcome: 'unknown' as const, reason: 'response-invalid' as const, metadata: sdkMetadata(context, response) }
+          }
+        } catch (error) {
+          return sdkMutationFailure<CreateEnduringConsentResponse>(error, context)
+        }
+    })()
   }
 
   function createFixedRecurringPayment(input: CreateFixedRecurringPaymentRequest, keys: BlinkPayOperationKeys) {
+    // BlinkPay's official Node SDK 1.7.0 does not expose fixed-recurring payments.
+    // Keep this documented endpoint as the only direct provider mutation.
     requiredUuid(input.consent_id)
     assertAmount(input.amount)
     validatePcr(input.pcr)
@@ -486,6 +670,7 @@ export function createBlinkPayClient(options: CreateBlinkPayClientOptions) {
   }
 
   async function cancelFixedRecurringPayment(fixedRecurringPaymentId: string, keys: BlinkPayOperationKeys): Promise<BlinkPayMutationResult<undefined>> {
+    // See createFixedRecurringPayment: the official SDK has no fixed-recurring API.
     requiredUuid(fixedRecurringPaymentId)
     const context = callerOperationContext(keys)
     let result: RequestResult
@@ -503,11 +688,39 @@ export function createBlinkPayClient(options: CreateBlinkPayClientOptions) {
 
   return Object.freeze({
     createQuickPayment,
-    getQuickPayment: (id: string) => { requiredUuid(id); return read(`quick-payments/${id}`, parseQuickPayment) },
+    getQuickPayment: async (id: string) => {
+      requiredUuid(id)
+      const context = operationContext()
+      try {
+        const response = await sdkClient.getQuickPaymentAsync(id, sdkParameters(context))
+        const value: BlinkPayQuickPayment = {
+          quick_payment_id: requiredUuid(response.data.quickPaymentId),
+          consent: consentFromSdk(response.data.consent),
+        }
+        return withProviderCorrelation(value, response)
+      } catch (error) { return sdkReadFailure(error, context) }
+    },
     createEnduringConsent,
-    getEnduringConsent: (id: string) => { requiredUuid(id); return read(`enduring-consents/${id}`, parseConsent) },
-    getPayment: (id: string) => { requiredUuid(id); return read(`payments/${id}`, parsePayment) },
+    getEnduringConsent: async (id: string) => {
+      requiredUuid(id)
+      const context = operationContext()
+      try {
+        const response = await sdkClient.getEnduringConsentAsync(id, sdkParameters(context))
+        return withProviderCorrelation(consentFromSdk(response.data), response)
+      }
+      catch (error) { return sdkReadFailure(error, context) }
+    },
+    getPayment: async (id: string) => {
+      requiredUuid(id)
+      const context = operationContext()
+      try {
+        const response = await sdkClient.getPaymentAsync(id, sdkParameters(context))
+        return withProviderCorrelation(paymentFromSdk(response.data), response)
+      }
+      catch (error) { return sdkReadFailure(error, context) }
+    },
     createFixedRecurringPayment,
+    // See createFixedRecurringPayment: this read is unavailable in the official SDK.
     getFixedRecurringPayment: (id: string) => { requiredUuid(id); return read(`fixed-recurring-payments/${id}`, parseFixedRecurringPayment) },
     cancelFixedRecurringPayment,
     isPaymentSettled: (payment: Pick<BlinkPayPayment, 'status'>) => payment.status === 'AcceptedSettlementCompleted',

@@ -129,6 +129,10 @@ describe('giving checkout orchestration', () => {
     expect(blinkPay.createQuickPayment).toHaveBeenCalledTimes(1)
     expect(blinkPay.createQuickPayment.mock.calls[0][0].pcr).toEqual({ particulars: 'GEN', code: 'ALOVELACE', reference: 'EV123' })
     expect(blinkPay.createQuickPayment.mock.calls[0][1]).toEqual({ requestId: repo.operations[0].requestId, idempotencyKey: repo.operations[0].idempotencyKey })
+    expect(blinkPay.createQuickPayment.mock.calls[0][1]).toEqual({
+      requestId: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu),
+      idempotencyKey: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu),
+    })
     expect(blinkPay.createQuickPayment.mock.calls[0][0].flow.detail.redirect_uri).toBe('https://www.ev.church/give/return')
     const returned = await checkout.consumeReturn(returnToken(second))
     expect(await checkout.status(returned.statusToken)).toEqual({ state: 'verified', retryAllowed: false, kind: 'one-off' })

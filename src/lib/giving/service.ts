@@ -268,7 +268,7 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
   const now = dependencies.now ?? (() => new Date())
   const random = dependencies.randomBytes ?? randomBytes
   const uuid = dependencies.uuid ?? randomUUID
-  const operationKeys = () => ({ requestId: `ev-${uuid()}`, idempotencyKey: `ev-${uuid()}` })
+  const operationKeys = () => ({ requestId: uuid(), idempotencyKey: uuid() })
   const blinkPayFor = (checkout: GivingCheckoutRecord) => typeof dependencies.blinkPay === 'function' ? dependencies.blinkPay(checkout.environment) : dependencies.blinkPay
 
   async function executeHosted(checkout: GivingCheckoutRecord, action: Extract<GivingCheckoutOperation['action'], 'blinkpay.create-payment' | 'blinkpay.create-consent'>) {
