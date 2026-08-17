@@ -1,8 +1,13 @@
 import { getPayloadClient } from '@/lib/payload'
 import { getSermonAudioUrl } from '@/lib/sermon-utils'
-import { getPayloadMediaUrl, type PayloadMediaImage } from '@/lib/payload-media'
+import type { PayloadMediaImage } from '@/lib/payload-media'
 
 const SITE_URL = 'https://www.ev.church'
+const PODCAST_ARTWORK_URL = `${SITE_URL}/images/ev_church_podcast-09e38534.jpg`
+
+function absoluteUrl(url: string): string {
+  return new URL(url, SITE_URL).toString()
+}
 
 function escapeXml(text: string): string {
   return text
@@ -34,14 +39,14 @@ export async function GET() {
     collection: 'sermons',
     where: { isPublished: { equals: true } },
     sort: '-publishedAt',
-    depth: 1,
+    depth: 2,
     limit: 1000,
   })
 
   const items = sermons.docs
     .filter((sermon) => getSermonAudioUrl(sermon.audio))
     .map((sermon) => {
-      const audioUrl = getSermonAudioUrl(sermon.audio)
+      const audioUrl = absoluteUrl(getSermonAudioUrl(sermon.audio))
       const speakerName =
         sermon.audioSpeaker && typeof sermon.audioSpeaker === 'object' && 'name' in sermon.audioSpeaker
           ? (sermon.audioSpeaker.name as string)
@@ -77,7 +82,8 @@ export async function GET() {
           typeof bannerImage === 'object' &&
           'sizes' in bannerImage
         ) {
-          artworkUrl = getPayloadMediaUrl(bannerImage as PayloadMediaImage, 'medium') ?? ''
+          const mediaUrl = (bannerImage as PayloadMediaImage).sizes?.medium?.url
+          artworkUrl = mediaUrl ? absoluteUrl(mediaUrl) : ''
         }
       }
 
@@ -111,7 +117,7 @@ export async function GET() {
     <itunes:keywords>auckland, evangelical, church, christian, sermon, ev, jesus, god, hope, holy spirit</itunes:keywords>
     <itunes:explicit>false</itunes:explicit>
     <itunes:type>episodic</itunes:type>
-    <itunes:image href="${SITE_URL}/images/ev_church_podcast.jpg"/>
+    <itunes:image href="${PODCAST_ARTWORK_URL}"/>
     <itunes:owner>
       <itunes:name>Ev Church</itunes:name>
       <itunes:email>info@ev.church</itunes:email>
