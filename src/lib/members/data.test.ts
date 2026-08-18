@@ -210,6 +210,7 @@ describe('member data access', () => {
       ...participant,
       isCoach: true,
       coachedGroups: [
+        { rockGroupId: 10 },
         { rockGroupId: 11 },
         { rockGroupId: 12 },
       ],
@@ -229,9 +230,9 @@ describe('member data access', () => {
 
     await expect(getMemberPortalHome()).resolves.toMatchObject({
       groups: [
-        { rockGroupId: 10, isCoached: false },
-        { rockGroupId: 11, isCoached: true },
-        { rockGroupId: 12, isCoached: true },
+        { rockGroupId: 10, isCoached: false, isCoach: true, roleName: 'Coach' },
+        { rockGroupId: 11, isCoached: true, isCoach: true, roleName: 'Coach' },
+        { rockGroupId: 12, isCoached: true, isCoach: true, roleName: 'Coach' },
       ],
     })
   })
