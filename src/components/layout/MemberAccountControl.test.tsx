@@ -73,6 +73,7 @@ describe('MemberAccountControl', () => {
     expect(link?.textContent?.trim()).toBe('Sign in')
     expect(link?.className).toContain('rounded-full')
     expect(link?.className).toContain('bg-white')
+    expect(link?.className).toContain('whitespace-nowrap')
     expect(link?.lastElementChild?.hasAttribute('data-member-sign-in-icon')).toBe(true)
   })
 

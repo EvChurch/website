@@ -24,7 +24,10 @@ describe('same-origin request validation', () => {
     vi.stubEnv('NODE_ENV', 'production')
     vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'www.ev.church')
 
-    const proxiedRequest = request('https://www.ev.church', 'https://0.0.0.0:3000/api/rock-forms/example')
+    const proxiedRequest = request(
+      'https://www.ev.church',
+      'https://0.0.0.0:3000/api/rock-entry-forms/example',
+    )
 
     expect(isSameOriginRequest(proxiedRequest)).toBe(true)
     expect(isSameOriginRequest(request('http://www.ev.church', 'https://0.0.0.0:3000/path'))).toBe(false)

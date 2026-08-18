@@ -31,7 +31,7 @@ const routeContext = { params: Promise.resolve({ workflowTypeGuid }) }
 
 function request(origin?: string) {
   return new NextRequest(
-    `https://www.ev.church/api/rock-forms/${workflowTypeGuid}/people`,
+    `https://www.ev.church/api/rock-entry-forms/${workflowTypeGuid}/people`,
     {
       method: 'POST',
       headers: origin

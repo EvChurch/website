@@ -269,7 +269,7 @@ export function MemberAccountControl({
           isDrawer
             ? 'flex min-h-12 w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold text-brand-black transition-colors hover:bg-warm-white'
             : isLauncher
-              ? 'flex min-h-10 items-center gap-3 rounded-full bg-white py-1 pr-1 pl-4 text-sm font-semibold text-brand-black shadow-sm transition hover:bg-warm-grey/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red'
+              ? 'flex min-h-10 items-center gap-3 whitespace-nowrap rounded-full bg-white py-1 pr-1 pl-4 text-sm font-semibold text-brand-black shadow-sm transition hover:bg-warm-grey/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red'
               : `flex min-h-10 min-w-10 items-center justify-center rounded-full transition-colors ${iconTone}`
         }
       >

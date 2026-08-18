@@ -16,6 +16,8 @@ import {
   HiArrowRight,
   HiArrowsPointingIn,
   HiArrowsPointingOut,
+  HiCheck,
+  HiLink,
   HiMagnifyingGlass,
   HiChevronDown,
   HiRocketLaunch,
@@ -24,6 +26,7 @@ import {
 import { RockConnectionOpportunitySignup } from "@/components/forms/RockConnectionOpportunitySignup";
 import { RockForm } from "@/components/forms/RockForm";
 import { SafeRockHtml } from "@/components/forms/SafeRockHtml";
+import RichText from "@/components/blocks/RichTextRenderer";
 import { FeedbackStrip } from "@/components/layout/FeedbackStrip";
 import {
   MemberAccountControl,
@@ -80,6 +83,8 @@ function viewForLauncherItem(item: LauncherItem): LauncherView | null {
         title: item.title,
         workflowTypeGuid: item.action.workflowTypeGuid,
         imageUrl: item.action.imageUrl,
+        body: item.action.body,
+        shareTarget: item.id,
       };
     case "connection":
       return {
@@ -87,6 +92,7 @@ function viewForLauncherItem(item: LauncherItem): LauncherView | null {
         title: item.title,
         blockGuid: item.action.blockGuid,
         imageUrl: item.action.imageUrl,
+        shareTarget: item.id,
       };
     case "content":
       return {
@@ -94,6 +100,7 @@ function viewForLauncherItem(item: LauncherItem): LauncherView | null {
         title: item.title,
         html: item.action.html,
         imageUrl: item.action.imageUrl,
+        shareTarget: item.id,
       };
     case "directLink":
     case "event":
@@ -115,6 +122,100 @@ function viewTitle(view: LauncherView): string {
     case "content":
       return view.title;
   }
+}
+
+export function launcherShareHref(target: string): string {
+  return `/?launcher=${encodeURIComponent(target)}`;
+}
+
+export function launcherShareTarget(view: LauncherView): string | null {
+  switch (view.type) {
+    case "home":
+      return "home";
+    case "catalogue":
+      return "catalogue";
+    case "giving":
+      return "give";
+    case "feedback":
+      return "feedback";
+    case "workflow":
+    case "connection":
+    case "content":
+      return view.shareTarget ?? null;
+  }
+}
+
+function LauncherShareButton({
+  target,
+  title,
+  buttonRef,
+  closing,
+}: {
+  target: string;
+  title: string;
+  buttonRef: React.RefObject<HTMLButtonElement | null>;
+  closing: boolean;
+}) {
+  const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle");
+  const shareRequestRef = useRef(0);
+
+  useEffect(() => {
+    shareRequestRef.current += 1;
+    setStatus("idle");
+
+    return () => {
+      shareRequestRef.current += 1;
+    };
+  }, [closing, target]);
+
+  const share = async () => {
+    const requestId = ++shareRequestRef.current;
+    const url = new URL(launcherShareHref(target), window.location.origin).toString();
+    setStatus("idle");
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, url });
+        return;
+      }
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(url);
+      if (shareRequestRef.current === requestId) setStatus("copied");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      if (shareRequestRef.current === requestId) setStatus("failed");
+    }
+  };
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        className={`flex h-14 w-14 items-center justify-center rounded-full bg-white text-brand-black shadow-xl shadow-brand-black/15 transition-[transform,background-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:bg-warm-grey/35 hover:shadow-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red focus-visible:ring-offset-4 motion-reduce:animate-none sm:h-16 sm:w-16 ${
+          closing
+            ? "animate-launcher-share-hide"
+            : "animate-launcher-share-reveal"
+        }`}
+        aria-label={status === "copied" ? "Link copied" : `Share ${title}`}
+        title="Share link"
+        disabled={closing}
+        onClick={share}
+      >
+        {status === "copied" ? (
+          <HiCheck className="h-6 w-6 text-rich-red" aria-hidden="true" />
+        ) : (
+          <HiLink
+            className="h-6 w-6"
+            aria-hidden="true"
+            data-launcher-link-icon
+          />
+        )}
+      </button>
+      <span className="sr-only" role="status" aria-live="polite">
+        {status === "copied" ? "Link copied" : status === "failed" ? "Could not copy link" : ""}
+      </span>
+    </>
+  );
 }
 
 function LauncherActionButton({
@@ -218,6 +319,7 @@ export function NextStepsLauncher({
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const shareButtonRef = useRef<HTMLButtonElement>(null);
   const previousPathnameRef = useRef(pathname);
   const restoreTriggerFocusRef = useRef(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -304,6 +406,7 @@ export function NextStepsLauncher({
         title: "Plan a Visit",
         workflowTypeGuid: PLAN_A_VISIT_WORKFLOW_GUID,
         imageUrl: PLAN_A_VISIT_IMAGE_URL,
+        shareTarget: "visit",
       };
     } else if (launcherTarget === "connect") {
       targetView = {
@@ -311,6 +414,7 @@ export function NextStepsLauncher({
         title: "Connect Card",
         workflowTypeGuid: CONNECT_CARD_WORKFLOW_GUID,
         imageUrl: connectCardImageUrl,
+        shareTarget: "connect",
       };
     } else if (launcherTarget === "feedback" && feedback) {
       targetView = { type: "feedback", title: feedback.modalTitle };
@@ -436,9 +540,11 @@ export function NextStepsLauncher({
         panelRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ||
           [],
       ).filter((element) => !element.hasAttribute("disabled"));
-      const focusable = triggerRef.current
-        ? [...panelFocusable, triggerRef.current]
-        : panelFocusable;
+      const focusable = [
+        ...panelFocusable,
+        shareButtonRef.current,
+        triggerRef.current,
+      ].filter((element): element is HTMLElement => element !== null);
       if (focusable.length === 0) {
         event.preventDefault();
         panelRef.current?.focus();
@@ -508,7 +614,8 @@ export function NextStepsLauncher({
 
   const formViewHasBanner =
     (state.view.type === "workflow" || state.view.type === "connection") &&
-    Boolean(state.view.imageUrl);
+      Boolean(state.view.imageUrl);
+  const shareTarget = launcherShareTarget(state.view);
 
   const pushView = (view: LauncherView) => dispatch({ type: "push", view });
 
@@ -724,6 +831,7 @@ export function NextStepsLauncher({
                   title: "Plan a Visit",
                   workflowTypeGuid: PLAN_A_VISIT_WORKFLOW_GUID,
                   imageUrl: PLAN_A_VISIT_IMAGE_URL,
+                  shareTarget: "visit",
                 })
               }
             />
@@ -749,6 +857,7 @@ export function NextStepsLauncher({
                   title: "Connect Card",
                   workflowTypeGuid: CONNECT_CARD_WORKFLOW_GUID,
                   imageUrl: connectCardImageUrl,
+                  shareTarget: "connect",
                 })
               }
             />
@@ -790,6 +899,11 @@ export function NextStepsLauncher({
               imageUrl={state.view.imageUrl}
               bleed={state.presentation !== "fullscreen"}
             />
+            {state.view.body != null && (
+              <div className="prose prose-neutral mx-auto mb-8 max-w-2xl px-4 text-dark-grey sm:px-6">
+                <RichText data={state.view.body} />
+              </div>
+            )}
             <RockForm
               workflowTypeGuid={state.view.workflowTypeGuid}
               scrollContainerRef={scrollRef}
@@ -828,7 +942,7 @@ export function NextStepsLauncher({
         <div
           className={
             state.presentation === "fullscreen"
-              ? `fixed inset-0 bg-brand-black/45 p-0 backdrop-blur-sm transition-opacity duration-200 ease-out motion-reduce:animate-none motion-reduce:transition-none sm:p-5 ${
+              ? `fixed inset-0 bg-brand-black/45 p-0 pb-[max(5rem,calc(env(safe-area-inset-bottom)+4.25rem))] backdrop-blur-sm transition-opacity duration-200 ease-out motion-reduce:animate-none motion-reduce:transition-none sm:p-5 ${
                   isClosing
                     ? isCloseMotionActive
                       ? "opacity-0"
@@ -875,9 +989,10 @@ export function NextStepsLauncher({
                   }`
             }
           >
-            <header className="relative flex min-h-[4.5rem] shrink-0 items-center justify-center bg-warm-white px-4 pt-[max(.75rem,env(safe-area-inset-top))] pb-2 sm:px-5">
-              {(state.history.length > 0 || !isMobile) && (
-                <div className="absolute left-4 top-[max(.75rem,env(safe-area-inset-top))] flex items-center gap-1 sm:left-5">
+            <header className="flex min-h-[4.5rem] shrink-0 items-center bg-warm-white px-4 pt-[max(.75rem,env(safe-area-inset-top))] pb-2 sm:px-5">
+              <div className="flex w-24 shrink-0 items-center gap-1">
+                {(state.history.length > 0 || !isMobile) && (
+                  <>
                   {state.history.length > 0 && (
                     <button
                       type="button"
@@ -912,9 +1027,17 @@ export function NextStepsLauncher({
                       )}
                     </button>
                   )}
-                </div>
-              )}
-              <div className="absolute right-4 top-[max(.75rem,env(safe-area-inset-top))] flex items-center gap-1 sm:right-5">
+                  </>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                {state.view.type !== "home" && (
+                  <h2 className="flex h-10 min-w-0 items-center justify-center text-center text-lg font-semibold text-brand-black sm:text-xl">
+                    <span className="min-w-0 truncate">{viewTitle(state.view)}</span>
+                  </h2>
+                )}
+              </div>
+              <div className="flex w-24 shrink-0 items-center justify-end gap-1">
                 {(memberProfile !== undefined || adminHref) && (
                   <MemberAccountControl
                     profile={memberProfile ?? null}
@@ -925,11 +1048,6 @@ export function NextStepsLauncher({
                   />
                 )}
               </div>
-              {state.view.type !== "home" && (
-                <h2 className="min-w-0 max-w-[calc(100%-7rem)] truncate text-center text-lg font-semibold text-brand-black sm:text-xl">
-                  {viewTitle(state.view)}
-                </h2>
-              )}
             </header>
             <div
               ref={scrollRef}
@@ -954,50 +1072,61 @@ export function NextStepsLauncher({
           </div>
         </div>
       )}
-      <button
-        ref={triggerRef}
-        type="button"
-        className="fixed right-3 bottom-[max(.75rem,env(safe-area-inset-bottom))] z-[1] flex h-14 w-14 items-center justify-center rounded-full bg-rich-red text-white shadow-xl shadow-brand-black/20 transition-[transform,background-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:bg-deep-red hover:shadow-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red focus-visible:ring-offset-4 sm:right-6 sm:bottom-6 sm:h-16 sm:w-16"
-        aria-label={
-          state.presentation === "collapsed" || isClosing
-            ? "Open next steps"
-            : "Close next steps"
-        }
-        aria-expanded={state.presentation !== "collapsed" && !isClosing}
-        onClick={() => {
-          if (isClosing) {
-            if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-            closeTimerRef.current = null;
-            restoreTriggerFocusRef.current = false;
-            setIsClosing(false);
-            setIsCloseMotionActive(false);
-            return;
+      <div className="fixed right-3 bottom-[max(.75rem,env(safe-area-inset-bottom))] z-[1] flex items-center gap-2 sm:right-6 sm:bottom-6">
+        {state.presentation !== "collapsed" &&
+          shareTarget && (
+            <LauncherShareButton
+              buttonRef={shareButtonRef}
+              closing={isClosing}
+              target={shareTarget}
+              title={viewTitle(state.view)}
+            />
+          )}
+        <button
+          ref={triggerRef}
+          type="button"
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-rich-red text-white shadow-xl shadow-brand-black/20 transition-[transform,background-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:bg-deep-red hover:shadow-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red focus-visible:ring-offset-4 sm:h-16 sm:w-16"
+          aria-label={
+            state.presentation === "collapsed" || isClosing
+              ? "Open next steps"
+              : "Close next steps"
           }
-          if (state.presentation === "collapsed") {
-            dispatch({
-              type: "open",
-              presentation: isMobile ? "fullscreen" : "compact",
-            });
-          } else close();
-        }}
-      >
-        <span className="relative h-6 w-6" aria-hidden="true">
-          <HiRocketLaunch
-            className={`absolute inset-0 h-6 w-6 transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-              state.presentation === "collapsed" || isClosing
-                ? "rotate-0 scale-100 opacity-100"
-                : "rotate-[225deg] scale-75 opacity-0"
-            }`}
-          />
-          <HiXMark
-            className={`absolute inset-0 h-6 w-6 transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-              state.presentation === "collapsed" || isClosing
-                ? "-rotate-[225deg] scale-75 opacity-0"
-                : "rotate-0 scale-100 opacity-100"
-            }`}
-          />
-        </span>
-      </button>
+          aria-expanded={state.presentation !== "collapsed" && !isClosing}
+          onClick={() => {
+            if (isClosing) {
+              if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+              closeTimerRef.current = null;
+              restoreTriggerFocusRef.current = false;
+              setIsClosing(false);
+              setIsCloseMotionActive(false);
+              return;
+            }
+            if (state.presentation === "collapsed") {
+              dispatch({
+                type: "open",
+                presentation: isMobile ? "fullscreen" : "compact",
+              });
+            } else close();
+          }}
+        >
+          <span className="relative h-6 w-6" aria-hidden="true">
+            <HiRocketLaunch
+              className={`absolute inset-0 h-6 w-6 transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                state.presentation === "collapsed" || isClosing
+                  ? "rotate-0 scale-100 opacity-100"
+                  : "rotate-[225deg] scale-75 opacity-0"
+              }`}
+            />
+            <HiXMark
+              className={`absolute inset-0 h-6 w-6 transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                state.presentation === "collapsed" || isClosing
+                  ? "-rotate-[225deg] scale-75 opacity-0"
+                  : "rotate-0 scale-100 opacity-100"
+              }`}
+            />
+          </span>
+        </button>
+      </div>
     </div>
   );
 }

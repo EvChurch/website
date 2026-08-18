@@ -1,7 +1,9 @@
 import { getPayloadClient } from '@/lib/payload'
 import { unstable_cache } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache-tags'
+import type { RockForm } from '@/payload-types'
 import { isGuid } from '@/lib/rock-forms/constants'
+import { getPayloadMediaUrl, type PayloadMediaImage } from '@/lib/payload-media'
 
 import { classifyLauncherHref, launcherPlainText, sanitizeLauncherHtml } from './sanitize'
 import type {
@@ -48,6 +50,13 @@ interface ServiceGuideRecord {
   event?: number | string | RelationValue | null
 }
 
+type RockFormRecord = Partial<
+  Pick<
+    RockForm,
+    'title' | 'slug' | 'body' | 'image' | 'workflowTypeGuid' | 'published'
+  >
+>
+
 const select = {
   rockId: true,
   title: true,
@@ -67,9 +76,24 @@ const select = {
   event: true,
 }
 
+const rockFormSelect = {
+  title: true,
+  slug: true,
+  body: true,
+  image: true,
+  workflowTypeGuid: true,
+  published: true,
+}
+
 function asRecord(value: unknown): ServiceGuideRecord {
   return typeof value === 'object' && value !== null
     ? (value as ServiceGuideRecord)
+    : {}
+}
+
+function asRockFormRecord(value: unknown): RockFormRecord {
+  return typeof value === 'object' && value !== null
+    ? (value as RockFormRecord)
     : {}
 }
 
@@ -240,6 +264,30 @@ export function toLauncherItem(record: ServiceGuideRecord): LauncherItem | null 
   }
 }
 
+export function rockFormToLauncherItem(record: RockFormRecord): LauncherItem | null {
+  const title = record.title?.trim()
+  const slug = record.slug?.trim()
+  const workflowTypeGuid = normalizedGuid(record.workflowTypeGuid)
+  if (!record.published || !title || !slug || !workflowTypeGuid) return null
+
+  const imageUrl =
+    record.image && typeof record.image === 'object'
+      ? getPayloadMediaUrl(record.image, 'large') ?? record.image.url ?? undefined
+      : undefined
+
+  return {
+    id: slug,
+    title,
+    campusSlugs: [],
+    action: {
+      type: 'workflow',
+      workflowTypeGuid,
+      ...(imageUrl ? { imageUrl } : {}),
+      ...(record.body ? { body: record.body } : {}),
+    },
+  }
+}
+
 function compareRecords(a: ServiceGuideRecord, b: ServiceGuideRecord): number {
   const priority = (b.priority ?? 0) - (a.priority ?? 0)
   if (priority !== 0) return priority
@@ -295,11 +343,60 @@ async function findEligibleServiceGuideRecords(
     )
 }
 
+async function findPublishedRockForms(
+  payload: LauncherPayloadClient,
+): Promise<RockFormRecord[]> {
+  try {
+    const result = await payload.find({
+      collection: 'rock-forms',
+      depth: 1,
+      limit: 500,
+      overrideAccess: true,
+      sort: 'title',
+      select: rockFormSelect,
+      where: { published: { equals: true } },
+    })
+    return result.docs.map(asRockFormRecord)
+  } catch {
+    return []
+  }
+}
+
+async function hasPublishedRockFormWorkflow(
+  payload: LauncherPayloadClient,
+  workflowTypeGuid: string,
+): Promise<boolean> {
+  try {
+    const result = await payload.find({
+      collection: 'rock-forms',
+      depth: 0,
+      limit: 1,
+      overrideAccess: true,
+      select: { workflowTypeGuid: true, published: true },
+      where: {
+        and: [
+          { published: { equals: true } },
+          { workflowTypeGuid: { equals: workflowTypeGuid } },
+        ],
+      },
+    })
+    return result.docs
+      .map(asRockFormRecord)
+      .some(
+        (form) =>
+          form.published && normalizedGuid(form.workflowTypeGuid) === workflowTypeGuid,
+      )
+  } catch {
+    return false
+  }
+}
+
 async function loadLauncherDataAt(now: Date): Promise<LauncherData> {
   try {
     const payload = (await getPayloadClient()) as unknown as LauncherPayloadClient
-    const [records, campusResult, available] = await Promise.all([
+    const [records, rockForms, campusResult, serviceGuideAvailable] = await Promise.all([
       findEligibleServiceGuideRecords(payload, now),
+      findPublishedRockForms(payload),
       payload.find({
         collection: 'campuses',
         depth: 0,
@@ -312,15 +409,32 @@ async function loadLauncherDataAt(now: Date): Promise<LauncherData> {
       hasSuccessfulSnapshot(payload),
     ])
 
-    const items = records
+    const serviceGuideItems = records
       .sort(compareRecords)
       .map(toLauncherItem)
       .filter((item): item is LauncherItem => item !== null)
+    const rockFormItems = rockForms
+      .map(rockFormToLauncherItem)
+      .filter((item): item is LauncherItem => item !== null)
+    const managedWorkflowGuids = new Set(
+      rockFormItems.flatMap((item) =>
+        item.action.type === 'workflow' ? [item.action.workflowTypeGuid] : [],
+      ),
+    )
+    const uniqueServiceGuideItems = serviceGuideItems.filter(
+      (item) =>
+        item.action.type !== 'workflow' ||
+        !managedWorkflowGuids.has(item.action.workflowTypeGuid),
+    )
     const campuses = campusResult.docs
       .map(toCampus)
       .filter((campus): campus is LauncherCampus => campus !== null)
 
-    return { available, campuses, items }
+    return {
+      available: serviceGuideAvailable || rockFormItems.length > 0,
+      campuses,
+      items: [...uniqueServiceGuideItems, ...rockFormItems],
+    }
   } catch {
     return { available: false, campuses: [], items: [] }
   }
@@ -328,9 +442,14 @@ async function loadLauncherDataAt(now: Date): Promise<LauncherData> {
 
 const getCachedLauncherData = unstable_cache(
   () => loadLauncherDataAt(new Date()),
-  ['launcher-data'],
+  ['launcher-data-with-rock-forms'],
   {
-    tags: [CACHE_TAGS.serviceGuide, CACHE_TAGS.campuses, CACHE_TAGS.events],
+    tags: [
+      CACHE_TAGS.serviceGuide,
+      CACHE_TAGS.rockForms,
+      CACHE_TAGS.campuses,
+      CACHE_TAGS.events,
+    ],
     revalidate: 600,
   },
 )
@@ -357,6 +476,8 @@ export async function isPublishedLauncherWorkflow(
 ): Promise<boolean> {
   const guid = normalizedGuid(workflowTypeGuid)
   if (!guid) return false
+  const payload = (await getPayloadClient()) as unknown as LauncherPayloadClient
+  if (await hasPublishedRockFormWorkflow(payload, guid)) return true
   return hasWinningAction(
     (action) => action.type === 'workflow' && action.workflowTypeGuid === guid,
   )

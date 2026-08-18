@@ -3,6 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { ServiceGuideItems } from './ServiceGuideItems'
 
 describe('ServiceGuideItems collection', () => {
+  it('is grouped with the other launcher models', () => {
+    expect(ServiceGuideItems.admin).toMatchObject({ group: 'Launcher' })
+  })
+
   it('allows administrative reads and denies request-scoped mutations', () => {
     const read = ServiceGuideItems.access?.read
     const create = ServiceGuideItems.access?.create

@@ -62,9 +62,9 @@ describe('Service Guide launcher data', () => {
   it('caches only the default-time catalogue with source dependency tags', () => {
     expect(cacheMocks.unstableCache).toHaveBeenCalledWith(
       expect.any(Function),
-      ['launcher-data'],
+      ['launcher-data-with-rock-forms'],
       {
-        tags: ['service-guide', 'campuses', 'events'],
+        tags: ['service-guide', 'rock-forms', 'campuses', 'events'],
         revalidate: 600,
       },
     )
@@ -263,6 +263,94 @@ describe('Service Guide launcher data', () => {
       available: false,
       campuses: [],
       items: [],
+    })
+  })
+
+  it('loads published Payload Rock forms with URL-addressable launcher content', async () => {
+    const body = {
+      root: {
+        type: 'root',
+        children: [
+          {
+            type: 'paragraph',
+            children: [{ type: 'text', text: 'Register each child.' }],
+          },
+        ],
+      },
+    }
+    findGlobal.mockResolvedValue({ lastSuccessfulSyncAt: null })
+    find.mockImplementation(async (args: { collection: string }) => {
+      if (args.collection === 'campuses') {
+        return { docs: [{ slug: 'north', name: 'North' }] }
+      }
+      if (args.collection === 'rock-forms') {
+        return {
+          docs: [
+            {
+              title: 'Kids enrolment',
+              slug: 'kids-enrolment',
+              body,
+              workflowTypeGuid: workflowGuid.toUpperCase(),
+              published: true,
+              image: {
+                url: '/api/media/file/kids.jpg',
+                sizes: { large: { url: '/api/media/file/kids-1200.jpg' } },
+              },
+            },
+          ],
+        }
+      }
+      return { docs: [] }
+    })
+
+    await expect(loadLauncherData()).resolves.toEqual({
+      available: true,
+      campuses: [{ slug: 'north', name: 'North' }],
+      items: [
+        {
+          id: 'kids-enrolment',
+          title: 'Kids enrolment',
+          campusSlugs: [],
+          action: {
+            type: 'workflow',
+            workflowTypeGuid: workflowGuid,
+            imageUrl: '/api/media/file/kids-1200.jpg',
+            body,
+          },
+        },
+      ],
+    })
+    await expect(isPublishedLauncherWorkflow(workflowGuid)).resolves.toBe(true)
+  })
+
+  it('uses the managed Rock form when the service guide contains the same workflow', async () => {
+    find.mockImplementation(async (args: { collection: string }) => {
+      if (args.collection === 'campuses') return { docs: [] }
+      if (args.collection === 'rock-forms') {
+        return {
+          docs: [
+            {
+              title: 'Kids enrolment',
+              slug: 'kids-enrolment',
+              body: null,
+              workflowTypeGuid: workflowGuid,
+              published: true,
+              image: null,
+            },
+          ],
+        }
+      }
+      return { docs: [record({ title: 'Rock service guide title', workflowGuid })] }
+    })
+
+    await expect(loadLauncherData()).resolves.toMatchObject({
+      items: [
+        {
+          id: 'kids-enrolment',
+          title: 'Kids enrolment',
+          action: { type: 'workflow', workflowTypeGuid: workflowGuid },
+        },
+      ],
     })
   })
 

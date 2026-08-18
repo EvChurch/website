@@ -6,6 +6,9 @@ import { isEditor } from '@/access/roles'
 export const ServiceGuideSyncState: GlobalConfig = {
   slug: 'service-guide-sync-state',
   label: 'Service Guide Sync State',
+  admin: {
+    group: 'Launcher',
+  },
   access: {
     read: isEditor,
     update: () => false,

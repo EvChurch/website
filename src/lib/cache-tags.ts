@@ -21,6 +21,7 @@ export const CACHE_TAGS = {
   announcements: 'announcements',
   dailyBibleReadings: 'daily-bible-readings',
   serviceGuide: 'service-guide',
+  rockForms: 'rock-forms',
   navigation: 'navigation',
   siteSettings: 'site-settings',
   sermonPipeline: 'sermon-pipeline',

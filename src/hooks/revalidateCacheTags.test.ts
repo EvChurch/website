@@ -31,6 +31,7 @@ describe('createCacheInvalidationHook', () => {
     const pageChange = Pages.hooks?.afterChange?.[0]
     const pageDelete = Pages.hooks?.afterDelete?.[0]
     const mediaChange = Media.hooks?.afterChange?.[1]
+    const mediaDelete = Media.hooks?.afterDelete?.[0]
     const announcementChange = Announcements.hooks?.afterChange?.[0]
     const announcementDelete = Announcements.hooks?.afterDelete?.[0]
     const siteSettingsChange = SiteSettings.hooks?.afterChange?.[0]
@@ -39,6 +40,7 @@ describe('createCacheInvalidationHook', () => {
       typeof pageChange !== 'function' ||
       typeof pageDelete !== 'function' ||
       typeof mediaChange !== 'function' ||
+      typeof mediaDelete !== 'function' ||
       typeof announcementChange !== 'function' ||
       typeof announcementDelete !== 'function' ||
       typeof siteSettingsChange !== 'function'
@@ -49,6 +51,7 @@ describe('createCacheInvalidationHook', () => {
     await pageChange({} as never)
     await pageDelete({} as never)
     await mediaChange({} as never)
+    await mediaDelete({} as never)
     await announcementChange({} as never)
     await announcementDelete({} as never)
     await siteSettingsChange({} as never)
@@ -57,6 +60,9 @@ describe('createCacheInvalidationHook', () => {
       [CACHE_TAGS.pages, { expire: 0 }],
       [CACHE_TAGS.pages, { expire: 0 }],
       [CACHE_TAGS.pages, { expire: 0 }],
+      [CACHE_TAGS.rockForms, { expire: 0 }],
+      [CACHE_TAGS.pages, { expire: 0 }],
+      [CACHE_TAGS.rockForms, { expire: 0 }],
       [CACHE_TAGS.announcements, { expire: 0 }],
       [CACHE_TAGS.announcements, { expire: 0 }],
       [CACHE_TAGS.siteSettings, { expire: 0 }],

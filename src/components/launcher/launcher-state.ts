@@ -5,9 +5,9 @@ export type LauncherView =
   | { type: 'catalogue' }
   | { type: 'giving' }
   | { type: 'feedback'; title: string }
-  | { type: 'workflow'; workflowTypeGuid: string; imageUrl?: string; title: string }
-  | { type: 'connection'; blockGuid: string; imageUrl?: string; title: string }
-  | { type: 'content'; html: string; imageUrl?: string; title: string }
+  | { type: 'workflow'; workflowTypeGuid: string; imageUrl?: string; body?: unknown; shareTarget?: string; title: string }
+  | { type: 'connection'; blockGuid: string; imageUrl?: string; shareTarget?: string; title: string }
+  | { type: 'content'; html: string; imageUrl?: string; shareTarget?: string; title: string }
 
 export interface LauncherState {
   presentation: LauncherPresentation
