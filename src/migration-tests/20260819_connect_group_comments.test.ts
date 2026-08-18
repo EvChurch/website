@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { migrations } from '../migrations'
-import { down, up } from '../migrations/20260818_090000_connect_group_comments'
+import { down, up } from '../migrations/20260819_010000_connect_group_comments'
 
 interface RawSql {
   queryChunks: Array<{ value: string[] }>
@@ -33,7 +33,7 @@ describe('Connect Group comments migration', () => {
   it('registers the migration', () => {
     expect(
       migrations.some(
-        (migration) => migration.name === '20260818_090000_connect_group_comments',
+        (migration) => migration.name === '20260819_010000_connect_group_comments',
       ),
     ).toBe(true)
   })
