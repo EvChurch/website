@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
+import { HiArrowLeft } from 'react-icons/hi2'
 
 import { ConnectGroupAttendanceEditor } from '@/components/members/ConnectGroupAttendanceEditor'
 import {
@@ -59,16 +60,17 @@ export default async function ConnectGroupAttendancePage({
       connectGroupHref={memberConnectGroupHref(home.groups)}
     >
       <div className="mx-auto max-w-3xl">
-        <h1 className="text-4xl leading-tight text-brand-black sm:text-5xl">
-          Record attendance
-        </h1>
         <Link
           href={`/members/connect-groups/${context.group.rockGroupId}`}
           rel="nofollow"
-          className="mt-1 inline-block text-base text-mid-grey transition-colors hover:text-rich-red hover:underline sm:text-lg"
+          className="mb-2 inline-flex items-center gap-1.5 text-sm font-bold text-rich-red transition-colors hover:text-brand-black hover:underline sm:text-base"
         >
+          <HiArrowLeft aria-hidden="true" className="h-4 w-4 shrink-0" />
           {context.group.name}
         </Link>
+        <h1 className="text-4xl leading-tight text-brand-black sm:text-5xl">
+          Record attendance
+        </h1>
         <div className="mt-7">
           {attendanceEntry?.selectedMeeting ? (
             <ConnectGroupAttendanceEditor

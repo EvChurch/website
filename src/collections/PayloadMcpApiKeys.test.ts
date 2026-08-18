@@ -24,7 +24,7 @@ describe('Payload MCP API key access', () => {
     )
     expect(mcpCollections).not.toHaveProperty('leader-resource-shares')
     expect([...mcpExcludedCollectionSlugs].sort()).toEqual([
-      'blinkpay-webhook-events', 'giving-checkouts', 'giving-consents', 'giving-drafts',
+      'blinkpay-webhook-events', 'connect-group-comments', 'giving-checkouts', 'giving-consents', 'giving-drafts',
       'giving-funds', 'giving-gifts', 'giving-givers',
       'giving-provider-operations', 'giving-schedules', 'leader-resource-shares',
     ])

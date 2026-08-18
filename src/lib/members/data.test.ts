@@ -16,6 +16,8 @@ const memberSession = vi.hoisted(() => ({
 
 const payloadState = vi.hoisted(() => ({
   find: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
 }))
 
 const attendanceState = vi.hoisted(() => ({
@@ -27,7 +29,7 @@ vi.mock('@/auth/member-session', () => ({
 }))
 
 vi.mock('@/lib/payload', () => ({
-  getPayloadClient: vi.fn(async () => ({ find: payloadState.find })),
+  getPayloadClient: vi.fn(async () => ({ find: payloadState.find, create: payloadState.create, update: payloadState.update })),
 }))
 
 vi.mock('@/lib/members/attendance', () => ({
@@ -36,15 +38,20 @@ vi.mock('@/lib/members/attendance', () => ({
 
 import {
   authorizeConnectGroupAttendanceLeader,
+  createMemberGroupComment,
+  deleteMemberGroupComment,
   getLedConnectGroups,
   getGroupCurrentResources,
   getPublicLeaderResourceImage,
+  getMemberGroupCoaching,
   getMemberGroupDetail,
+  getMemberGroupCommentThread,
   getMemberPortalHome,
   getMemberResourceAsset,
   getMemberResourceDetail,
   getMemberResources,
   getSharedMemberAvatar,
+  updateMemberGroupComment,
 } from './data'
 
 const participant = {
@@ -175,6 +182,10 @@ describe('member data access', () => {
       photoUrl: null,
     }
     payloadState.find.mockReset()
+    payloadState.create.mockReset()
+    payloadState.create.mockResolvedValue({ id: 1 })
+    payloadState.update.mockReset()
+    payloadState.update.mockResolvedValue({ docs: [{ id: 1 }] })
     attendanceState.fetchConnectGroupAttendance.mockReset()
     attendanceState.fetchConnectGroupAttendance.mockResolvedValue({
       people: {},
@@ -783,6 +794,196 @@ describe('member data access', () => {
       guid: '99999999-9999-4999-8999-999999999999',
     })
     await expect(getPublicLeaderResourceImage(203)).resolves.toBeNull()
+  })
+
+  it('shows leaders only shared group comments', async () => {
+    payloadState.find.mockImplementation(async ({ collection, where }) => ({
+      docs: collection === 'connect-group-participants'
+        ? [participant]
+        : collection === 'connect-group-comments'
+          ? [{ id: 1, authorName: 'Coach', body: 'Shared note', visibility: 'leaders-and-coaches', createdAt: '2026-08-18T00:00:00.000Z' }]
+          : payloadDocs(collection),
+      where,
+    }))
+
+    await expect(getMemberGroupCommentThread(10)).resolves.toMatchObject({
+      access: 'granted',
+      canPostCoachesOnly: false,
+      comments: [{ body: 'Shared note', coachesOnly: false }],
+    })
+    expect(payloadState.find).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: { and: [
+        { rockGroupId: { equals: 10 } },
+        { visibility: { equals: 'leaders-and-coaches' } },
+      ] },
+    }))
+  })
+
+  it('lists coaches and leaders for an authorized coaching page', async () => {
+    const coach = {
+      ...otherMember,
+      rockPersonId: 88,
+      name: 'Moana Coach',
+      isCoach: true,
+      coachedGroups: [{ rockGroupId: 10 }],
+      memberships: [],
+    }
+    payloadState.find.mockImplementation(async ({ collection, where }) => ({
+      docs: collection === 'connect-groups'
+        ? [group]
+        : collection === 'connect-group-participants' && 'rockPersonId' in (where as object)
+          ? [participant]
+          : collection === 'connect-group-participants'
+            ? [participant, coach, otherMember]
+            : [],
+    }))
+
+    await expect(getMemberGroupCoaching(10)).resolves.toMatchObject({
+      access: 'granted',
+      group: { rockGroupId: 10, name: 'Tuesday Central Connect' },
+      people: [
+        { rockPersonId: 88, name: 'Moana Coach', isCoach: true, isLeader: false },
+        { rockPersonId: 42, name: 'Aroha Ngata', isCoach: false, isLeader: true },
+      ],
+    })
+  })
+
+  it('shows coaches coach-only comments and permits creating them', async () => {
+    const coach = {
+      ...participant,
+      memberships: participant.memberships.map((membership) => ({ ...membership, isLeader: false, roleName: 'Member' })),
+      isCoach: true,
+      coachedGroups: [{ rockGroupId: 10 }],
+    }
+    payloadState.find.mockImplementation(async ({ collection }) => ({
+      docs: collection === 'connect-group-participants'
+        ? [coach]
+        : collection === 'connect-group-comments'
+          ? [{ id: 2, authorName: 'Coach', body: 'Private note', visibility: 'coaches-only', createdAt: '2026-08-18T00:00:00.000Z' }]
+          : payloadDocs(collection),
+    }))
+
+    await expect(getMemberGroupCommentThread(10)).resolves.toMatchObject({
+      access: 'granted',
+      canPostCoachesOnly: true,
+      comments: [{ body: 'Private note', coachesOnly: true }],
+    })
+    await expect(createMemberGroupComment(10, { body: '  Coach update  ', coachesOnly: true })).resolves.toEqual({ ok: true })
+    expect(payloadState.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ body: 'Coach update', visibility: 'coaches-only' }),
+    }))
+  })
+
+  it('prevents leaders from creating coach-only comments', async () => {
+    await expect(createMemberGroupComment(10, { body: 'Private note', coachesOnly: true })).resolves.toMatchObject({ ok: false })
+    expect(payloadState.create).not.toHaveBeenCalled()
+  })
+
+  it('allows an author to edit their own recent comment', async () => {
+    payloadState.find.mockImplementation(async ({ collection }) => ({
+      docs: collection === 'connect-group-participants'
+        ? [participant]
+        : collection === 'connect-group-comments'
+          ? [{ id: 5, authorRockPersonId: 42, createdAt: new Date().toISOString(), deletedAt: null }]
+          : payloadDocs(collection),
+    }))
+
+    await expect(updateMemberGroupComment(10, 5, { body: 'Updated' }))
+      .resolves.toEqual({ ok: true })
+    expect(payloadState.update).toHaveBeenCalledWith(expect.objectContaining({
+      collection: 'connect-group-comments',
+      limit: 1,
+      where: { and: [
+        { id: { equals: 5 } },
+        { rockGroupId: { equals: 10 } },
+        { authorRockPersonId: { equals: 42 } },
+        { deletedAt: { exists: false } },
+      ] },
+      data: { body: 'Updated' },
+    }))
+  })
+
+  it('does not allow editing after one hour', async () => {
+    payloadState.find.mockImplementation(async ({ collection }) => ({
+      docs: collection === 'connect-group-participants'
+        ? [participant]
+        : collection === 'connect-group-comments'
+          ? [{ id: 5, authorRockPersonId: 42, createdAt: new Date(Date.now() - 61 * 60_000).toISOString(), deletedAt: null }]
+          : payloadDocs(collection),
+    }))
+
+    await expect(updateMemberGroupComment(10, 5, { body: 'Too late' }))
+      .resolves.toEqual({ ok: false })
+    expect(payloadState.update).not.toHaveBeenCalled()
+  })
+
+  it('soft-deletes an owned comment with the deleting person recorded', async () => {
+    payloadState.find.mockImplementation(async ({ collection }) => ({
+      docs: collection === 'connect-group-participants'
+        ? [participant]
+        : collection === 'connect-group-comments'
+          ? [{ id: 5, authorRockPersonId: 42, createdAt: new Date().toISOString(), deletedAt: null }]
+          : payloadDocs(collection),
+    }))
+
+    await expect(deleteMemberGroupComment(10, 5)).resolves.toEqual({ ok: true })
+    expect(payloadState.update).toHaveBeenCalledWith(expect.objectContaining({
+      collection: 'connect-group-comments',
+      limit: 1,
+      data: expect.objectContaining({
+        body: '[deleted]',
+        deletedByRockPersonId: 42,
+        deletedByName: 'Aroha Ngata',
+      }),
+    }))
+  })
+
+  it('prevents a former coach from changing their coach-only comments', async () => {
+    payloadState.find.mockImplementation(async ({ collection }) => ({
+      docs: collection === 'connect-group-participants'
+        ? [participant]
+        : collection === 'connect-group-comments'
+          ? [{ id: 5, authorRockPersonId: 42, visibility: 'coaches-only', createdAt: new Date().toISOString(), deletedAt: null }]
+          : payloadDocs(collection),
+    }))
+
+    await expect(updateMemberGroupComment(10, 5, { body: 'Former coach edit' }))
+      .resolves.toEqual({ ok: false })
+    await expect(deleteMemberGroupComment(10, 5)).resolves.toEqual({ ok: false })
+    expect(payloadState.update).not.toHaveBeenCalled()
+  })
+
+  it('reports a comment mutation that lost its compare-and-set race', async () => {
+    payloadState.find.mockImplementation(async ({ collection }) => ({
+      docs: collection === 'connect-group-participants'
+        ? [participant]
+        : collection === 'connect-group-comments'
+          ? [{ id: 5, authorRockPersonId: 42, visibility: 'leaders-and-coaches', createdAt: new Date().toISOString(), deletedAt: null }]
+          : payloadDocs(collection),
+    }))
+    payloadState.update.mockResolvedValue({ docs: [] })
+
+    await expect(updateMemberGroupComment(10, 5, { body: 'Racing edit' }))
+      .resolves.toEqual({ ok: false })
+  })
+
+  it('prevents ordinary group members from reading or creating comments', async () => {
+    const member = {
+      ...participant,
+      memberships: participant.memberships.map((membership) => ({
+        ...membership,
+        isLeader: false,
+        roleName: 'Member',
+      })),
+    }
+    payloadState.find.mockImplementation(async ({ collection }) => ({
+      docs: collection === 'connect-group-participants' ? [member] : payloadDocs(collection),
+    }))
+
+    await expect(getMemberGroupCommentThread(10)).resolves.toEqual({ access: 'denied' })
+    await expect(createMemberGroupComment(10, { body: 'Member note', coachesOnly: false }))
+      .resolves.toMatchObject({ ok: false })
+    expect(payloadState.create).not.toHaveBeenCalled()
   })
 
   it('requires a resolved member session before reading private mirrors', async () => {

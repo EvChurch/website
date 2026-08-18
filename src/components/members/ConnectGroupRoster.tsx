@@ -78,6 +78,35 @@ function ContactAction({
   )
 }
 
+export function MemberContactActions({
+  name,
+  email,
+  phone,
+  smsPhone,
+  className = '',
+}: {
+  name: string
+  email: string | null
+  phone: string | null
+  smsPhone?: string | null
+  className?: string
+}) {
+  const messagePhone = smsPhone === undefined ? phone : smsPhone
+  return (
+    <div className={`flex shrink-0 gap-1.5 ${className}`}>
+      <ContactAction href={email ? `mailto:${email}` : null} label={`Email ${name}`} title={email ?? 'No email address'}>
+        <MailIcon />
+      </ContactAction>
+      <ContactAction href={phone ? phoneHref(phone) : null} label={`Call ${name}`} title={phone ?? 'No phone number'}>
+        <PhoneIcon />
+      </ContactAction>
+      <ContactAction href={messagePhone ? smsHref(messagePhone) : null} label={`Text ${name}`} title={messagePhone ? `Text ${messagePhone}` : 'No messaging-enabled phone number'}>
+        <MessageIcon />
+      </ContactAction>
+    </div>
+  )
+}
+
 function formattedDate(date: string) {
   return new Intl.DateTimeFormat('en-NZ', {
     day: 'numeric',
@@ -155,17 +184,7 @@ function PersonRow({
         </div>
       </div>
       {attendance && <PersonAttendance summary={attendance} />}
-      <div className="flex shrink-0 gap-1.5 xl:justify-end">
-        <ContactAction href={person.email ? `mailto:${person.email}` : null} label={`Email ${person.name}`} title={person.email ?? 'No email address'}>
-          <MailIcon />
-        </ContactAction>
-        <ContactAction href={phone ? phoneHref(phone) : null} label={`Call ${person.name}`} title={phone ?? 'No phone number'}>
-          <PhoneIcon />
-        </ContactAction>
-        <ContactAction href={phone ? smsHref(phone) : null} label={`Text ${person.name}`} title={phone ? `Text ${phone}` : 'No phone number'}>
-          <MessageIcon />
-        </ContactAction>
-      </div>
+      <MemberContactActions name={person.name} email={person.email} phone={phone} className="xl:justify-end" />
     </article>
   )
 }
