@@ -2,9 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   __resetVolunteerScheduleLoadProtectionForTests,
+  deleteVolunteerScheduleUnavailability,
   getVolunteerSchedule,
   getVolunteerScheduleDeclineReasons,
+  getVolunteerScheduleGroups,
+  getVolunteerScheduleUnavailability,
+  getVolunteerServiceOverview,
   respondToVolunteerSchedule,
+  saveVolunteerScheduleUnavailability,
 } from './volunteer-scheduling'
 
 const GUIDS = {
@@ -170,6 +175,359 @@ describe('volunteer scheduling adapter', () => {
     expect(String(fetchMock.mock.calls[1][0])).toContain('PersonAliasId')
     expect(String(fetchMock.mock.calls[1][0])).not.toContain('PersonId+eq+42')
     expect(String(fetchMock.mock.calls[1][0])).not.toContain('%24expand')
+  })
+
+  it('loads only active scheduling-enabled groups for unavailability', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const path = new URL(String(input)).pathname
+      if (path === '/api/GroupMembers') return Promise.resolve(response([
+        { Id: 1, PersonId: 42, GroupId: 701, GroupMemberStatus: 1, IsArchived: false },
+        { Id: 2, PersonId: 42, GroupId: 702, GroupMemberStatus: 1, IsArchived: false },
+      ]))
+      if (path === '/api/People') return Promise.resolve(response([{ Id: 42, PrimaryAliasId: 142 }]))
+      if (path === '/api/PersonScheduleExclusions') return Promise.resolve(response([]))
+      if (path === '/api/Groups') return Promise.resolve(response([
+        { Id: 701, Name: 'Welcome Team', GroupTypeId: 801, IsActive: true, IsArchived: false, DisableScheduling: false, DisableScheduleToolboxAccess: false, Order: 1 },
+        { Id: 702, Name: 'Hidden Team', GroupTypeId: 801, IsActive: true, IsArchived: false, DisableScheduling: false, DisableScheduleToolboxAccess: true, Order: 2 },
+      ]))
+      if (path === '/api/GroupTypes') return Promise.resolve(response([{ Id: 801, IsSchedulingEnabled: true }]))
+      throw new Error(`Unexpected path ${path}`)
+    })
+
+    await expect(getVolunteerScheduleGroups(42)).resolves.toEqual({
+      status: 'available',
+      groups: [{ id: 701, name: 'Welcome Team' }],
+    })
+    expect(fetchMock.mock.calls.map(([url]) => new URL(String(url)).pathname))
+      .toEqual(expect.arrayContaining([
+        '/api/GroupMembers',
+        '/api/People',
+        '/api/PersonScheduleExclusions',
+        '/api/Groups',
+        '/api/GroupTypes',
+      ]))
+    expect(String(fetchMock.mock.calls.find(([url]) =>
+      new URL(String(url)).pathname === '/api/GroupMembers')?.[0])).toContain('IsArchived+eq+false')
+  })
+
+  it('loads current-person future unavailability with group details', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const path = new URL(String(input)).pathname
+      if (path === '/api/GroupMembers') return Promise.resolve(response([]))
+      if (path === '/api/People') return Promise.resolve(response([{ Id: 42, PrimaryAliasId: 142 }]))
+      if (path === '/api/PersonScheduleExclusions') return Promise.resolve(response([{
+        Id: 901,
+        Guid: GUIDS.other,
+        PersonAliasId: 142,
+        StartDate: '2026-08-20T00:00:00',
+        EndDate: '2026-08-24T00:00:00',
+        GroupId: 701,
+        Title: 'Away',
+      }]))
+      if (path === '/api/Groups') return Promise.resolve(response([{ Id: 701, Name: 'Welcome Team', IsActive: true }]))
+      throw new Error(`Unexpected path ${path}`)
+    })
+
+    await expect(getVolunteerScheduleUnavailability(
+      42,
+      new Date('2026-08-18T00:00:00Z'),
+    )).resolves.toEqual({
+      status: 'available',
+      exclusions: [{
+        id: `rock-unavailability:${GUIDS.other}`,
+        startDate: '2026-08-20',
+        endDate: '2026-08-24',
+        groupName: 'Welcome Team',
+        notes: 'Away',
+      }],
+    })
+    expect(fetchMock.mock.calls.map(([url]) => new URL(String(url)).pathname))
+      .toEqual(expect.arrayContaining([
+        '/api/GroupMembers',
+        '/api/People',
+        '/api/PersonScheduleExclusions',
+        '/api/Groups',
+      ]))
+    expect(String(fetchMock.mock.calls.find(([url]) =>
+      new URL(String(url)).pathname === '/api/PersonScheduleExclusions')?.[0]))
+      .toContain('EndDate+ge+datetime')
+  })
+
+  it('coalesces concurrent group and unavailability reads for one person', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const path = new URL(String(input)).pathname
+      if (path === '/api/GroupMembers') return Promise.resolve(response([]))
+      if (path === '/api/People') return Promise.resolve(response([{ Id: 42, PrimaryAliasId: 142 }]))
+      if (path === '/api/PersonScheduleExclusions') return Promise.resolve(response([]))
+      throw new Error(`Unexpected path ${path}`)
+    })
+
+    const [groups, unavailability] = await Promise.all([
+      getVolunteerScheduleGroups(42),
+      getVolunteerScheduleUnavailability(42, new Date('2026-08-18T00:00:00Z')),
+    ])
+
+    expect(groups).toEqual({ status: 'available', groups: [] })
+    expect(unavailability).toEqual({ status: 'available', exclusions: [] })
+    const paths = fetchMock.mock.calls.map(([url]) => new URL(String(url)).pathname)
+    expect(paths.filter((path) => path === '/api/GroupMembers')).toHaveLength(1)
+    expect(paths.filter((path) => path === '/api/People')).toHaveLength(1)
+    expect(paths.filter((path) => path === '/api/PersonScheduleExclusions')).toHaveLength(1)
+  })
+
+  it('coalesces concurrent My Service overview reads under one admission', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const path = new URL(String(input)).pathname
+      if (path === '/api/PersonAlias') return Promise.resolve(response([{ Id: 142, PersonId: 42 }]))
+      if (path === '/api/Attendances') return Promise.resolve(response([]))
+      if (path === '/api/GroupMembers') return Promise.resolve(response([]))
+      if (path === '/api/People') return Promise.resolve(response([{ Id: 42, PrimaryAliasId: 142 }]))
+      if (path === '/api/PersonScheduleExclusions') return Promise.resolve(response([]))
+      throw new Error(`Unexpected path ${path}`)
+    })
+
+    const now = new Date('2026-08-18T00:00:00Z')
+    const [first, second] = await Promise.all([
+      getVolunteerServiceOverview(42, now),
+      getVolunteerServiceOverview(42, now),
+    ])
+
+    expect(second).toEqual(first)
+    expect(first).toMatchObject({
+      schedule: { status: 'available' },
+      groups: { status: 'available', groups: [] },
+      unavailability: { status: 'available', exclusions: [] },
+    })
+    const paths = fetchMock.mock.calls.map(([url]) => new URL(String(url)).pathname)
+    for (const path of [
+      '/api/PersonAlias',
+      '/api/Attendances',
+      '/api/GroupMembers',
+      '/api/People',
+      '/api/PersonScheduleExclusions',
+    ]) expect(paths.filter((value) => value === path)).toHaveLength(1)
+  })
+
+  it('reports group loading unavailable without hiding valid unavailability', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const path = new URL(String(input)).pathname
+      if (path === '/api/GroupMembers') return Promise.resolve(response([
+        { Id: 1, PersonId: 42, GroupId: 701, GroupMemberStatus: 1, IsArchived: true },
+      ]))
+      if (path === '/api/People') return Promise.resolve(response([{ Id: 42, PrimaryAliasId: 142 }]))
+      if (path === '/api/PersonScheduleExclusions') return Promise.resolve(response([]))
+      throw new Error(`Unexpected path ${path}`)
+    })
+
+    const [groups, unavailability] = await Promise.all([
+      getVolunteerScheduleGroups(42),
+      getVolunteerScheduleUnavailability(42, new Date('2026-08-18T00:00:00Z')),
+    ])
+
+    expect(groups).toEqual({ status: 'unavailable', groups: [] })
+    expect(unavailability).toEqual({ status: 'available', exclusions: [] })
+  })
+
+  it('lists legacy all-group exclusions without hiding group-specific exclusions', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const path = new URL(String(input)).pathname
+      if (path === '/api/GroupMembers') return Promise.resolve(response([]))
+      if (path === '/api/People') return Promise.resolve(response([{ Id: 42, PrimaryAliasId: 142 }]))
+      if (path === '/api/PersonScheduleExclusions') return Promise.resolve(response([
+        {
+          Id: 901,
+          Guid: GUIDS.other,
+          PersonAliasId: 142,
+          StartDate: '2026-08-20T00:00:00',
+          EndDate: '2026-08-24T00:00:00',
+          GroupId: null,
+          Title: null,
+        },
+        {
+          Id: 902,
+          Guid: GUIDS.tie,
+          PersonAliasId: 142,
+          StartDate: '2026-08-25T00:00:00',
+          EndDate: '2026-08-26T00:00:00',
+          GroupId: 701,
+          Title: null,
+        },
+      ]))
+      if (path === '/api/Groups') return Promise.resolve(response([{ Id: 701, Name: 'Welcome Team', IsActive: true }]))
+      throw new Error(`Unexpected path ${path}`)
+    })
+
+    await expect(getVolunteerScheduleUnavailability(
+      42,
+      new Date('2026-08-18T00:00:00Z'),
+    )).resolves.toMatchObject({
+      status: 'available',
+      exclusions: [
+        { groupName: 'All serving groups' },
+        { groupName: 'Welcome Team' },
+      ],
+    })
+    expect(fetchMock).toHaveBeenCalled()
+  })
+
+  it('saves and verifies a current-person schedule exclusion', async () => {
+    const exclusion = {
+      Id: 901,
+      PersonAliasId: 142,
+      StartDate: '2026-08-20T00:00:00',
+      EndDate: '2026-08-22T00:00:00',
+      GroupId: 701,
+      Title: 'Away',
+      ParentPersonScheduleExclusionId: null,
+    }
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(response([{ Id: 42, PrimaryAliasId: 142 }]))
+      .mockResolvedValueOnce(response([
+        { Id: 1, PersonId: 42, GroupId: 701, GroupMemberStatus: 1, IsArchived: false },
+      ]))
+      .mockResolvedValueOnce(response([
+        { Id: 701, Name: 'Welcome Team', GroupTypeId: 801, IsActive: true, IsArchived: false, DisableScheduling: false, DisableScheduleToolboxAccess: false, Order: 1 },
+      ]))
+      .mockResolvedValueOnce(response([{ Id: 801, IsSchedulingEnabled: true }]))
+      .mockResolvedValueOnce(response([]))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(response([exclusion]))
+
+    await expect(saveVolunteerScheduleUnavailability(42, {
+      startDate: '2026-08-20',
+      endDate: '2026-08-22',
+      groupId: 701,
+      notes: ' Away ',
+    }, new Date('2026-08-18T00:00:00Z'))).resolves.toEqual({ status: 'saved' })
+
+    expect(fetchMock).toHaveBeenCalledTimes(7)
+    expect(new URL(String(fetchMock.mock.calls[0]?.[0])).pathname).toBe('/api/People')
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('PrimaryAliasId')
+    expect(String(fetchMock.mock.calls[0]?.[0])).not.toContain('AliasPersonId')
+    expect(fetchMock.mock.calls[5]?.[1]).toMatchObject({
+      method: 'POST',
+      body: JSON.stringify({
+        PersonAliasId: 142,
+        StartDate: '2026-08-20',
+        EndDate: '2026-08-22',
+        GroupId: 701,
+        Title: 'Away',
+        ParentPersonScheduleExclusionId: null,
+      }),
+    })
+  })
+
+  it('removes and verifies a current-person schedule exclusion', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(response([{ Id: 42, PrimaryAliasId: 142 }]))
+      .mockResolvedValueOnce(response([{
+        Id: 901,
+        Guid: GUIDS.other,
+        PersonAliasId: 142,
+        EndDate: '2026-08-24T00:00:00',
+      }]))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(response([]))
+
+    await expect(deleteVolunteerScheduleUnavailability(
+      42,
+      `rock-unavailability:${GUIDS.other}`,
+    )).resolves.toEqual({ status: 'deleted' })
+
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(fetchMock.mock.calls[2]?.[1]).toMatchObject({ method: 'DELETE' })
+    expect(new URL(String(fetchMock.mock.calls[2]?.[0])).pathname)
+      .toBe('/api/PersonScheduleExclusions/901')
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain('PersonAliasId+eq+142')
+  })
+
+  it('does not remove an owned exclusion that has already ended', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(response([{ Id: 42, PrimaryAliasId: 142 }]))
+      .mockResolvedValueOnce(response([{
+        Id: 901,
+        Guid: GUIDS.other,
+        PersonAliasId: 142,
+        EndDate: '2026-08-17T00:00:00',
+      }]))
+
+    await expect(deleteVolunteerScheduleUnavailability(
+      42,
+      `rock-unavailability:${GUIDS.other}`,
+      new Date('2026-08-18T00:00:00Z'),
+    )).resolves.toEqual({ status: 'invalid-request' })
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+  })
+
+  it('returns outcome-unknown when a create cannot be verified', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(response([{ Id: 42, PrimaryAliasId: 142 }]))
+      .mockResolvedValueOnce(response([
+        { Id: 1, PersonId: 42, GroupId: 701, GroupMemberStatus: 1, IsArchived: false },
+      ]))
+      .mockResolvedValueOnce(response([
+        { Id: 701, Name: 'Welcome Team', GroupTypeId: 801, IsActive: true, IsArchived: false, DisableScheduling: false, DisableScheduleToolboxAccess: false, Order: 1 },
+      ]))
+      .mockResolvedValueOnce(response([{ Id: 801, IsSchedulingEnabled: true }]))
+      .mockResolvedValueOnce(response([]))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(response([]))
+
+    await expect(saveVolunteerScheduleUnavailability(42, {
+      startDate: '2026-08-20',
+      endDate: '2026-08-22',
+      groupId: 701,
+      notes: '',
+    }, new Date('2026-08-18T00:00:00Z'))).resolves.toEqual({ status: 'outcome-unknown' })
+    expect(fetchMock).toHaveBeenCalledTimes(7)
+  })
+
+  it('returns outcome-unknown when a delete cannot be verified', async () => {
+    const owned = {
+      Id: 901,
+      Guid: GUIDS.other,
+      PersonAliasId: 142,
+      EndDate: '2026-08-24T00:00:00',
+    }
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(response([{ Id: 42, PrimaryAliasId: 142 }]))
+      .mockResolvedValueOnce(response([owned]))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(response([owned]))
+
+    await expect(deleteVolunteerScheduleUnavailability(
+      42,
+      `rock-unavailability:${GUIDS.other}`,
+      new Date('2026-08-18T00:00:00Z'),
+    )).resolves.toEqual({ status: 'outcome-unknown' })
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+  })
+
+  it('rejects malformed unavailability ids before reading Rock', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+
+    await expect(deleteVolunteerScheduleUnavailability(42, 'rock-unavailability:not-a-guid'))
+      .resolves.toEqual({ status: 'invalid-request' })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects invalid dates and group ids before creating an exclusion', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+    await expect(saveVolunteerScheduleUnavailability(42, {
+      startDate: '2026-02-30',
+      endDate: '2026-08-22',
+    }, new Date('2026-08-18T00:00:00Z'))).resolves.toEqual({ status: 'invalid-request' })
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    fetchMock
+      .mockResolvedValueOnce(response([{ Id: 42, PrimaryAliasId: 142 }]))
+      .mockResolvedValueOnce(response([]))
+    await expect(saveVolunteerScheduleUnavailability(42, {
+      startDate: '2026-08-20',
+      endDate: '2026-08-22',
+      groupId: 999,
+    }, new Date('2026-08-18T00:00:00Z'))).resolves.toEqual({ status: 'invalid-request' })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it('keeps future declined assignments in a separate reversible state', async () => {
@@ -594,9 +952,14 @@ describe('volunteer scheduling adapter', () => {
     const module = await import('./volunteer-scheduling')
     expect(Object.keys(module).sort()).toEqual([
       '__resetVolunteerScheduleLoadProtectionForTests',
+      'deleteVolunteerScheduleUnavailability',
       'getVolunteerSchedule',
       'getVolunteerScheduleDeclineReasons',
+      'getVolunteerScheduleGroups',
+      'getVolunteerScheduleUnavailability',
+      'getVolunteerServiceOverview',
       'respondToVolunteerSchedule',
+      'saveVolunteerScheduleUnavailability',
     ])
 
     const fetchMock = vi.spyOn(globalThis, 'fetch')

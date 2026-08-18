@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   getMemberPortalHomeForProfile: vi.fn(),
-  getVolunteerSchedule: vi.fn(),
   getVolunteerScheduleDeclineReasons: vi.fn(),
+  getVolunteerServiceOverview: vi.fn(),
   redirect: vi.fn((url: string) => {
     throw new Error(`NEXT_REDIRECT:${url}`)
   }),
@@ -15,8 +15,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/auth/auth0-client', () => ({ getAuth0Client: () => ({ getSession: mocks.getSession }) }))
 vi.mock('@/lib/members/data', () => ({ getMemberPortalHomeForProfile: mocks.getMemberPortalHomeForProfile }))
 vi.mock('@/lib/members/volunteer-scheduling', () => ({
-  getVolunteerSchedule: mocks.getVolunteerSchedule,
   getVolunteerScheduleDeclineReasons: mocks.getVolunteerScheduleDeclineReasons,
+  getVolunteerServiceOverview: mocks.getVolunteerServiceOverview,
 }))
 vi.mock('@/components/members/MemberPortalChrome', () => ({
   memberConnectGroupHref: () => '/members/connect-groups',
@@ -31,6 +31,12 @@ vi.mock('@/components/members/VolunteerSchedule', () => ({
     isImpersonating: boolean
     declineReasons: Array<{ id: number }>
   }) => <p>{schedule.status}:{isImpersonating ? 'read-only' : 'interactive'}:{declineReasons.length}</p>,
+}))
+vi.mock('@/components/members/ScheduleUnavailability', () => ({
+  UnavailabilitySection: ({ groups, unavailability }: {
+    groups: Array<{ id: number }>
+    unavailability: { exclusions: unknown[] }
+  }) => <p>unavailability:{groups.length}:{unavailability.exclusions.length}</p>,
 }))
 vi.mock('next/navigation', () => ({ redirect: mocks.redirect }))
 
@@ -59,11 +65,21 @@ describe('MyServicePage', () => {
       },
     })
     mocks.getMemberPortalHomeForProfile.mockResolvedValue(home)
-    mocks.getVolunteerSchedule.mockResolvedValue({
-      status: 'available',
-      requests: [],
-      upcoming: [],
-      declined: [],
+    mocks.getVolunteerServiceOverview.mockResolvedValue({
+      schedule: {
+        status: 'available',
+        requests: [],
+        upcoming: [],
+        declined: [],
+      },
+      groups: {
+        status: 'available',
+        groups: [{ id: 701, name: 'Welcome Team' }],
+      },
+      unavailability: {
+        status: 'available',
+        exclusions: [{ id: 'one' }],
+      },
     })
     mocks.getVolunteerScheduleDeclineReasons.mockResolvedValue([
       { id: 728, label: 'Family Emergency' },
@@ -77,10 +93,11 @@ describe('MyServicePage', () => {
     })
 
     const markup = renderToStaticMarkup(await MyServicePage())
-    expect(mocks.getVolunteerSchedule).toHaveBeenCalledWith(42)
+    expect(mocks.getVolunteerServiceOverview).toHaveBeenCalledWith(42)
     expect(markup).toContain('<h1')
     expect(markup).toContain('My Service')
     expect(markup).toContain('available:interactive:1')
+    expect(markup).toContain('unavailability:1:1')
     expect(mocks.memberPortalActive).toHaveBeenCalledWith('service')
   })
 
@@ -92,11 +109,11 @@ describe('MyServicePage', () => {
     )
 
     expect(mocks.redirect).toHaveBeenCalledWith('/auth/login?returnTo=%2Fmembers%2Fmy-service')
-    expect(mocks.getVolunteerSchedule).not.toHaveBeenCalled()
+    expect(mocks.getVolunteerServiceOverview).not.toHaveBeenCalled()
   })
 
   it('keeps the member shell when Rock throws and passes an unavailable schedule', async () => {
-    mocks.getVolunteerSchedule.mockRejectedValue(new Error('private upstream detail'))
+    mocks.getVolunteerServiceOverview.mockRejectedValue(new Error('private upstream detail'))
 
     const markup = renderToStaticMarkup(await MyServicePage())
 

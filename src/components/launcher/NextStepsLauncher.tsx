@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   HiArrowLeft,
   HiArrowRight,
@@ -32,6 +32,7 @@ import {
 import { useGivingExperience } from "@/components/giving/GivingExperienceProvider";
 import {
   CONNECT_CARD_WORKFLOW_GUID,
+  GIVING_LAUNCHER_HREF,
   LAUNCHER_CAMPUS_STORAGE_KEY,
   PLAN_A_VISIT_WORKFLOW_GUID,
 } from "@/lib/launcher/constants";
@@ -69,6 +70,36 @@ const PLAN_A_VISIT_IMAGE_URL = "/images/homepage/carousel-146c7f7e.jpg";
 const MOBILE_LAUNCHER_QUERY = "(max-width: 639px)";
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const LAUNCHER_CLOSE_FALLBACK_MS = 300;
+const MAX_LAUNCHER_TARGET_LENGTH = 128;
+
+function viewForLauncherItem(item: LauncherItem): LauncherView | null {
+  switch (item.action.type) {
+    case "workflow":
+      return {
+        type: "workflow",
+        title: item.title,
+        workflowTypeGuid: item.action.workflowTypeGuid,
+        imageUrl: item.action.imageUrl,
+      };
+    case "connection":
+      return {
+        type: "connection",
+        title: item.title,
+        blockGuid: item.action.blockGuid,
+        imageUrl: item.action.imageUrl,
+      };
+    case "content":
+      return {
+        type: "content",
+        title: item.title,
+        html: item.action.html,
+        imageUrl: item.action.imageUrl,
+      };
+    case "directLink":
+    case "event":
+      return null;
+  }
+}
 
 function viewTitle(view: LauncherView): string {
   switch (view.type) {
@@ -169,11 +200,15 @@ export function NextStepsLauncher({
   adminHref,
 }: NextStepsLauncherProps) {
   const currentPathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const launcherTarget = searchParams.get("launcher");
   const pathname = initialPathname ?? currentPathname ?? "/";
   const [state, dispatch] = useReducer(launcherReducer, null, () =>
     createLauncherState(),
   );
-  const [campusReady, setCampusReady] = useState(false);
+  const [campusReadyPath, setCampusReadyPath] = useState<string | null>(null);
+  const campusReady = campusReadyPath === pathname;
   const [campusMenuOpen, setCampusMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -200,6 +235,15 @@ export function NextStepsLauncher({
     return undefined;
   }, [items]);
 
+  const selectedCampusItems = useMemo(() => {
+    if (!items || !state.campusSlug) return [];
+    return items.filter(
+      (item) =>
+        item.campusSlugs.length === 0 ||
+        item.campusSlugs.includes(state.campusSlug!),
+    );
+  }, [items, state.campusSlug]);
+
   useEffect(() => {
     const mediaQuery = window.matchMedia(MOBILE_LAUNCHER_QUERY);
     const updateViewport = () => setIsMobile(mediaQuery.matches);
@@ -222,7 +266,7 @@ export function NextStepsLauncher({
       validCampusSlugs: campuses.map((campus) => campus.slug),
     });
     dispatch({ type: "setCampus", campusSlug: routeOrStoredCampus });
-    setCampusReady(true);
+    setCampusReadyPath(pathname);
   }, [campuses, memberCampusSlug, pathname]);
 
   useEffect(() => {
@@ -241,35 +285,84 @@ export function NextStepsLauncher({
   }, [giving.consumeGivingRequest, giving.givingRequestId, isMobile]);
 
   useEffect(() => {
-    const launcherTarget = new URLSearchParams(window.location.search).get(
-      "launcher",
-    );
-    if (launcherTarget !== "connect") {
+    if (!campusReady) return;
+
+    if (!launcherTarget || launcherTarget.length > MAX_LAUNCHER_TARGET_LENGTH) {
+      if (handledLauncherTargetRef.current) dispatch({ type: "close" });
       handledLauncherTargetRef.current = null;
       return;
     }
-    if (handledLauncherTargetRef.current === launcherTarget) return;
-    handledLauncherTargetRef.current = launcherTarget;
-    dispatch({
-      type: "open",
-      presentation: isMobile ? "fullscreen" : "compact",
-    });
-    dispatch({
-      type: "push",
-      view: {
+    const handledTargetKey = `${pathname}?launcher=${launcherTarget}`;
+    if (handledLauncherTargetRef.current === handledTargetKey) return;
+
+    let targetView: LauncherView | null = null;
+    if (launcherTarget === "home") targetView = { type: "home" };
+    else if (launcherTarget === "catalogue") targetView = { type: "catalogue" };
+    else if (launcherTarget === "visit") {
+      targetView = {
+        type: "workflow",
+        title: "Plan a Visit",
+        workflowTypeGuid: PLAN_A_VISIT_WORKFLOW_GUID,
+        imageUrl: PLAN_A_VISIT_IMAGE_URL,
+      };
+    } else if (launcherTarget === "connect") {
+      targetView = {
         type: "workflow",
         title: "Connect Card",
         workflowTypeGuid: CONNECT_CARD_WORKFLOW_GUID,
         imageUrl: connectCardImageUrl,
-      },
+      };
+    } else if (launcherTarget === "feedback" && feedback) {
+      targetView = { type: "feedback", title: feedback.modalTitle };
+    } else if (launcherTarget === "give" && giving.givingSurfaceAvailable) {
+      handledLauncherTargetRef.current = handledTargetKey;
+      dispatch({
+        type: "openGiving",
+        presentation: isMobile ? "fullscreen" : "compact",
+      });
+      return;
+    } else {
+      const item = selectedCampusItems.find(({ id }) => id === launcherTarget);
+      targetView = item ? viewForLauncherItem(item) : null;
+    }
+
+    if (!targetView) {
+      if (handledLauncherTargetRef.current) dispatch({ type: "close" });
+      handledLauncherTargetRef.current = null;
+      return;
+    }
+
+    handledLauncherTargetRef.current = handledTargetKey;
+    dispatch({
+      type: "openView",
+      presentation: isMobile ? "fullscreen" : "compact",
+      view: targetView,
     });
-  }, [connectCardImageUrl, isMobile, pathname]);
+  }, [
+    campusReady,
+    connectCardImageUrl,
+    feedback,
+    giving.givingSurfaceAvailable,
+    isMobile,
+    launcherTarget,
+    pathname,
+    selectedCampusItems,
+  ]);
 
   useEffect(() => {
     const active = state.presentation !== "collapsed" && !isClosing && state.view.type === "giving";
     giving.setGivingViewActive(active);
     return () => giving.setGivingViewActive(false);
   }, [giving.setGivingViewActive, isClosing, state.presentation, state.view.type]);
+
+  const clearUrlLauncherTarget = useCallback(() => {
+    if (!handledLauncherTargetRef.current) return;
+    handledLauncherTargetRef.current = null;
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+    nextSearchParams.delete("launcher");
+    const query = nextSearchParams.toString();
+    router.replace(`${pathname}${query ? `?${query}` : ""}`, { scroll: false });
+  }, [pathname, router, searchParams]);
 
   const completeClose = useCallback(() => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
@@ -283,6 +376,7 @@ export function NextStepsLauncher({
   const close = useCallback(() => {
     if (isClosing) return;
     if (state.view.type === "giving" && giving.handleGivingClose()) return;
+    clearUrlLauncherTarget();
     restoreTriggerFocusRef.current = true;
     setCampusMenuOpen(false);
     if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
@@ -294,7 +388,13 @@ export function NextStepsLauncher({
       completeClose,
       LAUNCHER_CLOSE_FALLBACK_MS,
     );
-  }, [completeClose, giving.handleGivingClose, isClosing, state.view.type]);
+  }, [clearUrlLauncherTarget, completeClose, giving.handleGivingClose, isClosing, state.view.type]);
+
+  const back = () => {
+    if (state.view.type === "giving" && giving.handleGivingBack()) return;
+    clearUrlLauncherTarget();
+    dispatch({ type: "back" });
+  };
 
   useEffect(
     () => () => {
@@ -398,15 +498,6 @@ export function NextStepsLauncher({
     }
   }, [state.view, state.catalogueScrollTop]);
 
-  const selectedCampusItems = useMemo(() => {
-    if (!items || !state.campusSlug) return [];
-    return items.filter(
-      (item) =>
-        item.campusSlugs.length === 0 ||
-        item.campusSlugs.includes(state.campusSlug!),
-    );
-  }, [items, state.campusSlug]);
-
   const campusItems = useMemo(
     () =>
       selectedCampusItems.filter((item) =>
@@ -422,39 +513,13 @@ export function NextStepsLauncher({
   const pushView = (view: LauncherView) => dispatch({ type: "push", view });
 
   const selectItem = (item: LauncherItem) => {
+    const view = viewForLauncherItem(item);
+    if (!view) return;
     dispatch({
       type: "setCatalogueScroll",
       scrollTop: scrollRef.current?.scrollTop || 0,
     });
-    switch (item.action.type) {
-      case "workflow":
-        pushView({
-          type: "workflow",
-          title: item.title,
-          workflowTypeGuid: item.action.workflowTypeGuid,
-          imageUrl: item.action.imageUrl,
-        });
-        break;
-      case "connection":
-        pushView({
-          type: "connection",
-          title: item.title,
-          blockGuid: item.action.blockGuid,
-          imageUrl: item.action.imageUrl,
-        });
-        break;
-      case "content":
-        pushView({
-          type: "content",
-          title: item.title,
-          html: item.action.html,
-          imageUrl: item.action.imageUrl,
-        });
-        break;
-      case "directLink":
-      case "event":
-        break;
-    }
+    pushView(view);
   };
 
   const selectCampus = (campusSlug: string) => {
@@ -662,8 +727,8 @@ export function NextStepsLauncher({
                 })
               }
             />
-            <a
-              href="/give"
+            <Link
+              href={GIVING_LAUNCHER_HREF}
               className="group flex w-full animate-fade-in items-center justify-between gap-4 rounded-2xl border border-warm-grey/70 bg-white px-5 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-rich-red/35 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red motion-reduce:animate-none"
               style={{ animationDelay: "250ms" }}
             >
@@ -674,7 +739,7 @@ export function NextStepsLauncher({
                 className="h-5 w-5 shrink-0 text-rich-red"
                 aria-hidden="true"
               />
-            </a>
+            </Link>
             <LauncherActionButton
               title="Connect Card"
               animationDelay={305}
@@ -715,7 +780,7 @@ export function NextStepsLauncher({
             embedded
             settings={feedback}
             signedInEmail={signedInEmail}
-            onEmbeddedClose={() => dispatch({ type: "back" })}
+            onEmbeddedClose={back}
           />
         ) : null;
       case "workflow":
@@ -818,10 +883,7 @@ export function NextStepsLauncher({
                       type="button"
                       className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-brand-black shadow-sm transition hover:bg-warm-grey/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red"
                       aria-label="Back"
-                      onClick={() => {
-                        if (state.view.type === "giving" && giving.handleGivingBack()) return;
-                        dispatch({ type: "back" });
-                      }}
+                      onClick={back}
                     >
                       <HiArrowLeft className="h-5 w-5" aria-hidden="true" />
                     </button>

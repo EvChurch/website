@@ -328,7 +328,7 @@ describe('seeded page content and giving navigation', () => {
     expect(givingSection).toContain('glad, planned, and free')
     expect(givingSection).toContain("Please don't feel any obligation to give")
     expect(givingSection).toContain("href: '/give'")
-    expect(header.match(/href="\/give"/g)).toHaveLength(2)
+    expect(header).toContain('GIVING_LAUNCHER_HREF')
     expect(footer).toContain("{ label: 'Give', href: '/give' }")
     expect(`${givingSection}${header}${footer}`).not.toContain('give.ev.church')
   })

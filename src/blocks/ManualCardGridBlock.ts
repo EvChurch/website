@@ -24,6 +24,7 @@ export const ManualCardGridBlock: Block = {
         { label: 'Info card', value: 'info' },
         { label: 'Image overlay', value: 'imageOverlay' },
         { label: 'Image on top', value: 'imageTop' },
+        { label: 'Profile', value: 'profile' },
         { label: 'Alternating rows', value: 'alternatingRows' },
       ],
     },

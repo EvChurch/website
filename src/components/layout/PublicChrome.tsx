@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 
 import { AudioPlayerBar } from '@/components/audio/AudioPlayerBar'
@@ -137,15 +137,17 @@ export function PublicChrome({
         <AudioPlayerSpacer />
         <AudioPlayerBar />
         <VideoContainer />
-        <NextStepsLauncher
-          campuses={launcher.campuses}
-          items={launcher.available ? launcher.items : null}
-          memberCampusSlug={memberChrome.memberCampusSlug}
-          feedback={feedback}
-          signedInEmail={memberChrome.memberProfile?.email}
-          memberProfile={memberChrome.memberProfile}
-          adminHref={memberChrome.adminHref ?? undefined}
-        />
+        <Suspense fallback={null}>
+          <NextStepsLauncher
+            campuses={launcher.campuses}
+            items={launcher.available ? launcher.items : null}
+            memberCampusSlug={memberChrome.memberCampusSlug}
+            feedback={feedback}
+            signedInEmail={memberChrome.memberProfile?.email}
+            memberProfile={memberChrome.memberProfile}
+            adminHref={memberChrome.adminHref ?? undefined}
+          />
+        </Suspense>
       </MediaPlayerProvider>
     </GivingExperienceProvider>
   )
