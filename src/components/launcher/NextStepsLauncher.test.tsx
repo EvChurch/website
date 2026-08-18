@@ -10,7 +10,7 @@ const navigation = {
 
 vi.mock("next/navigation", () => ({
   usePathname: () => navigation.pathname,
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(window.location.search),
 }));
 vi.mock("@/components/forms/RockForm", () => ({
   RockForm: ({ workflowTypeGuid }: { workflowTypeGuid: string }) => (
@@ -136,6 +136,11 @@ function mockMobileViewport(matches: boolean) {
 function EnableGiving() {
   const giving = useGivingExperience();
   return <button type="button" data-enable-giving onClick={() => giving.setFlagState("enabled")} />;
+}
+
+function OpenGivingProbe() {
+  const giving = useGivingExperience();
+  return <button type="button" data-open-giving onClick={() => giving.openGiving()} />;
 }
 
 function GivingHistoryProbe() {
@@ -312,9 +317,9 @@ describe("NextStepsLauncher", () => {
     expect(panelText).not.toContain(
       "Explore everything available at your campus",
     );
-    expect(container.querySelector('a[href="/give"]')).not.toBeNull();
+    expect(container.querySelector('a[href="?launcher=give"]')).not.toBeNull();
     expect(button(container, "Plan a Visit")?.className).toContain("py-6");
-    expect(container.querySelector('a[href="/give"]')?.className).not.toContain(
+    expect(container.querySelector('a[href="?launcher=give"]')?.className).not.toContain(
       "py-6",
     );
 
@@ -356,7 +361,177 @@ describe("NextStepsLauncher", () => {
     expect(button(container, "Close next steps")).toBeTruthy();
   });
 
-  it("opens one private giving view from desktop, mobile, and launcher anchors only after positive enablement", async () => {
+  it("opens giving from the validated giving launcher target", async () => {
+    navigation.pathname = "/give";
+    window.history.replaceState(null, "", "/give?launcher=give");
+
+    await act(async () => {
+      root.render(
+        <GivingExperienceProvider
+          serverEligibility="production"
+          givingExperience={<section>Giving renderer seam</section>}
+        >
+          <NextStepsLauncher campuses={campuses} items={items} />
+        </GivingExperienceProvider>,
+      );
+    });
+
+    expect(container.querySelector("[data-giving-private]")?.textContent).toContain(
+      "Giving renderer seam",
+    );
+    expect(button(container, "Back")).toBeTruthy();
+  });
+
+  it("opens an eligible internal launcher item by its item id", async () => {
+    navigation.pathname = "/campus/north";
+    window.history.replaceState(null, "", "/campus/north?launcher=1");
+
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+
+    expect(container.querySelector('[data-safe-html="<p>Groups</p>"]')).not.toBeNull();
+    expect(button(container, "Back")).toBeTruthy();
+  });
+
+  it("ignores launcher targets that do not resolve to an internal view", async () => {
+    navigation.pathname = "/";
+    window.history.replaceState(null, "", "/?launcher=2");
+
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+
+    expect(button(container, "Close next steps")).toBeFalsy();
+    expect(button(container, "Open next steps")).toBeTruthy();
+  });
+
+  it.each([
+    ["home", "Take your next step here"],
+    ["catalogue", "More next steps"],
+  ])("opens the %s built-in launcher target", async (target, expectedText) => {
+    window.history.replaceState(null, "", `/?launcher=${target}`);
+
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+
+    expect(container.textContent).toContain(expectedText);
+    expect(button(container, "Close next steps")).toBeTruthy();
+  });
+
+  it("opens the visit built-in launcher target", async () => {
+    window.history.replaceState(null, "", "/?launcher=visit");
+
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+
+    expect(container.querySelector(
+      `input[aria-label="Workflow ${PLAN_A_VISIT_WORKFLOW_GUID}"]`,
+    )).not.toBeNull();
+  });
+
+  it("opens feedback from its built-in launcher target", async () => {
+    window.history.replaceState(null, "", "/?launcher=feedback");
+
+    await act(async () => {
+      root.render(
+        <NextStepsLauncher campuses={campuses} items={items} feedback={feedback} />,
+      );
+    });
+
+    expect(container.textContent).toContain(feedback.modalTitle);
+    expect(container.querySelector('textarea[name="comment"]')).not.toBeNull();
+  });
+
+  it.each([
+    ["give", "unavailable giving"],
+    ["feedback", "unavailable feedback"],
+    ["x".repeat(129), "overlong target"],
+  ])("ignores %s when it is an %s target", async (target) => {
+    window.history.replaceState(null, "", `/?launcher=${target}`);
+
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+
+    expect(button(container, "Close next steps")).toBeFalsy();
+    expect(button(container, "Open next steps")).toBeTruthy();
+  });
+
+  it.each([
+    {
+      item: {
+        id: "workflow-item",
+        title: "Workflow item",
+        campusSlugs: [],
+        action: { type: "workflow" as const, workflowTypeGuid: "workflow-guid" },
+      },
+      selector: 'input[aria-label="Workflow workflow-guid"]',
+    },
+    {
+      item: {
+        id: "connection-item",
+        title: "Connection item",
+        campusSlugs: [],
+        action: { type: "connection" as const, blockGuid: "connection-guid" },
+      },
+      selector: '[data-connection-guid="connection-guid"]',
+    },
+  ])("opens the $item.action.type internal item target", async ({ item, selector }) => {
+    window.history.replaceState(null, "", `/?launcher=${item.id}`);
+
+    await act(async () => {
+      root.render(
+        <NextStepsLauncher campuses={campuses} items={[...items, item]} />,
+      );
+    });
+
+    expect(container.querySelector(selector)).not.toBeNull();
+  });
+
+  it("closes a URL-owned launcher view when navigation removes the target", async () => {
+    navigation.pathname = "/give";
+    window.history.replaceState(null, "", "/give?launcher=give");
+    const renderLauncher = () => (
+        <GivingExperienceProvider
+          serverEligibility="production"
+          givingExperience={<section>Giving renderer seam</section>}
+        >
+          <NextStepsLauncher campuses={campuses} items={items} />
+        </GivingExperienceProvider>
+      );
+
+    await act(async () => root.render(renderLauncher()));
+    expect(container.querySelector("[data-giving-private]")).not.toBeNull();
+
+    window.history.replaceState(null, "", "/give");
+    await act(async () => root.render(renderLauncher()));
+
+    expect(container.querySelector("[data-giving-private]")).toBeNull();
+    expect(button(container, "Open next steps")).toBeTruthy();
+  });
+
+  it("does not open an old-campus item during a campus route change", async () => {
+    navigation.pathname = "/campus/north";
+    window.history.replaceState(null, "", "/campus/north?launcher=1");
+    const renderLauncher = () => (
+      <NextStepsLauncher campuses={campuses} items={items} />
+    );
+
+    await act(async () => root.render(renderLauncher()));
+    expect(container.querySelector('[data-safe-html="<p>Groups</p>"]')).not.toBeNull();
+
+    navigation.pathname = "/campus/central";
+    window.history.replaceState(null, "", "/campus/central?launcher=1");
+    await act(async () => root.render(renderLauncher()));
+
+    expect(container.querySelector('[data-safe-html="<p>Groups</p>"]')).toBeNull();
+    expect(button(container, "Open next steps")).toBeTruthy();
+  });
+
+  it("points desktop, mobile, and launcher giving actions at the validated giving target", async () => {
     await act(async () => {
       root.render(
         <GivingExperienceProvider
@@ -369,47 +544,28 @@ describe("NextStepsLauncher", () => {
         </GivingExperienceProvider>,
       );
     });
-    await act(async () => container.querySelector<HTMLButtonElement>("[data-enable-giving]")?.click());
-
     const desktopGive = container.querySelector<HTMLAnchorElement>("header [data-header-give]")!;
-    await act(async () => desktopGive.click());
-    expect(container.querySelector("[data-giving-private]")?.textContent).toContain("Giving renderer seam");
-    expect(button(container, "Back")).toBeTruthy();
-    expect(button(container, "Open full screen")).toBeTruthy();
-    expect(button(container, "Close next steps")).toBeTruthy();
-    const signIn = container
-      .querySelector('[aria-label="Next steps launcher"]')
-      ?.querySelector<HTMLAnchorElement>('a[aria-label="Sign in"]');
-    expect(signIn?.textContent?.trim()).toBe("Sign in");
-    expect(signIn?.className).toContain("rounded-full");
-    expect(signIn?.className).toContain("bg-white");
-    expect(signIn?.lastElementChild?.hasAttribute("data-member-sign-in-icon")).toBe(true);
-
-    await act(async () => button(container, "Back")?.click());
-    const launcherGive = container.querySelector<HTMLAnchorElement>(
-      '[aria-label="Next steps launcher"] a[href="/give"]',
-    )!;
-    await act(async () => launcherGive.click());
-    expect(container.querySelector("[data-giving-private]")).not.toBeNull();
-
-    await act(async () => button(container, "Back")?.click());
+    expect(desktopGive.getAttribute("href")).toBe("?launcher=give");
+    await act(async () => button(container, "Open next steps")?.click());
+    expect(container.querySelector<HTMLAnchorElement>(
+      '[aria-label="Next steps launcher"] a[href="?launcher=give"]',
+    )).not.toBeNull();
     const mobileGive = Array.from(
-      container.querySelectorAll<HTMLAnchorElement>('a[href="/give"]'),
+      container.querySelectorAll<HTMLAnchorElement>('a[href="?launcher=give"]'),
     ).find((anchor) => anchor.textContent?.trim() === "Give" && !anchor.hasAttribute("data-header-give"))!;
-    await act(async () => mobileGive.click());
-    expect(container.querySelector("[data-giving-private]")).not.toBeNull();
+    expect(mobileGive).toBeTruthy();
   });
 
   it("uses the shared launcher Back control for giving history before exiting giving", async () => {
     await act(async () => root.render(
       <GivingExperienceProvider serverEligibility="production" givingExperience={<GivingHistoryProbe />}>
         <EnableGiving />
+        <OpenGivingProbe />
         <NextStepsLauncher campuses={campuses} items={items} />
       </GivingExperienceProvider>,
     ));
     await act(async () => container.querySelector<HTMLButtonElement>("[data-enable-giving]")?.click());
-    await act(async () => button(container, "Open next steps")?.click());
-    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="/give"]')?.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-open-giving]')?.click());
     expect(container.querySelector('[data-giving-step]')?.textContent).toBe('2');
 
     await act(async () => button(container, "Back")?.click());
@@ -426,12 +582,12 @@ describe("NextStepsLauncher", () => {
     await act(async () => root.render(
       <GivingExperienceProvider serverEligibility="production" givingExperience={<GivingSubmitGuardProbe />}>
         <EnableGiving />
+        <OpenGivingProbe />
         <NextStepsLauncher campuses={campuses} items={items} />
       </GivingExperienceProvider>,
     ));
     await act(async () => container.querySelector<HTMLButtonElement>("[data-enable-giving]")?.click());
-    await act(async () => button(container, "Open next steps")?.click());
-    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="/give"]')?.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-open-giving]')?.click());
     expect(container.querySelector('[data-giving-submit-guard]')?.getAttribute('data-active')).toBe('true');
 
     await act(async () => button(container, "Back")?.click());
@@ -446,19 +602,19 @@ describe("NextStepsLauncher", () => {
     await act(async () => root.render(
       <GivingExperienceProvider serverEligibility="production" givingExperience={<GivingActiveProbe />}>
         <EnableGiving />
+        <OpenGivingProbe />
         <NextStepsLauncher campuses={campuses} items={items} />
       </GivingExperienceProvider>,
     ));
     await act(async () => container.querySelector<HTMLButtonElement>("[data-enable-giving]")?.click());
-    await act(async () => button(container, "Open next steps")?.click());
-    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="/give"]')?.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-open-giving]')?.click());
     expect(container.querySelector('[data-giving-active]')?.textContent).toBe('true');
     await act(async () => button(container, "Close next steps")?.click());
     expect(container.querySelector('[data-giving-active]')?.textContent).toBe('false');
     expect(container.querySelector('[aria-label="Next steps launcher"]')).not.toBeNull();
   });
 
-  it("opens giving before flag resolution while preserving modified link clicks", async () => {
+  it("keeps the giving launcher target on the current page before flag resolution", async () => {
     await act(async () => {
       root.render(
         <GivingExperienceProvider
@@ -472,13 +628,7 @@ describe("NextStepsLauncher", () => {
       );
     });
     const give = container.querySelector<HTMLAnchorElement>("header [data-header-give]")!;
-    expect(give.href).toBe("http://localhost:3000/give");
-
-    const disabledClick = new MouseEvent("click", { bubbles: true, cancelable: true });
-    await act(async () => { give.dispatchEvent(disabledClick) })
-    expect(disabledClick.defaultPrevented).toBe(true);
-    expect(container.querySelector("[data-giving-private]")).not.toBeNull();
-    await act(async () => button(container, "Back")?.click())
+    expect(give.href).toBe("http://localhost:3000/about?launcher=give");
     const modifiedClick = new MouseEvent("click", {
       bubbles: true,
       cancelable: true,

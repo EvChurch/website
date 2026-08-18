@@ -6,6 +6,8 @@ export const CONNECT_CARD_WORKFLOW_GUID =
 
 export const LAUNCHER_CAMPUS_STORAGE_KEY = 'ev-next-steps-campus'
 
+export const GIVING_LAUNCHER_HREF = '?launcher=give'
+
 export const FIXED_LAUNCHER_WORKFLOW_GUIDS = new Set([
   PLAN_A_VISIT_WORKFLOW_GUID,
   CONNECT_CARD_WORKFLOW_GUID,

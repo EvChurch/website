@@ -3,7 +3,6 @@
 import { act, useEffect } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import Link from 'next/link'
 
 import {
   GivingExperienceProvider,
@@ -70,23 +69,18 @@ describe('GivingExperienceProvider', () => {
     expect(container.querySelector('output')?.textContent).toBe('1')
   })
 
-  it('opens ordinary local Give links in the launcher while preserving modified navigation', async () => {
+  it('leaves ordinary /give links to normal navigation', async () => {
     await act(async () => root.render(
       <GivingExperienceProvider serverEligibility={null} givingExperience={<div>Giving flow</div>}>
         <Probe />
-        <Link href="/give">Give</Link>
+        <a href="/give">Giving page</a>
       </GivingExperienceProvider>,
     ))
     const give = container.querySelector<HTMLAnchorElement>('a[href="/give"]')!
     const ordinaryClick = new MouseEvent('click', { bubbles: true, cancelable: true })
     await act(async () => give.dispatchEvent(ordinaryClick))
-    expect(ordinaryClick.defaultPrevented).toBe(true)
-    expect(container.querySelector('output')?.textContent).toBe('1')
-
-    const modifiedClick = new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true })
-    await act(async () => give.dispatchEvent(modifiedClick))
-    expect(modifiedClick.defaultPrevented).toBe(false)
-    expect(container.querySelector('output')?.textContent).toBe('1')
+    expect(ordinaryClick.defaultPrevented).toBe(false)
+    expect(container.querySelector('output')?.textContent).toBe('0')
   })
 
   it('uses the flag and server eligibility only for the BlinkPay handoff', async () => {

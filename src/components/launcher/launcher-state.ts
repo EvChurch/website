@@ -18,8 +18,22 @@ export interface LauncherState {
   catalogueScrollTop: number
 }
 
+function openView(
+  state: LauncherState,
+  presentation: Exclude<LauncherPresentation, 'collapsed'>,
+  view: LauncherView,
+): LauncherState {
+  return {
+    ...state,
+    presentation,
+    view,
+    history: view.type === 'home' ? [] : [{ type: 'home' }],
+  }
+}
+
 export type LauncherAction =
   | { type: 'open'; presentation?: Exclude<LauncherPresentation, 'collapsed'> }
+  | { type: 'openView'; presentation: Exclude<LauncherPresentation, 'collapsed'>; view: LauncherView }
   | { type: 'openGiving'; presentation: Exclude<LauncherPresentation, 'collapsed'> }
   | { type: 'close' }
   | { type: 'toggleFullscreen' }
@@ -47,13 +61,10 @@ export function launcherReducer(
   switch (action.type) {
     case 'open':
       return { ...state, presentation: action.presentation ?? 'compact' }
+    case 'openView':
+      return openView(state, action.presentation, action.view)
     case 'openGiving':
-      return {
-        ...state,
-        presentation: action.presentation,
-        view: { type: 'giving' },
-        history: [{ type: 'home' }],
-      }
+      return openView(state, action.presentation, { type: 'giving' })
     case 'close':
       return {
         ...state,
