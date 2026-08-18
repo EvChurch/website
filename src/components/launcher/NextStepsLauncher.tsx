@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   HiArrowLeft,
   HiArrowRight,
@@ -200,7 +200,9 @@ export function NextStepsLauncher({
   adminHref,
 }: NextStepsLauncherProps) {
   const currentPathname = usePathname();
-  const launcherTarget = useSearchParams().get("launcher");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const launcherTarget = searchParams.get("launcher");
   const pathname = initialPathname ?? currentPathname ?? "/";
   const [state, dispatch] = useReducer(launcherReducer, null, () =>
     createLauncherState(),
@@ -353,6 +355,15 @@ export function NextStepsLauncher({
     return () => giving.setGivingViewActive(false);
   }, [giving.setGivingViewActive, isClosing, state.presentation, state.view.type]);
 
+  const clearUrlLauncherTarget = useCallback(() => {
+    if (!handledLauncherTargetRef.current) return;
+    handledLauncherTargetRef.current = null;
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+    nextSearchParams.delete("launcher");
+    const query = nextSearchParams.toString();
+    router.replace(`${pathname}${query ? `?${query}` : ""}`, { scroll: false });
+  }, [pathname, router, searchParams]);
+
   const completeClose = useCallback(() => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
     closeTimerRef.current = null;
@@ -365,6 +376,7 @@ export function NextStepsLauncher({
   const close = useCallback(() => {
     if (isClosing) return;
     if (state.view.type === "giving" && giving.handleGivingClose()) return;
+    clearUrlLauncherTarget();
     restoreTriggerFocusRef.current = true;
     setCampusMenuOpen(false);
     if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
@@ -376,7 +388,13 @@ export function NextStepsLauncher({
       completeClose,
       LAUNCHER_CLOSE_FALLBACK_MS,
     );
-  }, [completeClose, giving.handleGivingClose, isClosing, state.view.type]);
+  }, [clearUrlLauncherTarget, completeClose, giving.handleGivingClose, isClosing, state.view.type]);
+
+  const back = () => {
+    if (state.view.type === "giving" && giving.handleGivingBack()) return;
+    clearUrlLauncherTarget();
+    dispatch({ type: "back" });
+  };
 
   useEffect(
     () => () => {
@@ -762,7 +780,7 @@ export function NextStepsLauncher({
             embedded
             settings={feedback}
             signedInEmail={signedInEmail}
-            onEmbeddedClose={() => dispatch({ type: "back" })}
+            onEmbeddedClose={back}
           />
         ) : null;
       case "workflow":
@@ -865,10 +883,7 @@ export function NextStepsLauncher({
                       type="button"
                       className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-brand-black shadow-sm transition hover:bg-warm-grey/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red"
                       aria-label="Back"
-                      onClick={() => {
-                        if (state.view.type === "giving" && giving.handleGivingBack()) return;
-                        dispatch({ type: "back" });
-                      }}
+                      onClick={back}
                     >
                       <HiArrowLeft className="h-5 w-5" aria-hidden="true" />
                     </button>
