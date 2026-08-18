@@ -53,6 +53,8 @@ const currentGroup = {
   locationName: null,
   locationAddress: null,
   isLeader: false,
+  isCoached: false,
+  isCoach: false,
   roleName: 'Member',
 }
 
@@ -94,6 +96,34 @@ describe('ConnectGroupDetailPage', () => {
     expect(markup).toContain('This week (leader): Hebrews Study 4')
     expect(markup).toContain('href="/members/connect-groups/10/attendance"')
     expect(markup).toContain('Record attendance')
+    expect(markup).toContain('href="/members/connect-groups/10/coaching"')
+    expect(markup).toContain('Coaching')
+  })
+
+  it('shows coaching without attendance controls for a coach', async () => {
+    const coachedGroup = {
+      ...currentGroup,
+      isCoached: true,
+      isCoach: true,
+      roleName: 'Coach',
+    }
+    mocks.getMemberPortalHome.mockResolvedValue({
+      profile,
+      groups: [coachedGroup],
+      canAccessLeaderResources: true,
+    })
+    mocks.getMemberGroupDetail.mockResolvedValue({
+      access: 'granted',
+      group: coachedGroup,
+      people: [],
+    })
+
+    const markup = renderToStaticMarkup(await ConnectGroupDetailPage({
+      params: Promise.resolve({ rockGroupId: '10' }),
+    }))
+
+    expect(markup).toContain('href="/members/connect-groups/10/coaching"')
+    expect(markup).not.toContain('/attendance')
   })
 
   it('shows attendance success at the top after returning from save', async () => {

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { HiCheckCircle, HiClipboardDocumentCheck } from 'react-icons/hi2'
+import { HiCheckCircle, HiClipboardDocumentCheck, HiUserGroup } from 'react-icons/hi2'
 
 import { LeaderResourceThisWeek } from '@/components/members/LeaderResourceTimeline'
 import {
@@ -67,15 +67,27 @@ export default async function ConnectGroupDetailPage({
           <div>
             <h2 className="text-4xl leading-tight text-brand-black sm:text-6xl">{detail.group.name}</h2>
             {location && <p className="mt-4 text-sm text-mid-grey">{location}</p>}
-            {detail.group.isLeader && (
-              <Link
-                href={`/members/connect-groups/${detail.group.rockGroupId}/attendance`}
-                rel="nofollow"
-                className="mt-3 inline-flex items-center gap-2 rounded-lg bg-rich-red px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-black"
-              >
-                <HiClipboardDocumentCheck aria-hidden="true" className="h-5 w-5 shrink-0" />
-                Record attendance
-              </Link>
+            {(detail.group.isLeader || detail.group.isCoach) && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {detail.group.isLeader && (
+                  <Link
+                    href={`/members/connect-groups/${detail.group.rockGroupId}/attendance`}
+                    rel="nofollow"
+                    className="inline-flex items-center gap-2 rounded-lg bg-rich-red px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-black"
+                  >
+                    <HiClipboardDocumentCheck aria-hidden="true" className="h-5 w-5 shrink-0" />
+                    Record attendance
+                  </Link>
+                )}
+                <Link
+                  href={`/members/connect-groups/${detail.group.rockGroupId}/coaching`}
+                  rel="nofollow"
+                  className="inline-flex items-center gap-2 rounded-lg border border-brand-black bg-white px-5 py-3 text-sm font-bold text-brand-black transition-colors hover:bg-brand-black hover:text-white"
+                >
+                  <HiUserGroup aria-hidden="true" className="h-5 w-5 shrink-0" />
+                  Coaching
+                </Link>
+              </div>
             )}
           </div>
           {detail.attendance && <ConnectGroupAttendanceSummary attendance={detail.attendance} />}

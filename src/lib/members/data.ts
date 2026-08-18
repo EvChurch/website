@@ -5,6 +5,7 @@ import {
   type GroupAttendanceOverview,
 } from '@/lib/members/attendance'
 import { getPayloadClient } from '@/lib/payload'
+import { commentBodyText, normalizeCommentBody } from '@/lib/members/comment-rich-text'
 import type {
   ConnectGroup,
   ConnectGroupLeaderResource,
@@ -16,6 +17,8 @@ type PayloadFindResult = { docs: unknown[] }
 
 interface MemberPayloadClient {
   find(args: Record<string, unknown>): Promise<PayloadFindResult>
+  create(args: Record<string, unknown>): Promise<unknown>
+  update(args: Record<string, unknown>): Promise<unknown>
 }
 
 interface RelationRecord {
@@ -89,6 +92,55 @@ export interface MemberPortalHome {
   profile: MemberPortalProfile
   groups: MemberGroupSummary[]
   canAccessLeaderResources: boolean
+}
+
+export interface MemberGroupComment {
+  id: string | number
+  authorName: string
+  avatarUrl: string | null
+  body: string
+  coachesOnly: boolean
+  canEdit: boolean
+  canDelete: boolean
+  edited: boolean
+  createdAt: string
+  deletedAt: string | null
+  deletedByName: string | null
+}
+
+export type MemberGroupCommentThread =
+  | { access: 'denied' }
+  | {
+      access: 'granted'
+      canPostCoachesOnly: boolean
+      currentAuthor: { name: string; avatarUrl: string | null }
+      comments: MemberGroupComment[]
+    }
+
+export interface MemberGroupCoachingPerson {
+  rockPersonId: number
+  name: string
+  email: string | null
+  phones: MemberRosterPerson['phones']
+  avatarUrl: string | null
+  isCoach: boolean
+  isLeader: boolean
+}
+
+export type MemberGroupCoachingResult =
+  | { access: 'denied' }
+  | {
+      access: 'granted'
+      group: MemberGroupSummary
+      people: MemberGroupCoachingPerson[]
+    }
+
+const COMMENT_EDIT_WINDOW_MS = 60 * 60 * 1000
+
+function commentCanBeEdited(createdAt: unknown, now = Date.now()) {
+  if (typeof createdAt !== 'string') return false
+  const created = new Date(createdAt).getTime()
+  return Number.isFinite(created) && now - created <= COMMENT_EDIT_WINDOW_MS
 }
 
 export type MemberGroupDetailResult =
@@ -364,6 +416,320 @@ export async function getMemberPortalHomeForProfile(
     groups,
     canAccessLeaderResources: canAccessLeaderResources(participant),
   }
+}
+
+function commentAccess(participant: ParticipantRecord | null, rockGroupId: number) {
+  const membership = participant ? membershipFor(participant, rockGroupId) : null
+  const isCoach = isCoachedGroup(participant, rockGroupId)
+  return { allowed: membership?.isLeader === true || isCoach, isCoach }
+}
+
+export async function getMemberGroupCoaching(
+  rockGroupId: number,
+): Promise<MemberGroupCoachingResult | null> {
+  if (!positiveInteger(rockGroupId)) return { access: 'denied' }
+  const context = await currentMemberContext()
+  if (!context) return null
+  const access = commentAccess(context.participant, rockGroupId)
+  if (!access.allowed) return { access: 'denied' }
+
+  const currentMembership = context.participant
+    ? membershipFor(context.participant, rockGroupId)
+    : null
+  const [groupResult, peopleResult] = await Promise.all([
+    context.payload.find({
+      collection: 'connect-groups',
+      depth: 1,
+      limit: 1,
+      pagination: false,
+      overrideAccess: true,
+      select: {
+        rockGroupId: true,
+        name: true,
+        slug: true,
+        location: true,
+        campus: true,
+        isActive: true,
+      },
+      where: {
+        and: [
+          { rockGroupId: { equals: rockGroupId } },
+          { isActive: { equals: true } },
+        ],
+      },
+    }),
+    context.payload.find({
+      collection: 'connect-group-participants',
+      depth: 0,
+      limit: 0,
+      pagination: false,
+      overrideAccess: true,
+      select: {
+        rockPersonId: true,
+        name: true,
+        email: true,
+        phoneNumbers: true,
+        photoId: true,
+        coachedGroups: true,
+        memberships: true,
+      },
+      where: {
+        or: [
+          { 'coachedGroups.rockGroupId': { equals: rockGroupId } },
+          { 'memberships.rockGroupId': { equals: rockGroupId } },
+        ],
+      },
+    }),
+  ])
+
+  const group = groupResult.docs[0]
+    ? toMemberGroup(
+        groupFrom(groupResult.docs[0]),
+        currentMembership,
+        access.isCoach && !currentMembership,
+        access.isCoach,
+      )
+    : null
+  if (!group) return { access: 'denied' }
+
+  const people = peopleResult.docs
+    .map(participantFrom)
+    .map((participant) => {
+      const rockPersonId = positiveInteger(participant.rockPersonId)
+      const name = nonemptyText(participant.name)
+      const isCoach = isCoachedGroup(participant, rockGroupId)
+      const isLeader = membershipFor(participant, rockGroupId)?.isLeader === true
+      if (!rockPersonId || !name || (!isCoach && !isLeader)) return null
+      return {
+        rockPersonId,
+        name,
+        email: nonemptyText(participant.email),
+        phones: (participant.phoneNumbers ?? [])
+          .map((phone) => {
+            const number = nonemptyText(phone.number)
+            return number
+              ? {
+                  number,
+                  typeValueId: positiveInteger(phone.typeValueId),
+                  isMessagingEnabled: phone.isMessagingEnabled === true,
+                }
+              : null
+          })
+          .filter((phone): phone is MemberGroupCoachingPerson['phones'][number] => phone !== null),
+        avatarUrl: positiveInteger(participant.photoId)
+          ? `/members/people/${rockPersonId}/avatar`
+          : null,
+        isCoach,
+        isLeader,
+      }
+    })
+    .filter((person): person is MemberGroupCoachingPerson => person !== null)
+    .sort((a, b) => {
+      if (a.isCoach !== b.isCoach) return a.isCoach ? -1 : 1
+      return a.name.localeCompare(b.name)
+    })
+
+  return { access: 'granted', group, people }
+}
+
+export async function getMemberGroupCommentThread(
+  rockGroupId: number,
+): Promise<MemberGroupCommentThread | null> {
+  if (!positiveInteger(rockGroupId)) return { access: 'denied' }
+  const context = await currentMemberContext()
+  if (!context) return null
+  const access = commentAccess(context.participant, rockGroupId)
+  if (!access.allowed) return { access: 'denied' }
+
+  const result = await context.payload.find({
+    collection: 'connect-group-comments',
+    depth: 0,
+    limit: 100,
+    overrideAccess: true,
+    select: {
+      authorRockPersonId: true,
+      authorName: true,
+      body: true,
+      visibility: true,
+      deletedAt: true,
+      deletedByName: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    sort: '-createdAt',
+    where: access.isCoach
+      ? { rockGroupId: { equals: rockGroupId } }
+      : { and: [
+          { rockGroupId: { equals: rockGroupId } },
+          { visibility: { equals: 'leaders-and-coaches' } },
+        ] },
+  })
+
+  const comments = result.docs.map((value) => {
+    const comment = record(value) ?? {}
+    const isOwner = positiveInteger(comment.authorRockPersonId) === context.profile.personId
+    const deletedAt = typeof comment.deletedAt === 'string' ? comment.deletedAt : null
+    const createdAt = typeof comment.createdAt === 'string' ? comment.createdAt : ''
+    const updatedAt = typeof comment.updatedAt === 'string' ? comment.updatedAt : ''
+    const createdTime = new Date(createdAt).getTime()
+    const updatedTime = new Date(updatedAt).getTime()
+    return {
+      id: typeof comment.id === 'number' || typeof comment.id === 'string' ? comment.id : '',
+      authorName: nonemptyText(comment.authorName) ?? 'Unknown',
+      avatarUrl: positiveInteger(comment.authorRockPersonId)
+        ? `/members/people/${comment.authorRockPersonId}/avatar`
+        : null,
+      body: nonemptyText(comment.body) ?? '',
+      coachesOnly: comment.visibility === 'coaches-only',
+      canEdit: isOwner && !deletedAt && commentCanBeEdited(comment.createdAt),
+      canDelete: isOwner && !deletedAt,
+      edited: Number.isFinite(createdTime) && Number.isFinite(updatedTime) && updatedTime - createdTime > 1000,
+      createdAt,
+      deletedAt,
+      deletedByName: nonemptyText(comment.deletedByName),
+    }
+  }).reverse()
+
+  return {
+    access: 'granted',
+    canPostCoachesOnly: access.isCoach,
+    currentAuthor: {
+      name: context.profile.name,
+      avatarUrl: context.profile.photoUrl ? '/member-avatar' : null,
+    },
+    comments,
+  }
+}
+
+export async function createMemberGroupComment(
+  rockGroupId: number,
+  input: { body: string; coachesOnly: boolean },
+) {
+  if (!positiveInteger(rockGroupId)) return { ok: false as const, message: 'That group is invalid.' }
+  const body = normalizeCommentBody(input.body)
+  const bodyText = commentBodyText(body).trim()
+  if (!bodyText || bodyText.length > 3000 || body.length > 4000) {
+    return { ok: false as const, message: 'Enter a comment of up to 3,000 characters.' }
+  }
+  const context = await currentMemberContext()
+  if (!context) return { ok: false as const, message: 'Sign in again before commenting.' }
+  const access = commentAccess(context.participant, rockGroupId)
+  if (!access.allowed || (input.coachesOnly && !access.isCoach)) {
+    return { ok: false as const, message: 'You no longer have permission to comment on this group.' }
+  }
+  await context.payload.create({
+    collection: 'connect-group-comments',
+    overrideAccess: true,
+    data: {
+      rockGroupId,
+      authorRockPersonId: context.profile.personId,
+      authorName: context.profile.name,
+      body,
+      visibility: input.coachesOnly ? 'coaches-only' : 'leaders-and-coaches',
+    },
+  })
+  return { ok: true as const }
+}
+
+async function ownedComment(
+  context: Awaited<ReturnType<typeof currentMemberContext>> & {},
+  rockGroupId: number,
+  commentId: number,
+) {
+  const result = await context.payload.find({
+    collection: 'connect-group-comments',
+    depth: 0,
+    limit: 1,
+    pagination: false,
+    overrideAccess: true,
+    select: {
+      authorRockPersonId: true,
+      visibility: true,
+      createdAt: true,
+      deletedAt: true,
+    },
+    where: {
+      and: [
+        { id: { equals: commentId } },
+        { rockGroupId: { equals: rockGroupId } },
+      ],
+    },
+  })
+  const comment = record(result.docs[0])
+  return positiveInteger(comment?.authorRockPersonId) === context.profile.personId
+    ? comment
+    : null
+}
+
+export async function updateMemberGroupComment(
+  rockGroupId: number,
+  commentId: number,
+  input: { body: string },
+) {
+  if (!positiveInteger(rockGroupId) || !positiveInteger(commentId)) return { ok: false as const }
+  const body = normalizeCommentBody(input.body)
+  const bodyText = commentBodyText(body).trim()
+  if (!bodyText || bodyText.length > 3000 || body.length > 4000) return { ok: false as const }
+  const context = await currentMemberContext()
+  if (!context) return { ok: false as const }
+  const access = commentAccess(context.participant, rockGroupId)
+  if (!access.allowed) return { ok: false as const }
+  const comment = await ownedComment(context, rockGroupId, commentId)
+  if (
+    !comment ||
+    comment.deletedAt ||
+    !commentCanBeEdited(comment.createdAt) ||
+    (comment.visibility === 'coaches-only' && !access.isCoach)
+  ) return { ok: false as const }
+  const updated = await context.payload.update({
+    collection: 'connect-group-comments',
+    limit: 1,
+    overrideAccess: true,
+    where: { and: [
+      { id: { equals: commentId } },
+      { rockGroupId: { equals: rockGroupId } },
+      { authorRockPersonId: { equals: context.profile.personId } },
+      { deletedAt: { exists: false } },
+    ] },
+    data: {
+      body,
+    },
+  })
+  const updatedDocs = record(updated)?.docs
+  return { ok: Array.isArray(updatedDocs) && updatedDocs.length === 1 }
+}
+
+export async function deleteMemberGroupComment(rockGroupId: number, commentId: number) {
+  if (!positiveInteger(rockGroupId) || !positiveInteger(commentId)) return { ok: false as const }
+  const context = await currentMemberContext()
+  if (!context) return { ok: false as const }
+  const access = commentAccess(context.participant, rockGroupId)
+  if (!access.allowed) return { ok: false as const }
+  const comment = await ownedComment(context, rockGroupId, commentId)
+  if (
+    !comment ||
+    comment.deletedAt ||
+    (comment.visibility === 'coaches-only' && !access.isCoach)
+  ) return { ok: false as const }
+  const updated = await context.payload.update({
+    collection: 'connect-group-comments',
+    limit: 1,
+    overrideAccess: true,
+    where: { and: [
+      { id: { equals: commentId } },
+      { rockGroupId: { equals: rockGroupId } },
+      { authorRockPersonId: { equals: context.profile.personId } },
+      { deletedAt: { exists: false } },
+    ] },
+    data: {
+      body: '[deleted]',
+      deletedAt: new Date().toISOString(),
+      deletedByRockPersonId: context.profile.personId,
+      deletedByName: context.profile.name,
+    },
+  })
+  const updatedDocs = record(updated)?.docs
+  return { ok: Array.isArray(updatedDocs) && updatedDocs.length === 1 }
 }
 
 export async function getLedConnectGroups(): Promise<MemberPortalHome | null> {
@@ -982,16 +1348,14 @@ export async function getSharedMemberAvatar(
     overrideAccess: true,
     select: {
       photoId: true,
+      coachedGroups: true,
       memberships: true,
     },
     where: { rockPersonId: { equals: targetRockPersonId } },
   })
   const target = result.docs[0] ? participantFrom(result.docs[0]) : null
   if (!target) return null
-  const sharesGroup = target.memberships?.some((membership) => {
-    const id = positiveInteger(membership.rockGroupId)
-    return id ? currentGroupIds.has(id) : false
-  }) === true
+  const sharesGroup = accessibleGroupIds(target).some((id) => currentGroupIds.has(id))
   const photoId = positiveInteger(target.photoId)
   return sharesGroup && photoId ? { photoId } : null
 }

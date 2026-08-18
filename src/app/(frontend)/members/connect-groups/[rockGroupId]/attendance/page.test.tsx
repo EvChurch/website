@@ -127,6 +127,7 @@ describe('group-specific attendance route', () => {
 
     expect(markup).toContain('Tuesday Central Connect')
     expect(markup).toContain('Record attendance')
+    expect(markup.indexOf('Tuesday Central Connect')).toBeLessThan(markup.indexOf('Record attendance'))
     expect(markup).toContain('Attendance editor for Aroha Ngata')
     expect(mocks.getEntry).toHaveBeenCalledWith(10, [42])
   })

@@ -27,6 +27,7 @@ import { ConnectGroups } from '@/collections/ConnectGroups'
 import { Registrations } from '@/collections/Registrations'
 import { ServiceGuideItems } from '@/collections/ServiceGuideItems'
 import { ConnectGroupParticipants } from '@/collections/ConnectGroupParticipants'
+import { ConnectGroupComments } from '@/collections/ConnectGroupComments'
 import { ConnectGroupLeaderResources } from '@/collections/ConnectGroupLeaderResources'
 import { DailyBibleReadings } from '@/collections/DailyBibleReadings'
 import { MissingPaths } from '@/collections/MissingPaths'
@@ -81,6 +82,7 @@ export const applicationCollections: CollectionConfig[] = [
   Events,
   ConnectGroups,
   ConnectGroupParticipants,
+  ConnectGroupComments,
   ConnectGroupLeaderResources,
   DailyBibleReadings,
   MissingPaths,
@@ -114,6 +116,7 @@ export const applicationGlobals: GlobalConfig[] = [
 
 export const mcpExcludedCollectionSlugs = new Set([
   'leader-resource-shares',
+  'connect-group-comments',
   'giving-funds',
   'giving-givers',
   'giving-checkouts',
