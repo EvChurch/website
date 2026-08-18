@@ -51,15 +51,6 @@ const disabledContext: GivingExperienceContextValue = {
 
 const GivingExperienceContext = createContext(disabledContext)
 
-function isOrdinaryGivingClick(event: Pick<MouseEvent, 'button' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey'>, target: string | null) {
-  return event.button === 0 &&
-    !event.metaKey &&
-    !event.ctrlKey &&
-    !event.shiftKey &&
-    !event.altKey &&
-    (!target || target === '_self')
-}
-
 export function GivingExperienceProvider({
   children,
   givingExperience = null,
@@ -87,20 +78,6 @@ export function GivingExperienceProvider({
     setGivingRequestId((requestId) => requestId + 1)
     return true
   }, [rendererReady])
-
-  useEffect(() => {
-    if (!rendererReady) return
-    const openLocalGivingLink = (event: MouseEvent) => {
-      if (event.defaultPrevented) return
-      const target = event.target instanceof Element ? event.target.closest('a') : null
-      if (!target || target.getAttribute('href') !== '/give' || target.hasAttribute('download')) return
-      if (!isOrdinaryGivingClick(event, target.getAttribute('target'))) return
-      if (!openGiving()) return
-      event.preventDefault()
-    }
-    document.addEventListener('click', openLocalGivingLink, true)
-    return () => document.removeEventListener('click', openLocalGivingLink, true)
-  }, [openGiving, rendererReady])
 
   useEffect(() => {
     if (!rendererReady || resumedFromCleanUrl.current) return
