@@ -10,6 +10,9 @@ const navigation = {
 
 vi.mock("next/navigation", () => ({
   usePathname: () => navigation.pathname,
+  useRouter: () => ({
+    replace: (href: string) => window.history.replaceState(null, "", href),
+  }),
   useSearchParams: () => new URLSearchParams(window.location.search),
 }));
 vi.mock("@/components/forms/RockForm", () => ({
@@ -380,6 +383,20 @@ describe("NextStepsLauncher", () => {
       "Giving renderer seam",
     );
     expect(button(container, "Back")).toBeTruthy();
+    await act(async () => button(container, "Back")?.click());
+    expect(window.location.search).toBe("");
+    expect(container.textContent).toContain("Take your next step here");
+  });
+
+  it("clears a URL-owned target when the launcher closes", async () => {
+    window.history.replaceState(null, "", "/?launcher=connect");
+
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+    await act(async () => button(container, "Close next steps")?.click());
+
+    expect(window.location.search).toBe("");
   });
 
   it("opens an eligible internal launcher item by its item id", async () => {
