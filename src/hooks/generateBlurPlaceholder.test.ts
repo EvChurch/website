@@ -36,19 +36,21 @@ describe('generateBlurPlaceholder', () => {
       mimeType: 'image/jpeg',
     }
 
+    const req = {
+      file: { data: uploadBuffer },
+      payload: {
+        logger: { error: vi.fn() },
+        update,
+      },
+    }
+
     const result = await generateBlurPlaceholder({
       collection: null,
       context: {},
       doc,
       operation: 'create',
       previousDoc: undefined,
-      req: {
-        file: { data: uploadBuffer },
-        payload: {
-          logger: { error: vi.fn() },
-          update,
-        },
-      },
+      req,
     } as never)
 
     expect(sharp).toHaveBeenCalledWith(uploadBuffer)
@@ -58,6 +60,7 @@ describe('generateBlurPlaceholder', () => {
       id: 248,
       data: { blurDataURL: 'data:image/png;base64,Ymx1cg==' },
       context: { skipBlurGeneration: true },
+      req,
     })
     expect(result).toMatchObject({
       blurDataURL: 'data:image/png;base64,Ymx1cg==',
