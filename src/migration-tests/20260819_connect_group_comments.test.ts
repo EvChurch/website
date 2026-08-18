@@ -20,13 +20,14 @@ describe('Connect Group comments migration', () => {
 
     expect(execute).toHaveBeenCalledTimes(1)
     const statement = rawSqlText(execute.mock.calls[0]?.[0])
-    expect(statement).toContain('CREATE TABLE "connect_group_comments"')
+    expect(statement).toContain('CREATE TABLE IF NOT EXISTS "connect_group_comments"')
     expect(statement).toContain('"visibility" varchar NOT NULL DEFAULT \'leaders-and-coaches\'')
     expect(statement).toContain('connect_group_comments_rock_group_id_idx')
     expect(statement).toContain('connect_group_comments_author_rock_person_id_idx')
     expect(statement).toContain('connect_group_comments_deleted_at_idx')
     expect(statement).toContain('connect_group_comments_deleted_by_rock_person_id_idx')
     expect(statement).toContain('connect_group_comments_created_at_idx')
+    expect(statement).toContain('CREATE INDEX IF NOT EXISTS')
     expect(statement).toContain("SET LOCAL lock_timeout = '5s'")
   })
 

@@ -5,7 +5,7 @@ export async function up({ db }: MigrateUpArgs) {
   await db.execute(sql.raw(`
     SET LOCAL lock_timeout = '5s';
     SET LOCAL statement_timeout = '30s';
-    CREATE TABLE "connect_group_comments" (
+    CREATE TABLE IF NOT EXISTS "connect_group_comments" (
       "id" serial PRIMARY KEY,
       "rock_group_id" numeric NOT NULL,
       "author_rock_person_id" numeric NOT NULL,
@@ -18,12 +18,12 @@ export async function up({ db }: MigrateUpArgs) {
       "updated_at" timestamp(3) with time zone NOT NULL DEFAULT now(),
       "created_at" timestamp(3) with time zone NOT NULL DEFAULT now()
     );
-    CREATE INDEX "connect_group_comments_rock_group_id_idx" ON "connect_group_comments" ("rock_group_id");
-    CREATE INDEX "connect_group_comments_author_rock_person_id_idx" ON "connect_group_comments" ("author_rock_person_id");
-    CREATE INDEX "connect_group_comments_deleted_at_idx" ON "connect_group_comments" ("deleted_at");
-    CREATE INDEX "connect_group_comments_deleted_by_rock_person_id_idx" ON "connect_group_comments" ("deleted_by_rock_person_id");
-    CREATE INDEX "connect_group_comments_created_at_idx" ON "connect_group_comments" ("created_at");
-    CREATE INDEX "connect_group_comments_updated_at_idx" ON "connect_group_comments" ("updated_at");
+    CREATE INDEX IF NOT EXISTS "connect_group_comments_rock_group_id_idx" ON "connect_group_comments" ("rock_group_id");
+    CREATE INDEX IF NOT EXISTS "connect_group_comments_author_rock_person_id_idx" ON "connect_group_comments" ("author_rock_person_id");
+    CREATE INDEX IF NOT EXISTS "connect_group_comments_deleted_at_idx" ON "connect_group_comments" ("deleted_at");
+    CREATE INDEX IF NOT EXISTS "connect_group_comments_deleted_by_rock_person_id_idx" ON "connect_group_comments" ("deleted_by_rock_person_id");
+    CREATE INDEX IF NOT EXISTS "connect_group_comments_created_at_idx" ON "connect_group_comments" ("created_at");
+    CREATE INDEX IF NOT EXISTS "connect_group_comments_updated_at_idx" ON "connect_group_comments" ("updated_at");
   `))
 }
 
