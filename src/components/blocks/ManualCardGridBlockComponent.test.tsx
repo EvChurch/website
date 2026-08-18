@@ -62,4 +62,74 @@ describe('ManualCardGridBlockComponent', () => {
     expect(markup).toContain('h-full')
     expect(markup).not.toContain('Open in Google Maps')
   })
+
+  it('renders profile cards with equal-height light surfaces and uncropped originals', () => {
+    const markup = renderToStaticMarkup(
+      <ManualCardGridBlockComponent
+        heading="Executive Committee"
+        cardStyle="profile"
+        cards={[
+          {
+            title: 'Rowan Hilsden',
+            subtitle: 'Senior Pastor and Chair',
+            description: 'Rowan leads the committee with a substantially longer biography.',
+            image: {
+              url: '/media/rowan.jpg',
+              alt: 'Rowan Hilsden',
+              focalX: 50,
+              focalY: 20,
+              sizes: {
+                thumbnail: { url: '/media/rowan-thumbnail.jpg', width: 400, height: 400 },
+              },
+            },
+          },
+          {
+            title: 'Rachel Burden',
+            description: 'Rachel serves on the committee.',
+            href: '/people/rachel-burden',
+            image: {
+              url: '/media/rachel.jpg',
+              alt: 'Rachel Burden',
+              sizes: {
+                medium: { url: '/media/rachel-medium.jpg', width: 900, height: 1350 },
+              },
+            },
+          },
+        ]}
+      />,
+    )
+
+    expect(markup.match(/animate-on-scroll h-full/g)).toHaveLength(2)
+    expect(markup.match(/flex h-full flex-col/g)).toHaveLength(2)
+    expect(markup.match(/aspect-\[4\/5\]/g)).toHaveLength(2)
+    expect(markup).toContain('class="group relative block h-full"')
+    expect(markup).toContain('bg-white')
+    expect(markup).toContain('text-brand-black')
+    expect(markup).toContain('text-dark-grey')
+    expect(markup).toContain('Senior Pastor and Chair')
+    expect(markup).toContain('rowan.jpg')
+    expect(markup).not.toContain('rowan-thumbnail.jpg')
+    expect(markup).toContain('object-position:50% 20%')
+  })
+
+  it('keeps generic image-top cards on the existing dark presentation', () => {
+    const markup = renderToStaticMarkup(
+      <ManualCardGridBlockComponent
+        cardStyle="imageTop"
+        cards={[
+          {
+            title: 'Church Life Across Auckland',
+            subtitle: 'Across the city',
+            description: 'Gather throughout the week.',
+            linkLabel: 'Learn more',
+            image: '/media/church-life.jpg',
+          },
+        ]}
+      />,
+    )
+
+    expect(markup).toContain('aspect-[16/10]')
+    expect(markup).toContain('bg-brand-black')
+    expect(markup).not.toContain('aspect-[4/5]')
+  })
 })

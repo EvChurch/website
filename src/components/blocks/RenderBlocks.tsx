@@ -175,7 +175,7 @@ interface ManualCardGridBlock extends BaseBlock {
   eyebrow?: string | null
   heading?: string | null
   description?: string | null
-  cardStyle?: 'info' | 'imageOverlay' | 'imageTop' | 'alternatingRows' | null
+  cardStyle?: 'info' | 'imageOverlay' | 'imageTop' | 'profile' | 'alternatingRows' | null
   columns?: '2' | '3' | '4' | null
   cards: Array<{
     image?: Media | null

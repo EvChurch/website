@@ -178,8 +178,8 @@ export function FeatureGridBlockComponent({
 
         <div className={`mt-16 grid gap-8 ${columnClasses[layout]}`}>
           {items.map((item, i) => (
-            <ScrollReveal key={i} delay={i * 100}>
-              <div className="rounded-xl border border-warm-grey/60 bg-white p-8 text-center">
+            <ScrollReveal key={i} delay={i * 100} className="h-full">
+              <div className="flex h-full flex-col rounded-xl border border-warm-grey/60 bg-white p-8 text-center">
                 {item.icon && (
                   <div
                     className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full ${accentColor ? '' : 'bg-light-red-3/30'}`}
