@@ -9,11 +9,15 @@ import {
   memberConnectGroupHref,
   MemberPortalChrome,
 } from '@/components/members/MemberPortalChrome'
+import {
+  UnavailabilitySection,
+} from '@/components/members/ScheduleUnavailability'
 import { VolunteerSchedule } from '@/components/members/VolunteerSchedule'
 import { getMemberPortalHomeForProfile } from '@/lib/members/data'
 import {
-  getVolunteerSchedule,
   getVolunteerScheduleDeclineReasons,
+  getVolunteerServiceOverview,
+  type VolunteerServiceOverview,
   type VolunteerScheduleResult,
 } from '@/lib/members/volunteer-scheduling'
 
@@ -31,6 +35,12 @@ const unavailableSchedule: VolunteerScheduleResult = {
   declined: [],
 }
 
+const unavailableServiceOverview: VolunteerServiceOverview = {
+  schedule: unavailableSchedule,
+  groups: { status: 'unavailable', groups: [] },
+  unavailability: { status: 'unavailable', exclusions: [] },
+}
+
 export default async function MyServicePage() {
   let session: SessionData | null
   try {
@@ -44,9 +54,9 @@ export default async function MyServicePage() {
   }
   const impersonation = getMemberImpersonationFromSession(session)
 
-  const [home, schedule, declineReasons] = await Promise.all([
+  const [home, service, declineReasons] = await Promise.all([
     getMemberPortalHomeForProfile(profileState.profile),
-    getVolunteerSchedule(profileState.profile.personId).catch(() => unavailableSchedule),
+    getVolunteerServiceOverview(profileState.profile.personId).catch(() => unavailableServiceOverview),
     getVolunteerScheduleDeclineReasons(),
   ])
 
@@ -63,9 +73,15 @@ export default async function MyServicePage() {
         </header>
 
         <VolunteerSchedule
-          schedule={schedule}
+          schedule={service.schedule}
           declineReasons={declineReasons}
           isImpersonating={impersonation !== null}
+        />
+        <UnavailabilitySection
+          groups={service.groups.groups}
+          groupsUnavailable={service.groups.status === 'unavailable'}
+          isImpersonating={impersonation !== null}
+          unavailability={service.unavailability}
         />
       </div>
     </MemberPortalChrome>

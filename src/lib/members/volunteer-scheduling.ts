@@ -55,10 +55,14 @@ interface RockRelatedEntity {
 }
 
 type SchedulingEndpoint =
+  | 'People'
   | 'PersonAlias'
   | 'Attendances'
   | 'AttendanceOccurrences'
+  | 'GroupMembers'
   | 'Groups'
+  | 'GroupTypes'
+  | 'PersonScheduleExclusions'
   | 'Schedules'
   | 'Locations'
   | 'DefinedTypes'
@@ -67,6 +71,44 @@ type SchedulingEndpoint =
 export interface VolunteerScheduleDeclineReason {
   id: number
   label: string
+}
+
+export interface VolunteerScheduleGroup {
+  id: number
+  name: string
+}
+
+export type VolunteerScheduleGroupsResult =
+  | { status: 'available'; groups: VolunteerScheduleGroup[] }
+  | { status: 'unavailable'; groups: [] }
+
+export type VolunteerScheduleUnavailabilityResult =
+  | { status: 'saved' }
+  | { status: 'invalid-request' | 'busy' | 'rock-unavailable' | 'outcome-unknown' }
+
+export type VolunteerScheduleUnavailabilityDeleteResult =
+  | { status: 'deleted' }
+  | { status: 'invalid-request' | 'busy' | 'rock-unavailable' | 'outcome-unknown' }
+
+export interface VolunteerScheduleUnavailability {
+  id: string
+  startDate: string
+  endDate: string
+  groupName: string
+  notes: string | null
+}
+
+export type VolunteerScheduleUnavailabilityListResult =
+  | { status: 'available'; exclusions: VolunteerScheduleUnavailability[] }
+  | { status: 'unavailable'; exclusions: [] }
+
+interface VolunteerScheduleAvailabilityContext {
+  groups: VolunteerScheduleGroupsResult
+  unavailability: VolunteerScheduleUnavailabilityListResult
+}
+
+export interface VolunteerServiceOverview extends VolunteerScheduleAvailabilityContext {
+  schedule: VolunteerScheduleResult
 }
 
 export interface VolunteerScheduleAssignment {
@@ -224,6 +266,65 @@ async function schedulingPatchDecline(
       RSVP: 0,
       DeclineReasonValueId: declineReasonValueId,
     }),
+    signal: AbortSignal.any([
+      operationSignal,
+      AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    ]),
+    next: { revalidate: 0 },
+  })
+  await response.body?.cancel()
+  if (!response.ok) throw new RockSchedulingWriteError(response.status)
+}
+
+async function schedulingCreateExclusion(
+  config: SchedulingConfig,
+  input: {
+    personAliasId: number
+    startDate: string
+    endDate: string
+    groupId: number
+    notes: string
+  },
+  operationSignal: AbortSignal,
+) {
+  const response = await fetch(`${config.apiUrl}/PersonScheduleExclusions`, {
+    method: 'POST',
+    redirect: 'error',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'Authorization-Token': config.apiKey,
+    },
+    body: JSON.stringify({
+      PersonAliasId: input.personAliasId,
+      StartDate: input.startDate,
+      EndDate: input.endDate,
+      GroupId: input.groupId,
+      Title: input.notes || null,
+      ParentPersonScheduleExclusionId: null,
+    }),
+    signal: AbortSignal.any([
+      operationSignal,
+      AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    ]),
+    next: { revalidate: 0 },
+  })
+  await response.body?.cancel()
+  if (!response.ok) throw new RockSchedulingWriteError(response.status)
+}
+
+async function schedulingDeleteExclusion(
+  config: SchedulingConfig,
+  exclusionId: number,
+  operationSignal: AbortSignal,
+) {
+  const response = await fetch(`${config.apiUrl}/PersonScheduleExclusions/${exclusionId}`, {
+    method: 'DELETE',
+    redirect: 'error',
+    headers: {
+      Accept: 'application/json',
+      'Authorization-Token': config.apiKey,
+    },
     signal: AbortSignal.any([
       operationSignal,
       AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -502,7 +603,7 @@ function chunks<T>(values: T[], size: number) {
 
 async function readByIds(
   config: SchedulingConfig,
-  endpoint: Exclude<SchedulingEndpoint, 'PersonAlias' | 'Attendances'>,
+  endpoint: Exclude<SchedulingEndpoint, 'PersonAlias' | 'Attendances' | 'PersonScheduleExclusions'>,
   ids: number[],
   select: string,
   operationSignal: AbortSignal,
@@ -516,6 +617,88 @@ async function readByIds(
     }, operationSignal))
   }
   return values
+}
+
+async function loadVolunteerScheduleGroups(
+  config: SchedulingConfig,
+  personId: number,
+  operationSignal: AbortSignal,
+): Promise<VolunteerScheduleGroup[]> {
+  const memberships = await readPages(config, 'GroupMembers', {
+    $filter: `PersonId eq ${personId} and GroupMemberStatus eq 'Active' and IsArchived eq false`,
+    $orderby: 'GroupId,Id',
+    $select: 'Id,PersonId,GroupId,GroupMemberStatus,IsArchived',
+  }, operationSignal)
+  const groupIds = memberships.map((membership) => {
+    if (
+      !isRecord(membership) ||
+      !isPositiveInteger(membership.Id) ||
+      membership.PersonId !== personId ||
+      !isPositiveInteger(membership.GroupId) ||
+      (membership.GroupMemberStatus !== 1 && membership.GroupMemberStatus !== 'Active') ||
+      membership.IsArchived !== false
+    ) throw new MalformedRockResponseError('Rock returned an invalid GroupMember row')
+    return membership.GroupId
+  })
+  if (groupIds.length === 0) return []
+
+  const groups = await readByIds(
+    config,
+    'Groups',
+    groupIds,
+    'Id,Name,GroupTypeId,IsActive,IsArchived,DisableScheduling,DisableScheduleToolboxAccess,Order',
+    operationSignal,
+  )
+  const groupTypeIds = groups.map((group) => {
+    if (!isRecord(group) || !isPositiveInteger(group.GroupTypeId)) {
+      throw new MalformedRockResponseError('Rock returned an invalid schedulable Group row')
+    }
+    return group.GroupTypeId
+  })
+  const groupTypes = await readByIds(
+    config,
+    'GroupTypes',
+    groupTypeIds,
+    'Id,IsSchedulingEnabled',
+    operationSignal,
+  )
+  const schedulingByType = new Map<number, boolean>()
+  for (const groupType of groupTypes) {
+    if (
+      !isRecord(groupType) ||
+      !isPositiveInteger(groupType.Id) ||
+      typeof groupType.IsSchedulingEnabled !== 'boolean'
+    ) throw new MalformedRockResponseError('Rock returned an invalid GroupType row')
+    schedulingByType.set(groupType.Id, groupType.IsSchedulingEnabled)
+  }
+
+  const result = new Map<number, VolunteerScheduleGroup>()
+  for (const group of groups) {
+    if (!isRecord(group) || !isPositiveInteger(group.Id) || !isPositiveInteger(group.GroupTypeId)) {
+      throw new MalformedRockResponseError('Rock returned an invalid schedulable Group row')
+    }
+    const name = optionalName(group.Name)
+    if (
+      !name ||
+      typeof group.IsActive !== 'boolean' ||
+      typeof group.IsArchived !== 'boolean' ||
+      typeof group.DisableScheduling !== 'boolean' ||
+      typeof group.DisableScheduleToolboxAccess !== 'boolean' ||
+      !schedulingByType.has(group.GroupTypeId)
+    ) throw new MalformedRockResponseError('Rock returned malformed schedulable Group metadata')
+    if (
+      group.IsActive &&
+      !group.IsArchived &&
+      !group.DisableScheduling &&
+      !group.DisableScheduleToolboxAccess &&
+      schedulingByType.get(group.GroupTypeId) === true
+    ) result.set(group.Id, { id: group.Id, name })
+  }
+  return [...result.values()].sort((left, right) => left.name.localeCompare(right.name))
+}
+
+export async function getVolunteerScheduleGroups(personId: number): Promise<VolunteerScheduleGroupsResult> {
+  return (await getVolunteerScheduleAvailabilityContext(personId)).groups
 }
 
 async function readAttendances(
@@ -875,9 +1058,271 @@ export async function respondToVolunteerSchedule(
   }
 }
 
+const unavailabilityWrites = new Set<number>()
+const CALENDAR_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u
+
+function isCalendarDate(value: unknown): value is string {
+  if (typeof value !== 'string' || !CALENDAR_DATE_PATTERN.test(value)) return false
+  const [year, month, day] = value.split('-').map(Number)
+  const parsed = new Date(Date.UTC(year, month - 1, day))
+  return parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+}
+
+function normalizedUnavailabilityNotes(value: unknown) {
+  if (typeof value !== 'string') return null
+  const notes = value.trim()
+  if (notes.length > 100 || /[\u0000-\u001f\u007f]/u.test(notes)) return null
+  return notes
+}
+
+async function loadPrimaryAliasId(
+  config: SchedulingConfig,
+  personId: number,
+  operationSignal: AbortSignal,
+) {
+  const people = await readPages(config, 'People', {
+    $filter: `Id eq ${personId}`,
+    $orderby: 'Id',
+    $select: 'Id,PrimaryAliasId',
+  }, operationSignal)
+  if (
+    people.length !== 1 ||
+    !isRecord(people[0]) ||
+    people[0].Id !== personId ||
+    !isPositiveInteger(people[0].PrimaryAliasId)
+  ) throw new MalformedRockResponseError('Rock omitted the current person primary alias')
+  return people[0].PrimaryAliasId
+}
+
+function unavailabilityGuid(value: unknown) {
+  if (typeof value !== 'string' || !value.startsWith('rock-unavailability:')) return null
+  const guid = value.slice('rock-unavailability:'.length)
+  return GUID_PATTERN.test(guid) ? guid.toLowerCase() : null
+}
+
+async function loadOwnedUnavailability(
+  config: SchedulingConfig,
+  personAliasId: number,
+  guid: string,
+  operationSignal: AbortSignal,
+) {
+  const rows = await readPages(config, 'PersonScheduleExclusions', {
+    $filter: `PersonAliasId eq ${personAliasId} and Guid eq guid'${guid}'`,
+    $orderby: 'Id',
+    $select: 'Id,Guid,PersonAliasId,EndDate',
+  }, operationSignal)
+  if (rows.length === 0) return null
+  if (
+    rows.length !== 1 ||
+    !isRecord(rows[0]) ||
+    !isPositiveInteger(rows[0].Id) ||
+    rows[0].PersonAliasId !== personAliasId ||
+    typeof rows[0].Guid !== 'string' ||
+    rows[0].Guid.toLowerCase() !== guid ||
+    typeof rows[0].EndDate !== 'string'
+  ) throw new MalformedRockResponseError('Rock returned invalid schedule exclusion ownership')
+  const endDate = calendarDate(rows[0].EndDate)
+  if (!endDate) throw new MalformedRockResponseError('Rock returned invalid schedule exclusion date')
+  return { id: rows[0].Id, endDate }
+}
+
+async function loadVolunteerScheduleUnavailability(
+  config: SchedulingConfig,
+  personId: number,
+  now: Date,
+  operationSignal: AbortSignal,
+): Promise<VolunteerScheduleUnavailability[]> {
+    const personAliasId = await loadPrimaryAliasId(config, personId, operationSignal)
+    const today = aucklandDate(now)
+    const rows = await readPages(config, 'PersonScheduleExclusions', {
+      $filter: `PersonAliasId eq ${personAliasId} and EndDate ge datetime'${today}T00:00:00'`,
+      $orderby: 'StartDate,EndDate,Id',
+      $select: 'Id,Guid,PersonAliasId,StartDate,EndDate,GroupId,Title',
+    }, operationSignal)
+    const groupIds = rows.flatMap((row) => {
+      if (!isRecord(row) || (row.GroupId !== null && !isPositiveInteger(row.GroupId))) {
+        throw new MalformedRockResponseError('Rock returned an invalid schedule exclusion row')
+      }
+      return row.GroupId === null ? [] : [row.GroupId]
+    })
+    const groups = parsedMap(
+      await readByIds(config, 'Groups', groupIds, 'Id,Name,IsActive', operationSignal),
+      (value) => parseRelatedEntity(value, { nameRequired: true }),
+      'Group',
+    )
+    const exclusions = rows.map((row): VolunteerScheduleUnavailability => {
+      if (
+        !isRecord(row) ||
+        !isPositiveInteger(row.Id) ||
+        typeof row.Guid !== 'string' ||
+        !GUID_PATTERN.test(row.Guid) ||
+        row.PersonAliasId !== personAliasId ||
+        typeof row.StartDate !== 'string' ||
+        typeof row.EndDate !== 'string' ||
+        (row.GroupId !== null && !isPositiveInteger(row.GroupId))
+      ) throw new MalformedRockResponseError('Rock returned malformed schedule exclusion data')
+      const startDate = calendarDate(row.StartDate)
+      const endDate = calendarDate(row.EndDate)
+      const groupName = row.GroupId === null ? 'All serving groups' : groups.get(row.GroupId)?.name
+      const notes = row.Title === null || row.Title === undefined ? null : optionalName(row.Title)
+      if (!startDate || !endDate || startDate > endDate || !groupName || notes === undefined) {
+        throw new MalformedRockResponseError('Rock returned invalid schedule exclusion metadata')
+      }
+      return {
+        id: `rock-unavailability:${row.Guid.toLowerCase()}`,
+        startDate,
+        endDate,
+        groupName,
+        notes,
+      }
+    })
+    return exclusions
+}
+
+async function matchingUnavailabilityExists(
+  config: SchedulingConfig,
+  input: {
+    personAliasId: number
+    startDate: string
+    endDate: string
+    groupId: number
+    notes: string
+  },
+  operationSignal: AbortSignal,
+) {
+  const rows = await readPages(config, 'PersonScheduleExclusions', {
+    $filter: `PersonAliasId eq ${input.personAliasId} and StartDate eq datetime'${input.startDate}T00:00:00' and EndDate eq datetime'${input.endDate}T00:00:00'`,
+    $orderby: 'Id',
+    $select: 'Id,PersonAliasId,StartDate,EndDate,GroupId,Title,ParentPersonScheduleExclusionId',
+  }, operationSignal)
+  return rows.some((row) => {
+    if (!isRecord(row) || !isPositiveInteger(row.Id)) {
+      throw new MalformedRockResponseError('Rock returned an invalid schedule exclusion row')
+    }
+    const title = row.Title === null || row.Title === undefined ? '' : row.Title
+    const groupId = row.GroupId
+    return row.PersonAliasId === input.personAliasId &&
+      typeof row.StartDate === 'string' && calendarDate(row.StartDate) === input.startDate &&
+      typeof row.EndDate === 'string' && calendarDate(row.EndDate) === input.endDate &&
+      groupId === input.groupId &&
+      title === input.notes &&
+      (row.ParentPersonScheduleExclusionId === null || row.ParentPersonScheduleExclusionId === undefined)
+  })
+}
+
+export async function saveVolunteerScheduleUnavailability(
+  personId: number,
+  input: {
+    startDate: unknown
+    endDate: unknown
+    groupId?: unknown
+    notes?: unknown
+  },
+  now = new Date(),
+): Promise<VolunteerScheduleUnavailabilityResult> {
+  const notes = normalizedUnavailabilityNotes(input.notes ?? '')
+  const groupId = input.groupId
+  if (
+    !isPositiveInteger(personId) ||
+    !Number.isFinite(now.getTime()) ||
+    !isCalendarDate(input.startDate) ||
+    !isCalendarDate(input.endDate) ||
+    input.startDate > input.endDate ||
+    input.startDate < aucklandDate(now) ||
+    !isPositiveInteger(groupId) ||
+    notes === null
+  ) return { status: 'invalid-request' }
+  if (unavailabilityWrites.has(personId)) return { status: 'busy' }
+  unavailabilityWrites.add(personId)
+
+  try {
+    const config = readSchedulingConfig()
+    const operationSignal = AbortSignal.timeout(OPERATION_TIMEOUT_MS)
+    const personAliasId = await loadPrimaryAliasId(config, personId, operationSignal)
+
+    const groups = await loadVolunteerScheduleGroups(config, personId, operationSignal)
+    if (!groups.some(({ id }) => id === groupId)) return { status: 'invalid-request' }
+    const exclusion = {
+      personAliasId,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      groupId,
+      notes,
+    }
+    if (await matchingUnavailabilityExists(config, exclusion, operationSignal)) {
+      return { status: 'saved' }
+    }
+
+    try {
+      await schedulingCreateExclusion(config, exclusion, operationSignal)
+    } catch {
+      // A timed-out write can still have reached Rock. Verify before reporting failure.
+    }
+    try {
+      return await matchingUnavailabilityExists(
+        config,
+        exclusion,
+        AbortSignal.timeout(OPERATION_TIMEOUT_MS),
+      ) ? { status: 'saved' } : { status: 'outcome-unknown' }
+    } catch {
+      return { status: 'outcome-unknown' }
+    }
+  } catch {
+    return { status: 'rock-unavailable' }
+  } finally {
+    unavailabilityWrites.delete(personId)
+  }
+}
+
+export async function deleteVolunteerScheduleUnavailability(
+  personId: number,
+  exclusionId: unknown,
+  now = new Date(),
+): Promise<VolunteerScheduleUnavailabilityDeleteResult> {
+  const guid = unavailabilityGuid(exclusionId)
+  if (!isPositiveInteger(personId) || !guid || !Number.isFinite(now.getTime())) {
+    return { status: 'invalid-request' }
+  }
+  if (unavailabilityWrites.has(personId)) return { status: 'busy' }
+  unavailabilityWrites.add(personId)
+
+  try {
+    const config = readSchedulingConfig()
+    const operationSignal = AbortSignal.timeout(OPERATION_TIMEOUT_MS)
+    const personAliasId = await loadPrimaryAliasId(config, personId, operationSignal)
+    const exclusion = await loadOwnedUnavailability(config, personAliasId, guid, operationSignal)
+    if (exclusion === null) return { status: 'deleted' }
+    if (exclusion.endDate < aucklandDate(now)) return { status: 'invalid-request' }
+
+    try {
+      await schedulingDeleteExclusion(config, exclusion.id, operationSignal)
+    } catch {
+      // A timed-out delete can still have reached Rock. Verify before reporting failure.
+    }
+    try {
+      return await loadOwnedUnavailability(
+        config,
+        personAliasId,
+        guid,
+        AbortSignal.timeout(OPERATION_TIMEOUT_MS),
+      ) === null ? { status: 'deleted' } : { status: 'outcome-unknown' }
+    } catch {
+      return { status: 'outcome-unknown' }
+    }
+  } catch {
+    return { status: 'rock-unavailable' }
+  } finally {
+    unavailabilityWrites.delete(personId)
+  }
+}
+
 let activeScheduleReads = 0
 let activeBackgroundReads = 0
 const scheduleReadsByPerson = new Map<number, Promise<VolunteerScheduleResult>>()
+const scheduleAvailabilityReadsByPerson = new Map<number, Promise<VolunteerScheduleAvailabilityContext>>()
+const serviceOverviewReadsByPerson = new Map<number, Promise<VolunteerServiceOverview>>()
 const scheduleReadWindowsByPerson = new Map<number, {
   count: number
   backgroundCount: number
@@ -928,10 +1373,128 @@ export function __resetVolunteerScheduleLoadProtectionForTests() {
   activeScheduleReads = 0
   activeBackgroundReads = 0
   scheduleReadsByPerson.clear()
+  scheduleAvailabilityReadsByPerson.clear()
+  serviceOverviewReadsByPerson.clear()
   scheduleReadWindowsByPerson.clear()
   responseWrites.clear()
   responseWritePersons.clear()
   activeResponseWrites = 0
+  unavailabilityWrites.clear()
+}
+
+function unavailableScheduleAvailabilityContext(): VolunteerScheduleAvailabilityContext {
+  return {
+    groups: { status: 'unavailable', groups: [] },
+    unavailability: { status: 'unavailable', exclusions: [] },
+  }
+}
+
+async function loadVolunteerScheduleAvailabilityContext(
+  personId: number,
+  now: Date,
+): Promise<VolunteerScheduleAvailabilityContext> {
+  try {
+    const config = readSchedulingConfig()
+    const operationSignal = AbortSignal.timeout(OPERATION_TIMEOUT_MS)
+    const [groups, unavailability] = await Promise.all([
+      loadVolunteerScheduleGroups(config, personId, operationSignal)
+        .then((loadedGroups): VolunteerScheduleGroupsResult => ({
+          status: 'available',
+          groups: loadedGroups,
+        }))
+        .catch((): VolunteerScheduleGroupsResult => ({ status: 'unavailable', groups: [] })),
+      loadVolunteerScheduleUnavailability(config, personId, now, operationSignal)
+        .then((exclusions): VolunteerScheduleUnavailabilityListResult => ({
+          status: 'available',
+          exclusions,
+        }))
+        .catch((): VolunteerScheduleUnavailabilityListResult => ({
+          status: 'unavailable',
+          exclusions: [],
+        })),
+    ])
+    return { groups, unavailability }
+  } catch {
+    return unavailableScheduleAvailabilityContext()
+  }
+}
+
+function getVolunteerScheduleAvailabilityContext(
+  personId: number,
+  now = new Date(),
+): Promise<VolunteerScheduleAvailabilityContext> {
+  if (!isPositiveInteger(personId) || !Number.isFinite(now.getTime())) {
+    return Promise.resolve(unavailableScheduleAvailabilityContext())
+  }
+  const existing = scheduleAvailabilityReadsByPerson.get(personId)
+  if (existing) return existing
+  if (activeScheduleReads >= MAX_CONCURRENT_SCHEDULE_READS) {
+    return Promise.resolve(unavailableScheduleAvailabilityContext())
+  }
+  const admission = acquirePersonRead(personId, 'foreground')
+  if (admission.status === 'throttled') {
+    return Promise.resolve(unavailableScheduleAvailabilityContext())
+  }
+
+  activeScheduleReads += 1
+  const read = loadVolunteerScheduleAvailabilityContext(personId, now).finally(() => {
+    if (scheduleAvailabilityReadsByPerson.get(personId) === read) {
+      scheduleAvailabilityReadsByPerson.delete(personId)
+    }
+    activeScheduleReads = Math.max(0, activeScheduleReads - 1)
+  })
+  scheduleAvailabilityReadsByPerson.set(personId, read)
+  return read
+}
+
+export function getVolunteerServiceOverview(
+  personId: number,
+  now = new Date(),
+): Promise<VolunteerServiceOverview> {
+  if (!isPositiveInteger(personId) || !Number.isFinite(now.getTime())) {
+    return Promise.resolve({
+      schedule: unavailable('invalid-person'),
+      ...unavailableScheduleAvailabilityContext(),
+    })
+  }
+  const existing = serviceOverviewReadsByPerson.get(personId)
+  if (existing) return existing
+  if (activeScheduleReads >= MAX_CONCURRENT_SCHEDULE_READS) {
+    return Promise.resolve({
+      schedule: unavailable('rock-unavailable'),
+      ...unavailableScheduleAvailabilityContext(),
+    })
+  }
+  const admission = acquirePersonRead(personId, 'foreground')
+  if (admission.status === 'throttled') {
+    return Promise.resolve({
+      schedule: unavailable('rate-limited', admission.retryAfterSeconds),
+      ...unavailableScheduleAvailabilityContext(),
+    })
+  }
+
+  activeScheduleReads += 1
+  const read = Promise.all([
+    loadVolunteerSchedule(personId, now),
+    loadVolunteerScheduleAvailabilityContext(personId, now),
+  ]).then(([schedule, availability]) => ({
+    schedule,
+    ...availability,
+  })).finally(() => {
+    if (serviceOverviewReadsByPerson.get(personId) === read) {
+      serviceOverviewReadsByPerson.delete(personId)
+    }
+    activeScheduleReads = Math.max(0, activeScheduleReads - 1)
+  })
+  serviceOverviewReadsByPerson.set(personId, read)
+  return read
+}
+
+export async function getVolunteerScheduleUnavailability(
+  personId: number,
+  now = new Date(),
+): Promise<VolunteerScheduleUnavailabilityListResult> {
+  return (await getVolunteerScheduleAvailabilityContext(personId, now)).unavailability
 }
 
 export function getVolunteerSchedule(
