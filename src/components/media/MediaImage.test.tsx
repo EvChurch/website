@@ -62,4 +62,57 @@ describe('MediaImage', () => {
 
     expect(markup).toContain('logo.png')
   })
+
+  it('positions cropped images around the Payload focal point', () => {
+    const markup = renderToStaticMarkup(
+      <MediaImage
+        media={{ ...media, focalX: 72, focalY: 18 }}
+        mediaSize="medium"
+        fill
+        style={{ objectFit: 'cover' }}
+        alt=""
+      />,
+    )
+
+    expect(markup).toContain('object-position:72% 18%')
+    expect(markup).toContain('object-fit:cover')
+  })
+
+  it('can preserve the original crop when the requested derivative is missing', () => {
+    const markup = renderToStaticMarkup(
+      <MediaImage
+        media={{ ...media, sizes: { thumbnail: media.sizes.thumbnail } }}
+        mediaSize="medium"
+        preferOriginalWhenRequestedSizeMissing
+        width={600}
+        height={400}
+        alt=""
+      />,
+    )
+
+    expect(markup).toContain('original.jpg')
+    expect(markup).not.toContain('original-400x400.jpg')
+  })
+
+  it('keeps an exact WebP derivative when original fallback is enabled', () => {
+    const markup = renderToStaticMarkup(
+      <MediaImage
+        media={{
+          ...media,
+          sizes: {
+            thumbnail: media.sizes.thumbnail,
+            mediumWebp: { url: '/media/original-900x600.webp', width: 900, height: 600 },
+          },
+        }}
+        mediaSize="medium"
+        preferOriginalWhenRequestedSizeMissing
+        width={600}
+        height={400}
+        alt=""
+      />,
+    )
+
+    expect(markup).toContain('original-900x600.webp')
+    expect(markup).not.toContain('original.jpg')
+  })
 })

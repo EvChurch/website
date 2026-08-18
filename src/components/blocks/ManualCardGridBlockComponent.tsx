@@ -1,4 +1,3 @@
-import Image from 'next/image'
 import { MediaImage } from '@/components/media/MediaImage'
 import type { PayloadMediaImage } from '@/lib/payload-media'
 import Link from 'next/link'
@@ -30,7 +29,7 @@ interface ManualCardGridBlockProps {
   eyebrow?: string | null
   heading?: string | null
   description?: string | null
-  cardStyle?: 'info' | 'imageOverlay' | 'imageTop' | 'alternatingRows' | null
+  cardStyle?: 'info' | 'imageOverlay' | 'imageTop' | 'profile' | 'alternatingRows' | null
   columns?: string | number | null
   cards: ManualCard[]
   priority?: boolean
@@ -207,12 +206,28 @@ function ImageOverlayCard({ card, index, priority }: { card: ManualCard; index: 
   )
 }
 
-function ImageTopCard({ card, index, priority }: { card: ManualCard; index: number; priority?: boolean }) {
+function ImageTopCard({
+  card,
+  index,
+  priority,
+  isProfileStyle = false,
+}: {
+  card: ManualCard
+  index: number
+  priority?: boolean
+  isProfileStyle?: boolean
+}) {
   const url = getImageUrl(card.image)
-  const isTeamStyle = !card.description && !card.linkLabel
+  const isTeamStyle = !isProfileStyle && !card.description && !card.linkLabel
 
   const content = (
-    <div className={`group relative block overflow-hidden rounded-xl ${isTeamStyle ? 'border border-warm-grey/60 bg-white transition-shadow duration-300 hover:shadow-lg hover:shadow-rich-red/5' : ''}`}>
+    <div
+      className={`group relative flex h-full flex-col overflow-hidden rounded-xl ${
+        isTeamStyle || isProfileStyle
+          ? 'border border-warm-grey/60 bg-white transition-shadow duration-300 hover:shadow-lg hover:shadow-rich-red/5'
+          : ''
+      }`}
+    >
       {/* Image */}
       {isTeamStyle ? (
         <div className="overflow-hidden">
@@ -235,11 +250,12 @@ function ImageTopCard({ card, index, priority }: { card: ManualCard; index: numb
           )}
         </div>
       ) : (
-        <div className="relative aspect-[16/10] overflow-hidden">
+        <div className={`relative shrink-0 overflow-hidden ${isProfileStyle ? 'aspect-[4/5]' : 'aspect-[16/10]'}`}>
           {url && card.image ? (
             <MediaImage
               media={card.image}
               mediaSize="medium"
+              preferOriginalWhenRequestedSizeMissing={isProfileStyle}
               fill
               priority={priority}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -270,14 +286,34 @@ function ImageTopCard({ card, index, priority }: { card: ManualCard; index: numb
             </div>
           )}
         </div>
+      ) : isProfileStyle ? (
+        <div className="flex flex-1 flex-col bg-white p-7">
+          <h3 className="text-h4 text-brand-black">{card.title}</h3>
+          {card.subtitle && (
+            <p className="mt-2 text-sm font-semibold leading-relaxed text-rich-red">
+              {card.subtitle}
+            </p>
+          )}
+          {card.description && (
+            <p className="mt-4 text-[0.9375rem] leading-relaxed text-dark-grey">
+              {card.description}
+            </p>
+          )}
+          {card.linkLabel && (
+            <span className="mt-auto inline-flex items-center gap-1.5 pt-6 text-sm font-semibold text-rich-red transition-colors group-hover:text-deep-red">
+              {card.linkLabel}
+              <ArrowSvg />
+            </span>
+          )}
+        </div>
       ) : (
-        <div className="bg-brand-black p-7">
+        <div className="flex flex-1 flex-col bg-brand-black p-7">
           <h3 className="text-h4 text-white">{card.title}</h3>
           {card.description && (
             <p className="mt-2 text-sm leading-relaxed text-warm-grey/60">{card.description}</p>
           )}
           {card.linkLabel && (
-            <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-light-red-2 transition-colors group-hover:text-white">
+            <span className="mt-auto inline-flex items-center gap-1.5 pt-6 text-sm font-semibold text-light-red-2 transition-colors group-hover:text-white">
               {card.linkLabel}
               <ArrowSvg />
             </span>
@@ -288,8 +324,8 @@ function ImageTopCard({ card, index, priority }: { card: ManualCard; index: numb
   )
 
   return (
-    <ScrollReveal delay={index * 100}>
-      {card.href ? <Link href={card.href} className="group relative block">{content}</Link> : content}
+    <ScrollReveal delay={index * 100} className="h-full">
+      {card.href ? <Link href={card.href} className="group relative block h-full">{content}</Link> : content}
     </ScrollReveal>
   )
 }
@@ -409,6 +445,16 @@ export function ManualCardGridBlockComponent({
                   return <ImageOverlayCard key={i} card={card} index={i} priority={priority} />
                 case 'imageTop':
                   return <ImageTopCard key={i} card={card} index={i} priority={priority} />
+                case 'profile':
+                  return (
+                    <ImageTopCard
+                      key={i}
+                      card={card}
+                      index={i}
+                      priority={priority}
+                      isProfileStyle
+                    />
+                  )
                 default:
                   return null
               }

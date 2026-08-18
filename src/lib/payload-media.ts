@@ -43,6 +43,19 @@ export function getPayloadMediaDerivative(
   return null
 }
 
+export function getRequestedPayloadMediaDerivative(
+  media: PayloadMediaImage,
+  size: PayloadMediaSize,
+): PayloadMediaDerivative | null {
+  if (size !== 'hero') {
+    const webpDerivative = media.sizes?.[`${size}Webp`]
+    if (webpDerivative?.url) return webpDerivative
+  }
+
+  const derivative = media.sizes?.[size]
+  return derivative?.url ? derivative : null
+}
+
 export function getPayloadMediaUrl(
   media: PayloadMediaImage,
   size: PayloadMediaSize,
