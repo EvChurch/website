@@ -370,6 +370,8 @@ describe('GivingFlow', () => {
     expect(progress?.getAttribute('aria-valuenow')).toBe(String(givingProgress('amount', null)))
     expect(container.querySelector('[data-giving-step]')?.className).toContain('animate-fade-in')
     expect(progress?.firstElementChild?.className).toContain('duration-500')
+    expect(progress?.parentElement?.className).toContain('pb-1')
+    expect(progress?.parentElement?.className).not.toContain('pb-20')
   })
 
   it('allows successive amount digits and a decimal without rewriting the field mid-entry', async () => {

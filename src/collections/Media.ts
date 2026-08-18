@@ -41,7 +41,10 @@ export const Media: CollectionConfig = {
     beforeOperation: [loadMediaFileForFocalPoint],
     afterChange: [
       generateBlurPlaceholder,
-      createCacheInvalidationHook(CACHE_TAGS.pages),
+      createCacheInvalidationHook(CACHE_TAGS.pages, CACHE_TAGS.rockForms),
+    ],
+    afterDelete: [
+      createCacheInvalidationHook(CACHE_TAGS.pages, CACHE_TAGS.rockForms),
     ],
   },
   access: {

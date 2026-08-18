@@ -145,6 +145,9 @@ describe('RockForm', () => {
         expect(container.textContent).toContain('Preparing secure form')
       })
       expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(fetchMock.mock.calls[0]?.[0]).toBe(
+        `/api/rock-entry-forms/${workflowTypeGuid}`,
+      )
     } finally {
       await act(async () => root.unmount())
       container.remove()

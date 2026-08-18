@@ -461,7 +461,7 @@ function PersonSearchField({
       setSearching(true)
       try {
         const response = await fetch(
-          `/api/rock-forms/${workflowTypeGuid}/people`,
+          `/api/rock-entry-forms/${workflowTypeGuid}/people`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -614,7 +614,9 @@ export function RockForm({
     setStartupSiteKey('')
     setError('')
     setLoading(true)
-    fetch(`/api/rock-forms/${workflowTypeGuid}`, { signal: controller.signal })
+    fetch(`/api/rock-entry-forms/${workflowTypeGuid}`, {
+      signal: controller.signal,
+    })
       .then(async (response) => {
         const data = await readJsonResponse<FormStartResponse>(response)
         if (!response.ok) throw new Error(data.error || FORM_STARTUP_ERROR)
@@ -654,7 +656,7 @@ export function RockForm({
         const body = new FormData()
         body.set('intent', 'start')
         body.set('turnstileToken', token)
-        const response = await fetch(`/api/rock-forms/${workflowTypeGuid}`, {
+        const response = await fetch(`/api/rock-entry-forms/${workflowTypeGuid}`, {
           method: 'POST',
           body,
           signal: controller.signal,
@@ -833,7 +835,7 @@ export function RockForm({
           submitController.current?.abort()
           const controller = new AbortController()
           submitController.current = controller
-          const response = await fetch(`/api/rock-forms/${workflowTypeGuid}`, {
+          const response = await fetch(`/api/rock-entry-forms/${workflowTypeGuid}`, {
             method: 'POST',
             body,
             signal: controller.signal,

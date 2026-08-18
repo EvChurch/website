@@ -5,7 +5,7 @@ export interface LauncherCampus {
 
 export type LauncherItemAction =
   | { type: 'directLink'; href: string }
-  | { type: 'workflow'; workflowTypeGuid: string; imageUrl?: string }
+  | { type: 'workflow'; workflowTypeGuid: string; imageUrl?: string; body?: unknown }
   | { type: 'connection'; blockGuid: string; imageUrl?: string }
   | { type: 'event'; href: string }
   | { type: 'content'; html: string; imageUrl?: string }

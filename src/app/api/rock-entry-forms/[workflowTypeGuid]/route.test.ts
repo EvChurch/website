@@ -48,7 +48,7 @@ const routeContext = { params: Promise.resolve({ workflowTypeGuid }) }
 function postRequest(
   body: FormData,
   origin = 'http://localhost',
-  url = `http://localhost/api/rock-forms/${workflowTypeGuid}`,
+  url = `http://localhost/api/rock-entry-forms/${workflowTypeGuid}`,
 ) {
   return new NextRequest(url, {
     method: 'POST',
@@ -75,7 +75,7 @@ describe('Rock form route', () => {
 
   it('does not start a Rock workflow until Turnstile is verified', async () => {
     const getResponse = await GET(
-      new NextRequest(`http://localhost/api/rock-forms/${workflowTypeGuid}`),
+      new NextRequest(`http://localhost/api/rock-entry-forms/${workflowTypeGuid}`),
       routeContext,
     )
     expect(await getResponse.json()).toEqual({ turnstileSiteKey: 'test-site-key' })
@@ -121,7 +121,7 @@ describe('Rock form route', () => {
       postRequest(
         body,
         'https://www.ev.church',
-        `https://0.0.0.0:3000/api/rock-forms/${workflowTypeGuid}`,
+        `https://0.0.0.0:3000/api/rock-entry-forms/${workflowTypeGuid}`,
       ),
       routeContext,
     )
@@ -152,7 +152,7 @@ describe('Rock form route', () => {
     arrange()
 
     const response = await GET(
-      new NextRequest(`http://localhost/api/rock-forms/${workflowTypeGuid}`),
+      new NextRequest(`http://localhost/api/rock-entry-forms/${workflowTypeGuid}`),
       routeContext,
     )
 
@@ -304,7 +304,7 @@ describe('Rock form route', () => {
   it('rejects oversized multipart requests before parsing or verification', async () => {
     const response = await POST(
       new NextRequest(
-        `http://localhost/api/rock-forms/${workflowTypeGuid}`,
+        `http://localhost/api/rock-entry-forms/${workflowTypeGuid}`,
         {
           method: 'POST',
           headers: {

@@ -34,7 +34,11 @@ vi.mock("@/components/forms/SafeRockHtml", () => ({
   ),
 }));
 
-import { NextStepsLauncher } from "./NextStepsLauncher";
+import {
+  launcherShareHref,
+  launcherShareTarget,
+  NextStepsLauncher,
+} from "./NextStepsLauncher";
 import { Header } from "@/components/layout/Header";
 import {
   GivingExperienceProvider,
@@ -215,6 +219,8 @@ describe("NextStepsLauncher", () => {
 
     expect(toggle.isConnected).toBe(true);
     expect(toggle.getAttribute("aria-label")).toBe("Close next steps");
+    const share = button(container, "Share Your next step")!;
+    expect(share.querySelector("[data-launcher-link-icon]")).not.toBeNull();
     expect(
       container.querySelector('[aria-label="Next steps launcher"]')?.className,
     ).toContain("transition-[translate,opacity]");
@@ -228,6 +234,9 @@ describe("NextStepsLauncher", () => {
 
     expect(toggle.isConnected).toBe(true);
     expect(toggle.getAttribute("aria-label")).toBe("Open next steps");
+    expect(share.isConnected).toBe(true);
+    expect(share.className).toContain("animate-launcher-share-hide");
+    expect(share.disabled).toBe(true);
     expect(
       container.querySelector('[aria-label="Next steps launcher"]'),
     ).not.toBeNull();
@@ -272,7 +281,12 @@ describe("NextStepsLauncher", () => {
 
     await act(async () => button(container, "Open next steps")?.click());
 
-    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    const dialog = container.querySelector('[role="dialog"]');
+    expect(dialog).not.toBeNull();
+    expect(dialog?.parentElement?.className).toContain(
+      "pb-[max(5rem,calc(env(safe-area-inset-bottom)+4.25rem))]",
+    );
+    expect(dialog?.parentElement?.className).toContain("sm:p-5");
     expect(button(container, "Open full screen")).toBeUndefined();
     expect(button(container, "Exit full screen")).toBeUndefined();
   });
@@ -300,7 +314,7 @@ describe("NextStepsLauncher", () => {
     );
     expect(
       button(container, "Open full screen")?.parentElement?.className,
-    ).toContain("left-4");
+    ).toContain("w-24");
     expect(panelText.indexOf("Plan a Visit")).toBeLessThan(
       panelText.indexOf("Give Now"),
     );
@@ -333,11 +347,11 @@ describe("NextStepsLauncher", () => {
       ),
     ).not.toBeNull();
     expect(button(container, "Back")?.parentElement?.className).toContain(
-      "left-4",
+      "w-24",
     );
     expect(
       button(container, "Open full screen")?.parentElement?.className,
-    ).toContain("left-4");
+    ).toContain("w-24");
     await act(async () => button(container, "Back")?.click());
     await act(async () => button(container, "Connect Card")?.click());
     expect(
@@ -345,6 +359,19 @@ describe("NextStepsLauncher", () => {
         `input[aria-label="Workflow ${CONNECT_CARD_WORKFLOW_GUID}"]`,
       ),
     ).not.toBeNull();
+  });
+
+  it("keeps one share control mounted while moving between launcher pages", async () => {
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+    await act(async () => button(container, "Open next steps")?.click());
+
+    const homeShare = button(container, "Share Your next step");
+    expect(homeShare).toBeTruthy();
+
+    await act(async () => button(container, "See more next steps")?.click());
+    expect(button(container, "Share More next steps")).toBe(homeShare);
   });
 
   it("opens the Connect Card when the homepage carries the connect launcher state", async () => {
@@ -409,6 +436,151 @@ describe("NextStepsLauncher", () => {
 
     expect(container.querySelector('[data-safe-html="<p>Groups</p>"]')).not.toBeNull();
     expect(button(container, "Back")).toBeTruthy();
+  });
+
+  it("keeps long detail titles aligned and ellipsized between the header controls", async () => {
+    navigation.pathname = "/campus/north";
+    window.history.replaceState(null, "", "/campus/north?launcher=long-title");
+    const longTitleItem: LauncherItem = {
+      ...items[0],
+      id: "long-title",
+      title: "A very long launcher title that must not sit underneath the controls",
+    };
+
+    await act(async () => {
+      root.render(
+        <NextStepsLauncher
+          campuses={campuses}
+          items={[...items, longTitleItem]}
+          memberProfile={null}
+        />,
+      );
+    });
+
+    const title = Array.from(container.querySelectorAll("h2")).find(
+      (heading) => heading.textContent === longTitleItem.title,
+    );
+    const header = title?.parentElement?.parentElement;
+    expect(header?.tagName).toBe("HEADER");
+    expect(title?.className).toContain("h-10");
+    expect(title?.className).toContain("items-center");
+    expect(title?.parentElement?.className).toContain("min-w-0");
+    expect(title?.querySelector("span")?.className).toContain("truncate");
+    expect(button(container, "Back")?.parentElement?.className).toContain("w-24");
+    expect(
+      container.querySelector('[aria-label="Sign in"]')?.parentElement?.className,
+    ).toContain("w-24");
+  });
+
+  it("opens a Payload Rock form by its URL key with rich content above the form", async () => {
+    const formGuid = "33333333-3333-3333-3333-333333333333";
+    const share = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", {
+      ...window.navigator,
+      share,
+    });
+    const rockForm: LauncherItem = {
+      id: "kids-enrolment",
+      title: "Kids enrolment",
+      campusSlugs: [],
+      action: {
+        type: "workflow",
+        workflowTypeGuid: formGuid,
+        body: {
+          root: {
+            children: [
+              {
+                type: "paragraph",
+                children: [{ type: "text", text: "Register each child." }],
+              },
+            ],
+          },
+        },
+      },
+    };
+    window.history.replaceState(null, "", "/kids?launcher=kids-enrolment");
+
+    await act(async () => {
+      root.render(
+        <NextStepsLauncher campuses={campuses} items={[...items, rockForm]} />,
+      );
+    });
+
+    expect(container.textContent).toContain("Register each child.");
+    expect(
+      container.querySelector(`input[aria-label="Workflow ${formGuid}"]`),
+    ).not.toBeNull();
+    const shareButton = button(container, "Share Kids enrolment");
+    const closeButton = button(container, "Close next steps");
+    expect(shareButton).toBeTruthy();
+    expect(shareButton?.parentElement).toBe(closeButton?.parentElement);
+    expect(shareButton?.parentElement?.className).toContain("fixed");
+    expect(shareButton?.parentElement?.className).toContain("gap-2");
+    expect(shareButton?.className).toContain("animate-launcher-share-reveal");
+    expect(shareButton?.className).toContain("motion-reduce:animate-none");
+    expect(shareButton?.querySelector("[data-launcher-link-icon]")).not.toBeNull();
+    await act(async () => button(container, "Share Kids enrolment")?.click());
+    expect(share).toHaveBeenCalledWith({
+      title: "Kids enrolment",
+      url: `${window.location.origin}/?launcher=kids-enrolment`,
+    });
+  });
+
+  it("builds launcher share links from the site root", () => {
+    expect(launcherShareHref("kids enrolment")).toBe(
+      "/?launcher=kids%20enrolment",
+    );
+  });
+
+  it("copies the launcher link when native sharing is unavailable", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", {
+      ...window.navigator,
+      clipboard: { writeText },
+      share: undefined,
+    });
+    window.history.replaceState(null, "", "/?launcher=home");
+
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+    await act(async () => button(container, "Share Your next step")?.click());
+
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/?launcher=home`);
+    expect(button(container, "Link copied")).toBeTruthy();
+  });
+
+  it("does not show a stale copy result after the launcher starts closing", async () => {
+    let resolveCopy: (() => void) | undefined;
+    const writeText = vi.fn(
+      () => new Promise<void>((resolve) => {
+        resolveCopy = resolve;
+      }),
+    );
+    vi.stubGlobal("navigator", {
+      ...window.navigator,
+      clipboard: { writeText },
+      share: undefined,
+    });
+    window.history.replaceState(null, "", "/?launcher=home");
+
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+    await act(async () => button(container, "Share Your next step")?.click());
+    await act(async () => button(container, "Close next steps")?.click());
+    await act(async () => resolveCopy?.());
+
+    expect(button(container, "Link copied")).toBeFalsy();
+  });
+
+  it("assigns a share target to every built-in launcher page", () => {
+    expect(launcherShareTarget({ type: "home" })).toBe("home");
+    expect(launcherShareTarget({ type: "catalogue" })).toBe("catalogue");
+    expect(launcherShareTarget({ type: "giving" })).toBe("give");
+    expect(
+      launcherShareTarget({ type: "feedback", title: "Website feedback" }),
+    ).toBe("feedback");
   });
 
   it("ignores launcher targets that do not resolve to an internal view", async () => {

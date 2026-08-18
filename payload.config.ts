@@ -26,6 +26,7 @@ import { SermonAudio } from '@/collections/SermonAudio'
 import { ConnectGroups } from '@/collections/ConnectGroups'
 import { Registrations } from '@/collections/Registrations'
 import { ServiceGuideItems } from '@/collections/ServiceGuideItems'
+import { RockForms } from '@/collections/RockForms'
 import { ConnectGroupParticipants } from '@/collections/ConnectGroupParticipants'
 import { ConnectGroupComments } from '@/collections/ConnectGroupComments'
 import { ConnectGroupLeaderResources } from '@/collections/ConnectGroupLeaderResources'
@@ -90,6 +91,7 @@ export const applicationCollections: CollectionConfig[] = [
   LeaderResourceShares,
   Registrations,
   ServiceGuideItems,
+  RockForms,
   SermonSeries,
   Sermons,
   Speakers,

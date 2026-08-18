@@ -11,6 +11,7 @@ import { denyExternalMutation, isEditor } from '@/access/roles'
 export const ServiceGuideItems: CollectionConfig = {
   slug: 'service-guide-items',
   admin: {
+    group: 'Launcher',
     useAsTitle: 'title',
     defaultColumns: ['title', 'status', 'priority', 'sourceOrder', 'lastSyncedAt'],
   },
