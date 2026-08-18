@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 
 import { ConnectGroupCard } from '@/components/members/ConnectGroupCard'
 import { memberConnectGroupHref, MemberPortalChrome } from '@/components/members/MemberPortalChrome'
-import { getMemberPortalHome } from '@/lib/members/data'
+import { getMemberGroupDetail, getMemberPortalHome } from '@/lib/members/data'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
@@ -17,18 +17,25 @@ export default async function ConnectGroupsPage() {
   if (home.groups.length === 1) {
     redirect(memberConnectGroupHref(home.groups))
   }
-  const ownGroups = home.groups.filter((group) => !group.isCoached)
+  const ownGroups = home.groups
+    .filter((group) => !group.isCoached)
+    .sort((left, right) => Number(right.isLeader) - Number(left.isLeader) || left.name.localeCompare(right.name))
   const coachedGroups = home.groups.filter((group) => group.isCoached)
+  const managedGroups = [
+    ...ownGroups.filter((group) => group.isLeader || group.isCoach),
+    ...coachedGroups,
+  ]
+  const attendanceByGroup = new Map(await Promise.all(managedGroups.map(async (group) => {
+    const detail = await getMemberGroupDetail(group.rockGroupId)
+    return [
+      group.rockGroupId,
+      detail?.access === 'granted' ? detail.attendance?.summary ?? null : null,
+    ] as const
+  })))
 
   return (
     <MemberPortalChrome active="groups" member={home.profile} canAccessLeaderResources={home.canAccessLeaderResources} connectGroupHref={memberConnectGroupHref(home.groups)}>
-      <p className="text-xs font-bold uppercase tracking-[0.18em] text-rich-red">Connect Groups</p>
-      <h2 className="mt-3 max-w-3xl text-4xl leading-tight text-brand-black sm:text-5xl">Your groups and your people</h2>
-      <p className="mt-5 max-w-2xl text-base leading-relaxed text-mid-grey">
-        {coachedGroups.length > 0
-          ? 'Your own Connect Group appears first, followed by the groups you coach.'
-          : 'If you belong to more than one active group, you\'ll see each one here.'}
-      </p>
+      <h2 className="max-w-3xl text-4xl leading-tight text-brand-black sm:text-5xl">Connect Groups</h2>
 
       {home.groups.length > 0 ? (
         <>
@@ -39,6 +46,7 @@ export default async function ConnectGroupsPage() {
                   key={group.rockGroupId}
                   group={group}
                   highlighted={coachedGroups.length > 0}
+                  attendance={attendanceByGroup.get(group.rockGroupId)}
                 />
               ))}
             </div>
@@ -50,7 +58,11 @@ export default async function ConnectGroupsPage() {
               </p>
               <div className="mt-5 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {coachedGroups.map((group) => (
-                  <ConnectGroupCard key={group.rockGroupId} group={group} />
+                  <ConnectGroupCard
+                    key={group.rockGroupId}
+                    group={group}
+                    attendance={attendanceByGroup.get(group.rockGroupId)}
+                  />
                 ))}
               </div>
             </section>

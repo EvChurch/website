@@ -46,6 +46,7 @@ export interface MemberGroupSummary {
   locationAddress: string | null
   isLeader: boolean
   isCoached: boolean
+  isCoach: boolean
   roleName: string
 }
 
@@ -186,6 +187,7 @@ function toMemberGroup(
   group: ConnectGroupRecord,
   membership: ParticipantMembershipRecord | null,
   isCoached = false,
+  isCoach = isCoached,
 ): MemberGroupSummary | null {
   const rockGroupId = positiveInteger(group.rockGroupId)
   const name = nonemptyText(group.name)
@@ -201,7 +203,8 @@ function toMemberGroup(
     locationAddress: nonemptyText(group.location?.address),
     isLeader: membership?.isLeader === true,
     isCoached,
-    roleName: isCoached ? 'Coach' : nonemptyText(membership?.roleName) ?? 'Member',
+    isCoach,
+    roleName: isCoach ? 'Coach' : nonemptyText(membership?.roleName) ?? 'Member',
   }
 }
 
@@ -307,10 +310,15 @@ async function findMemberGroups(
       const membership = rockGroupId
         ? membershipFor(participant ?? {}, rockGroupId)
         : null
-      const isCoached = rockGroupId
-        ? !membership && isCoachedGroup(participant, rockGroupId)
+      const isCoach = rockGroupId
+        ? isCoachedGroup(participant, rockGroupId)
         : false
-      return membership || isCoached ? toMemberGroup(group, membership, isCoached) : null
+      const isCoached = rockGroupId
+        ? !membership && isCoach
+        : false
+      return membership || isCoach
+        ? toMemberGroup(group, membership, isCoached, isCoach)
+        : null
     })
     .filter((group): group is MemberGroupSummary => group !== null)
     .sort((a, b) => {
@@ -455,7 +463,12 @@ export async function getMemberGroupDetail(
   ])
   const groupRecord = groupResult.docs[0]
   if (!groupRecord) return { access: 'denied' }
-  const group = toMemberGroup(groupFrom(groupRecord), currentMembership, isCoached && !currentMembership)
+  const group = toMemberGroup(
+    groupFrom(groupRecord),
+    currentMembership,
+    isCoached && !currentMembership,
+    isCoached,
+  )
   if (!group) return { access: 'denied' }
 
   const people = peopleResult.docs
