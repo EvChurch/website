@@ -43,6 +43,7 @@ import * as migration_20260818_010000_giving_rock_alias_reuse from './20260818_0
 import * as migration_20260818_090000_connect_group_comments from './20260818_090000_connect_group_comments';
 import * as migration_20260818_234000_profile_card_style from './20260818_234000_profile_card_style';
 import * as migration_20260819_010000_connect_group_comments from './20260819_010000_connect_group_comments';
+import * as migration_20260819_030000_fix_connect_group_comments_lock_relation from './20260819_030000_fix_connect_group_comments_lock_relation';
 
 export const migrations = [
   {
@@ -269,5 +270,10 @@ export const migrations = [
     up: migration_20260819_010000_connect_group_comments.up,
     down: migration_20260819_010000_connect_group_comments.down,
     name: '20260819_010000_connect_group_comments',
+  },
+  {
+    up: migration_20260819_030000_fix_connect_group_comments_lock_relation.up,
+    down: migration_20260819_030000_fix_connect_group_comments_lock_relation.down,
+    name: '20260819_030000_fix_connect_group_comments_lock_relation',
   },
 ];
