@@ -131,8 +131,17 @@ function viewTitle(view: LauncherView): string {
   }
 }
 
-export function launcherShareHref(target: string): string {
-  return `/?launcher=${encodeURIComponent(target)}`;
+export function launcherShareHref(
+  target: string,
+  pathname = "/",
+  parameters: Record<string, string> = {},
+): string {
+  const safePathname =
+    pathname.startsWith("/") && !pathname.startsWith("//") ? pathname : "/";
+  const additionalQuery = new URLSearchParams(parameters).toString();
+  return `${safePathname}?launcher=${encodeURIComponent(target)}${
+    additionalQuery ? `&${additionalQuery}` : ""
+  }`;
 }
 
 export function launcherShareTarget(view: LauncherView): string | null {
@@ -150,20 +159,20 @@ export function launcherShareTarget(view: LauncherView): string | null {
     case "content":
       return view.shareTarget ?? null;
     case "registration":
-      return null;
+      return "registration";
   }
 }
 
-export function safeRegistrationLauncherHref(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  try {
-    const url = new URL(value);
-    const dedicatedRockSite =
-      url.protocol === "https:" && url.hostname === "registration.ev.church";
-    return dedicatedRockSite ? url.toString() : null;
-  } catch {
-    return null;
-  }
+export function safeRegistrationInstanceId(value: unknown): number | null {
+  if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) return null;
+  const id = Number(value);
+  return Number.isSafeInteger(id) ? id : null;
+}
+
+function registrationLauncherHref(registrationInstanceId: number): string {
+  const url = new URL("https://registration.ev.church/");
+  url.searchParams.set("RegistrationInstanceId", String(registrationInstanceId));
+  return url.toString();
 }
 
 function LauncherShareButton({
@@ -171,11 +180,15 @@ function LauncherShareButton({
   title,
   buttonRef,
   closing,
+  parameters,
+  pathname,
 }: {
   target: string;
   title: string;
   buttonRef: React.RefObject<HTMLButtonElement | null>;
   closing: boolean;
+  parameters?: Record<string, string>;
+  pathname?: string;
 }) {
   const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle");
   const shareRequestRef = useRef(0);
@@ -191,7 +204,10 @@ function LauncherShareButton({
 
   const share = async () => {
     const requestId = ++shareRequestRef.current;
-    const url = new URL(launcherShareHref(target), window.location.origin).toString();
+    const url = new URL(
+      launcherShareHref(target, pathname, parameters),
+      window.location.origin,
+    ).toString();
     setStatus("idle");
     try {
       if (navigator.share) {
@@ -379,20 +395,30 @@ export function NextStepsLauncher({
   useEffect(() => {
     const openRegistration = (event: Event) => {
       const detail = (event as CustomEvent<OpenEventRegistrationDetail>).detail;
-      const href = safeRegistrationLauncherHref(detail?.href);
+      const registrationInstanceId =
+        Number.isSafeInteger(detail?.registrationInstanceId) &&
+        detail.registrationInstanceId > 0
+          ? detail.registrationInstanceId
+          : null;
       const title = detail?.title?.trim().slice(0, 160);
-      if (!href || !title) return;
+      if (!registrationInstanceId || !title) return;
 
       dispatch({
         type: "openView",
         presentation: isMobile ? "fullscreen" : "compact",
-        view: { type: "registration", href, title },
+        view: {
+          type: "registration",
+          href: registrationLauncherHref(registrationInstanceId),
+          registrationInstanceId,
+          title,
+        },
       });
+      handledLauncherTargetRef.current = `${pathname}?launcher=registration`;
     };
 
     window.addEventListener(OPEN_EVENT_REGISTRATION, openRegistration);
     return () => window.removeEventListener(OPEN_EVENT_REGISTRATION, openRegistration);
-  }, [isMobile]);
+  }, [isMobile, pathname]);
 
   useEffect(() => {
     if (isMobile && state.presentation === "compact") {
@@ -464,6 +490,18 @@ export function NextStepsLauncher({
       };
     } else if (launcherTarget === "feedback" && feedback) {
       targetView = { type: "feedback", title: feedback.modalTitle };
+    } else if (launcherTarget === "registration") {
+      const registrationInstanceId = safeRegistrationInstanceId(
+        searchParams.get("registrationInstanceId"),
+      );
+      if (registrationInstanceId) {
+        targetView = {
+          type: "registration",
+          href: registrationLauncherHref(registrationInstanceId),
+          registrationInstanceId,
+          title: "Registration",
+        };
+      }
     } else if (launcherTarget === "give" && giving.givingSurfaceAvailable) {
       handledLauncherTargetRef.current = handledTargetKey;
       dispatch({
@@ -510,6 +548,7 @@ export function NextStepsLauncher({
     handledLauncherTargetRef.current = null;
     const nextSearchParams = new URLSearchParams(searchParams.toString());
     nextSearchParams.delete("launcher");
+    nextSearchParams.delete("registrationInstanceId");
     const query = nextSearchParams.toString();
     router.replace(`${pathname}${query ? `?${query}` : ""}`, { scroll: false });
   }, [pathname, router, searchParams]);
@@ -1140,6 +1179,18 @@ export function NextStepsLauncher({
             <LauncherShareButton
               buttonRef={shareButtonRef}
               closing={isClosing}
+              parameters={
+                state.view.type === "registration"
+                  ? {
+                      registrationInstanceId: String(
+                        state.view.registrationInstanceId,
+                      ),
+                    }
+                  : undefined
+              }
+              pathname={
+                state.view.type === "registration" ? pathname : undefined
+              }
               target={shareTarget}
               title={viewTitle(state.view)}
             />

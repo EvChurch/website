@@ -16,7 +16,7 @@ export function RegistrationFrame({ src, title }: { src: string; title: string }
         direction="vertical"
         allow="payment"
         referrerPolicy="strict-origin-when-cross-origin"
-        className="block min-h-[40rem] w-full border-0 bg-white"
+        className="block w-full border-0 bg-transparent"
       />
     </div>
   )

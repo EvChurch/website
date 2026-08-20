@@ -1,12 +1,31 @@
 'use client'
 
-import { TrackedAnchor } from '@/components/analytics/TrackedLink'
+import type { MouseEvent } from 'react'
+
+import { Button } from '@/components/ui/Button'
+import { trackAnalyticsEvent } from '@/lib/analytics'
 
 export const OPEN_EVENT_REGISTRATION = 'ev:open-event-registration'
 
 export type OpenEventRegistrationDetail = {
-  href: string
+  registrationInstanceId: number
   title: string
+}
+
+function getRegistrationInstanceId(href: string | null): number | null {
+  if (!href) return null
+  try {
+    const url = new URL(href)
+    if (url.protocol !== 'https:' || url.hostname !== 'registration.ev.church') {
+      return null
+    }
+    const value = url.searchParams.get('RegistrationInstanceId')
+    if (!value || !/^[1-9]\d*$/.test(value)) return null
+    const id = Number(value)
+    return Number.isSafeInteger(id) ? id : null
+  } catch {
+    return null
+  }
 }
 
 export function EventRegistrationAction({
@@ -22,30 +41,45 @@ export function EventRegistrationAction({
   eventTitle: string
   registrationHref: string
 }) {
+  const registrationInstanceId = getRegistrationInstanceId(embeddedHref)
+
+  const openRegistration = () => {
+    if (!registrationInstanceId) return
+
+    window.dispatchEvent(
+      new CustomEvent<OpenEventRegistrationDetail>(OPEN_EVENT_REGISTRATION, {
+        detail: { registrationInstanceId, title: eventTitle },
+      }),
+    )
+  }
+
   return (
-    <TrackedAnchor
+    <Button
       href={registrationHref}
-      target="_blank"
-      rel="noopener noreferrer"
-      eventName="event_registration_click"
-      eventParameters={{
-        event_slug: eventSlug,
-        campus,
-        destination_host: new URL(registrationHref).hostname,
-      }}
-      onClick={(event) => {
-        if (!embeddedHref || event.button !== 0 || event.metaKey || event.ctrlKey) return
+      external
+      className="mt-9 w-full"
+      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+        trackAnalyticsEvent('event_registration_click', {
+          event_slug: eventSlug,
+          campus,
+          destination_host: new URL(registrationHref).hostname,
+        })
+        if (
+          !registrationInstanceId ||
+          event.button !== 0 ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.shiftKey ||
+          event.altKey
+        ) {
+          return
+        }
 
         event.preventDefault()
-        window.dispatchEvent(
-          new CustomEvent<OpenEventRegistrationDetail>(OPEN_EVENT_REGISTRATION, {
-            detail: { href: embeddedHref, title: eventTitle },
-          }),
-        )
+        openRegistration()
       }}
-      className="mt-9 inline-flex min-h-12 w-full items-center justify-center bg-rich-red px-6 text-center text-sm font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-deep-red focus:outline-none focus:ring-4 focus:ring-light-red-2"
     >
       Register now
-    </TrackedAnchor>
+    </Button>
   )
 }

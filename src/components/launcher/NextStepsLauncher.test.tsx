@@ -50,7 +50,7 @@ import {
   launcherShareHref,
   launcherShareTarget,
   NextStepsLauncher,
-  safeRegistrationLauncherHref,
+  safeRegistrationInstanceId,
 } from "./NextStepsLauncher";
 import {
   OPEN_EVENT_REGISTRATION,
@@ -550,6 +550,16 @@ describe("NextStepsLauncher", () => {
     expect(launcherShareHref("kids enrolment")).toBe(
       "/?launcher=kids%20enrolment",
     );
+    expect(
+      launcherShareHref("registration", "/events/next-steps", {
+        registrationInstanceId: "81",
+      }),
+    ).toBe(
+      "/events/next-steps?launcher=registration&registrationInstanceId=81",
+    );
+    expect(launcherShareHref("registration", "//evil.test")).toBe(
+      "/?launcher=registration",
+    );
   });
 
   it("copies the launcher link when native sharing is unavailable", async () => {
@@ -601,6 +611,14 @@ describe("NextStepsLauncher", () => {
     expect(
       launcherShareTarget({ type: "feedback", title: "Website feedback" }),
     ).toBe("feedback");
+    expect(
+      launcherShareTarget({
+        type: "registration",
+        href: "https://registration.ev.church/?RegistrationInstanceId=81",
+        registrationInstanceId: 81,
+        title: "Registration",
+      }),
+    ).toBe("registration");
   });
 
   it("ignores launcher targets that do not resolve to an internal view", async () => {
@@ -1230,7 +1248,7 @@ describe("NextStepsLauncher", () => {
       window.dispatchEvent(
         new CustomEvent<OpenEventRegistrationDetail>(OPEN_EVENT_REGISTRATION, {
           detail: {
-            href: "https://registration.ev.church/?RegistrationInstanceId=81",
+            registrationInstanceId: 81,
             title: "Next Steps",
           },
         }),
@@ -1249,15 +1267,44 @@ describe("NextStepsLauncher", () => {
     ).not.toBeNull();
   });
 
-  it("rejects untrusted registration launcher URLs", () => {
-    expect(
-      safeRegistrationLauncherHref("https://registration.ev.church/registration"),
-    ).toBe("https://registration.ev.church/registration");
-    expect(
-      safeRegistrationLauncherHref("https://registration.ev.church.evil.test/registration"),
-    ).toBeNull();
-    expect(
-      safeRegistrationLauncherHref("http://localhost:4174/registration"),
-    ).toBeNull();
+  it("opens and shares a registration instance from any page", async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { ...window.navigator, share });
+    navigation.pathname = "/about";
+    window.history.replaceState(
+      null,
+      "",
+      "/about?launcher=registration&registrationInstanceId=81",
+    );
+
+    await act(async () => {
+      root.render(
+        <NextStepsLauncher
+          campuses={campuses}
+          items={items}
+          initialPathname="/about"
+        />,
+      );
+    });
+
+    const frame = container.querySelector<HTMLElement>(
+      "[data-registration-frame]",
+    );
+    expect(frame?.getAttribute("data-src")).toBe(
+      "https://registration.ev.church/?RegistrationInstanceId=81",
+    );
+
+    await act(async () => button(container, "Share Registration")?.click());
+    expect(share).toHaveBeenCalledWith({
+      title: "Registration",
+      url: `${window.location.origin}/about?launcher=registration&registrationInstanceId=81`,
+    });
+  });
+
+  it("accepts only positive numeric registration instance IDs", () => {
+    expect(safeRegistrationInstanceId("81")).toBe(81);
+    expect(safeRegistrationInstanceId("0")).toBeNull();
+    expect(safeRegistrationInstanceId("81x")).toBeNull();
+    expect(safeRegistrationInstanceId("9007199254740992")).toBeNull();
   });
 });
