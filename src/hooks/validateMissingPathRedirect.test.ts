@@ -75,6 +75,20 @@ describe('validateMissingPathRedirect', () => {
     await expect(validateMissingPathRedirect(args)).resolves.toMatchObject({ destination: null })
   })
 
+  it('allows a validated homepage launcher destination', async () => {
+    const { args } = hookArgs({
+      data: {
+        path: '/reimbursement',
+        destination: '/?launcher=reimbursement',
+      },
+    })
+
+    await expect(validateMissingPathRedirect(args)).resolves.toMatchObject({
+      path: '/reimbursement',
+      destination: '/?launcher=reimbursement',
+    })
+  })
+
   it.each([
     ['external', 'https://example.com/kids', []],
     ['self', '/old', []],

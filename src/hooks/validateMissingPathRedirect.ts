@@ -56,7 +56,9 @@ export const validateMissingPathRedirect: CollectionBeforeChangeHook<MissingPath
       : null
 
   if (effectiveDestination != null && !clearsDestination && !destination) {
-    throw invalidRedirect('Redirect destination must be a root-relative path without a query or fragment.')
+    throw invalidRedirect(
+      'Redirect destination must be a root-relative path or a homepage launcher link.',
+    )
   }
   if (destination === source) {
     throw invalidRedirect('Redirect destination cannot match the missing path.')

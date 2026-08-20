@@ -24,6 +24,9 @@ const METADATA_PATHS = new Set([
 const FILE_LIKE_SEGMENT = /(?:^|\/)[^/]+\.[A-Za-z0-9]{1,16}$/
 const CONTROL_CHARACTER = /[\u0000-\u001F\u007F]/
 const ENCODED_STRUCTURAL_CHARACTER = /%(?:2e|2f|5c)/i
+const LAUNCHER_TARGET = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/
+const MAX_LAUNCHER_TARGET_LENGTH = 128
+const INTERNAL_REDIRECT_ORIGIN = 'https://www.ev.church'
 
 export const PUBLIC_PATH_HEADER = 'x-ev-public-path'
 
@@ -108,7 +111,40 @@ export function decodePublicPathHeader(input: string): string | null {
 }
 
 export function parseInternalRedirectDestination(input: string): string | null {
-  if (!input.startsWith('/') || input.startsWith('//')) return null
-  if (input.includes('?') || input.includes('#')) return null
-  return normalizePublicPath(input)
+  if (
+    !input.startsWith('/') ||
+    input.startsWith('//') ||
+    CONTROL_CHARACTER.test(input) ||
+    input.includes('\\')
+  ) {
+    return null
+  }
+  if (input.includes('#')) return null
+
+  let destination: URL
+  try {
+    destination = new URL(input, INTERNAL_REDIRECT_ORIGIN)
+  } catch {
+    return null
+  }
+
+  if (destination.origin !== INTERNAL_REDIRECT_ORIGIN) return null
+
+  const pathname = normalizePublicPath(destination.pathname)
+  if (!pathname) return null
+  if (!destination.search) return pathname
+  if (pathname !== '/') return null
+
+  const entries = [...destination.searchParams.entries()]
+  if (entries.length !== 1 || entries[0]?.[0] !== 'launcher') return null
+
+  const target = entries[0][1]
+  if (
+    target.length > MAX_LAUNCHER_TARGET_LENGTH ||
+    !LAUNCHER_TARGET.test(target)
+  ) {
+    return null
+  }
+
+  return `/?launcher=${encodeURIComponent(target)}`
 }
