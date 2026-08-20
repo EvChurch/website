@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   loadLauncherData: vi.fn().mockResolvedValue({ available: false, campuses: [], items: [] }),
   loadSiteFeedbackSettings: vi.fn().mockResolvedValue(null),
   getCachedActiveGivingFunds: vi.fn().mockResolvedValue([
-    { id: 1, name: 'General', code: 'GENERAL', sortOrder: 0, isDefault: true },
+    { id: 1, name: 'General', code: 'GENERAL', sortOrder: 0, isDefault: true, apprenticeRelated: false },
   ]),
   resolveGivingRuntimeConfiguration: vi.fn().mockReturnValue(null),
   publicChrome: vi.fn(({ children }: {
@@ -36,7 +36,7 @@ describe('FrontendLayout public rendering boundary', () => {
     vi.clearAllMocks()
     mocks.loadSiteFeedbackSettings.mockResolvedValue(null)
     mocks.getCachedActiveGivingFunds.mockResolvedValue([
-      { id: 1, name: 'General', code: 'GENERAL', sortOrder: 0, isDefault: true },
+      { id: 1, name: 'General', code: 'GENERAL', sortOrder: 0, isDefault: true, apprenticeRelated: false },
     ])
     mocks.resolveGivingRuntimeConfiguration.mockReturnValue(null)
   })
@@ -79,7 +79,7 @@ describe('FrontendLayout public rendering boundary', () => {
       feedback,
       footer: expect.anything(),
       launcher,
-      givingFunds: [{ id: 1, name: 'General', code: 'GENERAL', sortOrder: 0, isDefault: true }],
+      givingFunds: [{ id: 1, name: 'General', code: 'GENERAL', sortOrder: 0, isDefault: true, apprenticeRelated: false }],
       givingRuntime,
     }, undefined)
     expect(JSON.stringify(mocks.publicChrome.mock.calls)).not.toContain('memberProfile')

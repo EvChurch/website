@@ -7,16 +7,18 @@ describe('giving funds', () => {
   it('allows public reads only for active funds and keeps private fields admin-only', () => {
     expect(GivingFunds.access?.read?.({ req: { user: null } } as never)).toEqual({ active: { equals: true } })
     const accountingKey = GivingFunds.fields.find((field) => 'name' in field && field.name === 'accountingKey')
+    const apprenticeRelated = GivingFunds.fields.find((field) => 'name' in field && field.name === 'apprenticeRelated')
     expect(accountingKey && 'access' in accountingKey && accountingKey.access?.read?.({ req: { user: null } } as never)).toBe(false)
+    expect(apprenticeRelated).toMatchObject({ label: 'Apprentice-related', type: 'checkbox', required: true, defaultValue: false })
   })
 
   it('loads only active display-safe fields', async () => {
-    const find = vi.fn().mockResolvedValue({ docs: [{ id: 1, name: 'General', code: 'GEN', sortOrder: 0, isDefault: true }] })
-    await expect(getActiveGivingFunds({ find } as never)).resolves.toEqual([{ id: 1, name: 'General', code: 'GEN', sortOrder: 0, isDefault: true }])
+    const find = vi.fn().mockResolvedValue({ docs: [{ id: 1, name: 'General', code: 'GEN', sortOrder: 0, isDefault: true, apprenticeRelated: false }] })
+    await expect(getActiveGivingFunds({ find } as never)).resolves.toEqual([{ id: 1, name: 'General', code: 'GEN', sortOrder: 0, isDefault: true, apprenticeRelated: false }])
     expect(find).toHaveBeenCalledWith(expect.objectContaining({
       collection: 'giving-funds',
       where: { active: { equals: true } },
-      select: { name: true, code: true, sortOrder: true, isDefault: true },
+      select: { name: true, code: true, sortOrder: true, isDefault: true, apprenticeRelated: true },
     }))
   })
 

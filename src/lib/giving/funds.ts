@@ -7,7 +7,7 @@ export async function getActiveGivingFunds(payload?: Payload): Promise<PublicGiv
   const client = payload ?? await (await import('@/lib/payload')).getPayloadClient()
   const result = await client.find({
     collection: 'giving-funds', where: { active: { equals: true } }, sort: 'sortOrder', depth: 0, limit: 100,
-    select: { name: true, code: true, sortOrder: true, isDefault: true },
+    select: { name: true, code: true, sortOrder: true, isDefault: true, apprenticeRelated: true },
   })
   return result.docs as PublicGivingFund[]
 }

@@ -4,8 +4,8 @@ import type { PublicGivingFund } from '@/lib/giving/contracts'
 import { createGivingState, givingReducer, nextGivingStep } from './giving-state'
 
 const funds: PublicGivingFund[] = [
-  { id: 1, name: 'Community', code: 'COMM', sortOrder: 0, isDefault: false },
-  { id: 2, name: 'General', code: 'GEN', sortOrder: 1, isDefault: true },
+  { id: 1, name: 'Community', code: 'COMM', sortOrder: 0, isDefault: false, apprenticeRelated: false },
+  { id: 2, name: 'General', code: 'GEN', sortOrder: 1, isDefault: true, apprenticeRelated: false },
 ]
 
 describe('giving state', () => {
