@@ -22,6 +22,27 @@ describe('giving funds', () => {
     }))
   })
 
+  it('keeps giving available while the apprentice column is awaiting migration', async () => {
+    const missingColumn = Object.assign(new Error('query failed'), {
+      cause: Object.assign(new Error('column apprentice_related does not exist'), { code: '42703' }),
+    })
+    const find = vi.fn()
+      .mockRejectedValueOnce(missingColumn)
+      .mockResolvedValueOnce({ docs: [{ id: 1, name: 'General', code: 'GEN', sortOrder: 0, isDefault: true }] })
+
+    await expect(getActiveGivingFunds({ find } as never)).resolves.toEqual([
+      { id: 1, name: 'General', code: 'GEN', sortOrder: 0, isDefault: true, apprenticeRelated: false },
+    ])
+    expect(find).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      select: { name: true, code: true, sortOrder: true, isDefault: true },
+    }))
+  })
+
+  it('does not hide unrelated giving-fund failures', async () => {
+    const failure = Object.assign(new Error('connection failed'), { code: '08006' })
+    await expect(getActiveGivingFunds({ find: vi.fn().mockRejectedValue(failure) } as never)).rejects.toBe(failure)
+  })
+
   it('clears the prior default in the same request transaction before selecting a new one', async () => {
     const update = vi.fn().mockResolvedValue({ docs: [] })
     await swapDefaultGivingFund({ data: { active: true, isDefault: true }, originalDoc: { id: 2 }, req: { payload: { update } } } as never)
