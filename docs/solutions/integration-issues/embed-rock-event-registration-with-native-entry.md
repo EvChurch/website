@@ -29,6 +29,8 @@ https://registration.ev.church/?RegistrationInstanceId=81
 
 Only URLs on the dedicated HTTPS registration host may open in the launcher. The Rock site must allow `https://www.ev.church` in `frame-ancestors`, and every registration step must load the matching iframe-resizer child script. The parent checks the message origin and retains Rock as the owner of registration and payment mutations.
 
+Use the current page as the shareable launcher URL, for example `/events/next-steps?launcher=registration&registrationInstanceId=81`. The launcher accepts only a positive numeric instance ID and constructs the fixed registration origin itself; never place an arbitrary iframe URL in the query string.
+
 ## Verification
 
 - Confirm the occurrence belongs to the public Website calendar and has exactly one registration linkage.
