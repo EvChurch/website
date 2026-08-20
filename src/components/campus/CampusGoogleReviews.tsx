@@ -128,29 +128,6 @@ function ReviewCard({ review }: { review: GoogleReview }) {
   )
 }
 
-function ReviewPrompt({
-  campusName,
-  campusSlug,
-  reviewUrl,
-}: Pick<CampusGoogleReviewsProps, 'campusName' | 'campusSlug' | 'reviewUrl'>) {
-  return (
-    <div className="rounded-2xl border border-warm-grey/60 bg-white p-6 text-center shadow-sm sm:p-8">
-      <h2 className="text-h3 leading-heading text-brand-black">Visited {campusName}?</h2>
-      <div className="mt-5">
-        <TrackedButtonLink
-          href={reviewUrl}
-          external
-          variant="secondary"
-          eventName="google_review_click"
-          eventParameters={{ campus: campusSlug, destination_host: 'search.google.com' }}
-        >
-          Share your experience on Google
-        </TrackedButtonLink>
-      </div>
-    </div>
-  )
-}
-
 export function CampusGoogleReviews({
   apiKey,
   campusName,
@@ -225,12 +202,12 @@ export function CampusGoogleReviews({
   const reviews = place?.reviews?.filter((review) => review.text?.text?.trim()).slice(0, 3) ?? []
   const allReviewsUrl = place?.googleMapsUri ?? googleMapsUrl
 
+  if (failed || !apiKey || (place && reviews.length === 0)) return null
+
   return (
     <section ref={sectionRef} className="bg-warm-white px-5 py-20 lg:px-8 lg:py-28">
       <div className="mx-auto max-w-[80rem]">
-        {failed || !apiKey || (place && reviews.length === 0) ? (
-          <ReviewPrompt campusName={campusName} campusSlug={campusSlug} reviewUrl={reviewUrl} />
-        ) : place && reviews.length > 0 ? (
+        {place && reviews.length > 0 ? (
           <>
             <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
               <div>
@@ -281,41 +258,16 @@ export function CampusGoogleReviews({
               >
                 Share your experience
               </TrackedButtonLink>
-              {allReviewsUrl && (
-                <a
-                  href={allReviewsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  translate="no"
-                  className="ml-auto text-base text-[#5F6368] hover:text-brand-black"
-                  style={{ fontFamily: 'Roboto, Arial, sans-serif' }}
-                >
-                  Google Maps
-                  <span className="sr-only"> (opens in new tab)</span>
-                </a>
-              )}
             </div>
           </>
         ) : (
-          <div>
-            <div className="animate-pulse" aria-label="Loading Google reviews">
-              <div className="h-3 w-28 rounded bg-warm-grey" />
-              <div className="mt-4 h-10 max-w-xl rounded bg-warm-grey/70" />
-              <div className="mt-10 grid gap-5 md:grid-cols-3">
-                {Array.from({ length: 3 }, (_, index) => (
-                  <div key={index} className="h-64 rounded-2xl bg-white shadow-sm" />
-                ))}
-              </div>
-            </div>
-            <div className="mt-10">
-              <TrackedButtonLink
-                href={reviewUrl}
-                external
-                eventName="google_review_click"
-                eventParameters={{ campus: campusSlug, destination_host: 'search.google.com' }}
-              >
-                Share your experience on Google
-              </TrackedButtonLink>
+          <div className="animate-pulse" aria-label="Loading Google reviews">
+            <div className="h-3 w-28 rounded bg-warm-grey" />
+            <div className="mt-4 h-10 max-w-xl rounded bg-warm-grey/70" />
+            <div className="mt-10 grid gap-5 md:grid-cols-3">
+              {Array.from({ length: 3 }, (_, index) => (
+                <div key={index} className="h-64 rounded-2xl bg-white shadow-sm" />
+              ))}
             </div>
           </div>
         )}
