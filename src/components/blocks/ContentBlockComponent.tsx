@@ -70,7 +70,7 @@ export function ContentBlockComponent({
                 alignment === 'right' ? 'lg:[direction:rtl]' : ''
               }`}
             >
-              <div className="lg:[direction:ltr]">
+              <div className="min-w-0 lg:[direction:ltr]">
                 {heading && (
                   <h2 className="text-h2 leading-heading text-brand-black">
                     {heading}
