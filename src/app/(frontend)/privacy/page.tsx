@@ -86,6 +86,12 @@ const serviceProviders = [
     dataLocation: 'Globally distributed',
   },
   {
+    name: 'Google Maps Platform',
+    href: 'https://mapsplatform.google.com/',
+    purpose: 'Campus maps, ratings and publicly submitted Google reviews displayed on campus pages.',
+    dataLocation: 'Globally distributed',
+  },
+  {
     name: 'PostHog',
     href: 'https://posthog.com/',
     purpose: 'Website analytics, feature rollouts, error diagnosis and eligible session replays.',
@@ -246,6 +252,25 @@ export default function PrivacyPage() {
               Google Analytics measures general use of non-sensitive public pages. It is
               disabled on sensitive journeys such as sign-in, member, giving, contact and
               pastoral-care pages.
+            </p>
+            <p className={paragraphClassName}>
+              Google Maps Platform displays campus maps and may load public rating and review
+              data from Google when you view a campus page. Google processes these requests
+              under its{' '}
+              <a
+                href="https://policies.google.com/terms"
+                className="text-rich-red underline decoration-rich-red/30 underline-offset-2 transition-colors hover:text-deep-red"
+              >
+                Terms of Service
+              </a>{' '}
+              and{' '}
+              <a
+                href="https://policies.google.com/privacy"
+                className="text-rich-red underline decoration-rich-red/30 underline-offset-2 transition-colors hover:text-deep-red"
+              >
+                Privacy Policy
+              </a>
+              .
             </p>
             <p className={paragraphClassName}>
               PostHog helps us understand website use, diagnose errors, manage feature

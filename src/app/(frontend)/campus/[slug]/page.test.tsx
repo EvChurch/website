@@ -153,8 +153,7 @@ describe('Payload-managed campus page', () => {
     expect(markup).not.toContain('Google Maps embed will be placed here')
     expect(markup).toContain('Available for ages 0 to 12')
     expect(markup).toContain('Get directions')
-    expect(markup).toContain('Visited Ev North?')
-    expect(markup).toContain('Your honest feedback can help others know what to expect')
+    expect(markup).toContain('Loading Google reviews')
     expect(markup).toContain('Share your experience on Google')
     expect(markup).toContain(
       'href="https://search.google.com/local/writereview?placeid=ChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U"',
