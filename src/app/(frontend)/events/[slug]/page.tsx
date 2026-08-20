@@ -142,7 +142,7 @@ export default async function EventDetailPage({ params }: Props) {
                   </dd>
                 </div>
               )}
-              {!past && event.registrationStatus && (
+              {!past && event.registrationStatus && event.registrationStatus !== 'open' && (
                 <div>
                   <dt className="text-xs font-bold uppercase tracking-[0.16em] text-rich-red">Registration</dt>
                   <dd className="mt-3"><EventStatus event={event} /></dd>
