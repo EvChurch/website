@@ -161,6 +161,20 @@ describe('Service Guide launcher data', () => {
     ).toEqual({ type: 'content', html: '<p>Hello <a>there</a></p>' })
   })
 
+  it('drops nested dangerous containers and strips attributes from allowed markup', () => {
+    expect(
+      resolveLauncherAction(
+        record({
+          content:
+            '<script><script>alert(1)</script></script><svg><text>hidden</text></svg><section><p onclick="bad()">Safe <strong style="color:red">content</strong></p></section>',
+        }),
+      ),
+    ).toEqual({
+      type: 'content',
+      html: '<p>Safe <strong>content</strong></p>',
+    })
+  })
+
   it('retains CTA intent without retaining Rock classes or inline styles', () => {
     expect(
       resolveLauncherAction(
