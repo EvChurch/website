@@ -43,7 +43,7 @@ export function EventFeature({ event }: { event: PublicEvent }) {
             >
               View event
             </Link>
-            <EventStatus event={event} />
+            <EventStatus event={event} onDark />
           </div>
         </div>
       </div>
