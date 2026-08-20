@@ -36,4 +36,14 @@ describe('EventStatus', () => {
     expect(markup).toContain('text-brand-black')
     expect(markup).not.toContain('text-white')
   })
+
+  it('preserves the muted white treatment on dark featured cards', () => {
+    const markup = renderToStaticMarkup(
+      <EventStatus event={{ ...event, registrationStatus: 'closed' }} onDark />,
+    )
+
+    expect(markup).toContain('Registration closed')
+    expect(markup).toContain('text-white/55')
+    expect(markup).toContain('bg-white/40')
+  })
 })
