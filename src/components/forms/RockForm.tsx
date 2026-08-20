@@ -47,17 +47,17 @@ import type {
 
 const FORM_STARTUP_ERROR = 'This form is temporarily unavailable.'
 const fieldColumnClasses: Record<number, string> = {
-  1: 'col-span-12 sm:col-span-1',
-  2: 'col-span-12 sm:col-span-2',
-  3: 'col-span-12 sm:col-span-3',
-  4: 'col-span-12 sm:col-span-4',
-  5: 'col-span-12 sm:col-span-5',
-  6: 'col-span-12 sm:col-span-6',
-  7: 'col-span-12 sm:col-span-7',
-  8: 'col-span-12 sm:col-span-8',
-  9: 'col-span-12 sm:col-span-9',
-  10: 'col-span-12 sm:col-span-10',
-  11: 'col-span-12 sm:col-span-11',
+  1: 'col-span-12 @md/rock-form:col-span-1',
+  2: 'col-span-12 @md/rock-form:col-span-2',
+  3: 'col-span-12 @md/rock-form:col-span-3',
+  4: 'col-span-12 @md/rock-form:col-span-4',
+  5: 'col-span-12 @md/rock-form:col-span-5',
+  6: 'col-span-12 @md/rock-form:col-span-6',
+  7: 'col-span-12 @md/rock-form:col-span-7',
+  8: 'col-span-12 @md/rock-form:col-span-8',
+  9: 'col-span-12 @md/rock-form:col-span-9',
+  10: 'col-span-12 @md/rock-form:col-span-10',
+  11: 'col-span-12 @md/rock-form:col-span-11',
   12: 'col-span-12',
 }
 
@@ -82,7 +82,7 @@ function PersonFields({
   const fieldPrefix = prefix ? `${prefix} ` : ''
 
   return (
-    <div className="grid gap-5 sm:grid-cols-2">
+    <div className="grid gap-5 @md/rock-form:grid-cols-2">
       <label className={labelClass}>
         {fieldPrefix}First name <span aria-hidden="true">*</span>
         <input
@@ -164,7 +164,7 @@ function PersonFields({
         </label>
       )}
       {configuration.isSmsVisible && (
-        <label className="flex items-start gap-3 text-sm text-dark-grey sm:col-span-2">
+        <label className="flex items-start gap-3 text-sm text-dark-grey @md/rock-form:col-span-2">
           <input
             className="mt-1 h-4 w-4 accent-rich-red"
             type="checkbox"
@@ -195,9 +195,9 @@ function AddressInputs({
     onChange(JSON.stringify({ ...address, [key]: nextValue }))
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 @md/rock-form:grid-cols-2">
       <input
-        className={`${inputClass} sm:col-span-2`}
+        className={`${inputClass} @md/rock-form:col-span-2`}
         aria-label="Street address"
         placeholder="Street address"
         value={address.street1 || ''}
@@ -206,7 +206,7 @@ function AddressInputs({
         autoComplete="address-line1"
       />
       <input
-        className={`${inputClass} sm:col-span-2`}
+        className={`${inputClass} @md/rock-form:col-span-2`}
         aria-label="Address line 2"
         placeholder="Address line 2 (optional)"
         value={address.street2 || ''}
@@ -299,7 +299,7 @@ function RockField({
   ) {
     const selected = value ? value.split(',') : []
     control = (
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+      <div className="mt-3 grid gap-3 @md/rock-form:grid-cols-2">
         {options.map((option) => (
           <label key={option.value} className="flex items-start gap-3 text-sm font-normal">
             <input
@@ -820,7 +820,7 @@ export function RockForm({
   return (
     <form
       data-analytics-sensitive
-      className="space-y-8"
+      className="@container/rock-form space-y-8"
       onSubmit={async (event) => {
         event.preventDefault()
         if (!turnstileToken) {
