@@ -53,6 +53,15 @@ describe('missing path services', () => {
     }))
   })
 
+  it('returns a validated homepage launcher destination', async () => {
+    const find = vi.fn().mockResolvedValue({
+      docs: [{ destination: '/?launcher=reimbursement' }],
+    })
+
+    await expect(findMissingPathRedirect('/reimbursement', payload({ find })))
+      .resolves.toBe('/?launcher=reimbursement')
+  })
+
   it('returns no destination for absent, unresolved, or ineligible paths', async () => {
     const unresolved = vi.fn().mockResolvedValue({ docs: [{ destination: null }] })
     expect(await findMissingPathRedirect('/old', payload({ find: unresolved }))).toBeNull()

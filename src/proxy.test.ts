@@ -90,6 +90,18 @@ describe('admin Auth0 proxy', () => {
     expect(findRedirect).toHaveBeenCalledWith('/old')
   })
 
+  it('opens a validated launcher target from a missing path', async () => {
+    findRedirect.mockResolvedValue('/?launcher=reimbursement')
+    const response = await proxy(
+      new NextRequest('https://www.ev.church/reimbursement'),
+    )
+
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe(
+      'https://www.ev.church/?launcher=reimbursement',
+    )
+  })
+
   it('uses configured missing-path data for a legacy attendance link', async () => {
     findRedirect.mockResolvedValueOnce('/members/connect-groups/attendance')
 

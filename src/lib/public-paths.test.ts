@@ -113,6 +113,7 @@ describe('public path policy', () => {
       ['/', '/'],
       ['/kids', '/kids'],
       ['/community/kids/', '/community/kids'],
+      ['/?launcher=reimbursement', '/?launcher=reimbursement'],
     ])('accepts canonical internal destination %s', (input, expected) => {
       expect(parseInternalRedirectDestination(input)).toBe(expected)
     })
@@ -125,6 +126,11 @@ describe('public path policy', () => {
       '/kids\\archive',
       '/kids?from=old',
       '/kids#details',
+      '/?launcher=',
+      '/?launcher=Reimbursement',
+      '/?launcher=reimbursement&from=old',
+      '/?launcher=reimbursement#details',
+      '/?launcher=reimbursement&launcher=kids-enrolment',
       '#details',
       '?from=old',
       '/%2f%2fevil.example',
