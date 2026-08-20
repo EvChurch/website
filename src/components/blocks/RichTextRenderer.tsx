@@ -16,6 +16,9 @@ interface LexicalNode {
   newTab?: boolean
   version?: number
   direction?: string
+  headerState?: number
+  colSpan?: number
+  rowSpan?: number
   fields?: {
     url?: string
     linkType?: string
@@ -148,6 +151,50 @@ function renderNode(node: LexicalNode, index: number): React.ReactNode {
   // Quote
   if (node.type === 'quote') {
     return <blockquote key={index}>{children}</blockquote>
+  }
+
+  // Table
+  if (node.type === 'table') {
+    const rows = node.children ?? []
+    const firstRow = rows[0]
+    const hasColumnHeaders = firstRow?.type === 'tablerow' &&
+      firstRow.children?.every((cell) => cell.type === 'tablecell' && Boolean((cell.headerState ?? 0) & 1))
+    const bodyRows = hasColumnHeaders ? rows.slice(1) : rows
+
+    return (
+      <div key={index} className="my-8 max-w-full overflow-x-auto rounded-xl border border-warm-grey">
+        <table className="w-full min-w-[36rem] border-collapse text-left text-base leading-relaxed">
+          {hasColumnHeaders && <thead className="bg-brand-black text-warm-white">{renderNode(firstRow, 0)}</thead>}
+          <tbody>{bodyRows.map((row, rowIndex) => renderNode(row, rowIndex))}</tbody>
+        </table>
+      </div>
+    )
+  }
+
+  // Table row
+  if (node.type === 'tablerow') {
+    return <tr key={index} className="border-b border-warm-grey last:border-b-0">{children}</tr>
+  }
+
+  // Table cell
+  if (node.type === 'tablecell') {
+    const headerState = node.headerState ?? 0
+    const Tag = headerState ? 'th' : 'td'
+    const scope = headerState & 1 ? 'col' : headerState & 2 ? 'row' : undefined
+    return (
+      <Tag
+        key={index}
+        colSpan={node.colSpan}
+        rowSpan={node.rowSpan}
+        scope={scope}
+        className={headerState
+          ? 'px-5 py-4 align-top font-semibold'
+          : 'px-5 py-4 align-top text-dark-grey'
+        }
+      >
+        {children}
+      </Tag>
+    )
   }
 
   // Root or unknown — just render children
