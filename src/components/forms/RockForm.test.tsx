@@ -235,6 +235,54 @@ describe('RockForm', () => {
     expect(markup).toContain('Female')
   })
 
+  it('uses the shared responsive calendar for Rock date fields', async () => {
+    const dateGuid = '55555555-5555-4555-8555-555555555555'
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+
+    try {
+      await act(async () => {
+        root.render(
+          <RockForm
+            workflowTypeGuid={workflowTypeGuid}
+            initialSchema={{
+              ...schema(),
+              contextToken: 'signed-context',
+              fields: [{
+                attribute: {
+                  fieldTypeGuid: ROCK_FIELD_TYPES.date,
+                  attributeGuid: dateGuid,
+                  name: 'Date',
+                  key: 'Date',
+                  configurationValues: {},
+                },
+                isRequired: true,
+              }],
+              initialFieldValues: { [dateGuid]: '2026-08-20' },
+            }}
+          />,
+        )
+      })
+
+      expect(container.querySelector('input[type="date"]')).toBeNull()
+      const trigger = container.querySelector<HTMLButtonElement>('button[aria-label="Date"]')
+      expect(trigger?.textContent).toContain('20 Aug 2026')
+      expect(trigger?.className).toContain('max-w-full')
+
+      await act(async () => trigger?.click())
+      expect(container.querySelector('[aria-label="Date calendar"]')).not.toBeNull()
+      await act(async () => {
+        container.querySelector<HTMLButtonElement>('[aria-label="Choose 21 August 2026"]')?.click()
+      })
+      expect(trigger?.textContent).toContain('21 Aug 2026')
+      expect(container.querySelector('[aria-label="Date calendar"]')).toBeNull()
+    } finally {
+      await act(async () => root.unmount())
+      container.remove()
+    }
+  })
+
   it('prefills visible person-entry fields from the signed-in member profile', () => {
     const markup = renderToStaticMarkup(
       <RockForm
