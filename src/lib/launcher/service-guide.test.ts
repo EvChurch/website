@@ -368,6 +368,47 @@ describe('Service Guide launcher data', () => {
     })
   })
 
+  it('loads a Registration site page from a published Rock Form record', async () => {
+    const body = {
+      root: {
+        type: 'root',
+        children: [{ type: 'paragraph', children: [{ type: 'text', text: 'Welcome.' }] }],
+      },
+    }
+    findGlobal.mockResolvedValue({ lastSuccessfulSyncAt: null })
+    find.mockImplementation(async (args: { collection: string }) => {
+      if (args.collection === 'campuses') return { docs: [] }
+      if (args.collection === 'rock-forms') {
+        return {
+          docs: [{
+            title: 'Kids Enrolment',
+            slug: 'kids-enrolment',
+            formType: 'registrationPage',
+            registrationPath: 'kids',
+            body,
+            image: { url: '/api/media/file/kids.jpg' },
+            published: true,
+          }],
+        }
+      }
+      return { docs: [] }
+    })
+
+    await expect(loadLauncherData()).resolves.toMatchObject({
+      available: true,
+      items: [{
+        id: 'kids-enrolment',
+        title: 'Kids Enrolment',
+        action: {
+          type: 'registrationPage',
+          href: 'https://registration.ev.church/kids',
+          imageUrl: '/api/media/file/kids.jpg',
+          body,
+        },
+      }],
+    })
+  })
+
   it('omits items and capabilities with incomplete campus resolution', async () => {
     find.mockImplementation(async (args: { collection: string }) => {
       if (args.collection === 'campuses') {

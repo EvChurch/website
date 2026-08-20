@@ -4,6 +4,7 @@ import { isEditor } from '@/access/roles'
 import { createCacheInvalidationHook } from '@/hooks/revalidateCacheTags'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import { isGuid } from '@/lib/rock-forms/constants'
+import { validateRegistrationPagePath } from '@/lib/rock-forms/registration-page'
 import { getPublicRockWorkflow } from '@/lib/rock-forms/server'
 
 const RESERVED_LAUNCHER_TARGETS = new Set([
@@ -23,6 +24,25 @@ export function validateRockFormSlug(value: unknown): true | string {
     return 'This URL key is reserved by the launcher.'
   }
   return true
+}
+
+export function validateWorkflowTypeGuid(
+  value: unknown,
+  { siblingData }: { siblingData?: Record<string, unknown> },
+): true | string {
+  if (siblingData?.formType === 'registrationPage') return true
+  return typeof value === 'string' && isGuid(value)
+    ? true
+    : 'Enter the workflow type GUID from Rock.'
+}
+
+export function validateRegistrationPath(
+  value: unknown,
+  { siblingData }: { siblingData?: Record<string, unknown> },
+): true | string {
+  return siblingData?.formType === 'registrationPage'
+    ? validateRegistrationPagePath(value)
+    : true
 }
 
 type RockFormOption = { guid: string; name: string }
@@ -69,14 +89,35 @@ export const populateRockFormName: CollectionBeforeValidateHook = async ({
   data,
   originalDoc,
 }) => {
+  const formType = data?.formType ?? originalDoc?.formType ?? 'workflow'
+  if (formType === 'registrationPage') {
+    const requestedPath = data?.registrationPath ?? originalDoc?.registrationPath
+    const registrationPath = typeof requestedPath === 'string'
+      ? requestedPath.trim().toLowerCase()
+      : requestedPath
+    const validation = validateRegistrationPagePath(registrationPath)
+    if (validation !== true) throw new APIError(validation, 400)
+    return {
+      ...data,
+      formType,
+      registrationPath,
+      workflowTypeGuid: null,
+      rockFormName: null,
+    }
+  }
+
   const selection = await resolveRockFormSelection({
     requestedGuid: data?.workflowTypeGuid ?? originalDoc?.workflowTypeGuid,
     previousGuid: originalDoc?.workflowTypeGuid,
     previousName: originalDoc?.rockFormName,
   })
-  if (!selection) return data
+  if (!selection) {
+    throw new APIError('Choose an active, public Rock Form Builder workflow.', 400)
+  }
   return {
     ...data,
+    formType: 'workflow',
+    registrationPath: null,
     workflowTypeGuid: selection.guid,
     rockFormName: selection.name,
   }
@@ -91,8 +132,8 @@ export const RockForms: CollectionConfig = {
   admin: {
     group: 'Launcher',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'rockFormName', 'slug', 'published', 'updatedAt'],
-    description: 'Content and Rock workflows opened inside the website launcher.',
+    defaultColumns: ['title', 'formType', 'slug', 'published', 'updatedAt'],
+    description: 'Rock workflows and Registration site pages opened inside the website launcher.',
   },
   access: {
     read: isEditor,
@@ -106,6 +147,17 @@ export const RockForms: CollectionConfig = {
     afterDelete: [createCacheInvalidationHook(CACHE_TAGS.rockForms)],
   },
   fields: [
+    {
+      name: 'formType',
+      label: 'Form type',
+      type: 'select',
+      required: true,
+      defaultValue: 'workflow',
+      options: [
+        { label: 'Rock workflow', value: 'workflow' },
+        { label: 'Registration page', value: 'registrationPage' },
+      ],
+    },
     {
       name: 'title',
       type: 'text',
@@ -145,7 +197,6 @@ export const RockForms: CollectionConfig = {
       name: 'workflowTypeGuid',
       label: 'Rock Form ID',
       type: 'text',
-      required: true,
       unique: true,
       index: true,
       hooks: {
@@ -154,12 +205,10 @@ export const RockForms: CollectionConfig = {
             typeof value === 'string' ? value.trim().toLowerCase() : value,
         ],
       },
-      validate: (value: unknown) =>
-        typeof value === 'string' && isGuid(value)
-          ? true
-          : 'Enter the workflow type GUID from Rock.',
+      validate: validateWorkflowTypeGuid,
       admin: {
         description: 'The workflow type GUID for the Rock entry form.',
+        condition: (_, siblingData) => siblingData?.formType !== 'registrationPage',
         components: {
           Field: '@/components/admin/RockWorkflowPicker#RockWorkflowPicker',
         },
@@ -169,10 +218,28 @@ export const RockForms: CollectionConfig = {
       name: 'rockFormName',
       label: 'Rock form name',
       type: 'text',
-      required: true,
       admin: {
         readOnly: true,
         description: 'The current Rock form name saved for the collection list.',
+        condition: (_, siblingData) => siblingData?.formType !== 'registrationPage',
+      },
+    },
+    {
+      name: 'registrationPath',
+      label: 'Registration page path',
+      type: 'text',
+      unique: true,
+      index: true,
+      maxLength: 128,
+      validate: validateRegistrationPath,
+      hooks: {
+        beforeValidate: [
+          ({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value,
+        ],
+      },
+      admin: {
+        description: 'The path after registration.ev.church, for example kids.',
+        condition: (_, siblingData) => siblingData?.formType === 'registrationPage',
       },
     },
     {

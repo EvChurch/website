@@ -100,6 +100,15 @@ function viewForLauncherItem(item: LauncherItem): LauncherView | null {
         imageUrl: item.action.imageUrl,
         shareTarget: item.id,
       };
+    case "registrationPage":
+      return {
+        type: "registrationPage",
+        title: item.title,
+        href: item.action.href,
+        imageUrl: item.action.imageUrl,
+        body: item.action.body,
+        shareTarget: item.id,
+      };
     case "content":
       return {
         type: "content",
@@ -126,6 +135,7 @@ function viewTitle(view: LauncherView): string {
     case "workflow":
     case "connection":
     case "registration":
+    case "registrationPage":
     case "content":
       return view.title;
   }
@@ -156,6 +166,7 @@ export function launcherShareTarget(view: LauncherView): string | null {
       return "feedback";
     case "workflow":
     case "connection":
+    case "registrationPage":
     case "content":
       return view.shareTarget ?? null;
     case "registration":
@@ -341,6 +352,7 @@ export function NextStepsLauncher({
   const router = useRouter();
   const searchParams = useSearchParams();
   const launcherTarget = searchParams.get("launcher");
+  const registrationInstanceIdParam = searchParams.get("registrationInstanceId");
   const pathname = initialPathname ?? currentPathname ?? "/";
   const [state, dispatch] = useReducer(launcherReducer, null, () =>
     createLauncherState(),
@@ -466,7 +478,14 @@ export function NextStepsLauncher({
       handledLauncherTargetRef.current = null;
       return;
     }
-    const handledTargetKey = `${pathname}?launcher=${launcherTarget}`;
+    const handledTargetKey = [
+      `${pathname}?launcher=${launcherTarget}`,
+      launcherTarget === "registration"
+        ? `registrationInstanceId=${registrationInstanceIdParam ?? ""}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("&");
     if (handledLauncherTargetRef.current === handledTargetKey) return;
 
     let targetView: LauncherView | null = null;
@@ -492,7 +511,7 @@ export function NextStepsLauncher({
       targetView = { type: "feedback", title: feedback.modalTitle };
     } else if (launcherTarget === "registration") {
       const registrationInstanceId = safeRegistrationInstanceId(
-        searchParams.get("registrationInstanceId"),
+        registrationInstanceIdParam,
       );
       if (registrationInstanceId) {
         targetView = {
@@ -534,6 +553,7 @@ export function NextStepsLauncher({
     isMobile,
     launcherTarget,
     pathname,
+    registrationInstanceIdParam,
     selectedCampusItems,
   ]);
 
@@ -1013,6 +1033,21 @@ export function NextStepsLauncher({
             title={`Register for ${state.view.title}`}
           />
         );
+      case "registrationPage":
+        return (
+          <div className="animate-fade-in motion-reduce:animate-none">
+            <LauncherBanner
+              imageUrl={state.view.imageUrl}
+              bleed={state.presentation !== "fullscreen"}
+            />
+            {state.view.body != null && (
+              <div className="prose prose-neutral mx-auto mb-8 max-w-2xl px-4 text-dark-grey sm:px-6">
+                <RichText data={state.view.body} />
+              </div>
+            )}
+            <RegistrationFrame src={state.view.href} title={state.view.title} />
+          </div>
+        );
       case "content":
         return (
           <div className="animate-fade-in motion-reduce:animate-none">
@@ -1164,7 +1199,7 @@ export function NextStepsLauncher({
                 className={
                   state.view.type === "content"
                     ? "w-full"
-                    : `mx-auto w-full ${state.view.type === "registration" ? "max-w-4xl" : "max-w-2xl"} ${state.view.type === "giving" ? "h-full" : ""}`
+                    : `mx-auto w-full ${state.view.type === "registration" || state.view.type === "registrationPage" ? "max-w-4xl" : "max-w-2xl"} ${state.view.type === "giving" ? "h-full" : ""}`
                 }
               >
                 {renderView()}
@@ -1189,7 +1224,10 @@ export function NextStepsLauncher({
                   : undefined
               }
               pathname={
-                state.view.type === "registration" ? pathname : undefined
+                state.view.type === "registration" ||
+                state.view.type === "registrationPage"
+                  ? pathname
+                  : undefined
               }
               target={shareTarget}
               title={viewTitle(state.view)}

@@ -5,6 +5,7 @@ import { getAuth0Client } from '@/auth/auth0-client'
 import { getAuth0SessionFromHeaders } from '@/auth/auth0-session'
 import { readAuth0Config } from '@/auth/auth0-config'
 import { safeAdminReturnTo } from '@/auth/safe-admin-return'
+import { KIDS_ENROLMENT_LAUNCHER_HREF } from '@/lib/launcher/constants'
 import { findMissingPathRedirect } from '@/lib/missing-paths'
 import {
   encodePublicPathHeader,
@@ -13,6 +14,11 @@ import {
   normalizePublicPath,
   PUBLIC_PATH_HEADER,
 } from '@/lib/public-paths'
+
+const LEGACY_KIDS_ENROLMENT_PATHS = new Set([
+  '/kids/enrolment',
+  '/kids/enrollment',
+])
 
 export async function proxy(request: NextRequest) {
   const isAdminAuthRoute = matchesPathPrefix(request.nextUrl.pathname, '/auth')
@@ -40,6 +46,11 @@ export async function proxy(request: NextRequest) {
       const requestHeaders = new Headers(request.headers)
       requestHeaders.delete(PUBLIC_PATH_HEADER)
       return NextResponse.next({ request: { headers: requestHeaders } })
+    }
+    if (LEGACY_KIDS_ENROLMENT_PATHS.has(normalizedPath)) {
+      return NextResponse.redirect(
+        new URL(KIDS_ENROLMENT_LAUNCHER_HREF, request.url),
+      )
     }
     let destination: string | null = null
     try {

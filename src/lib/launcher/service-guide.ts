@@ -3,7 +3,8 @@ import { unstable_cache } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import type { RockForm } from '@/payload-types'
 import { isGuid } from '@/lib/rock-forms/constants'
-import { getPayloadMediaUrl, type PayloadMediaImage } from '@/lib/payload-media'
+import { registrationPageHref } from '@/lib/rock-forms/registration-page'
+import { getPayloadMediaUrl } from '@/lib/payload-media'
 
 import { classifyLauncherHref, launcherPlainText, sanitizeLauncherHtml } from './sanitize'
 import type {
@@ -53,7 +54,7 @@ interface ServiceGuideRecord {
 type RockFormRecord = Partial<
   Pick<
     RockForm,
-    'title' | 'slug' | 'body' | 'image' | 'workflowTypeGuid' | 'published'
+    'title' | 'slug' | 'body' | 'image' | 'formType' | 'workflowTypeGuid' | 'registrationPath' | 'published'
   >
 >
 
@@ -81,7 +82,9 @@ const rockFormSelect = {
   slug: true,
   body: true,
   image: true,
+  formType: true,
   workflowTypeGuid: true,
+  registrationPath: true,
   published: true,
 }
 
@@ -267,24 +270,35 @@ export function toLauncherItem(record: ServiceGuideRecord): LauncherItem | null 
 export function rockFormToLauncherItem(record: RockFormRecord): LauncherItem | null {
   const title = record.title?.trim()
   const slug = record.slug?.trim()
-  const workflowTypeGuid = normalizedGuid(record.workflowTypeGuid)
-  if (!record.published || !title || !slug || !workflowTypeGuid) return null
+  if (!record.published || !title || !slug) return null
 
   const imageUrl =
     record.image && typeof record.image === 'object'
       ? getPayloadMediaUrl(record.image, 'large') ?? record.image.url ?? undefined
       : undefined
 
+  const sharedContent = {
+    ...(imageUrl ? { imageUrl } : {}),
+    ...(record.body ? { body: record.body } : {}),
+  }
+  const action: LauncherItemAction | null = record.formType === 'registrationPage'
+    ? (() => {
+        const href = registrationPageHref(record.registrationPath)
+        return href ? { type: 'registrationPage', href, ...sharedContent } : null
+      })()
+    : (() => {
+        const workflowTypeGuid = normalizedGuid(record.workflowTypeGuid)
+        return workflowTypeGuid
+          ? { type: 'workflow', workflowTypeGuid, ...sharedContent }
+          : null
+      })()
+  if (!action) return null
+
   return {
     id: slug,
     title,
     campusSlugs: [],
-    action: {
-      type: 'workflow',
-      workflowTypeGuid,
-      ...(imageUrl ? { imageUrl } : {}),
-      ...(record.body ? { body: record.body } : {}),
-    },
+    action,
   }
 }
 
