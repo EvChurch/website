@@ -154,10 +154,7 @@ describe('Payload-managed campus page', () => {
     expect(markup).toContain('Available for ages 0 to 12')
     expect(markup).toContain('Get directions')
     expect(markup).toContain('Loading Google reviews')
-    expect(markup).toContain('Share your experience on Google')
-    expect(markup).toContain(
-      'href="https://search.google.com/local/writereview?placeid=ChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U"',
-    )
+    expect(markup).not.toContain('Share your experience on Google')
     expect(markup).not.toContain('Message us')
     expect(markup).toContain('Save service time')
     expect(markup).toContain('/campus/north/calendar.ics')
