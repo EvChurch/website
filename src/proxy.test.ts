@@ -90,6 +90,23 @@ describe('admin Auth0 proxy', () => {
     expect(findRedirect).toHaveBeenCalledWith('/old')
   })
 
+  it.each(['/kids/enrolment', '/kids/enrollment'])(
+    'opens the built-in Kids Enrolment launcher from %s',
+    async (path) => {
+      findRedirect.mockResolvedValue('/kids')
+
+      const response = await proxy(
+        new NextRequest(`https://www.ev.church${path}?source=legacy`),
+      )
+
+      expect(response.status).toBe(307)
+      expect(response.headers.get('location')).toBe(
+        'https://www.ev.church/kids?launcher=kids-enrolment',
+      )
+      expect(findRedirect).not.toHaveBeenCalled()
+    },
+  )
+
   it('opens a validated launcher target from a missing path', async () => {
     findRedirect.mockResolvedValue('/?launcher=reimbursement')
     const response = await proxy(
