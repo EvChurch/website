@@ -56,4 +56,35 @@ describe('RichTextRenderer uploads', () => {
 
     expect(markup).toContain('href="/blog/real-story"')
   })
+
+  it('renders Payload tables with responsive overflow and accessible headers', () => {
+    const cell = (text: string, headerState = 0) => ({
+      type: 'tablecell',
+      headerState,
+      children: [{
+        type: 'paragraph',
+        children: [{ type: 'text', text }],
+      }],
+    })
+    const markup = renderToStaticMarkup(
+      <RichText data={{
+        root: {
+          children: [{
+            type: 'table',
+            children: [
+              { type: 'tablerow', children: [cell('Requirement', 1), cell('What this means', 1)] },
+              { type: 'tablerow', children: [cell('Faith in Jesus'), cell('Trust and follow Jesus')] },
+            ],
+          }],
+        },
+      }} />,
+    )
+
+    expect(markup).toContain('overflow-x-auto')
+    expect(markup).toContain('<table')
+    expect(markup).toContain('<thead')
+    expect(markup).toContain('<th scope="col"')
+    expect(markup).toContain('<td')
+    expect(markup).toContain('Faith in Jesus')
+  })
 })
