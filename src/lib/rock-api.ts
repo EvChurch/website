@@ -353,10 +353,19 @@ export type RockRegistrationInstance = {
   Id: number
   Name: string
   IsActive: boolean
-  StartDateTime: string
-  EndDateTime: string
+  StartDateTime: string | null
+  EndDateTime: string | null
   MaxAttendees: number | null
   RegistrationTemplate?: {
     EventItemId?: number
   }
+}
+
+export type RockEventItemOccurrenceGroupMap = {
+  Id: number
+  EventItemOccurrenceId: number | null
+  RegistrationInstanceId: number | null
+  PublicName?: string | null
+  UrlSlug?: string | null
+  RegistrationInstance?: RockRegistrationInstance | null
 }

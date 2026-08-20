@@ -29,6 +29,11 @@ import { SafeRockHtml } from "@/components/forms/SafeRockHtml";
 import RichText from "@/components/blocks/RichTextRenderer";
 import { FeedbackStrip } from "@/components/layout/FeedbackStrip";
 import {
+  OPEN_EVENT_REGISTRATION,
+  type OpenEventRegistrationDetail,
+} from "@/components/events/EventRegistrationAction";
+import { RegistrationFrame } from "@/components/events/RegistrationFrame";
+import {
   MemberAccountControl,
   type MemberDisplayProfile,
 } from "@/components/layout/MemberAccountControl";
@@ -119,6 +124,7 @@ function viewTitle(view: LauncherView): string {
     case "feedback":
     case "workflow":
     case "connection":
+    case "registration":
     case "content":
       return view.title;
   }
@@ -142,6 +148,20 @@ export function launcherShareTarget(view: LauncherView): string | null {
     case "connection":
     case "content":
       return view.shareTarget ?? null;
+    case "registration":
+      return null;
+  }
+}
+
+export function safeRegistrationLauncherHref(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  try {
+    const url = new URL(value);
+    const dedicatedRockSite =
+      url.protocol === "https:" && url.hostname === "registration.ev.church";
+    return dedicatedRockSite ? url.toString() : null;
+  } catch {
+    return null;
   }
 }
 
@@ -353,6 +373,24 @@ export function NextStepsLauncher({
     mediaQuery.addEventListener("change", updateViewport);
     return () => mediaQuery.removeEventListener("change", updateViewport);
   }, []);
+
+  useEffect(() => {
+    const openRegistration = (event: Event) => {
+      const detail = (event as CustomEvent<OpenEventRegistrationDetail>).detail;
+      const href = safeRegistrationLauncherHref(detail?.href);
+      const title = detail?.title?.trim().slice(0, 160);
+      if (!href || !title) return;
+
+      dispatch({
+        type: "openView",
+        presentation: isMobile ? "fullscreen" : "compact",
+        view: { type: "registration", href, title },
+      });
+    };
+
+    window.addEventListener(OPEN_EVENT_REGISTRATION, openRegistration);
+    return () => window.removeEventListener(OPEN_EVENT_REGISTRATION, openRegistration);
+  }, [isMobile]);
 
   useEffect(() => {
     if (isMobile && state.presentation === "compact") {
@@ -921,6 +959,13 @@ export function NextStepsLauncher({
             <RockConnectionOpportunitySignup blockGuid={state.view.blockGuid} />
           </div>
         );
+      case "registration":
+        return (
+          <RegistrationFrame
+            src={state.view.href}
+            title={`Register for ${state.view.title}`}
+          />
+        );
       case "content":
         return (
           <div className="animate-fade-in motion-reduce:animate-none">
@@ -1063,7 +1108,7 @@ export function NextStepsLauncher({
                 className={
                   state.view.type === "content"
                     ? "w-full"
-                    : `mx-auto w-full max-w-2xl ${state.view.type === "giving" ? "h-full" : ""}`
+                    : `mx-auto w-full ${state.view.type === "registration" ? "max-w-4xl" : "max-w-2xl"} ${state.view.type === "giving" ? "h-full" : ""}`
                 }
               >
                 {renderView()}

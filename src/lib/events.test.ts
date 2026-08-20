@@ -17,6 +17,7 @@ import {
   filterEventsByCampus,
   getCampusSlug,
   getDisplayLocation,
+  getEmbeddedRegistrationHref,
   getEventBySlug,
   getRegistrationHref,
   isPastEvent,
@@ -177,7 +178,32 @@ describe('event helpers', () => {
       getRegistrationHref({
         ...baseEvent,
         registrationStatus: 'open',
+        registrationUrl: 'https://registration.ev.church/registration/example',
+      }),
+    ).toBe('https://registration.ev.church/registration/example')
+
+    expect(
+      getRegistrationHref({
+        ...baseEvent,
+        registrationStatus: 'open',
         registrationUrl: 'https://example.com/phishing',
+      }),
+    ).toBeNull()
+  })
+
+  it('enables embedding only for the dedicated registration site', () => {
+    expect(
+      getEmbeddedRegistrationHref({
+        ...baseEvent,
+        registrationStatus: 'open',
+        registrationUrl: 'https://registration.ev.church/registration/example',
+      }),
+    ).toBe('https://registration.ev.church/registration/example')
+    expect(
+      getEmbeddedRegistrationHref({
+        ...baseEvent,
+        registrationStatus: 'open',
+        registrationUrl: 'https://rock.ev.church/page/404',
       }),
     ).toBeNull()
   })
