@@ -153,6 +153,12 @@ describe('Payload-managed campus page', () => {
     expect(markup).not.toContain('Google Maps embed will be placed here')
     expect(markup).toContain('Available for ages 0 to 12')
     expect(markup).toContain('Get directions')
+    expect(markup).toContain('Visited Ev North?')
+    expect(markup).toContain('Your honest feedback can help others know what to expect')
+    expect(markup).toContain('Share your experience on Google')
+    expect(markup).toContain(
+      'href="https://search.google.com/local/writereview?placeid=ChIJ4Y3qfXc5DW0Rs-PGrYhrQ_U"',
+    )
     expect(markup).not.toContain('Message us')
     expect(markup).toContain('Save service time')
     expect(markup).toContain('/campus/north/calendar.ics')
@@ -198,6 +204,7 @@ describe('Payload-managed campus page', () => {
       'src="https://www.google.com/maps?q=9-11+Rothwell+Avenue%2C+Rosedale%2C+Auckland&amp;output=embed"',
     )
     expect(markup).not.toContain(`"hasMap":"${mapUrl}"`)
+    expect(markup).not.toContain('Share your experience on Google')
   })
 
   it('does not publish a campus until its managed page is enabled', async () => {

@@ -8,6 +8,10 @@ export interface AnalyticsEvents {
     campus: 'north' | 'central' | 'unichurch'
     destination_host: string
   }
+  google_review_click: {
+    campus: string
+    destination_host: 'search.google.com'
+  }
   event_registration_click: {
     event_slug: string
     campus: string
