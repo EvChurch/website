@@ -7,6 +7,7 @@ export type LauncherView =
   | { type: 'feedback'; title: string }
   | { type: 'workflow'; workflowTypeGuid: string; imageUrl?: string; body?: unknown; shareTarget?: string; title: string }
   | { type: 'connection'; blockGuid: string; imageUrl?: string; shareTarget?: string; title: string }
+  | { type: 'registration'; href: string; title: string }
   | { type: 'content'; html: string; imageUrl?: string; shareTarget?: string; title: string }
 
 export interface LauncherState {

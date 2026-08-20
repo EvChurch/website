@@ -3,9 +3,16 @@ import type {
   RockEventCalendarItem,
   RockEventItem,
   RockEventItemOccurrence,
+  RockEventItemOccurrenceGroupMap,
   RockPerson,
 } from '@/lib/rock-api'
 import { getRockPersonName } from './person'
+
+export type SyncedEventRegistration = {
+  registrationUrl: string | null
+  registrationStatus: 'open' | 'closed' | 'coming-soon' | null
+  registrationCapacity: number | null
+}
 
 function slugify(name: string): string {
   return name
@@ -121,10 +128,80 @@ export function getEventItemIdsForCalendar(
   return eventItemIds
 }
 
+function registrationStatus(
+  instance: NonNullable<RockEventItemOccurrenceGroupMap['RegistrationInstance']>,
+  now: Date,
+): Exclude<SyncedEventRegistration['registrationStatus'], null> {
+  if (!instance.IsActive) return 'closed'
+
+  try {
+    const start = normalizeRockDateTime(instance.StartDateTime)
+    if (start && start > now.toISOString()) return 'coming-soon'
+
+    const end = normalizeRockDateTime(instance.EndDateTime)
+    return end && end < now.toISOString() ? 'closed' : 'open'
+  } catch {
+    return 'closed'
+  }
+}
+
+export function getRegistrationForOccurrence(
+  occurrenceId: number | undefined,
+  linkages: RockEventItemOccurrenceGroupMap[],
+  registrationEntryUrl: string,
+  now = new Date(),
+): SyncedEventRegistration {
+  const unavailable: SyncedEventRegistration = {
+    registrationUrl: null,
+    registrationStatus: null,
+    registrationCapacity: null,
+  }
+  if (occurrenceId === undefined) return unavailable
+
+  const matching = linkages.filter(
+    (linkage) =>
+      linkage.EventItemOccurrenceId === occurrenceId &&
+      linkage.RegistrationInstanceId !== null &&
+      linkage.RegistrationInstance,
+  )
+  // Multiple registration linkages require an explicit Rock-admin decision.
+  // Failing closed avoids sending somebody to the wrong registration form.
+  if (matching.length !== 1) return unavailable
+
+  const linkage = matching[0]
+  const instance = linkage.RegistrationInstance!
+  let url: URL
+  try {
+    url = new URL(registrationEntryUrl)
+  } catch {
+    return unavailable
+  }
+  if (
+    url.protocol !== 'https:' ||
+    (url.hostname !== 'rock.ev.church' && url.hostname !== 'registration.ev.church') ||
+    !Number.isSafeInteger(linkage.RegistrationInstanceId) ||
+    linkage.RegistrationInstanceId! <= 0
+  ) {
+    return unavailable
+  }
+
+  url.searchParams.set('RegistrationInstanceId', String(linkage.RegistrationInstanceId))
+  return {
+    registrationUrl: url.toString(),
+    registrationStatus: registrationStatus(instance, now),
+    registrationCapacity: instance.MaxAttendees,
+  }
+}
+
 export function mapRockEvent(
   rock: RockEventItemOccurrence,
   eventItem: RockEventItem,
   resolvedContactPerson?: RockPerson | null,
+  registration: SyncedEventRegistration = {
+    registrationUrl: null,
+    registrationStatus: null,
+    registrationCapacity: null,
+  },
 ) {
   const contactPerson = resolvedContactPerson ?? rock.ContactPersonAlias?.Person
   const contactEmail = rock.ContactEmail || contactPerson?.Email || ''
@@ -159,6 +236,7 @@ export function mapRockEvent(
     _imageUrl: eventItem.Photo?.Guid
       ? `/GetImage.ashx?Guid=${eventItem.Photo.Guid}`
       : null,
+    ...registration,
     lastSyncedAt: new Date().toISOString(),
   }
 }

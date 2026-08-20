@@ -191,10 +191,20 @@ export function getRegistrationHref(event: PublicEvent): string | null {
 
   try {
     const url = new URL(event.registrationUrl)
-    return url.protocol === 'https:' && url.hostname === 'rock.ev.church' ? url.toString() : null
+    return url.protocol === 'https:' &&
+      (url.hostname === 'rock.ev.church' || url.hostname === 'registration.ev.church')
+      ? url.toString()
+      : null
   } catch {
     return null
   }
+}
+
+export function getEmbeddedRegistrationHref(event: PublicEvent): string | null {
+  const href = getRegistrationHref(event)
+  if (!href) return null
+
+  return new URL(href).hostname === 'registration.ev.church' ? href : null
 }
 
 export function formatEventDate(event: PublicEvent): string {

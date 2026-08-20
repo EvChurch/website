@@ -3,9 +3,9 @@ import Link from 'next/link'
 
 import RichText from '@/components/blocks/RichTextRenderer'
 import { EventImage } from '@/components/events/EventImage'
+import { EventRegistrationAction } from '@/components/events/EventRegistrationAction'
 import { EventSharing } from '@/components/events/EventSharing'
 import { EventStatus } from '@/components/events/EventStatus'
-import { TrackedAnchor } from '@/components/analytics/TrackedLink'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
 import { EventJsonLd } from '@/components/seo/EventJsonLd'
 import { getPayloadMediaUrl } from '@/lib/payload-media'
@@ -14,6 +14,7 @@ import { trackedNotFound } from '@/lib/tracked-not-found'
 import {
   formatEventDate,
   getCampusName,
+  getEmbeddedRegistrationHref,
   getEventBySlug,
   getEventImage,
   getRegistrationHref,
@@ -67,6 +68,7 @@ export default async function EventDetailPage({ params }: Props) {
   const past = isPastEvent(event)
   const campus = getCampusName(event)
   const registrationHref = !past ? getRegistrationHref(event) : null
+  const embeddedRegistrationHref = !past ? getEmbeddedRegistrationHref(event) : null
 
   return (
     <div className="bg-warm-white">
@@ -169,23 +171,13 @@ export default async function EventDetailPage({ params }: Props) {
             </dl>
 
             {registrationHref && (
-              <TrackedAnchor
-                href={registrationHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                eventName="event_registration_click"
-                eventParameters={{
-                  event_slug: event.slug,
-                  campus: campus?.toLowerCase() || 'all',
-                  destination_host: new URL(
-                    registrationHref,
-                    'https://www.ev.church',
-                  ).hostname,
-                }}
-                className="mt-9 inline-flex min-h-12 w-full items-center justify-center bg-rich-red px-6 text-center text-sm font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-deep-red focus:outline-none focus:ring-4 focus:ring-light-red-2"
-              >
-                Continue to registration
-              </TrackedAnchor>
+              <EventRegistrationAction
+                registrationHref={registrationHref}
+                embeddedHref={embeddedRegistrationHref}
+                eventSlug={event.slug}
+                eventTitle={event.title}
+                campus={campus?.toLowerCase() || 'all'}
+              />
             )}
 
             <EventSharing event={event} />

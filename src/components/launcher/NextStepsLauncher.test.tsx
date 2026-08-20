@@ -33,12 +33,22 @@ vi.mock("@/components/forms/SafeRockHtml", () => ({
     <div data-safe-html={value} />
   ),
 }));
+vi.mock("@/components/events/RegistrationFrame", () => ({
+  RegistrationFrame: ({ src, title }: { src: string; title: string }) => (
+    <div data-registration-frame data-src={src} data-title={title} />
+  ),
+}));
 
 import {
   launcherShareHref,
   launcherShareTarget,
   NextStepsLauncher,
+  safeRegistrationLauncherHref,
 } from "./NextStepsLauncher";
+import {
+  OPEN_EVENT_REGISTRATION,
+  type OpenEventRegistrationDetail,
+} from "@/components/events/EventRegistrationAction";
 import { Header } from "@/components/layout/Header";
 import {
   GivingExperienceProvider,
@@ -1193,5 +1203,51 @@ describe("NextStepsLauncher", () => {
         ?.className,
     ).toContain("max-w-2xl");
     expect(container.textContent?.match(/Learn more/g)).toHaveLength(1);
+  });
+
+  it("opens an event registration form inside the launcher", async () => {
+    await act(async () => {
+      root.render(
+        <NextStepsLauncher
+          campuses={campuses}
+          items={items}
+          initialPathname="/events/next-steps"
+        />,
+      );
+    });
+
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent<OpenEventRegistrationDetail>(OPEN_EVENT_REGISTRATION, {
+          detail: {
+            href: "https://registration.ev.church/?RegistrationInstanceId=81",
+            title: "Next Steps",
+          },
+        }),
+      );
+    });
+
+    const frame = container.querySelector<HTMLElement>(
+      "[data-registration-frame]",
+    );
+    expect(frame?.getAttribute("data-src")).toBe(
+      "https://registration.ev.church/?RegistrationInstanceId=81",
+    );
+    expect(frame?.getAttribute("data-title")).toBe("Register for Next Steps");
+    expect(
+      container.querySelector('[role="region"][aria-label="Next steps launcher"]'),
+    ).not.toBeNull();
+  });
+
+  it("rejects untrusted registration launcher URLs", () => {
+    expect(
+      safeRegistrationLauncherHref("https://registration.ev.church/registration"),
+    ).toBe("https://registration.ev.church/registration");
+    expect(
+      safeRegistrationLauncherHref("https://registration.ev.church.evil.test/registration"),
+    ).toBeNull();
+    expect(
+      safeRegistrationLauncherHref("http://localhost:4174/registration"),
+    ).toBeNull();
   });
 });

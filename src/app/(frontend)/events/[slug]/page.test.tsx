@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/lib/events', () => ({
   formatEventDate: vi.fn(),
   getCampusName: vi.fn(),
+  getEmbeddedRegistrationHref: vi.fn(),
   getEventBySlug: mocks.getEventBySlug,
   getEventImage: vi.fn(),
   getRegistrationHref: vi.fn(),
