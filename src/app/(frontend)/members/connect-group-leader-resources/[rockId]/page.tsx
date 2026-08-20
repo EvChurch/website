@@ -13,7 +13,7 @@ import { trackedNotFound } from '@/lib/tracked-not-found'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
-  title: 'Connect Group Leader Resource',
+  title: 'Study Resource',
   robots: { index: false, follow: false },
 }
 
@@ -43,7 +43,9 @@ export default async function LeaderResourceDetailPage({
 
   const resource = result.resource
   const dates = formatResourceDates(resource)
-  const video = leaderResourceMedia(resource)
+  const video = result.canAccessLeaderContent
+    ? leaderResourceMedia(resource)
+    : null
   const hosts = resource.hosts.map((host) => host.name).join(' & ')
 
   return (
@@ -80,7 +82,7 @@ export default async function LeaderResourceDetailPage({
             {(video || resource.hasLeaderNotes || resource.hasMemberStudy) && (
               <div className="mt-7 flex flex-wrap gap-3">
                 {video && <LeaderResourceVideoButton media={video} variant="featured" size="sm" />}
-                {resource.hasLeaderNotes && (
+                {result.canAccessLeaderContent && resource.hasLeaderNotes && (
                   <a
                     href={`/members/connect-group-leader-resources/${resource.rockId}/files/leader-notes`}
                     rel="nofollow"
@@ -98,7 +100,7 @@ export default async function LeaderResourceDetailPage({
                     <FileIcon /> Study
                   </a>
                 )}
-                {(video || resource.hasLeaderNotes) && (
+                {result.canAccessLeaderContent && (video || resource.hasLeaderNotes) && (
                   <LeaderResourceShareButton
                     rockId={resource.rockId}
                     className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-white/60 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-white/10"

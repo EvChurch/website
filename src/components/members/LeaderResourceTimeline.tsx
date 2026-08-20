@@ -208,17 +208,23 @@ function LaunchResource({ resource }: { resource: MemberLeaderResource }) {
   )
 }
 
-function TimelineRows({ resources }: { resources: MemberLeaderResource[] }) {
+function TimelineRows({
+  resources,
+  audience,
+}: {
+  resources: MemberLeaderResource[]
+  audience: 'leader' | 'member'
+}) {
   return (
     <div>
       {resources.map((resource, index) => {
         const dates = formatResourceDates(resource)
         const hosts = hostNames(resource)
-        const video = leaderResourceMedia(resource)
+        const video = audience === 'leader' ? leaderResourceMedia(resource) : null
         return (
           <article
             key={resource.rockId}
-            className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-4 sm:grid-cols-[7.5rem_2rem_minmax(0,1fr)_auto] sm:gap-x-5"
+            className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-4 sm:grid-cols-[7.5rem_2rem_minmax(0,1fr)] sm:gap-x-5"
           >
             <p className="col-start-2 mb-2 text-xs font-bold uppercase tracking-[0.12em] text-mid-grey sm:col-start-1 sm:row-start-1 sm:mb-0 sm:text-right">
               {dates}
@@ -230,7 +236,7 @@ function TimelineRows({ resources }: { resources: MemberLeaderResource[] }) {
               {video ? (
                 <LeaderResourceVideoButton media={video} />
               ) : (
-                <span className="relative mt-1 block h-2.5 w-2.5 rounded-full bg-rich-red ring-4 ring-warm-white" />
+                <span className="relative mx-auto mt-1 block h-2.5 w-2.5 rounded-full bg-rich-red ring-4 ring-warm-white" />
               )}
             </div>
             <div className="col-start-2 pb-9 sm:col-start-3 sm:row-start-1">
@@ -246,21 +252,32 @@ function TimelineRows({ resources }: { resources: MemberLeaderResource[] }) {
                   {[resource.bibleReference, hosts].filter(Boolean).join(' · ')}
                 </p>
               )}
-            </div>
-            <div className="col-start-2 flex gap-4 pb-9 text-sm font-bold text-rich-red sm:col-start-4 sm:row-start-1 sm:pb-0">
-              {resource.hasLeaderNotes && (
-                <a href={`/members/connect-group-leader-resources/${resource.rockId}/files/leader-notes`} rel="nofollow" className="hover:underline">Notes</a>
+              {audience === 'member' && resource.hasMemberStudy && (
+                <a
+                  href={`/members/connect-group-leader-resources/${resource.rockId}/files/member-study`}
+                  rel="nofollow"
+                  className="mt-3 flex w-fit text-sm font-bold text-rich-red hover:underline"
+                >
+                  Study
+                </a>
               )}
-              {resource.hasMemberStudy && (
-                <a href={`/members/connect-group-leader-resources/${resource.rockId}/files/member-study`} rel="nofollow" className="hover:underline">Study</a>
+              {audience === 'leader' && (
+                <div className="mt-3 flex gap-4 text-sm font-bold text-rich-red">
+                  {resource.hasLeaderNotes && (
+                    <a href={`/members/connect-group-leader-resources/${resource.rockId}/files/leader-notes`} rel="nofollow" className="hover:underline">Notes</a>
+                  )}
+                  {resource.hasMemberStudy && (
+                    <a href={`/members/connect-group-leader-resources/${resource.rockId}/files/member-study`} rel="nofollow" className="hover:underline">Study</a>
+                  )}
+                  {(video || resource.hasLeaderNotes) && (
+                    <LeaderResourceShareButton rockId={resource.rockId} showIcon={false} className="inline-flex items-center hover:underline" />
+                  )}
+                  {!video && !resource.hasLeaderNotes && !resource.hasMemberStudy && (
+                    <Link href={`/members/connect-group-leader-resources/${resource.rockId}`} rel="nofollow" className="hover:underline">Open</Link>
+                  )}
+                </div>
               )}
-              {(video || resource.hasLeaderNotes) && (
-                <LeaderResourceShareButton rockId={resource.rockId} className="inline-flex items-center gap-1 hover:underline" />
-              )}
-              {!video && !resource.hasLeaderNotes && !resource.hasMemberStudy && (
-                <Link href={`/members/connect-group-leader-resources/${resource.rockId}`} rel="nofollow" className="hover:underline">Open</Link>
-              )}
-            </div>
+              </div>
           </article>
         )
       })}
@@ -268,7 +285,13 @@ function TimelineRows({ resources }: { resources: MemberLeaderResource[] }) {
   )
 }
 
-function SeriesTimeline({ resources }: { resources: MemberLeaderResource[] }) {
+function SeriesTimeline({
+  resources,
+  audience,
+}: {
+  resources: MemberLeaderResource[]
+  audience: 'leader' | 'member'
+}) {
   return (
     <div className="space-y-16">
       {groupResourcesByBibleBook(resources).map((series, index) => {
@@ -288,7 +311,7 @@ function SeriesTimeline({ resources }: { resources: MemberLeaderResource[] }) {
                   />
                 </div>
               )}
-              <TimelineRows resources={series.resources} />
+              <TimelineRows resources={series.resources} audience={audience} />
             </div>
           </section>
         )
@@ -301,10 +324,12 @@ export function LeaderResourceTimeline({
   current,
   upcoming,
   history,
+  audience = 'leader',
 }: {
   current: MemberLeaderResource[]
   upcoming: MemberLeaderResource[]
   history: MemberLeaderResource[]
+  audience?: 'leader' | 'member'
 }) {
   const primary = current.find((resource) => !isLeaderLaunch(resource)) ?? current[0]
   const otherCurrent = current.filter((resource) => (
@@ -313,7 +338,7 @@ export function LeaderResourceTimeline({
 
   return (
     <>
-      {primary ? <LeaderResourceThisWeek current={current} /> : (
+      {primary ? <LeaderResourceThisWeek current={current} audience={audience} /> : (
         <section aria-labelledby="this-week-heading" className="border-y border-warm-grey py-8">
           <h3 id="this-week-heading" className="text-2xl text-brand-black">This week</h3>
           <p className="mt-2 text-sm text-mid-grey">There is no current resource this week.</p>
@@ -323,20 +348,23 @@ export function LeaderResourceTimeline({
       {otherCurrent.length > 0 && (
         <section className="mt-12" aria-labelledby="other-current-heading">
           <h3 id="other-current-heading" className="mb-7 border-b-2 border-brand-black pb-3 text-2xl text-brand-black">Other current resources</h3>
-          <TimelineRows resources={otherCurrent} />
+          <TimelineRows resources={otherCurrent} audience={audience} />
         </section>
       )}
 
       {upcoming.length > 0 && (
         <section className="mt-14" aria-labelledby="upcoming-heading">
           <h3 id="upcoming-heading" className="mb-7 border-b-2 border-brand-black pb-3 text-2xl text-brand-black">Coming up</h3>
-          <SeriesTimeline resources={upcoming} />
+          <SeriesTimeline resources={upcoming} audience={audience} />
         </section>
       )}
 
       {history.length > 0 && (
-        <section className="mt-14" aria-label="Earlier resources">
-          <SeriesTimeline resources={history} />
+        <section className="mt-14" aria-labelledby={upcoming.length > 0 ? 'earlier-studies-heading' : undefined} aria-label={upcoming.length > 0 ? undefined : 'Earlier resources'}>
+          {upcoming.length > 0 && (
+            <h3 id="earlier-studies-heading" className="mb-7 border-b-2 border-brand-black pb-3 text-2xl text-brand-black">Earlier studies</h3>
+          )}
+          <SeriesTimeline resources={history} audience={audience} />
         </section>
       )}
     </>

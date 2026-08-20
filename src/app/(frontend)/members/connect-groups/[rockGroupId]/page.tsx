@@ -94,6 +94,15 @@ export default async function ConnectGroupDetailPage({
         </div>
       </div>
 
+      <div className="mb-4 flex justify-end">
+        <Link
+          href="/members/connect-group-leader-resources"
+          rel="nofollow"
+          className="text-sm font-bold text-rich-red hover:underline"
+        >
+          Browse other studies
+        </Link>
+      </div>
       {currentResources.length > 0 && (
         <LeaderResourceThisWeek
           current={currentResources}

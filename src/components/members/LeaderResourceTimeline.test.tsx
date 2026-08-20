@@ -124,13 +124,16 @@ describe('LeaderResourceTimeline', () => {
     expect(markup).toContain('/245/files/member-study')
     expect(markup).toContain('> Notes</a>')
     expect(markup).toContain('> Study</a>')
+    expect(markup).toContain('mt-3 flex gap-4 text-sm font-bold text-rich-red')
     expect(markup).toContain('Play video: connect-group-resource-245')
+    expect(markup).toContain('h-2.5 w-2.5')
     expect(markup).toContain('href="/members/connect-group-leader-resources/245"')
     expect(markup.match(/<img[^>]+src="\/_next\/image\?url=%2Fprotected-image/gu)).toHaveLength(2)
     expect(markup.match(/<img[^>]+src="\/_next\/image\?url=%2Fnumbers-image/gu)).toHaveLength(1)
     expect(markup.match(/<img[^>]+src="\/_next\/image\?url=%2Folder-hebrews-image/gu)).toHaveLength(1)
     expect(markup).not.toContain('class="aspect-video w-full overflow-hidden')
     expect(markup).not.toContain('id="history-heading"')
+    expect(markup).not.toContain('Earlier studies')
     expect(markup).not.toContain('<h4')
   })
 
@@ -162,5 +165,26 @@ describe('LeaderResourceTimeline', () => {
     expect(markup).not.toContain('Hebrews 2026 CG Leaders Launch')
     expect(markup).not.toContain('/245/files/leader-notes')
     expect(markup).not.toContain('href="/members/connect-group-leader-resources/245"')
+  })
+
+  it('keeps leader-only actions out of the member archive and upcoming studies', () => {
+    const markup = renderToStaticMarkup(
+      <LeaderResourceTimeline
+        current={[]}
+        upcoming={[resource({ rockId: 246, title: 'Upcoming Study', youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' })]}
+        history={[resource({ rockId: 244, title: 'Earlier Study', youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' })]}
+        audience="member"
+      />,
+    )
+
+    expect(markup).toContain('/246/files/member-study')
+    expect(markup).toContain('/244/files/member-study')
+    expect(markup).not.toContain('/files/leader-notes')
+    expect(markup).not.toContain('Play video:')
+    expect(markup).not.toContain('Share')
+    expect(markup).toContain('mx-auto mt-1 block h-2.5 w-2.5')
+    expect(markup).toContain('mt-3 flex w-fit text-sm font-bold text-rich-red')
+    expect(markup).toContain('Coming up')
+    expect(markup).toContain('Earlier studies')
   })
 })

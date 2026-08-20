@@ -7,6 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const navigation = {
   pathname: "/about",
 };
+const mediaPlayer = vi.hoisted(() => ({
+  isVideoExpanded: true,
+  minimizeVideo: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => navigation.pathname,
@@ -14,6 +18,9 @@ vi.mock("next/navigation", () => ({
     replace: (href: string) => window.history.replaceState(null, "", href),
   }),
   useSearchParams: () => new URLSearchParams(window.location.search),
+}));
+vi.mock("@/components/audio/AudioPlayerProvider", () => ({
+  useAudioPlayer: () => mediaPlayer,
 }));
 vi.mock("@/components/forms/RockForm", () => ({
   RockForm: ({ workflowTypeGuid }: { workflowTypeGuid: string }) => (
@@ -188,6 +195,8 @@ describe("NextStepsLauncher", () => {
   let root: Root;
 
   beforeEach(() => {
+    vi.clearAllMocks();
+    mediaPlayer.isVideoExpanded = true;
     navigation.pathname = "/about";
     window.history.replaceState(null, "", "/about");
     window.localStorage.clear();
@@ -227,6 +236,7 @@ describe("NextStepsLauncher", () => {
 
     await act(async () => toggle.click());
 
+    expect(mediaPlayer.minimizeVideo).toHaveBeenCalledTimes(1);
     expect(toggle.isConnected).toBe(true);
     expect(toggle.getAttribute("aria-label")).toBe("Close next steps");
     const share = button(container, "Share Your next step")!;
