@@ -258,19 +258,6 @@ export function CampusGoogleReviews({
               >
                 Share your experience
               </TrackedButtonLink>
-              {allReviewsUrl && (
-                <a
-                  href={allReviewsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  translate="no"
-                  className="ml-auto text-base text-[#5F6368] hover:text-brand-black"
-                  style={{ fontFamily: 'Roboto, Arial, sans-serif' }}
-                >
-                  Google Maps
-                  <span className="sr-only"> (opens in new tab)</span>
-                </a>
-              )}
             </div>
           </>
         ) : (
