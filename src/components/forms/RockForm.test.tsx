@@ -168,7 +168,7 @@ describe('RockForm', () => {
     expect(markup).not.toContain('Preparing secure form')
   })
 
-  it('stacks configured Rock columns on mobile and restores them at sm', () => {
+  it('stacks configured Rock columns until the form container is wide enough', () => {
     const markup = renderToStaticMarkup(
       <RockForm
         workflowTypeGuid={workflowTypeGuid}
@@ -179,7 +179,9 @@ describe('RockForm', () => {
       />,
     )
 
-    expect(markup).toContain('class="col-span-12 sm:col-span-6"')
+    expect(markup).toContain('class="@container/rock-form space-y-8"')
+    expect(markup).toContain('class="col-span-12 @md/rock-form:col-span-6"')
+    expect(markup).not.toContain('sm:col-span-6')
     expect(markup).not.toContain('grid-column:span 6')
   })
 
