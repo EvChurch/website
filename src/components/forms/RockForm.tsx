@@ -11,6 +11,7 @@ import {
 } from 'react'
 import { SafeRockHtml } from './SafeRockHtml'
 import { FormSelect } from './FormSelect'
+import { CalendarDatePicker } from './CalendarDatePicker'
 import { TurnstileWidget } from './TurnstileWidget'
 import { formInputClass as inputClass, formLabelClass as labelClass } from './form-styles'
 import {
@@ -264,6 +265,8 @@ function RockField({
   onChange: (value: string) => void
   onFile: (file: File | null) => void
 }) {
+  const datePickerId = useId()
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
   const type = field.attribute.fieldTypeGuid.toLowerCase()
   const configuration = field.attribute.configurationValues
   const required = field.isRequired || field.attribute.isRequired
@@ -370,6 +373,19 @@ function RockField({
         onChange={onChange}
       />
     )
+  } else if (type === ROCK_FIELD_TYPES.date) {
+    control = (
+      <CalendarDatePicker
+        id={datePickerId}
+        label={label}
+        startDate={value.slice(0, 10)}
+        isOpen={isDatePickerOpen}
+        onOpen={() => setIsDatePickerOpen((open) => !open)}
+        onComplete={() => setIsDatePickerOpen(false)}
+        onChange={(date) => onChange(date)}
+        required={Boolean(required)}
+      />
+    )
   } else {
     const htmlType = getHtmlInputType(type)
     control = (
@@ -383,23 +399,36 @@ function RockField({
     )
   }
 
+  const fieldLabel = (
+    <>
+      {!field.isLabelHidden && (
+        <span>
+          {label}
+          {required && ' *'}
+        </span>
+      )}
+      {field.attribute.description && (
+        <span className="mt-1 block font-normal text-dark-grey">
+          {field.attribute.description}
+        </span>
+      )}
+    </>
+  )
+
   return (
     <div className="space-y-1">
       <SafeRockHtml value={field.preHtml || field.attribute.preHtml} />
-      <label className={labelClass}>
-        {!field.isLabelHidden && (
-          <span>
-            {label}
-            {required && ' *'}
-          </span>
-        )}
-        {field.attribute.description && (
-          <span className="mt-1 block font-normal text-dark-grey">
-            {field.attribute.description}
-          </span>
-        )}
-        {control}
-      </label>
+      {type === ROCK_FIELD_TYPES.date ? (
+        <>
+          <div className={labelClass}>{fieldLabel}</div>
+          <div className="mt-2">{control}</div>
+        </>
+      ) : (
+        <label className={labelClass}>
+          {fieldLabel}
+          {control}
+        </label>
+      )}
       <SafeRockHtml value={field.postHtml || field.attribute.postHtml} />
     </div>
   )
