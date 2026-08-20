@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
 import { useMediaPlayer } from './MediaPlayerProvider'
 import { useListeningStore } from '@/lib/listening-store'
@@ -61,7 +61,7 @@ export function VideoContainer() {
   closeRef.current = animatedClose
   const [flashIcon, setFlashIcon] = useState<'play' | 'pause' | null>(null)
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [animPhase, setAnimPhase] = useState<'idle' | 'min-out' | 'min-repos' | 'min-in' | 'exp-out' | 'exp-repos' | 'exp-in'>('idle')
+  const [animPhase, setAnimPhase] = useState<'idle' | 'min-out' | 'exp-out' | 'exp-repos' | 'exp-in'>('idle')
   const prevExpandedRef = useRef(isVideoExpanded)
   const hasBeenMinimizedRef = useRef(false)
   const [shouldRender, setShouldRender] = useState(false)
@@ -105,10 +105,9 @@ export function VideoContainer() {
     }
   }, [updatePositions, isVideoExpanded, isVideoVisible])
 
-  // Two-phase slide animations (mobile only)
-  // Minimize: expanded slides right, mini slides in from right
-  // Expand: mini slides right, expanded slides in from right
-  useEffect(() => {
+  // Mobile video transitions. Contracted video remains hidden off-screen;
+  // minimising exits right and expanding enters from the right.
+  useLayoutEffect(() => {
     const wasExpanded = prevExpandedRef.current
     prevExpandedRef.current = isVideoExpanded
     const mobile = typeof window !== 'undefined' && window.innerWidth < 640
@@ -118,18 +117,10 @@ export function VideoContainer() {
     }
 
     if (wasExpanded && !isVideoExpanded) {
-      // Minimize: expanded -> mini
+      // Minimize: move the expanded video directly off-screen, then hide it.
       hasBeenMinimizedRef.current = true
       setAnimPhase('min-out')
-      const t1 = setTimeout(() => {
-        setAnimPhase('min-repos')
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            setAnimPhase('min-in')
-            setTimeout(() => setAnimPhase('idle'), 300)
-          })
-        })
-      }, 300)
+      const t1 = setTimeout(() => setAnimPhase('idle'), 300)
       return () => clearTimeout(t1)
     }
 
@@ -337,12 +328,11 @@ export function VideoContainer() {
 
   const isMobileView = vpW < 640
 
-  // On mobile: half-width mini player above the bar
+  // On mobile: keep the contracted video hidden off-screen at its expanded
+  // geometry so minimising never causes a second movement toward the bar.
   // On desktop: snap to the artwork thumbnail in the bar
-  const mobileMinW = vpW / 2
-  const mobileMinH = mobileMinW * 9 / 16
   const minimizedStyle: React.CSSProperties = isMobileView
-    ? { bottom: barHeight + 32, right: 16, width: mobileMinW, height: mobileMinH }
+    ? { ...expandedStyle, transform: `translateX(${vpW}px)`, opacity: 0, pointerEvents: 'none' }
     : thumbRect
       ? { top: thumbRect.top, left: thumbRect.left, width: thumbRect.width, height: thumbRect.height }
       : { top: vpH - 70, right: 16, width: 85, height: 48 }
@@ -351,7 +341,7 @@ export function VideoContainer() {
   const closingStyle: React.CSSProperties | undefined =
     isClosing && !isVideoExpanded
       ? isMobileView
-        ? { ...minimizedStyle, bottom: -mobileMinH }
+        ? minimizedStyle
         : thumbRect
           ? { ...minimizedStyle, top: (thumbRect.top ?? 0) + 100 }
           : undefined
@@ -363,14 +353,8 @@ export function VideoContainer() {
   if (animPhase === 'min-out') {
     // Minimize: slide expanded off to right
     currentStyle = { ...expandedStyle, transform: `translateX(${vpW}px)` }
-  } else if (animPhase === 'min-repos') {
-    // Instant reposition mini off-screen right (no transition)
-    currentStyle = { ...minimizedStyle, transform: `translateX(${vpW}px)` }
-  } else if (animPhase === 'min-in') {
-    // Slide mini in from right
-    currentStyle = { ...minimizedStyle, transform: 'translateX(0)' }
   } else if (animPhase === 'exp-out') {
-    // Expand: slide mini off to right
+    // Keep the contracted video hidden off-screen before expanding.
     currentStyle = { ...minimizedStyle, transform: `translateX(${vpW}px)` }
   } else if (animPhase === 'exp-repos') {
     // Instant reposition expanded off-screen right (no transition)
@@ -390,6 +374,25 @@ export function VideoContainer() {
         onClick={minimizeVideo}
       />
 
+      {isVideoExpanded && !isClosing && (
+        <div
+          className="pointer-events-none fixed z-[62] flex justify-end animate-[minimise-control-in_300ms_ease-out_300ms_both]"
+          style={{ top: Math.max(12, expTop - 44), left: expLeft, width: expW }}
+        >
+          <button
+            type="button"
+            onClick={minimizeVideo}
+            className="pointer-events-auto inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg bg-black/75 px-3 py-2 text-sm font-bold text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-black"
+            aria-label="Minimise video"
+          >
+            <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+            </svg>
+            Minimise
+          </button>
+        </div>
+      )}
+
       {/*
         Video iframe - transitions between expanded (centered 16:9)
         and minimized (bar thumbnail slot) using inline top/left/width/height.
@@ -399,7 +402,7 @@ export function VideoContainer() {
           if (videoContainerRef) (videoContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
         }}
         className={`fixed z-[63] overflow-hidden bg-black ${
-          (animPhase === 'min-repos' || animPhase === 'exp-repos') ? '' : 'transition-all duration-300 ease-out'
+          animPhase === 'exp-repos' ? '' : 'transition-all duration-300 ease-out'
         } ${
           isVideoExpanded ? 'rounded-xl shadow-2xl' : `cursor-pointer shadow-2xl ${isMobileView ? 'rounded-2xl' : 'rounded-lg'}`
         } ${isClosing && isVideoExpanded ? 'opacity-0' : 'opacity-100'}`}
@@ -453,13 +456,13 @@ export function VideoContainer() {
         </div>
       </div>
 
-      {/* Chevron overlay — fixed position above the iframe, over the thumbnail spot */}
+      {/* Chevron overlay — fixed over the player-bar artwork in both states */}
       {thumbRect && !isClosing && (
         <button
           className="group/chev fixed z-[64] flex items-center justify-center rounded-lg transition-colors hover:bg-black/40"
           style={{ top: thumbRect.top, left: thumbRect.left, width: thumbRect.width, height: thumbRect.height }}
           onClick={isVideoExpanded ? minimizeVideo : expandVideo}
-          aria-label={isVideoExpanded ? 'Minimize video' : 'Expand video'}
+          aria-label={isVideoExpanded ? 'Minimise video from player bar' : 'Expand video'}
         >
           <svg
             className="h-5 w-5 text-white opacity-0 drop-shadow transition-all duration-300 group-hover/chev:opacity-100 sm:opacity-0"

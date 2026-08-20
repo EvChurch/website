@@ -8,7 +8,7 @@ import { trackedNotFound } from '@/lib/tracked-not-found'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
-  title: 'Connect Group Leader Resources',
+  title: 'Study Resources',
   robots: { index: false, follow: false },
 }
 
@@ -30,6 +30,7 @@ export default async function LeaderResourcesPage() {
         current={result.current}
         upcoming={result.upcoming}
         history={result.history}
+        audience={home.canAccessLeaderResources ? 'leader' : 'member'}
       />
     </MemberPortalChrome>
   )

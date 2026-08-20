@@ -38,6 +38,7 @@ import {
   type MemberDisplayProfile,
 } from "@/components/layout/MemberAccountControl";
 import { useGivingExperience } from "@/components/giving/GivingExperienceProvider";
+import { useAudioPlayer } from "@/components/audio/AudioPlayerProvider";
 import {
   CONNECT_CARD_WORKFLOW_GUID,
   GIVING_LAUNCHER_HREF,
@@ -335,6 +336,7 @@ export function NextStepsLauncher({
   const [isClosing, setIsClosing] = useState(false);
   const [isCloseMotionActive, setIsCloseMotionActive] = useState(false);
   const giving = useGivingExperience();
+  const { isVideoExpanded, minimizeVideo } = useAudioPlayer();
   const launcherRootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -397,6 +399,12 @@ export function NextStepsLauncher({
       dispatch({ type: "open", presentation: "fullscreen" });
     }
   }, [isMobile, state.presentation]);
+
+  useEffect(() => {
+    if (state.presentation !== "collapsed" && isVideoExpanded) {
+      minimizeVideo();
+    }
+  }, [isVideoExpanded, minimizeVideo, state.presentation]);
 
   useEffect(() => {
     const routeOrStoredCampus = chooseInitialCampus({
@@ -982,19 +990,28 @@ export function NextStepsLauncher({
   };
 
   return (
-    <div ref={launcherRootRef} className="relative z-[9999] print:hidden">
+    <div ref={launcherRootRef} className="relative print:hidden">
+      {state.presentation === "fullscreen" && (
+        <div
+          aria-hidden="true"
+          className={`pointer-events-none fixed inset-0 z-[61] bg-brand-black/45 backdrop-blur-sm transition-opacity duration-200 ease-out motion-reduce:transition-none ${
+            isClosing && isCloseMotionActive ? "opacity-0" : "opacity-100"
+          }`}
+        />
+      )}
       {state.presentation !== "collapsed" && (
         <div
+          data-launcher-control-surface
           className={
             state.presentation === "fullscreen"
-              ? `fixed inset-0 bg-brand-black/45 p-0 pb-[max(5rem,calc(env(safe-area-inset-bottom)+4.25rem))] backdrop-blur-sm transition-opacity duration-200 ease-out motion-reduce:animate-none motion-reduce:transition-none sm:p-5 ${
+              ? `fixed inset-0 z-[9999] p-0 pb-[max(5rem,calc(env(safe-area-inset-bottom)+4.25rem))] transition-opacity duration-200 ease-out motion-reduce:animate-none motion-reduce:transition-none sm:p-5 ${
                   isClosing
                     ? isCloseMotionActive
                       ? "opacity-0"
                       : "opacity-100"
                     : "animate-fade-in"
                 }`
-              : "pointer-events-none fixed inset-0 flex items-end justify-end p-3 pb-[max(5rem,calc(env(safe-area-inset-bottom)+4.25rem))] sm:p-6 sm:pb-24"
+              : "pointer-events-none fixed inset-0 z-[9999] flex items-end justify-end p-3 pb-[max(5rem,calc(env(safe-area-inset-bottom)+4.25rem))] sm:p-6 sm:pb-24"
           }
         >
           <div
@@ -1117,7 +1134,7 @@ export function NextStepsLauncher({
           </div>
         </div>
       )}
-      <div className="fixed right-3 bottom-[max(.75rem,env(safe-area-inset-bottom))] z-[1] flex items-center gap-2 sm:right-6 sm:bottom-6">
+      <div className="mobile-action-bar fixed right-3 bottom-[max(.75rem,env(safe-area-inset-bottom))] z-[10000] flex items-center gap-2 transition-[bottom] duration-300 ease-out motion-reduce:transition-none sm:right-6 sm:bottom-6">
         {state.presentation !== "collapsed" &&
           shareTarget && (
             <LauncherShareButton

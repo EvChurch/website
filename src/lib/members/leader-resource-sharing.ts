@@ -88,10 +88,10 @@ export async function createOrReuseLeaderResourceShare(
   const profile = await getCurrentMemberProfile({ persistLegacyProfile: true })
   if (!profile || !positiveInteger(resourceRockId)) return null
 
-  // Reuse the existing member boundary so campus and approval access remain authoritative.
+  // Reuse the detail boundary, but require its explicit leader-content grant.
   const { getMemberResourceDetail } = await import('./data')
   const detail = await getMemberResourceDetail(resourceRockId)
-  if (!detail || detail.access !== 'granted') return null
+  if (!detail || detail.access !== 'granted' || !detail.canAccessLeaderContent) return null
 
   const payload = (await getPayloadClient()) as unknown as SharingPayload
   const pairKey = `${resourceRockId}:${profile.personId}`

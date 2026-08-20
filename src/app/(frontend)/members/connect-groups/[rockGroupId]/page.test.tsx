@@ -200,6 +200,8 @@ describe('ConnectGroupDetailPage', () => {
 
     expect(mocks.getGroupCurrentResources).toHaveBeenCalledWith(10, 'central', 'leader')
     expect(markup).not.toContain('This week:')
+    expect(markup).toContain('Browse other studies')
+    expect(markup).toContain('href="/members/connect-group-leader-resources"')
   })
 
   it('does not offer a list-page back link when the member has one group', async () => {
@@ -214,6 +216,7 @@ describe('ConnectGroupDetailPage', () => {
     }))
 
     expect(markup).not.toContain('Back to your groups')
+    expect(markup).toContain('Browse other studies')
   })
 
   it('keeps the list-page back link when the member has multiple groups', async () => {

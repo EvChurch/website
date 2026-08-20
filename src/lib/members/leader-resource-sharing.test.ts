@@ -10,7 +10,7 @@ vi.mock('./data', () => ({ getMemberResourceDetail: mocks.detail }))
 import { createOrReuseLeaderResourceShare, getPublicLeaderResourceShare, isLeaderResourceShareToken } from './leader-resource-sharing'
 
 describe('leader resource sharing', () => {
-  beforeEach(() => { vi.clearAllMocks(); mocks.profile.mockResolvedValue({ personId: 42 }); mocks.detail.mockResolvedValue({ access: 'granted', resource: {} }) })
+  beforeEach(() => { vi.clearAllMocks(); mocks.profile.mockResolvedValue({ personId: 42 }); mocks.detail.mockResolvedValue({ access: 'granted', canAccessLeaderContent: true, resource: {} }) })
 
   it('validates the exact opaque token shape', () => {
     expect(isLeaderResourceShareToken('a'.repeat(32))).toBe(true)
@@ -57,8 +57,12 @@ describe('leader resource sharing', () => {
     })
   })
 
-  it('denies an ordinary member without leader or coach access', async () => {
-    mocks.detail.mockResolvedValueOnce({ access: 'denied' })
+  it('denies public sharing when an ordinary member has study-only detail access', async () => {
+    mocks.detail.mockResolvedValueOnce({
+      access: 'granted',
+      canAccessLeaderContent: false,
+      resource: { hasMemberStudy: true },
+    })
     await expect(createOrReuseLeaderResourceShare(245)).resolves.toBeNull()
     expect(mocks.detail).toHaveBeenCalledWith(245)
     expect(mocks.payload.find).not.toHaveBeenCalled()
