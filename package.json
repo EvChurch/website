@@ -55,15 +55,15 @@
     "zustand": "5.0.14"
   },
   "devDependencies": {
-    "@payloadcms/ui": "3.87.1",
+    "@payloadcms/ui": "3.88.0",
     "@types/canvas-confetti": "^1.9.0",
     "@types/jsdom": "^30.0.0",
     "@types/node": "26.2.0",
     "@types/pg": "8.21.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
-    "@typescript-eslint/eslint-plugin": "^8.66.0",
-    "@typescript-eslint/parser": "^8.66.0",
+    "@typescript-eslint/eslint-plugin": "^8.67.0",
+    "@typescript-eslint/parser": "^8.67.0",
     "dotenv": "17.4.2",
     "eslint": "10.8.1",
     "sass": "1.102.0",
