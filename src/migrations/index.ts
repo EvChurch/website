@@ -46,6 +46,7 @@ import * as migration_20260819_010000_connect_group_comments from './20260819_01
 import * as migration_20260819_030000_fix_connect_group_comments_lock_relation from './20260819_030000_fix_connect_group_comments_lock_relation';
 import * as migration_20260819_100000_launcher_rock_forms from './20260819_100000_launcher_rock_forms';
 import * as migration_20260820_150000_fix_rock_forms_mcp_permissions from './20260820_150000_fix_rock_forms_mcp_permissions';
+import * as migration_20260820_180000_giving_apprentice_funds from './20260820_180000_giving_apprentice_funds';
 
 export const migrations = [
   {
@@ -287,5 +288,10 @@ export const migrations = [
     up: migration_20260820_150000_fix_rock_forms_mcp_permissions.up,
     down: migration_20260820_150000_fix_rock_forms_mcp_permissions.down,
     name: '20260820_150000_fix_rock_forms_mcp_permissions',
+  },
+  {
+    up: migration_20260820_180000_giving_apprentice_funds.up,
+    down: migration_20260820_180000_giving_apprentice_funds.down,
+    name: '20260820_180000_giving_apprentice_funds',
   },
 ];

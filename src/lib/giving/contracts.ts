@@ -37,6 +37,7 @@ export interface PublicGivingFund {
   code: string
   sortOrder: number
   isDefault: boolean
+  apprenticeRelated: boolean
 }
 
 export const GIVING_REQUEST_MARKERS = {

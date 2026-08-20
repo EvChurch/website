@@ -28,8 +28,9 @@ vi.mock('./GivingExperienceProvider',()=>({useGivingExperience:()=>({
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const funds: PublicGivingFund[] = [
-  { id: 1, name: 'Missions', code: 'MISSIONS', sortOrder: 0, isDefault: false },
-  { id: 2, name: 'General', code: 'GENERAL', sortOrder: 1, isDefault: true },
+  { id: 1, name: 'Missions', code: 'MISSIONS', sortOrder: 0, isDefault: false, apprenticeRelated: false },
+  { id: 2, name: 'General', code: 'GENERAL', sortOrder: 1, isDefault: true, apprenticeRelated: false },
+  { id: 3, name: 'Jordan Smith', code: 'APPRENTICE-JORDAN', sortOrder: 2, isDefault: false, apprenticeRelated: true },
 ]
 const siteKey = '1x00000000000000000000AA'
 const gatewayOrigins = ['https://sandbox.debit.blinkpay.co.nz']
@@ -173,6 +174,30 @@ describe('GivingFlow', () => {
     expect(container.textContent).toContain('complete your payment setup with your bank')
     expect(container.textContent).toContain('You’re giving $55.00 to General every month, starting tomorrow.')
     expect(container.textContent).not.toContain('$55.00 NZD')
+  })
+
+  it('keeps apprentice funds out of the normal list and reveals them from the subdued option', async () => {
+    await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} />))
+    await act(async () => change(container.querySelector('input')!, '25'))
+    await act(async () => button(container, 'Continue')?.click())
+
+    expect(button(container, 'General')).toBeTruthy()
+    expect(button(container, 'Jordan Smith')).toBeUndefined()
+    expect(button(container, 'Apprentices')?.className).toContain('bg-warm-grey/70')
+
+    await act(async () => button(container, 'Apprentices')?.click())
+
+    expect(button(container, 'General')).toBeUndefined()
+    expect(button(container, 'Jordan Smith')).toBeTruthy()
+    expect(button(container, 'Apprentices')).toBeUndefined()
+    expect(button(container, 'Back')?.className).toContain('bg-warm-grey/70')
+    expect(document.activeElement?.textContent).toBe('Back')
+
+    await act(async () => button(container, 'Back')?.click())
+
+    expect(button(container, 'General')).toBeTruthy()
+    expect(button(container, 'Jordan Smith')).toBeUndefined()
+    expect(button(container, 'Apprentices')).toBeTruthy()
   })
 
   it('keeps one-off plainly selectable without showing a starting-date step', async () => {
@@ -499,7 +524,7 @@ describe('GivingFlow', () => {
     expect(container.textContent).toContain('How often?')
     await act(async()=>button(container,'Every month')?.click())
     expect(container.textContent).toContain('Starting when?')
-    await act(async()=>button(container,'This Friday')?.click())
+    await act(async()=>button(container,'Tomorrow')?.click())
     expect(container.textContent).toContain('Continue with BlinkPay')
     expect(button(container,'Continue to BlinkPay')?.disabled).toBe(true)
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
