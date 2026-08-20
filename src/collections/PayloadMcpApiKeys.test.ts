@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -13,6 +15,29 @@ const collection = restrictMcpApiKeyCollection({
   slug: 'payload-mcp-api-keys',
   fields: [],
 })
+
+const migrationModules = import.meta.glob('../migrations/*.ts', {
+  eager: true,
+}) as Record<string, Record<string, unknown>>
+
+const migrationIndex = readFileSync(
+  new URL('../migrations/index.ts', import.meta.url),
+  'utf8',
+)
+
+const migratedMcpSchema = Object.entries(migrationModules)
+  .filter(([path]) => {
+    const migrationName = path.split('/').at(-1)?.replace(/\.ts$/, '')
+    return migrationName && migrationIndex.includes(`name: '${migrationName}'`)
+  })
+  .map(([, migration]) => migration)
+  .flatMap((migration) => Object.entries(migration))
+  .filter(
+    (entry): entry is [string, string] =>
+      entry[0].endsWith('_UP_SQL') && typeof entry[1] === 'string',
+  )
+  .map(([, sql]) => sql)
+  .join('\n')
 
 describe('Payload MCP API key access', () => {
   it('exposes application content but excludes the capability-token store', () => {
@@ -47,6 +72,27 @@ describe('Payload MCP API key access', () => {
       expect(access?.[operation]?.({ req: { user: admin } } as never)).toBe(true)
       expect(access?.[operation]?.({ req: { user: editor } } as never)).toBe(false)
       expect(access?.[operation]?.({ req: { user: null } } as never)).toBe(false)
+    }
+  })
+
+  it('has migrated permission columns for every exposed MCP entity', () => {
+    const expectedPermissions = [
+      ...Object.keys(mcpCollections).flatMap((slug) =>
+        ['find', 'create', 'update', 'delete'].map(
+          (operation) => `${slug.replaceAll('-', '_')}_${operation}`,
+        ),
+      ),
+      ...Object.keys(mcpGlobals).flatMap((slug) =>
+        ['find', 'update'].map(
+          (operation) => `${slug.replaceAll('-', '_')}_${operation}`,
+        ),
+      ),
+    ]
+
+    for (const permission of expectedPermissions) {
+      expect(migratedMcpSchema, `missing migration for ${permission}`).toContain(
+        `"${permission}" boolean`,
+      )
     }
   })
 })
