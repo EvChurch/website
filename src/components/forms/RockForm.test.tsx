@@ -168,6 +168,21 @@ describe('RockForm', () => {
     expect(markup).not.toContain('Preparing secure form')
   })
 
+  it('stacks configured Rock columns on mobile and restores them at sm', () => {
+    const markup = renderToStaticMarkup(
+      <RockForm
+        workflowTypeGuid={workflowTypeGuid}
+        initialSchema={{
+          ...schema(),
+          fields: schema().fields.map((field) => ({ ...field, columnSize: 6 })),
+        }}
+      />,
+    )
+
+    expect(markup).toContain('class="col-span-12 sm:col-span-6"')
+    expect(markup).not.toContain('grid-column:span 6')
+  })
+
   it('uses the shared native select styling for Rock select fields', () => {
     const selectFields: RockFormSchema['fields'] = [
       {
