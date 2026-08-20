@@ -265,6 +265,15 @@ function getGoogleMapsPageUrl(
   return isGoogleMapsUrl(managedMapUrl) ? managedMapUrl : undefined
 }
 
+function getGoogleReviewUrl(googlePlaceId: string | null | undefined): string | undefined {
+  const placeId = googlePlaceId?.trim()
+  if (!placeId) return undefined
+
+  const reviewUrl = new URL('https://search.google.com/local/writereview')
+  reviewUrl.searchParams.set('placeid', placeId)
+  return reviewUrl.toString()
+}
+
 export async function generateStaticParams() {
   return []
 }
@@ -328,6 +337,7 @@ export default async function CampusPage({
     process.env.GOOGLE_MAPS_API_KEY,
   )
   const mapPageUrl = getGoogleMapsPageUrl(campus.googlePlaceId, content.mapUrl)
+  const googleReviewUrl = getGoogleReviewUrl(campus.googlePlaceId)
   const analyticsCampus =
     slug === 'north' || slug === 'central' || slug === 'unichurch'
       ? slug
@@ -543,6 +553,30 @@ export default async function CampusPage({
                       </Button>
                     )
                   ))}
+                </div>
+              )}
+              {googleReviewUrl && (
+                <div className="mt-10 border-t border-warm-grey/60 pt-8">
+                  <h3 className="font-sans text-lg font-semibold text-brand-black">
+                    Visited {content.brandName}?
+                  </h3>
+                  <p className="mt-2 max-w-lg text-[0.9375rem] leading-relaxed text-mid-grey">
+                    Your honest feedback can help others know what to expect when they visit.
+                  </p>
+                  <div className="mt-5">
+                    <TrackedButtonLink
+                      href={googleReviewUrl}
+                      external
+                      variant="secondary"
+                      eventName="google_review_click"
+                      eventParameters={{
+                        campus: slug,
+                        destination_host: 'search.google.com',
+                      }}
+                    >
+                      Share your experience on Google
+                    </TrackedButtonLink>
+                  </div>
                 </div>
               )}
             </ScrollReveal>
