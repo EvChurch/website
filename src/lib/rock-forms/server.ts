@@ -9,6 +9,7 @@ import {
 export { verifyTurnstileToken } from '@/lib/turnstile'
 import { createRockFormContextToken } from './context-token'
 import { isGuid } from './constants'
+import { resolveRockBinaryFileTypeGuid } from './file-upload'
 import { parseRockInteractiveAction, replaceApiPersonDefaults } from './schema'
 import type {
   RockFormContext,
@@ -303,20 +304,12 @@ export async function buildRockFormSchema({
     personId && personEntryBehavior?.hideIfCurrentPersonKnown,
   )
   const allowedFields = parsed.fields.map((field) => {
-    const rawBinaryFileType =
-      field.attribute.configurationValues.binaryFileType || ''
-    let binaryFileTypeGuid = rawBinaryFileType
-    try {
-      binaryFileTypeGuid =
-        (JSON.parse(rawBinaryFileType) as { value?: string }).value || ''
-    } catch {
-      // Rock uses either a GUID or a serialized ListItemBag here.
-    }
-
     return {
       attributeGuid: field.attribute.attributeGuid.toLowerCase(),
       fieldTypeGuid: field.attribute.fieldTypeGuid.toLowerCase(),
-      binaryFileTypeGuid,
+      binaryFileTypeGuid: resolveRockBinaryFileTypeGuid(
+        field.attribute.configurationValues.binaryFileType,
+      ),
       securityGrantToken:
         field.securityGrantToken ||
         field.attribute.securityGrantToken ||
