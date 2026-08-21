@@ -48,6 +48,7 @@ import * as migration_20260819_100000_launcher_rock_forms from './20260819_10000
 import * as migration_20260820_150000_fix_rock_forms_mcp_permissions from './20260820_150000_fix_rock_forms_mcp_permissions';
 import * as migration_20260820_180000_giving_apprentice_funds from './20260820_180000_giving_apprentice_funds';
 import * as migration_20260821_120000_rock_form_registration_pages from './20260821_120000_rock_form_registration_pages';
+import * as migration_20260821_150000_rock_form_connection_opportunities from './20260821_150000_rock_form_connection_opportunities';
 
 export const migrations = [
   {
@@ -299,5 +300,10 @@ export const migrations = [
     up: migration_20260821_120000_rock_form_registration_pages.up,
     down: migration_20260821_120000_rock_form_registration_pages.down,
     name: '20260821_120000_rock_form_registration_pages',
+  },
+  {
+    up: migration_20260821_150000_rock_form_connection_opportunities.up,
+    down: migration_20260821_150000_rock_form_connection_opportunities.down,
+    name: '20260821_150000_rock_form_connection_opportunities',
   },
 ];

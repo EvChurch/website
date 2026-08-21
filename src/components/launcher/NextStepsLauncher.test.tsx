@@ -550,6 +550,43 @@ describe("NextStepsLauncher", () => {
     });
   });
 
+  it("opens a managed Connection Opportunity by its URL key with rich content", async () => {
+    const connectionForm: LauncherItem = {
+      id: "newish-connect",
+      title: "Newish Connect",
+      campusSlugs: [],
+      action: {
+        type: "connection",
+        blockGuid: "22222222-2222-2222-2222-222222222222",
+        body: {
+          root: {
+            children: [
+              {
+                type: "paragraph",
+                children: [{ type: "text", text: "Register your interest." }],
+              },
+            ],
+          },
+        },
+      },
+    };
+    window.history.replaceState(null, "", "/newish?launcher=newish-connect");
+
+    await act(async () => {
+      root.render(
+        <NextStepsLauncher campuses={campuses} items={[...items, connectionForm]} />,
+      );
+    });
+
+    expect(container.textContent).toContain("Register your interest.");
+    expect(
+      container.querySelector(
+        '[data-connection-guid="22222222-2222-2222-2222-222222222222"]',
+      ),
+    ).not.toBeNull();
+    expect(button(container, "Share Newish Connect")).toBeTruthy();
+  });
+
   it("opens and shares a Registration-site page managed by a Rock Form record", async () => {
     const share = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { ...window.navigator, share });
