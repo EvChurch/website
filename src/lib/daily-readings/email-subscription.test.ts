@@ -2,19 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   rockFetch: vi.fn(),
-  startRockForm: vi.fn(),
-  submitRockForm: vi.fn(),
-  verifyContext: vi.fn(),
 }))
 
 vi.mock('@/lib/rock-api', () => ({ rockFetch: mocks.rockFetch }))
-vi.mock('@/lib/rock-forms/server', () => ({
-  startRockForm: mocks.startRockForm,
-  submitRockForm: mocks.submitRockForm,
-}))
-vi.mock('@/lib/rock-forms/context-token', () => ({
-  verifyRockFormContextToken: mocks.verifyContext,
-}))
 
 import { isDailyReadingEmailSubscribed, subscribeDailyReadingEmail } from './email-subscription'
 
@@ -72,11 +62,16 @@ describe('Daily Bible Reading email subscription', () => {
       .mockResolvedValueOnce([active])
     await expect(subscribeDailyReadingEmail(42)).resolves.toEqual({ alreadySubscribed: false })
     expect(mocks.rockFetch).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      endpoint: 'GroupMembers/11',
-      method: 'PATCH',
-      body: expect.objectContaining({ GroupMemberStatus: 1 }),
+      endpoint: expect.stringContaining('/UpdateSubscription'),
+      method: 'POST',
+      body: {
+        __context: { pageParameters: { PersonId: '42' } },
+        bag: {
+          communicationListGuid: '9163f4c1-90b4-4bd3-a9e1-1a7cf201a86b',
+          isSubscribed: true,
+        },
+      },
     }))
-    expect(mocks.startRockForm).not.toHaveBeenCalled()
   })
 
   it('does not write for an existing active subscriber', async () => {
@@ -86,37 +81,28 @@ describe('Daily Bible Reading email subscription', () => {
       alreadySubscribed: true,
     })
     expect(mocks.rockFetch).toHaveBeenCalledTimes(1)
-    expect(mocks.startRockForm).not.toHaveBeenCalled()
   })
 
-  it('runs the existing no-input workflow for a new subscriber', async () => {
-    const context = {
-      personId: 42,
-      hidePersonEntryWhenKnown: true,
-      initialFieldValues: {},
-      knownPersonEntryValues: { person: {} },
-    }
+  it('uses Rock’s communication-list subscribe action for a new subscriber', async () => {
     mocks.rockFetch
       .mockResolvedValueOnce([])
-      .mockResolvedValueOnce({ Guid: 'PERSON-GUID' })
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce({ Guid: 'PERSON-GUID' })
-      .mockResolvedValueOnce([{ Id: 99 }])
-    mocks.startRockForm.mockResolvedValue({
-      contextToken: 'token',
-      personEntry: null,
-      fields: [],
-      buttons: [{ title: 'Submit' }],
-    })
-    mocks.verifyContext.mockReturnValue(context)
-    mocks.submitRockForm.mockResolvedValue({ action: { actionData: null } })
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce([active])
 
     await expect(subscribeDailyReadingEmail(42)).resolves.toEqual({ alreadySubscribed: false })
-    expect(mocks.submitRockForm).toHaveBeenCalledWith({
-      context,
-      fieldValues: {},
-      personEntryValues: { person: {} },
-      button: 'Submit',
-    })
+    expect(mocks.rockFetch).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      endpoint: expect.stringContaining('/UpdateSubscription'),
+    }))
+  })
+
+  it('does not report success until Rock returns an active membership', async () => {
+    mocks.rockFetch
+      .mockResolvedValueOnce([inactive])
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce([inactive])
+
+    await expect(subscribeDailyReadingEmail(42)).rejects.toThrow(
+      'membership was not activated',
+    )
   })
 })
