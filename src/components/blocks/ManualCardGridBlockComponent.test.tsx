@@ -132,4 +132,27 @@ describe('ManualCardGridBlockComponent', () => {
     expect(markup).toContain('bg-brand-black')
     expect(markup).not.toContain('aspect-[4/5]')
   })
+
+  it('renders unlinked team biographies without card hover while preserving email links', () => {
+    const markup = renderToStaticMarkup(
+      <ManualCardGridBlockComponent
+        cardStyle="profile"
+        cards={[
+          {
+            title: 'Rowan Hilsden',
+            subtitle: 'Senior Pastor',
+            description: 'Rowan planted Ev Church in 2012.',
+            image: '/media/rowan.jpg',
+            details: [{ label: 'Email', value: 'rowan.hilsden@ev.church' }],
+          },
+        ]}
+      />,
+    )
+
+    expect(markup).toContain('href="mailto:rowan.hilsden@ev.church"')
+    expect(markup).toContain('Rowan planted Ev Church in 2012.')
+    expect(markup).toContain('border border-warm-grey/60 bg-white')
+    expect(markup).not.toContain('hover:shadow-lg')
+    expect(markup).not.toContain('group-hover:scale-105')
+  })
 })
