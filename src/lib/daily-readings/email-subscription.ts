@@ -1,14 +1,16 @@
-import { DAILY_BIBLE_READING_EMAIL_WORKFLOW_GUID } from '@/lib/daily-readings/constants'
 import { rockFetch } from '@/lib/rock-api'
-import { ROCK_ENTRY_FORM_COMPONENT_URL } from '@/lib/rock-forms/constants'
-import { verifyRockFormContextToken } from '@/lib/rock-forms/context-token'
-import { startRockForm, submitRockForm } from '@/lib/rock-forms/server'
 
 export const DAILY_BIBLE_READING_LIST_GROUP_ID = 28916
 export const DAILY_BIBLE_READING_TAG_ID = 134
 
 const ACTIVE_GROUP_MEMBER_STATUS = 1
 const ROCK_SUBSCRIPTION_READ_TIMEOUT_MS = 3_000
+const ROCK_COMMUNICATION_SUBSCRIBE_PAGE_GUID =
+  '0dc2e79d-3590-45e8-a16b-c720a134ba51'
+const ROCK_COMMUNICATION_SUBSCRIBE_BLOCK_GUID =
+  'b2ccf6ec-8c07-4b02-9e3a-6d5674050141'
+const DAILY_BIBLE_READING_LIST_GROUP_GUID =
+  '9163f4c1-90b4-4bd3-a9e1-1a7cf201a86b'
 
 type RockGroupMembership = {
   Id: number
@@ -83,34 +85,23 @@ export async function isDailyReadingEmailSubscribed(
   return personHasSignupTag(personId)
 }
 
-async function submitExistingSignupWorkflow(personId: number): Promise<void> {
-  const form = await startRockForm(
-    DAILY_BIBLE_READING_EMAIL_WORKFLOW_GUID,
-    personId,
-  )
-  const context = verifyRockFormContextToken(form.contextToken)
-  if (
-    context.personId !== personId ||
-    !context.hidePersonEntryWhenKnown ||
-    form.personEntry !== null ||
-    form.fields.length !== 0 ||
-    form.buttons.length !== 1
-  ) {
-    throw new Error('Daily Bible Reading signup workflow contract changed')
-  }
-
-  const { action } = await submitRockForm({
-    context,
-    fieldValues: context.initialFieldValues,
-    personEntryValues: context.knownPersonEntryValues ?? null,
-    button: form.buttons[0].title,
+async function subscribeThroughRockCommunicationListBlock(
+  personId: number,
+): Promise<void> {
+  await rockFetch<void>({
+    endpoint: `v2/BlockActions/${ROCK_COMMUNICATION_SUBSCRIBE_PAGE_GUID}/${ROCK_COMMUNICATION_SUBSCRIBE_BLOCK_GUID}/UpdateSubscription`,
+    method: 'POST',
+    body: {
+      __context: {
+        pageParameters: { PersonId: String(personId) },
+      },
+      bag: {
+        communicationListGuid: DAILY_BIBLE_READING_LIST_GROUP_GUID,
+        isSubscribed: true,
+      },
+    },
+    retries: 0,
   })
-  if (action.actionData?.componentUrl === ROCK_ENTRY_FORM_COMPONENT_URL) {
-    throw new Error('Daily Bible Reading signup workflow did not complete')
-  }
-  if (!(await personHasSignupTag(personId))) {
-    throw new Error('Daily Bible Reading signup tag was not applied')
-  }
 }
 
 export async function subscribeDailyReadingEmail(
@@ -124,32 +115,13 @@ export async function subscribeDailyReadingEmail(
   )
   if (active) return { alreadySubscribed: true }
 
-  const inactive = memberships[0]
-  if (inactive) {
-    await rockFetch<void>({
-      endpoint: `GroupMembers/${inactive.Id}`,
-      method: 'PATCH',
-      body: {
-        GroupMemberStatus: ACTIVE_GROUP_MEMBER_STATUS,
-        IsArchived: false,
-        InactiveDateTime: null,
-      },
-      retries: 0,
-    })
-    const updatedMemberships = await membershipsForPerson(personId)
-    if (!updatedMemberships.some(
-      (membership) =>
-        membership.GroupMemberStatus === ACTIVE_GROUP_MEMBER_STATUS,
-    )) {
-      throw new Error('Daily Bible Reading membership was not reactivated')
-    }
-    return { alreadySubscribed: false }
+  await subscribeThroughRockCommunicationListBlock(personId)
+  const updatedMemberships = await membershipsForPerson(personId)
+  if (!updatedMemberships.some(
+    (membership) =>
+      membership.GroupMemberStatus === ACTIVE_GROUP_MEMBER_STATUS,
+  )) {
+    throw new Error('Daily Bible Reading membership was not activated')
   }
-
-  if (await personHasSignupTag(personId)) {
-    return { alreadySubscribed: true }
-  }
-
-  await submitExistingSignupWorkflow(personId)
   return { alreadySubscribed: false }
 }
