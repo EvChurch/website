@@ -23,6 +23,15 @@ describe('Footer social links', () => {
     expect(markup).not.toContain('give.ev.church')
   })
 
+  it('links to both public legal pages', () => {
+    const markup = renderToStaticMarkup(<Footer />)
+
+    expect(markup).toContain('href="/privacy"')
+    expect(markup).toContain('>Privacy Policy<')
+    expect(markup).toContain('href="/terms"')
+    expect(markup).toContain('>Terms of Service<')
+  })
+
   it('uses accessible footer text colors on the warm-white background', () => {
     const markup = renderToStaticMarkup(<Footer />)
 

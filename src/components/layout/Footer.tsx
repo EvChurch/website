@@ -158,6 +158,10 @@ export function Footer() {
               Privacy Policy
             </Link>
             <span aria-hidden="true">&middot;</span>
+            <Link href="/terms" className="transition-colors hover:text-deep-red">
+              Terms of Service
+            </Link>
+            <span aria-hidden="true">&middot;</span>
             <span>&copy; {new Date().getFullYear()} Ev Church</span>
           </div>
         </div>

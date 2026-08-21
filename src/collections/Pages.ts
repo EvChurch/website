@@ -98,6 +98,7 @@ export const Pages: CollectionConfig = {
       defaultValue: 'standard',
       admin: {
         position: 'sidebar',
+        description: 'Simple Content uses Content blocks in a narrow, text-focused page layout.',
       },
     },
     {
