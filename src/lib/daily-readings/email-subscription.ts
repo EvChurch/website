@@ -8,6 +8,7 @@ export const DAILY_BIBLE_READING_LIST_GROUP_ID = 28916
 export const DAILY_BIBLE_READING_TAG_ID = 134
 
 const ACTIVE_GROUP_MEMBER_STATUS = 1
+const ROCK_SUBSCRIPTION_READ_TIMEOUT_MS = 3_000
 
 type RockGroupMembership = {
   Id: number
@@ -31,6 +32,8 @@ async function membershipsForPerson(
 ): Promise<RockGroupMembership[]> {
   return rockFetch<RockGroupMembership[]>({
     endpoint: 'GroupMembers',
+    retries: 0,
+    timeoutMs: ROCK_SUBSCRIPTION_READ_TIMEOUT_MS,
     params: {
       $filter: `GroupId eq ${DAILY_BIBLE_READING_LIST_GROUP_ID} and PersonId eq ${personId} and IsArchived eq false`,
       $select: 'Id,GroupMemberStatus,IsArchived',
@@ -43,6 +46,8 @@ async function membershipsForPerson(
 async function personHasSignupTag(personId: number): Promise<boolean> {
   const person = await rockFetch<RockPersonGuid>({
     endpoint: `People/${personId}`,
+    retries: 0,
+    timeoutMs: ROCK_SUBSCRIPTION_READ_TIMEOUT_MS,
     params: { $select: 'Guid' },
   })
   const personGuid = person.Guid?.toLowerCase()
@@ -50,6 +55,8 @@ async function personHasSignupTag(personId: number): Promise<boolean> {
 
   const taggedItems = await rockFetch<Array<{ Id: number }>>({
     endpoint: 'TaggedItems',
+    retries: 0,
+    timeoutMs: ROCK_SUBSCRIPTION_READ_TIMEOUT_MS,
     params: {
       $filter: `TagId eq ${DAILY_BIBLE_READING_TAG_ID} and EntityGuid eq guid'${personGuid}'`,
       $select: 'Id',

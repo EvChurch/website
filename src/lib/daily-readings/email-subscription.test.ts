@@ -34,7 +34,11 @@ describe('Daily Bible Reading email subscription', () => {
   it('uses active list membership as the authoritative subscribed state', async () => {
     mocks.rockFetch.mockResolvedValueOnce([active])
     await expect(isDailyReadingEmailSubscribed(42)).resolves.toBe(true)
-    expect(mocks.rockFetch).toHaveBeenCalledTimes(1)
+    expect(mocks.rockFetch).toHaveBeenCalledWith(expect.objectContaining({
+      endpoint: 'GroupMembers',
+      retries: 0,
+      timeoutMs: 3_000,
+    }))
   })
 
   it('does not treat an unsubscribed member with a retained tag as subscribed', async () => {
@@ -49,6 +53,16 @@ describe('Daily Bible Reading email subscription', () => {
       .mockResolvedValueOnce({ Guid: 'PERSON-GUID' })
       .mockResolvedValueOnce([{ Id: 99 }])
     await expect(isDailyReadingEmailSubscribed(42)).resolves.toBe(true)
+    expect(mocks.rockFetch).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      endpoint: 'People/42',
+      retries: 0,
+      timeoutMs: 3_000,
+    }))
+    expect(mocks.rockFetch).toHaveBeenNthCalledWith(3, expect.objectContaining({
+      endpoint: 'TaggedItems',
+      retries: 0,
+      timeoutMs: 3_000,
+    }))
   })
 
   it('reactivates an inactive communication-list membership', async () => {
