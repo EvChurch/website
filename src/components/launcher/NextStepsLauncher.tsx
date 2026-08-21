@@ -600,6 +600,11 @@ export function NextStepsLauncher({
     );
   }, [clearUrlLauncherTarget, completeClose, giving.handleGivingClose, isClosing, state.view.type]);
 
+  useEffect(() => {
+    if (!giving.consumeGivingDismissRequest(giving.givingDismissRequestId)) return;
+    close();
+  }, [close, giving.consumeGivingDismissRequest, giving.givingDismissRequestId]);
+
   const back = () => {
     if (state.view.type === "giving" && giving.handleGivingBack()) return;
     clearUrlLauncherTarget();

@@ -40,6 +40,8 @@ function dependencies(): GivingBankTransferRouteDependencies {
       code: 'ALOVELACE',
       reference: 'EV123',
       acknowledgementToken: 'A'.repeat(43),
+      checkoutId: 42,
+      emailDeliveryId: 7,
     })),
   }
 }
@@ -57,7 +59,9 @@ describe('POST giving bank transfer', () => {
       vi.mocked(deps.rateLimitStore.increment).mock.invocationCallOrder[0],
     )
     expect(deps.prepare).toHaveBeenCalledOnce()
-    expect(await response.json()).toEqual(expect.objectContaining({ reference: 'EV123', particulars: 'GENERAL' }))
+    const result=await response.json()
+    expect(result).toEqual(expect.objectContaining({ reference: 'EV123', particulars: 'GENERAL' }))
+    expect(result).not.toEqual(expect.objectContaining({ checkoutId:expect.anything(),emailDeliveryId:expect.anything() }))
   })
 
   it.each<Record<string, string>>([

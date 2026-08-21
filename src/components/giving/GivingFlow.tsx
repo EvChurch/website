@@ -15,6 +15,7 @@ import { IdentityStep } from './steps/IdentityStep'
 import { givingStartDateSummary, StartingDateStep } from './steps/StartingDateStep'
 import { GivingAnswerTrail } from './GivingAnswerTrail'
 import { BankTransferHandoff } from './BankTransferHandoff'
+import { GivingCompletion, GivingPreparation } from './GivingCompletion'
 import { useGivingExperience } from './GivingExperienceProvider'
 
 export interface GivingFlowIdentity { signedIn: boolean; firstName?: string; lastName?: string; email?: string }
@@ -495,11 +496,13 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
 
   let content
   if (restoring) content = <p role="status">Restoring your gift…</p>
-  else if (checkout.type === 'submitting') content = <p role="status">{paymentMode === 'blinkpay' ? 'Opening secure bank authorisation…' : 'Preparing your bank transfer details…'} Please wait.</p>
+  else if (checkout.type === 'submitting') content = <GivingPreparation mode={paymentMode === 'blinkpay' ? 'blinkpay' : 'bank-transfer'} />
   else if (checkout.type === 'status') {
     const { status, delayed } = checkout
     const presentation = givingCheckoutPresentation(status,delayed)
-    content = <div className="rounded-2xl bg-white p-5 shadow-sm"><p role="status" className="font-semibold">{presentation.message}</p>{presentation.showRetry && <button type="button" className="mt-5 font-semibold text-rich-red" onClick={() => void returnToGift()}>Return to your saved gift</button>}</div>
+    content = status.state === 'verified'
+      ? <GivingCompletion firstName={status.firstName} kind={status.kind} onDone={() => giving.dismissGiving()} />
+      : <div className="rounded-2xl bg-white p-5 shadow-sm"><p role="status" className="font-semibold">{presentation.message}</p>{presentation.showRetry && <button type="button" className="mt-5 font-semibold text-rich-red" onClick={() => void returnToGift()}>Return to your saved gift</button>}</div>
   } else switch (state.step) {
     case 'amount': content = <AmountStep value={state.answers.amountMinor} error={error} onContinue={(amountMinor) => { if (!amountMinor || amountMinor < 100) { setError('Enter an amount of at least $1.00.'); return };scrollIntent.current = 'forward';setError(undefined);dispatch({ type: 'commitAmount', amountMinor }) }} />; break
     case 'fund': content = <FundStep funds={funds} selected={state.answers.fund?.id ?? null} onSelect={(fund) => { scrollIntent.current = 'forward';dispatch({ type: 'setFund', fund });dispatch({ type: 'next' }) }} />; break
@@ -519,13 +522,15 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
         content = <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-warm-grey/60"><p className="text-lg leading-relaxed text-dark-grey">You’ll now be taken to BlinkPay to complete your payment setup with your bank. BlinkPay is a trusted third party that uses open banking technology.</p><div className="mt-6"><TurnstileWidget siteKey={turnstileSiteKey} action="giving-checkout" resetKey={turnstileReset} onToken={handleTurnstileToken} onError={setError} /><p className="mt-4 rounded-2xl bg-warm-grey/35 px-5 py-4 font-semibold text-brand-black">{givingHandoffSummary(state.answers)}</p><button type="button" disabled={!turnstileToken} onClick={() => void submit()} className="mt-4 min-h-14 w-full rounded-full bg-rich-red px-5 font-semibold text-white transition hover:bg-deep-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red focus-visible:ring-offset-2 disabled:opacity-50">Continue to BlinkPay</button></div></div>
       } else {
         content = bankTransfer
-          ? <BankTransferHandoff details={bankTransfer} summary={givingHandoffSummary(state.answers)} acknowledged={bankAcknowledged} acknowledging={bankAcknowledging} onAcknowledge={() => void acknowledgeBankSetup()} />
+          ? bankAcknowledged
+            ? <GivingCompletion firstName={state.answers.firstName} kind="bank-transfer" onDone={() => giving.dismissGiving()} />
+            : <BankTransferHandoff details={bankTransfer} summary={givingHandoffSummary(state.answers)} acknowledged={false} acknowledging={bankAcknowledging} onAcknowledge={() => void acknowledgeBankSetup()} />
           : <div className="py-3"><TurnstileWidget siteKey={turnstileSiteKey} action="giving-checkout" resetKey={turnstileReset} onToken={handleTurnstileToken} onError={setError} />{bankPreparationRetryRequired ? <button type="button" className="mt-4 min-h-12 w-full rounded-full bg-rich-red px-5 font-semibold text-white transition hover:bg-deep-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red focus-visible:ring-offset-2" onClick={retryBankTransferPreparation}>Try again</button> : <p role="status" className="text-sm text-dark-grey">Preparing your bank details…</p>}</div>
       }
       break
     }
   }
-  const heading = checkout.type === 'status' ? 'Your giving result' : checkout.type === 'submitting' ? (paymentMode === 'blinkpay' ? 'Secure bank authorisation' : 'Bank transfer details') : customDateOpen && state.step === 'starting-date' ? 'OK, choose a start date' : state.step === 'review' ? (paymentMode === 'blinkpay' ? 'Continue with BlinkPay' : paymentMode === 'bank-transfer' ? 'Bank transfer details' : 'Payment details') : titles[state.step]
+  const heading = checkout.type === 'status' ? (checkout.status.state === 'verified' ? 'Giving complete' : 'Your giving result') : checkout.type === 'submitting' ? (paymentMode === 'blinkpay' ? 'Opening BlinkPay' : 'Preparing your bank details') : customDateOpen && state.step === 'starting-date' ? 'OK, choose a start date' : state.step === 'review' ? (paymentMode === 'blinkpay' ? 'Continue with BlinkPay' : paymentMode === 'bank-transfer' ? (bankAcknowledged ? 'Giving complete' : 'Bank transfer details') : 'Payment details') : titles[state.step]
   const progress = checkout.type === 'configuring' ? givingProgress(state.step, state.answers.frequency) : 100
   const transitionKey = checkout.type === 'configuring' ? state.step : checkout.type
   const highlightedQuestion = checkout.type === 'configuring' && state.step !== 'amount' && state.step !== 'review'

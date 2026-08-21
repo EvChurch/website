@@ -10,6 +10,7 @@ import { GIVING_PILOT_UP_SQL } from '../migrations/20260815_170000_giving_pilot'
 import { GIVING_CHECKOUT_ORCHESTRATION_UP_SQL } from '../migrations/20260815_230000_giving_checkout_orchestration'
 import { GIVING_BANK_CODE_UP_SQL } from '../migrations/20260817_010000_giving_bank_code'
 import { GIVING_BANK_ACKNOWLEDGEMENT_UP_SQL } from '../migrations/20260817_020000_giving_bank_acknowledgement'
+import { GIVING_EMAIL_DELIVERIES_UP_SQL } from '../migrations/20260822_010000_giving_email_deliveries'
 
 const databaseUrl = process.env.GIVING_MIGRATION_TEST_DATABASE_URL
 
@@ -34,6 +35,7 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     await pool.query(GIVING_CHECKOUT_ORCHESTRATION_UP_SQL)
     await pool.query(GIVING_BANK_CODE_UP_SQL)
     await pool.query(GIVING_BANK_ACKNOWLEDGEMENT_UP_SQL)
+    await pool.query(GIVING_EMAIL_DELIVERIES_UP_SQL)
     await pool.query("INSERT INTO giving_funds(name,code,accounting_key,is_default) VALUES('General','GEN','general',true)")
   })
 
@@ -70,10 +72,14 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     const repository = createPostgresGivingCheckoutRepository(pool)
     const run = await seedScope('bank-ack')
     const created = await repository.createOrReuse(input('bank-ack', run, { returnDigest: 'bank-ack-digest' }))
+    await bindGiver(created.checkout.id, 'bank-ack', run, 127)
     const now = new Date()
+    const detailsDeliveryId = await repository.markBankTransferPrepared(created.checkout.id, now)
+    expect(await repository.markBankTransferPrepared(created.checkout.id, now)).toBe(detailsDeliveryId)
     expect(await repository.acknowledgeBankSetup('bank-ack-digest', now)).toBe(true)
     expect(await repository.acknowledgeBankSetup('bank-ack-digest', now)).toBe(true)
     expect((await pool.query('SELECT status,bank_setup_acknowledged_at FROM giving_checkouts WHERE id=$1', [created.checkout.id])).rows[0]).toMatchObject({ status: 'draft', bank_setup_acknowledged_at: now })
+    expect((await pool.query('SELECT kind FROM giving_email_deliveries WHERE checkout_id=$1 ORDER BY kind',[created.checkout.id])).rows).toEqual([{kind:'bank-transfer-details'},{kind:'bank-transfer-thanks'}])
   })
 
   it('transitions a prepared Rock operation without ambiguous PostgreSQL parameter types', async () => {
@@ -143,7 +149,7 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     expect((await pool.query('SELECT return_capability_digest FROM giving_checkouts WHERE id=$1', [checkout.id])).rows[0].return_capability_digest).toBe('return-rotated')
   })
 
-  it('keeps a live hosted return capability and recovers instead of rotating after consumption', async () => {
+  it('rotates a live hosted return capability and recovers instead of rotating after consumption', async () => {
     const repository = createPostgresGivingCheckoutRepository(pool)
     const run = await seedScope('hosted-reuse')
     const initialInput = input('hosted-reuse', run, { returnDigest: 'return-hosted-original' })
@@ -158,13 +164,13 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
 
     const reused = await repository.createOrReuse({ ...initialInput, returnCapabilityDigest: 'return-hosted-retry', currentTime: new Date() })
     expect(reused.disposition).toBe('redirect')
-    expect((await pool.query('SELECT return_capability_digest FROM giving_checkouts WHERE id=$1',[checkout.id])).rows[0].return_capability_digest).toBe('return-hosted-original')
+    expect((await pool.query('SELECT return_capability_digest FROM giving_checkouts WHERE id=$1',[checkout.id])).rows[0].return_capability_digest).toBe('return-hosted-retry')
 
     const now = new Date()
-    await repository.consumeReturn('return-hosted-original', 'provider-hosted', now, 'status-hosted', 'status-hosted', new Date(now.getTime()+60_000))
+    await repository.consumeReturn('return-hosted-retry', 'provider-hosted', now, 'status-hosted', 'status-hosted', new Date(now.getTime()+60_000))
     const consumed = await repository.createOrReuse({ ...initialInput, returnCapabilityDigest: 'return-hosted-must-not-rotate', currentTime: new Date() })
     expect(consumed.disposition).toBe('recover')
-    expect((await pool.query('SELECT return_capability_digest FROM giving_checkouts WHERE id=$1',[checkout.id])).rows[0].return_capability_digest).toBe('return-hosted-original')
+    expect((await pool.query('SELECT return_capability_digest FROM giving_checkouts WHERE id=$1',[checkout.id])).rows[0].return_capability_digest).toBe('return-hosted-retry')
 
     const expiredRun = await seedScope('hosted-expired')
     const expiredInput = input('hosted-expired', expiredRun, { returnDigest: 'return-hosted-expired-original' })
@@ -317,6 +323,7 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     }])
     expect((await repository.findOperation(checkout.id,'blinkpay.create-schedule'))?.status).toBe('succeeded')
     expect((await repository.get(checkout.id))?.status).toBe('completed')
+    expect((await pool.query('SELECT kind FROM giving_email_deliveries WHERE checkout_id=$1',[checkout.id])).rows).toEqual([{kind:'blinkpay-thanks'}])
   })
 
   it('increments layered rate-limit buckets atomically across connections', async () => {

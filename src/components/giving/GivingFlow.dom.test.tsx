@@ -16,11 +16,13 @@ const givingContext=vi.hoisted(()=>({
   blinkPayEnabled:true,
   back:null as (()=>boolean)|null,
   close:null as (()=>boolean)|null,
+  dismiss:vi.fn(()=>true),
 }))
 vi.mock('./GivingExperienceProvider',()=>({useGivingExperience:()=>({
   givingViewActive:givingContext.active,
   flagState:givingContext.flagState,
   blinkPayEnabled:givingContext.blinkPayEnabled,
+  dismissGiving:givingContext.dismiss,
   registerGivingBackHandler:(handler:()=>boolean)=>{givingContext.back=handler;return()=>{if(givingContext.back===handler)givingContext.back=null}},
   registerGivingCloseHandler:(handler:()=>boolean)=>{givingContext.close=handler;return()=>{if(givingContext.close===handler)givingContext.close=null}},
 })}))
@@ -87,6 +89,7 @@ describe('GivingFlow', () => {
     givingContext.blinkPayEnabled=true
     givingContext.back=null
     givingContext.close=null
+    givingContext.dismiss.mockClear()
     window.history.replaceState(null, '', '/')
     trackGivingEvent.mockClear()
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn(async () => undefined) } })
@@ -266,7 +269,12 @@ describe('GivingFlow', () => {
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('01-1845-0008260-05')
     expect(container.textContent).toContain('Copied')
     await act(async()=>button(container,"I've set this up")?.click())
-    expect(container.textContent).toContain("Thanks — we've recorded that you set this up")
+    expect(container.textContent).toContain('Thank you, Ada')
+    expect(container.textContent).toContain('Ev hasn’t verified a payment yet')
+    expect(container.textContent).toContain('2 Corinthians 9:7')
+    expect(button(container, 'Done')).toBeTruthy()
+    await act(async()=>button(container,'Done')?.click())
+    expect(givingContext.dismiss).toHaveBeenCalledOnce()
     expect(container.textContent).not.toContain('Continue to BlinkPay')
     expect(container.querySelector('[data-turnstile]')).toBeNull()
   })
@@ -317,7 +325,8 @@ describe('GivingFlow', () => {
     expect(call?.[1]?.headers).toMatchObject({ 'x-ev-giving-request': 'bank-transfer-v1' })
     expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input) === '/api/giving/checkouts')).toBe(false)
     await act(async()=>button(container,"I've set this up")?.click())
-    expect(container.textContent).toContain("Thanks — we've recorded that you set this up")
+    expect(container.textContent).toContain('Thank you, Ada')
+    expect(container.textContent).toContain('Ev hasn’t verified a payment yet')
     const acknowledgement = vi.mocked(fetch).mock.calls.find(([input]) => String(input) === '/api/giving/bank-transfer/acknowledge')
     expect(acknowledgement?.[1]?.headers).toMatchObject({ 'x-ev-giving-request': 'bank-transfer-acknowledgement-v1' })
     expect(JSON.parse(String(acknowledgement?.[1]?.body))).toEqual({ token: 'A'.repeat(43) })

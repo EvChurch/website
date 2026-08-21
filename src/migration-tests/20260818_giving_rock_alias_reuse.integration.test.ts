@@ -6,6 +6,7 @@ import { GIVING_CHECKOUT_ORCHESTRATION_UP_SQL } from '../migrations/20260815_230
 import { GIVING_BANK_CODE_UP_SQL } from '../migrations/20260817_010000_giving_bank_code'
 import { GIVING_BANK_ACKNOWLEDGEMENT_UP_SQL } from '../migrations/20260817_020000_giving_bank_acknowledgement'
 import { GIVING_ROCK_ALIAS_REUSE_UP_SQL } from '../migrations/20260818_010000_giving_rock_alias_reuse'
+import { GIVING_EMAIL_DELIVERIES_UP_SQL } from '../migrations/20260822_010000_giving_email_deliveries'
 import { createPostgresGivingCheckoutRepository } from '../lib/giving/service'
 
 const databaseUrl = process.env.GIVING_MIGRATION_TEST_DATABASE_URL
@@ -34,6 +35,7 @@ describe.skipIf(!databaseUrl)('giving Rock alias reuse migration on PostgreSQL',
     await client.query(GIVING_BANK_CODE_UP_SQL)
     await client.query(GIVING_BANK_ACKNOWLEDGEMENT_UP_SQL)
     await client.query(GIVING_ROCK_ALIAS_REUSE_UP_SQL)
+    await client.query(GIVING_EMAIL_DELIVERIES_UP_SQL)
     await client.query("INSERT INTO giving_funds(id,name,code,accounting_key,is_default) VALUES(1,'General','GEN','general',true)")
     await client.query("INSERT INTO giving_givers(id,context_key,environment,synthetic,rock_person_alias_id,bank_reference,name,email) VALUES(1,'production','production',false,8604,'EV8604','Example Giver','giver@example.com')")
     await client.query("INSERT INTO giving_checkouts(id,context_key,environment,synthetic,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,bank_code,amount_minor,frequency,correlation_key,status) VALUES(1,'production','production',false,1,1,'General','GEN','general','EGIVER',100,'one-off','checkout-1','draft'),(2,'production','production',false,1,1,'General','GEN','general','EGIVER',100,'one-off','checkout-2','draft')")
@@ -51,6 +53,7 @@ describe.skipIf(!databaseUrl)('giving Rock alias reuse migration on PostgreSQL',
     await client.query(GIVING_BANK_CODE_UP_SQL)
     await client.query(GIVING_BANK_ACKNOWLEDGEMENT_UP_SQL)
     await client.query(GIVING_ROCK_ALIAS_REUSE_UP_SQL)
+    await client.query(GIVING_EMAIL_DELIVERIES_UP_SQL)
     await client.query("INSERT INTO giving_funds(id,name,code,accounting_key,is_default) VALUES(1,'General','GEN','general',true)")
     const repository = createPostgresGivingCheckoutRepository(client)
     const currentTime = new Date('2026-08-18T00:00:00Z')
@@ -86,7 +89,7 @@ describe.skipIf(!databaseUrl)('giving Rock alias reuse migration on PostgreSQL',
     })
     expect(recovered.disposition).toBe('start')
     expect((await client.query('SELECT return_capability_digest FROM giving_checkouts WHERE id=$1', [created.checkout.id])).rows[0]?.return_capability_digest).toBe('return-retry')
-    await expect(repository.acknowledgeBankSetup('return-retry', currentTime)).resolves.toBe(true)
+    await expect(repository.acknowledgeBankSetup('return-retry', currentTime)).resolves.toBe(false)
 
     await client.query("INSERT INTO giving_givers(id,context_key,environment,synthetic,rock_person_alias_id,bank_reference,name,email) VALUES(1,'production','production',false,8604,'EV8604','Example Giver','giver@example.com')")
     await client.query('UPDATE giving_checkouts SET giver_id=1 WHERE id=$1', [created.checkout.id])

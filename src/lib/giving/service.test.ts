@@ -55,6 +55,8 @@ function repository(): GivingCheckoutRepository & { checkouts: GivingCheckoutRec
     async recordAcceptedUnknown(input) { const operation=operations.find((item)=>item.id===input.operationId)!;operation.status='unknown';operation.providerId=input.providerId;const checkout=checkouts.find((item)=>item.id===input.checkoutId)!;checkout.status='unknown';checkout.resultCode='unknown' },
     async markFailed(id) { operations.find((operation) => operation.id === id)!.status = 'failed' },
     async acknowledgeBankSetup() { return true },
+    async acknowledgeBankSetupByCheckoutId() { return true },
+    async markBankTransferPrepared(id) { return id + 100 },
     async recordHostedSuccess(input) { const stored=operations.find((operation)=>operation.id===input.operation.id)!; stored.status = 'succeeded'; stored.providerId = input.providerId; const checkout=checkouts.find((item)=>item.id===input.checkout.id)!;checkout.gatewayRedirectUri = input.gatewayRedirectUri; checkout.status = 'authorising'; checkout.resultCode = 'processing' },
     async consumeReturn(digest,expectedProviderId,_now,statusDigest) { const id = returns.get(digest); if (!id) return null; const checkout=checkouts.find((item)=>item.id===id)!;const operation=operations.find((item)=>(item as GivingCheckoutOperation & {checkoutId?:number}).checkoutId===id);if(expectedProviderId&&operation?.providerId!==expectedProviderId)return null;returns.delete(digest); statuses.clear(); statuses.set(statusDigest,id); checkout.status = 'verifying'; return checkout },
     async findByStatusCapability(digest) { const id=statuses.get(digest); return id ? checkouts.find((checkout)=>checkout.id===id) ?? null : null },
@@ -115,6 +117,8 @@ describe('giving checkout orchestration', () => {
       code: 'ALOVELACE',
       reference: 'EV123',
       acknowledgementToken: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/u),
+      checkoutId: 1,
+      emailDeliveryId: 101,
     })
     expect(second).toMatchObject({ ...first, acknowledgementToken: expect.any(String) })
     expect(resolveIdentity).toHaveBeenCalledTimes(1)
