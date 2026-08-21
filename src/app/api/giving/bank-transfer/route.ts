@@ -11,6 +11,8 @@ import { createGivingIdentityRepository, resolveGivingIdentity } from '@/lib/giv
 import { createPostgresGivingCheckoutRepository, GivingCheckoutError, prepareGivingBankTransfer, validateGivingCheckoutSubmission, type GivingCheckoutSubmission } from '@/lib/giving/service'
 import { getPayloadClient } from '@/lib/payload'
 import { verifyTurnstileToken } from '@/lib/turnstile'
+import { SEND_GIVING_EMAIL_TASK } from '@/jobs/giving-emails'
+import { SITE_FEEDBACK_NOTIFICATION_QUEUE } from '@/jobs/site-feedback-notification'
 
 export const dynamic = 'force-dynamic'
 const TURNSTILE_ACTION = 'giving-checkout'
@@ -19,7 +21,7 @@ export interface GivingBankTransferRouteDependencies {
   rateLimitStore: GivingRateLimitStore
   verifyTurnstile(input: { token: string; remoteIp: string; expectedHostname: string | null; expectedAction: string }): Promise<void>
   memberSubject?(request: NextRequest): Promise<string | null>
-  prepare(submission: GivingCheckoutSubmission, request: NextRequest): Promise<GivingBankTransferPreparation>
+  prepare(submission: GivingCheckoutSubmission, request: NextRequest): Promise<GivingBankTransferPreparation & { checkoutId?: number; emailDeliveryId?: number }>
 }
 
 function response(value: unknown, status: number, retryAfter?: number) {
@@ -34,7 +36,7 @@ async function defaultPrepare(submission: GivingCheckoutSubmission) {
   const pool = requireGivingPostgresPool(payload)
   const rock = createGivingRockClient()
   const member = await resolveCurrentGivingMemberIdentity({ rockClient: rock })
-  return prepareGivingBankTransfer({
+  const prepared = await prepareGivingBankTransfer({
     contextKey: 'production',
     environment: 'production',
     synthetic: false,
@@ -57,6 +59,8 @@ async function defaultPrepare(submission: GivingCheckoutSubmission) {
       })
     },
   })
+  await payload.jobs.queue({ task:SEND_GIVING_EMAIL_TASK,input:{id:prepared.emailDeliveryId},queue:SITE_FEEDBACK_NOTIFICATION_QUEUE }).catch(() => undefined)
+  return prepared
 }
 
 const defaults: GivingBankTransferRouteDependencies = {
@@ -85,7 +89,9 @@ export async function handleGivingBankTransferPost(request: NextRequest, depende
     })
     const memberSubject = await dependencies.memberSubject?.(request) ?? null
     await enforceGivingRateLimits({ address, email: submission.email, memberSubject, store: dependencies.rateLimitStore })
-    return response(await dependencies.prepare(submission, request), 200)
+    const prepared = await dependencies.prepare(submission, request)
+    const { checkoutId: _checkoutId, emailDeliveryId: _emailDeliveryId, ...details } = prepared
+    return response(details, 200)
   } catch (error) {
     if (error instanceof GivingRateLimitError) return response({ error: 'Giving unavailable' }, 429, error.retryAfterSeconds)
     if (error instanceof InvalidGivingRequestError || error instanceof GivingCheckoutError && error.code === 'invalid') return response({ error: 'Giving unavailable' }, 400)

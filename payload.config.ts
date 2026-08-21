@@ -54,6 +54,7 @@ import {
   SITE_FEEDBACK_NOTIFICATION_AUTO_RUN,
 } from '@/jobs/site-feedback-notification'
 import { givingJobConfigs, GIVING_LIFECYCLE_AUTO_RUN } from '@/jobs/giving'
+import { givingEmailJobConfigs } from '@/jobs/giving-emails'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -225,6 +226,7 @@ export default buildConfig({
     tasks: [
       ...notificationJobConfigs,
       ...givingJobConfigs,
+      ...givingEmailJobConfigs,
       {
         slug: 'fullSermonSync',
         retries: 2,

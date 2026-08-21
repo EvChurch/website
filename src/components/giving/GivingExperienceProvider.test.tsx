@@ -16,7 +16,7 @@ function Probe() {
   const giving = useGivingExperience()
   return <>
     <output data-enabled={giving.givingSurfaceAvailable} data-blinkpay={giving.blinkPayEnabled} data-flag={giving.flagState}>
-      {giving.givingRequestId}
+      {`${giving.givingRequestId}:${giving.givingDismissRequestId}`}
     </output>
     <button type="button" onClick={() => giving.setFlagState('enabled')}>enable</button>
     <button type="button" onClick={() => giving.openGiving()}>open</button>
@@ -27,6 +27,7 @@ function Probe() {
     <button type="button" data-fail onClick={() => giving.setFlagState('failed')}>fail</button>
     <button type="button" data-giving-back onClick={() => giving.handleGivingBack()}>giving back</button>
     <button type="button" data-giving-close onClick={() => giving.handleGivingClose()}>giving close</button>
+    <button type="button" data-giving-dismiss onClick={() => giving.dismissGiving()}>dismiss giving</button>
   </>
 }
 
@@ -52,7 +53,7 @@ describe('GivingExperienceProvider', () => {
       flag: 'failed',
     })
     await act(async () => container.querySelectorAll('button')[1]?.click())
-    expect(container.querySelector('output')?.textContent).toBe('0')
+    expect(container.querySelector('output')?.textContent).toBe('0:0')
   })
 
   it('opens the giving interface whenever its renderer is ready', async () => {
@@ -66,7 +67,7 @@ describe('GivingExperienceProvider', () => {
     ))
     expect(container.querySelector('output')?.dataset.enabled).toBe('true')
     await act(async () => container.querySelectorAll('button')[1]?.click())
-    expect(container.querySelector('output')?.textContent).toBe('1')
+    expect(container.querySelector('output')?.textContent).toBe('1:0')
   })
 
   it('leaves ordinary /give links to normal navigation', async () => {
@@ -80,7 +81,7 @@ describe('GivingExperienceProvider', () => {
     const ordinaryClick = new MouseEvent('click', { bubbles: true, cancelable: true })
     await act(async () => give.dispatchEvent(ordinaryClick))
     expect(ordinaryClick.defaultPrevented).toBe(false)
-    expect(container.querySelector('output')?.textContent).toBe('0')
+    expect(container.querySelector('output')?.textContent).toBe('0:0')
   })
 
   it('uses the flag and server eligibility only for the BlinkPay handoff', async () => {
@@ -92,7 +93,7 @@ describe('GivingExperienceProvider', () => {
     await act(async () => container.querySelectorAll('button')[1]?.click())
     expect(container.querySelector('output')?.dataset.enabled).toBe('true')
     expect(container.querySelector('output')?.dataset.blinkpay).toBe('false')
-    expect(container.querySelector('output')?.textContent).toBe('1')
+    expect(container.querySelector('output')?.textContent).toBe('1:0')
 
     await act(async () => root.render(
       <GivingExperienceProvider serverEligibility="production" givingExperience={<div>Giving flow</div>}>
@@ -106,14 +107,14 @@ describe('GivingExperienceProvider', () => {
     expect(container.querySelector('output')?.dataset.enabled).toBe('true')
     expect(container.querySelector('output')?.dataset.blinkpay).toBe('false')
     await act(async () => container.querySelectorAll('button')[1]?.click())
-    expect(container.querySelector('output')?.textContent).toBe('2')
+    expect(container.querySelector('output')?.textContent).toBe('2:0')
 
     await act(async () => container.querySelector<HTMLButtonElement>('[data-fail]')?.click())
     expect(container.querySelector('output')?.dataset.enabled).toBe('true')
     expect(container.querySelector('output')?.dataset.flag).toBe('failed')
     expect(container.querySelector('output')?.dataset.blinkpay).toBe('false')
     await act(async () => container.querySelectorAll('button')[1]?.click())
-    expect(container.querySelector('output')?.textContent).toBe('3')
+    expect(container.querySelector('output')?.textContent).toBe('3:0')
   })
 
   it('consumes each monotonic open request once and never reuses a stale id', async () => {
@@ -157,5 +158,21 @@ describe('GivingExperienceProvider', () => {
     await act(async () => root.render(<GivingExperienceProvider serverEligibility="production"><Registration active={false} /></GivingExperienceProvider>))
     await act(async () => container.querySelector<HTMLButtonElement>('[data-giving-close]')?.click())
     expect(close).toHaveBeenCalledOnce()
+  })
+
+  it('issues a single dismiss request only while the giving view is active', async () => {
+    function ActiveProbe() {
+      const giving = useGivingExperience()
+      useEffect(() => giving.setGivingViewActive(true), [giving.setGivingViewActive])
+      return <Probe />
+    }
+
+    await act(async () => root.render(
+      <GivingExperienceProvider serverEligibility="production">
+        <ActiveProbe />
+      </GivingExperienceProvider>,
+    ))
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-giving-dismiss]')?.click())
+    expect(container.querySelector('output')?.textContent).toBe('0:1')
   })
 })

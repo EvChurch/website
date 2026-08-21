@@ -21,8 +21,11 @@ interface GivingExperienceContextValue {
   givingSurfaceAvailable: boolean
   givingExperience: ReactNode | null
   givingRequestId: number
+  givingDismissRequestId: number
   givingViewActive: boolean
   consumeGivingRequest: (requestId: number) => boolean
+  consumeGivingDismissRequest: (requestId: number) => boolean
+  dismissGiving: () => boolean
   openGiving: () => boolean
   setFlagState: (state: GivingFlagState) => void
   setGivingViewActive: (active: boolean) => void
@@ -38,8 +41,11 @@ const disabledContext: GivingExperienceContextValue = {
   givingSurfaceAvailable: false,
   givingExperience: null,
   givingRequestId: 0,
+  givingDismissRequestId: 0,
   givingViewActive: false,
   consumeGivingRequest: () => false,
+  consumeGivingDismissRequest: () => false,
+  dismissGiving: () => false,
   openGiving: () => false,
   setFlagState: () => undefined,
   setGivingViewActive: () => undefined,
@@ -64,8 +70,10 @@ export function GivingExperienceProvider({
 }) {
   const [flagState, setFlagState] = useState<GivingFlagState>('unresolved')
   const [givingRequestId, setGivingRequestId] = useState(0)
+  const [givingDismissRequestId, setGivingDismissRequestId] = useState(0)
   const [givingViewActive, setGivingViewActive] = useState(false)
   const consumedRequestId = useRef(0)
+  const consumedDismissRequestId = useRef(0)
   const resumedFromCleanUrl = useRef(false)
   const givingBackHandler = useRef<(() => boolean) | null>(null)
   const givingCloseHandler = useRef<(() => boolean) | null>(null)
@@ -78,6 +86,11 @@ export function GivingExperienceProvider({
     setGivingRequestId((requestId) => requestId + 1)
     return true
   }, [rendererReady])
+  const dismissGiving = useCallback(() => {
+    if (!givingViewActive) return false
+    setGivingDismissRequestId((requestId) => requestId + 1)
+    return true
+  }, [givingViewActive])
 
   useEffect(() => {
     if (!rendererReady || resumedFromCleanUrl.current) return
@@ -108,6 +121,11 @@ export function GivingExperienceProvider({
     consumedRequestId.current = requestId
     return true
   }, [givingRequestId])
+  const consumeGivingDismissRequest = useCallback((requestId: number) => {
+    if (requestId <= consumedDismissRequestId.current || requestId !== givingDismissRequestId) return false
+    consumedDismissRequestId.current = requestId
+    return true
+  }, [givingDismissRequestId])
 
   const value = useMemo<GivingExperienceContextValue>(() => ({
     flagState,
@@ -115,8 +133,11 @@ export function GivingExperienceProvider({
     givingSurfaceAvailable,
     givingExperience,
     givingRequestId,
+    givingDismissRequestId,
     givingViewActive,
     consumeGivingRequest,
+    consumeGivingDismissRequest,
+    dismissGiving,
     handleGivingBack,
     handleGivingClose,
     openGiving,
@@ -126,11 +147,14 @@ export function GivingExperienceProvider({
     setGivingViewActive,
   }), [
     consumeGivingRequest,
+    consumeGivingDismissRequest,
+    dismissGiving,
     blinkPayEnabled,
     flagState,
     givingSurfaceAvailable,
     givingExperience,
     givingRequestId,
+    givingDismissRequestId,
     givingViewActive,
     handleGivingBack,
     handleGivingClose,
