@@ -98,6 +98,7 @@ function viewForLauncherItem(item: LauncherItem): LauncherView | null {
         title: item.title,
         blockGuid: item.action.blockGuid,
         imageUrl: item.action.imageUrl,
+        body: item.action.body,
         shareTarget: item.id,
       };
     case "registrationPage":
@@ -1023,6 +1024,11 @@ export function NextStepsLauncher({
               imageUrl={state.view.imageUrl}
               bleed={state.presentation !== "fullscreen"}
             />
+            {state.view.body != null && (
+              <div className="prose prose-neutral mx-auto mb-8 max-w-2xl px-4 text-dark-grey sm:px-6">
+                <RichText data={state.view.body} />
+              </div>
+            )}
             <RockConnectionOpportunitySignup blockGuid={state.view.blockGuid} />
           </div>
         );
