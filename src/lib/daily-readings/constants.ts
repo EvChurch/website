@@ -1,0 +1,2 @@
+export const DAILY_BIBLE_READING_EMAIL_WORKFLOW_GUID =
+  'eda9991f-e462-4d67-a76a-c3aa294cfddb'

@@ -12,7 +12,7 @@ type RockRequestOptions = {
   endpoint: string
   params?: Record<string, string>
   retries?: number
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
   timeoutMs?: number
 }

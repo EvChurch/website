@@ -1,9 +1,11 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 
+import { DailyReadingEmailSignup } from '@/components/daily-readings/DailyReadingEmailSignup'
 import { ReadingHubClient } from '@/components/daily-readings/ReadingHubClient'
 import { memberConnectGroupHref, MemberPortalChrome } from '@/components/members/MemberPortalChrome'
 import { getPublishedDailyReadings } from '@/lib/daily-readings/data'
+import { isDailyReadingEmailSubscribed } from '@/lib/daily-readings/email-subscription'
 import { getMemberPortalHome } from '@/lib/members/data'
 
 export const dynamic = 'force-dynamic'
@@ -17,7 +19,10 @@ export default async function MemberDailyReadingsPage() {
   const home = await getMemberPortalHome()
   if (!home) redirect('/auth/login?returnTo=%2Fmembers%2Fdaily-readings')
 
-  const readings = await getPublishedDailyReadings()
+  const [readings, emailSubscribed] = await Promise.all([
+    getPublishedDailyReadings(),
+    isDailyReadingEmailSubscribed(home.profile.personId).catch(() => false),
+  ])
 
   return (
     <MemberPortalChrome
@@ -34,6 +39,7 @@ export default async function MemberDailyReadingsPage() {
           <h2 className="mt-3 text-4xl text-brand-black">The next reading is on its way.</h2>
         </div>
       )}
+      <DailyReadingEmailSignup initiallySubscribed={emailSubscribed} />
     </MemberPortalChrome>
   )
 }
