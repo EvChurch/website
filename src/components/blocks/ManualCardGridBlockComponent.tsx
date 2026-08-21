@@ -219,11 +219,14 @@ function ImageTopCard({
 }) {
   const url = getImageUrl(card.image)
   const isTeamStyle = !isProfileStyle && !card.description && !card.linkLabel
+  const isStaticLightStyle = !card.href && (isTeamStyle || isProfileStyle)
 
   const content = (
     <div
-      className={`group relative flex h-full flex-col overflow-hidden rounded-xl ${
-        isTeamStyle || isProfileStyle
+      className={`${isStaticLightStyle ? '' : 'group '}relative flex h-full flex-col overflow-hidden rounded-xl ${
+        isStaticLightStyle
+          ? 'border border-warm-grey/60 bg-white'
+          : isTeamStyle || isProfileStyle
           ? 'border border-warm-grey/60 bg-white transition-shadow duration-300 hover:shadow-lg hover:shadow-rich-red/5'
           : ''
       }`}
@@ -239,7 +242,11 @@ function ImageTopCard({
               height={600}
               priority={priority}
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className="w-full object-cover transition-transform duration-700 group-hover:scale-105"
+              className={`w-full object-cover ${
+                isStaticLightStyle
+                  ? ''
+                  : 'transition-transform duration-700 group-hover:scale-105'
+              }`}
             />
           ) : (
             <div className="flex aspect-square items-center justify-center bg-gradient-to-br from-warm-grey/30 to-warm-grey/10">
@@ -259,7 +266,11 @@ function ImageTopCard({
               fill
               priority={priority}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              className="object-cover transition-transform duration-700 group-hover:scale-105"
+              className={`object-cover ${
+                isStaticLightStyle
+                  ? ''
+                  : 'transition-transform duration-700 group-hover:scale-105'
+              }`}
             />
           ) : (
             <div className="h-full w-full bg-warm-grey/20" />
@@ -298,6 +309,25 @@ function ImageTopCard({
             <p className="mt-4 text-[0.9375rem] leading-relaxed text-dark-grey">
               {card.description}
             </p>
+          )}
+          {!card.href && card.details && card.details.length > 0 && (
+            <div className="mt-5">
+              {card.details.map((row, i) =>
+                row.value.includes('@') ? (
+                  <a
+                    key={i}
+                    href={`mailto:${row.value}`}
+                    className="text-xs text-rich-red transition-colors hover:text-deep-red"
+                  >
+                    {row.value}
+                  </a>
+                ) : (
+                  <p key={i} className="text-xs text-mid-grey">
+                    {row.value}
+                  </p>
+                ),
+              )}
+            </div>
           )}
           {card.linkLabel && (
             <span className="mt-auto inline-flex items-center gap-1.5 pt-6 text-sm font-semibold text-rich-red transition-colors group-hover:text-deep-red">
