@@ -22,7 +22,7 @@ These checks are operational guidance rather than runtime blockers:
 - Isolated production credentials and webhook secrets, with named owners and rotation evidence.
 - Controlled real-money one-off settlement test.
 - Controlled real-money recurring setup, scheduled execution and cancellation test.
-- Verified EV reconciliation, alerting and operator response evidence.
+- Verified Ev reconciliation, alerting and operator response evidence.
 - Acquisition shutdown and lifecycle-sustainment rehearsal.
 
 The server accepts BlinkPay checkouts when the selected environment configuration is valid. PostHog controls which visitors the website offers BlinkPay to; it is not an API authorization boundary.

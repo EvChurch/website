@@ -35,7 +35,7 @@ export default async function PendingAccessPage({
       secondaryHref="/auth/logout?returnTo=/"
       secondaryLabel="Sign out"
     >
-      <p>Your EV Church account is signed in, but it does not have a Payload role yet.</p>
+      <p>Your Ev Church account is signed in, but it does not have a Payload role yet.</p>
       <p>Ask a Payload administrator to give you access, then check again.</p>
     </AuthAccessMessage>
   )

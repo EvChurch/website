@@ -17,7 +17,7 @@ const request = {
   title: 'Sunday Gatherings — Music Team',
   occurrenceStart: '2026-08-23T09:00:00+12:00',
   scheduleName: 'Sunday 9am Gathering',
-  locationName: 'EV Erina Auditorium',
+  locationName: 'Ev Erina Auditorium',
 }
 
 const confirmed = {
@@ -82,7 +82,7 @@ describe('VolunteerSchedule', () => {
     expect(container.textContent).toContain('Sunday Gatherings — Music Team')
     expect(container.textContent).toContain('9am Gathering')
     expect(container.textContent).not.toContain('Sunday 9am Gathering')
-    expect(container.textContent).toContain('EV Erina Auditorium')
+    expect(container.textContent).toContain('Ev Erina Auditorium')
     expect(container.textContent).not.toContain('Sunday, 23 August 2026')
     expect(container.querySelector('time')?.getAttribute('datetime')).toBe(request.occurrenceStart)
     expect(

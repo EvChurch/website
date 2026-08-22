@@ -299,7 +299,7 @@ export const RockForms: CollectionConfig = {
       },
       validate: validateConnectionBlockGuid,
       admin: {
-        description: 'An active public Connection Opportunity Signup configuration that is safe for EV Church.',
+        description: 'An active public Connection Opportunity Signup configuration that is safe for Ev Church.',
         condition: (_, siblingData) => siblingData?.formType === 'connectionOpportunity',
         components: {
           Field: '@/components/admin/RockConnectionSignupPicker#RockConnectionSignupPicker',

@@ -83,8 +83,8 @@ export function givingCheckoutPresentation(status: GivingCheckoutStatus, delayed
   let message: string
   switch(status.state){
     case'verified':message=status.kind==='recurring'?'Your recurring gift is confirmed and its schedule is active.':'Your gift is confirmed.';break
-    case'processing':message=delayed?'This is taking a little longer. You may safely close this flow while EV keeps checking; there is no need to try again.':'We’re confirming your gift with BlinkPay.';break
-    case'unknown':message='We’re still checking the outcome. Do not try again; EV will reconcile it safely.';break
+    case'processing':message=delayed?'This is taking a little longer. You may safely close this flow while Ev keeps checking; there is no need to try again.':'We’re confirming your gift with BlinkPay.';break
+    case'unknown':message='We’re still checking the outcome. Do not try again; Ev will reconcile it safely.';break
     case'cancelled':message='Bank authorisation was cancelled. No gift was made.';break
     case'expired':message='Bank authorisation expired, so setup was not completed.';break
     case'rejected':message='The bank did not accept the setup, so no gift was made.';break

@@ -350,7 +350,7 @@ describe("NextStepsLauncher", () => {
     );
     expect(panelText).not.toContain("Choose a campus and let us know");
     expect(panelText).not.toContain(
-      "Give securely through the EV Church website",
+      "Give securely through the Ev Church website",
     );
     expect(panelText).not.toContain(
       "Introduce yourself or ask us to get in touch",
