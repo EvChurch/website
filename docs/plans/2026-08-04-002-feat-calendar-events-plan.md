@@ -21,7 +21,7 @@ execution: "code"
 
 ### Summary
 
-The site will provide an Elevation-inspired `/events` landing page, campus event pages, and event detail pages. The design will be recognisably EV rather than a copy: bold photography, clear date and location information, simple campus navigation, and a strong red registration action where appropriate.
+The site will provide an Elevation-inspired `/events` landing page, campus event pages, and event detail pages. The design will be recognisably Ev rather than a copy: bold photography, clear date and location information, simple campus navigation, and a strong red registration action where appropriate.
 
 ### Requirements
 
@@ -118,7 +118,7 @@ Apprenticeship, Christmas, Counsellors, Terms, and Blog remain separate worktree
 ## Definition of Done
 
 - R1-R7 and AE1-AE5 are implemented or verified against the current data model.
-- Events pages are visually coherent with the EV site and usable at mobile and desktop sizes.
+- Events pages are visually coherent with the Ev site and usable at mobile and desktop sizes.
 - Open registration links only to trusted Rock destinations; other states do not expose an active registration CTA.
 - Canonicals, descriptions, JSON-LD, internal navigation, and sitemap entries are present.
 - Tests and production build pass, the branch is reviewed, and a PR is open with CI decided.

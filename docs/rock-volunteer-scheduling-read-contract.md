@@ -12,10 +12,10 @@ or raw Rock responses.
 
 ## Verified provider contract
 
-- The EV instance reports `Rock v19.2.0.0`.
+- The Ev instance reports `Rock v19.2.0.0`.
 - `https://rock.ev.church/ScheduleToolbox` is the fixed native destination. An
   authenticated request resolves to the Schedule Toolbox and retains the same
-  represented person as the signed-in EV Church member session.
+  represented person as the signed-in Ev Church member session.
 - A populated native toolbox displayed the pending assignment and Rock-owned
   **Accept** and **Decline** controls. No response was submitted during
   verification.

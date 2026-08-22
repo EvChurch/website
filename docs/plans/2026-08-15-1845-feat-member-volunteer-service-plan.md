@@ -14,7 +14,7 @@ deepened: 2026-08-15
 ## Goal Capsule
 
 - **Objective:** Add a generic signed-in notification bell and a `/members/my-service` Volunteer Self Service page, with Rock scheduling requests as the first notification source and responses handed to Rock's authoritative toolbox.
-- **Authority:** The confirmed Product Contract in this plan governs member behavior. Rock remains authoritative for scheduling state. The current EV Rock instance governs the deployed API and configuration contract.
+- **Authority:** The confirmed Product Contract in this plan governs member behavior. Rock remains authoritative for scheduling state. The current Ev Rock instance governs the deployed API and configuration contract.
 - **Execution profile:** Deep, security-sensitive external integration across member identity, privileged Rock reads, native response handoff, global header UI, and member pages.
 - **Stop conditions:** Do not enable website schedule mutations through Rock's existing public REST actions. Direct in-page responses require a separate atomic Rock endpoint that enforces owner, expected state, response rules, and side effects in one transaction. Do not mutate production schedules without separate authorization.
 - **Tail ownership:** Implementation includes focused tests, `pnpm build`, signed-in browser verification, and read-only validation against the deployed Rock instance. Website schedule writes are outside this plan.
@@ -29,7 +29,7 @@ Add a member-facing page called **My Service** for Volunteer Self Service. It sh
 
 ### Problem Frame
 
-Rock's Schedule Toolbox gives volunteers a public self-service view of scheduling requests and responses, but that experience is separate from the EV Church members area. Members need one EV Church destination for their serving commitments and a top-bar signal when a response is required. The notification surface must remain reusable without moving scheduling ownership out of Rock.
+Rock's Schedule Toolbox gives volunteers a public self-service view of scheduling requests and responses, but that experience is separate from the Ev Church members area. Members need one Ev Church destination for their serving commitments and a top-bar signal when a response is required. The notification surface must remain reusable without moving scheduling ownership out of Rock.
 
 ### Key Decisions
 
@@ -42,7 +42,7 @@ Rock's Schedule Toolbox gives volunteers a public self-service view of schedulin
 
 - A1. **Signed-in volunteer:** Views and responds to their own Rock scheduling records.
 - A2. **Rock RMS:** Owns assignment state, allowed transitions, decline configuration, and scheduling side effects.
-- A3. **EV Church website:** Resolves member identity, presents normalized notifications, verifies ownership, and brokers safe Rock actions.
+- A3. **Ev Church website:** Resolves member identity, presents normalized notifications, verifies ownership, and brokers safe Rock actions.
 - A4. **Scheduler or schedule coordinator:** May depend on Rock workflows or response communications when a volunteer changes status.
 
 ### Requirements
@@ -116,7 +116,7 @@ Rock's Schedule Toolbox gives volunteers a public self-service view of schedulin
 
 **Deferred to follow-up work**
 
-- A purpose-built EV Rock plugin endpoint that atomically combines live Auth0-to-Rock identity, Attendance owner and expected-state checks, canonical status change, required decline input, and coordinator communications. This would replace the native handoff after its repository and deployment ownership are established.
+- A purpose-built Ev Rock plugin endpoint that atomically combines live Auth0-to-Rock identity, Attendance owner and expected-state checks, canonical status change, required decline input, and coordinator communications. This would replace the native handoff after its repository and deployment ownership are established.
 - Durable cross-device notification read/dismiss state.
 - Additional notification producers.
 - Calendar feeds and add-to-calendar behavior.
@@ -132,7 +132,7 @@ Rock's Schedule Toolbox gives volunteers a public self-service view of schedulin
 - The badge equals the number of current actionable requests and never claims unread semantics.
 - Rock remains canonical across stale tabs, response races, failures, and refreshes.
 - Optional Rock notification work does not block public-page rendering or authenticated member identity.
-- EV's configured Rock response behavior is either preserved or delegated to the native toolbox without an incomplete website mutation.
+- Ev's configured Rock response behavior is either preserved or delegated to the native toolbox without an incomplete website mutation.
 
 ### Open Questions
 
@@ -172,7 +172,7 @@ flowchart TB
 ```mermaid
 sequenceDiagram
   participant V as Volunteer
-  participant W as EV Church website
+  participant W as Ev Church website
   participant R as Rock RMS
   V->>W: Choose Accept or Decline
   W->>W: Generate allowlisted native destination
@@ -209,7 +209,7 @@ stateDiagram-v2
 
 ### Dependencies and Sequencing
 
-1. Verify the installed EV Rock version, action permissions, exact filtered query shape, Schedule Toolbox URL, group/group-type decline settings, and response-notification configuration with read-only calls.
+1. Verify the installed Ev Rock version, action permissions, exact filtered query shape, Schedule Toolbox URL, group/group-type decline settings, and response-notification configuration with read-only calls.
 2. Land the isolated read adapter and native-response policy before any UI exposes a response entry point.
 3. Build My Service on the adapter.
 4. Add the generic notification projection and private endpoint.
@@ -259,7 +259,7 @@ stateDiagram-v2
   - Modify `.env.example` only if a new non-secret Rock toolbox-origin setting is required.
 - **Evidence output:** Capture sanitized deployed response shapes and version/permission notes suitable for U1 to convert into fixtures.
 - **Approach:**
-  1. Verify the exact EV Rock version and narrow read query with empty and populated representative data.
+  1. Verify the exact Ev Rock version and narrow read query with empty and populated representative data.
   2. Confirm the service credential can read only the fields required for the member projection and cannot generically mutate Attendance records.
   3. Verify the HTTPS Rock origin and Schedule Toolbox route used for server-generated response links.
   4. Confirm the inspected v1 actions still lack atomic ownership and expected-state checks; keep all website writes disabled regardless of positive action permission.
@@ -443,7 +443,7 @@ stateDiagram-v2
 | Notification API tests | U3 | `pnpm vitest src/lib/member-notifications.test.ts src/app/api/member-notifications/route.test.ts` | Generic contract, private headers, actionable counts, and failure distinctions pass. |
 | Header and navigation tests | U4, U5 | `pnpm vitest src/components/layout/MemberNotificationsControl.test.tsx src/components/layout/MemberAccountControl.test.tsx src/components/layout/SiteHeader.dom.test.tsx src/components/members/MemberPortalChrome.test.tsx src/app/\(frontend\)/members/page.test.tsx` | Accessibility, responsive overlays, header geometry, and member navigation pass. |
 | Production compilation | U1-U7 | `pnpm build` | Payload type generation and Next.js production build complete successfully. |
-| Deployed Rock read contract | U1, U6 | Authorized read-only probe against EV Rock | Empty and populated fixtures match the adapter; permissions are no broader than required. |
+| Deployed Rock read contract | U1, U6 | Authorized read-only probe against Ev Rock | Empty and populated fixtures match the adapter; permissions are no broader than required. |
 | Signed-in browser flow | U2-U7 | Real browser on desktop and mobile | Bell, My Service, empty/unavailable states, native handoff, anchors, keyboard focus, and responsive layout match AE1-AE10. |
 | No-write proof | U6, U7 | Negative route and permission probes | The website exposes no scheduling mutation target, and the Rock read credential cannot generically mutate Attendance records. |
 

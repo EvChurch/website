@@ -115,7 +115,7 @@ The current Service Guide is a separate, long campus page that makes visitors sc
 **Included now**
 
 - Functional launcher shell, data sync, campus filtering, search, supported action routing, form integration, responsive layouts, and accessibility behavior.
-- A first visual treatment grounded in the current EV Church design system that can be refined after the real interaction exists.
+- A first visual treatment grounded in the current Ev Church design system that can be refined after the real interaction exists.
 
 **Deferred to follow-up work**
 
@@ -291,7 +291,7 @@ U1 establishes the collection and generated types. U2 adds the reconciliation co
   - `src/components/forms/RockForm.test.tsx`
 - **Approach:** Use a reducer with collapsed, home, catalogue, workflow, connection, and content views plus presentation mode and internal history. Keep view subtrees mounted when that is required to retain current-tab state. Persist only campus. Derive route campus from the current pathname. Render the two fixed workflows with existing form components, `/give` as navigation, resolved item actions, and explicit loading/unavailable/no-results states.
 - **Execution note:** Prove reducer transitions and non-remount behavior before styling the complete component.
-- **Patterns to follow:** Existing client provider patterns in `src/components/media/MediaPlayerProvider.tsx`, `RockForm`, `RockConnectionOpportunitySignup`, and EV Church color/type tokens in `src/styles/globals.css`.
+- **Patterns to follow:** Existing client provider patterns in `src/components/media/MediaPlayerProvider.tsx`, `RockForm`, `RockConnectionOpportunitySignup`, and Ev Church color/type tokens in `src/styles/globals.css`.
 - **Test scenarios:**
   1. Open, Close, Back, and full-screen transitions preserve the selected view and restore focus to the trigger.
   2. Plan a Visit and Connect Card instantiate their exact workflow GUIDs inside the launcher; Give Now targets `/give`.

@@ -28,7 +28,7 @@ A reachable development route is therefore not enough evidence that the configur
 
 Before starting browser acceptance:
 
-1. Confirm that `DATABASE_URL` identifies the intended EV Church development database without printing or logging its credentials.
+1. Confirm that `DATABASE_URL` identifies the intended Ev Church development database without printing or logging its credentials.
 2. Prefer a disposable local PostgreSQL database for development and migration testing.
 3. Treat any Payload create-or-rename schema prompt as a stop condition until the database identity and expected schema are independently confirmed.
 4. Never accept a rename suggestion merely because Payload offers it; unrelated existing tables can produce plausible but destructive rename candidates.

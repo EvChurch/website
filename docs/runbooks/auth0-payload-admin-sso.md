@@ -1,6 +1,6 @@
 # Auth0 Payload Admin SSO Runbook
 
-This runbook configures Payload admin access through EV Church's single website Auth0 application, removes disposable local-login users, and promotes the first trusted Auth0 identity. Never run the database steps until the target is confirmed disposable or an approved snapshot exists.
+This runbook configures Payload admin access through Ev Church's single website Auth0 application, removes disposable local-login users, and promotes the first trusted Auth0 identity. Never run the database steps until the target is confirmed disposable or an approved snapshot exists.
 
 ## Auth0 application
 

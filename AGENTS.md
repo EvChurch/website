@@ -105,6 +105,10 @@ they are sufficient, then run the build for changes that can affect production.
 
 ## Styling
 
+- Spell the public brand as `Ev` and `Ev Church`, never `EV` or `EV Church`.
+  Uppercase `EV` is reserved for case-sensitive technical contracts such as the
+  `EV123` bank-reference prefix, environment-variable names, HTTP headers, and
+  externally supplied identifiers.
 - Rich Red: `#E22A30`
 - Brand Black: `#0F0004`
 - Warm White: `#FEFAF4`

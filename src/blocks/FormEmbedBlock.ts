@@ -142,7 +142,7 @@ export const FormEmbedBlock: Block = {
         condition: (_, siblingData) =>
           siblingData?.sourceType === 'connectionOpportunity',
         description:
-          'An active public Connection Opportunity Signup configuration that is safe for EV Church.',
+          'An active public Connection Opportunity Signup configuration that is safe for Ev Church.',
         components: {
           Field:
             '@/components/admin/RockConnectionSignupPicker#RockConnectionSignupPicker',

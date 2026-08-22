@@ -47,8 +47,8 @@ function pageMetadata(overrides: Record<string, unknown> = {}) {
   return {
     Id: 42,
     Guid: pageGuid,
-    InternalName: 'EV Newish proxy',
-    PageTitle: 'EV Newish proxy',
+    InternalName: 'Ev Newish proxy',
+    PageTitle: 'Ev Newish proxy',
     ...overrides,
   }
 }
@@ -120,7 +120,7 @@ describe('Rock connection signup server adapter', () => {
       {
         blockGuid,
         opportunityGuid,
-        label: 'Newish — EV Newish proxy — Newish signup proxy',
+        label: 'Newish — Ev Newish proxy — Newish signup proxy',
       },
     ])
 
@@ -142,7 +142,7 @@ describe('Rock connection signup server adapter', () => {
       {
         blockGuid: rockGuid,
         opportunityGuid,
-        label: 'Newish — EV Newish proxy — Newish signup proxy',
+        label: 'Newish — Ev Newish proxy — Newish signup proxy',
       },
     ])
   })

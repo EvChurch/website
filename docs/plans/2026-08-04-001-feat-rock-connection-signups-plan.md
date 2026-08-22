@@ -13,7 +13,7 @@ deepened: "2026-08-04"
 
 ## Goal Capsule
 
-- **Objective:** Add a reusable EV website integration for Rock RMS 19.2 Connection Opportunity Signup blocks and configure Newish Connect as its first consumer.
+- **Objective:** Add a reusable Ev website integration for Rock RMS 19.2 Connection Opportunity Signup blocks and configure Newish Connect as its first consumer.
 - **Authority:** Current user instructions and this Product Contract override implementation preferences. Exact Rock 19.2 source behavior overrides assumptions copied from later Rock releases.
 - **Execution profile:** Build the Connection Signup protocol beside the existing Workflow Form Builder protocol. Prove behavior with focused tests, the full build, and browser checks that stop before a real Connection Request is created.
 - **Stop conditions:** Stop for a product-scope conflict, an unsafe production database target, a request to mutate production Rock data, or absence of an enforceable control that prevents direct public calls to the CAPTCHA-disabled Rock BlockActions. Code may be reviewed before that external control exists, but Newish activation and the data migration must not be deployed.
@@ -25,7 +25,7 @@ deepened: "2026-08-04"
 
 ### Summary
 
-The website will render and submit supported Rock 19.2 Connection Opportunity Signup configurations through a generic same-origin EV component. Newish Connect will use the real Rock signup configuration, while all existing Workflow Form Builder forms retain their current protocol and behavior.
+The website will render and submit supported Rock 19.2 Connection Opportunity Signup configurations through a generic same-origin Ev component. Newish Connect will use the real Rock signup configuration, while all existing Workflow Form Builder forms retain their current protocol and behavior.
 
 ### Problem Frame
 
@@ -33,11 +33,11 @@ The Newish form is a Rock Obsidian Connection Opportunity Signup block, not a Wo
 
 The signup block instance owns behavior that an opportunity GUID does not capture: phone visibility, campus context, person defaults, status and source settings, attribute-category filters, public-attribute filtering, comment label, CAPTCHA behavior, and the Lava success message. The website must preserve those settings without exposing Rock credentials or trusting client-selected identifiers.
 
-Rock 19.2 also enforces its own proof-of-work CAPTCHA. The current Newish block reports `disableCaptchaSupport: false`, so an EV Turnstile token cannot satisfy its Rock `Signup` action. Production use therefore needs an eligible Rock proxy configuration whose Rock CAPTCHA is disabled while EV continues to verify Turnstile.
+Rock 19.2 also enforces its own proof-of-work CAPTCHA. The current Newish block reports `disableCaptchaSupport: false`, so an Ev Turnstile token cannot satisfy its Rock `Signup` action. Production use therefore needs an eligible Rock proxy configuration whose Rock CAPTCHA is disabled while Ev continues to verify Turnstile.
 
 ### Actors
 
-- A1. **Visitor:** Completes a public EV signup without a Rock account or direct browser request to Rock.
+- A1. **Visitor:** Completes a public Ev signup without a Rock account or direct browser request to Rock.
 - A2. **Payload editor:** Selects an eligible Rock signup configuration from a constrained picker.
 - A3. **Rock administrator:** Maintains the Rock block configuration and completes the proxy-block prerequisite.
 - A4. **Website operator:** Deploys the migration and verifies the target Payload database and Rock configuration.
@@ -47,8 +47,8 @@ Rock 19.2 also enforces its own proof-of-work CAPTCHA. The current Newish block 
 #### Protocol and persistence
 
 - R1. The website must support Rock 19.2 Connection Opportunity Signup as a protocol separate from Workflow Form Builder.
-- R2. Browser requests must use same-origin EV endpoints and must never call Rock directly.
-- R3. The EV server must create the Connection Request through Rock's supported `Signup` BlockAction and must not persist submission values in Payload, another database, logs, or an intermediary queue.
+- R2. Browser requests must use same-origin Ev endpoints and must never call Rock directly.
+- R3. The Ev server must create the Connection Request through Rock's supported `Signup` BlockAction and must not persist submission values in Payload, another database, logs, or an intermediary queue.
 - R4. Runtime initialization and submission calls must use the dedicated least-privilege Rock API identity. Any API-person prefill returned by initialization is cleared before the public schema is returned.
 - R5. Mutation calls must not retry automatically because Rock 19.2 provides no idempotency key for Connection Requests.
 
@@ -89,27 +89,27 @@ Rock 19.2 also enforces its own proof-of-work CAPTCHA. The current Newish block 
 - R26. Existing Contact, Explaining Christianity, and the remaining public modern Workflow forms must retain their current field, multi-step, people matching, upload, visibility, and submission behavior.
 - R27. Automated verification must cover discovery filtering, origin enforcement, Turnstile order, signed-context tampering and expiry, identity swaps, key allowlisting, serialization, safe errors, migration preservation, and Newish configuration.
 - R28. Browser verification must distinguish automated checks from live UI checks and must stop before a production `Signup` action or real personal-data entry.
-- R29. A CAPTCHA-disabled Rock proxy must be protected by an enforceable network, WAF, or service-auth rule that only EV server traffic can satisfy; direct unauthenticated `RefreshObsidianBlockInitialization` and `Signup` requests must be denied. Rate limiting alone is insufficient.
+- R29. A CAPTCHA-disabled Rock proxy must be protected by an enforceable network, WAF, or service-auth rule that only Ev server traffic can satisfy; direct unauthenticated `RefreshObsidianBlockInitialization` and `Signup` requests must be denied. Rate limiting alone is insufficient.
 - R30. Each signed context must carry a cryptographically random nonce consumed atomically once in a shared short-TTL store before dispatch; store unavailability, concurrent reuse, and replay must fail closed. A timeout after dispatch leaves the nonce consumed and the outcome unknown.
 - R31. Discovery is an authenticated Payload-admin capability requiring the effective permission needed to edit `formEmbed`; it returns only normalized eligible labels and GUIDs with `private, no-store`, while public runtime routes never expose credentialed discovery metadata.
 - R32. Every Rock-derived string renders as text unless it passes one strict shared HTML sanitizer, and outbound Rock fetches use a fixed production HTTPS origin, validated UUID path segments, fixed actions, redirect refusal, timeouts, bounded JSON bodies, content-type checks, and schema limits.
 - R33. Request parsing, errors, logging, and telemetry must enforce byte and field-count bounds and redact request bodies, headers, tokens, contexts, raw IP addresses, Rock exception text, and submitted values; correlation IDs and normalized failure classes are permitted.
 - R34. Migration correctness must be database-enforced in live and version tables with an expand/backfill/assert/constrain sequence, precise Newish candidate preflight, atomic refusal on unsafe down migration, and independently idempotent seed behavior.
-- R35. Before production activation, an authorized operator must submit one clearly synthetic request through the complete EV-to-Rock path in a non-production Rock environment, verify the resulting record and fields, and clean it up; implementation and production browser QA still must not create a production Connection Request.
+- R35. Before production activation, an authorized operator must submit one clearly synthetic request through the complete Ev-to-Rock path in a non-production Rock environment, verify the resulting record and fields, and clean it up; implementation and production browser QA still must not create a production Connection Request.
 
 ### Key Product Decisions
 
 - **Connection Signup is a generic separate protocol.** (session-settled: user-approved — chosen over treating Newish as a Workflow or building a one-off Newish form: Rock owns a different dynamic signup contract.) Governs R1, R15-R19, R26.
-- **EV is the only browser-facing service and Rock is the only submission store.** (session-settled: user-approved — chosen over direct browser-to-Rock requests or a Payload submission intermediary: credentials stay server-side and Rock remains the source of truth.) Governs R2-R5, R14.
+- **Ev is the only browser-facing service and Rock is the only submission store.** (session-settled: user-approved — chosen over direct browser-to-Rock requests or a Payload submission intermediary: credentials stay server-side and Rock remains the source of truth.) Governs R2-R5, R14.
 - **The configured block is the persisted source identity.** (session-settled: user-approved — chosen over a bare opportunity GUID: the block owns the complete form configuration.) Governs R6-R9, R23-R24.
 - **Turnstile and signed server context protect both phases.** (session-settled: user-approved — chosen over trusting client identifiers and field metadata: clients must not select Rock-owned state.) Governs R10-R13.
 - **Workflow Form Builder remains intact through an additive migration.** (session-settled: user-approved — chosen over rewriting the shipped migration or forcing both protocols through one model: current public forms must not regress.) Governs R20-R22, R25-R27.
 
 ### Acceptance Examples
 
-- AE1. **Newish initialization:** Given the Newish page references an eligible block, when a visitor completes the start Turnstile action, then the EV route returns the current Rock-configured phones, campuses, comments label, and public attributes with blank personal prefills. The versioned Newish fixture currently asserts three campuses and both phone fields; live acceptance compares the rendered schema with the same initialization response rather than treating those counts as permanent.
-- AE2. **Identity tampering:** Given a signed Newish context, when the client substitutes another block, page, campus, or attribute key, then EV rejects the request before Rock is called.
-- AE3. **Successful submission contract:** Given valid bounded values and a fresh submit Turnstile token, when the EV server calls Rock, then it sends the exact 19.2 `__context` and `bag` shape once and returns a sanitized success message.
+- AE1. **Newish initialization:** Given the Newish page references an eligible block, when a visitor completes the start Turnstile action, then the Ev route returns the current Rock-configured phones, campuses, comments label, and public attributes with blank personal prefills. The versioned Newish fixture currently asserts three campuses and both phone fields; live acceptance compares the rendered schema with the same initialization response rather than treating those counts as permanent.
+- AE2. **Identity tampering:** Given a signed Newish context, when the client substitutes another block, page, campus, or attribute key, then Ev rejects the request before Rock is called.
+- AE3. **Successful submission contract:** Given valid bounded values and a fresh submit Turnstile token, when the Ev server calls Rock, then it sends the exact 19.2 `__context` and `bag` shape once and returns a sanitized success message.
 - AE4. **Unavailable configuration:** Given a block that is restricted, inactive, CAPTCHA-enabled, exposes non-public attributes, uses a page-parameter opportunity, or has an unsupported required field, when discovery runs, then editors and runtime routes cannot select or invoke it.
 - AE5. **Workflow preservation:** Given an existing Contact or complex Workflow form, when the migration and renderer changes are applied, then its workflow GUID and current `RockForm` behavior remain unchanged.
 - AE6. **Migration correction:** Given a Newish live row or version row with the old Connect Card GUID, when the new migration runs, then only the Newish row becomes a Connection Signup source with the prerequisite-verified block GUID (currently expected to be `70f9eb00-5961-42bc-b1ea-dbcb8fce6369`).
@@ -118,7 +118,7 @@ Rock 19.2 also enforces its own proof-of-work CAPTCHA. The current Newish block 
 
 - `/newish` renders the generic Rock-configured Newish signup after the Rock proxy prerequisite is complete.
 - Editors can select multiple eligible signup block configurations and each may produce different campuses, phone visibility, comments labels, and supported public attributes without code changes.
-- All mutation traffic routes through EV and calls Rock once without local persistence.
+- All mutation traffic routes through Ev and calls Rock once without local persistence.
 - Existing Workflow Form Builder tests, build behavior, and browser flows remain green.
 - No real production Connection Request is created during implementation or verification.
 
@@ -150,12 +150,12 @@ Product Contract created from the selected handoff and current Rock 19.2 verific
 
 - KTD1. **Keep parallel protocol modules.** Add `rock-connection-signups` routes, types, adapter, context, and client code beside `rock-forms`; share only protocol-neutral origin validation, Turnstile verification/widget, sanitized HTML, styles, and genuinely stateless controls. Keep Workflow redirect handling, schema normalization, visibility, serialization, context, and state machines protocol-specific. This implements R1 and R26 without coupling workflow steps to Connection Requests.
 - KTD2. **Resolve page identity server-side.** Persist only the block GUID in Payload. At start, resolve its one current direct owning page and sign both GUIDs; at submit, re-resolve and require the page to match the signed context. A page move invalidates outstanding contexts but a fresh initialization accepts it. Reject layout-level, ambiguous, or page-parameter-driven blocks, and establish association from credentialed metadata because refresh does not prove page ownership.
-- KTD3. **Use the exact authenticated Rock 19.2 BlockActions wire contract.** Refresh sends `{ "__context": { "pageParameters": {}, "sessionGuid": "...", "interactionGuid": "..." } }`; Signup sends `{ "__context": <the same initialized context>, "bag": <ConnectionOpportunitySignupRequestBag> }` to `/api/v2/BlockActions/{pageGuid}/{blockGuid}/{action}`. Never forward EV query parameters, especially person or opportunity identifiers. Validate `ObsidianBlockConfigBag`, `configurationValues`, top-level block GUID/type, reuse session and interaction GUIDs, send the server-only Rock API token, use no-store responses, and set mutation retries to zero.
+- KTD3. **Use the exact authenticated Rock 19.2 BlockActions wire contract.** Refresh sends `{ "__context": { "pageParameters": {}, "sessionGuid": "...", "interactionGuid": "..." } }`; Signup sends `{ "__context": <the same initialized context>, "bag": <ConnectionOpportunitySignupRequestBag> }` to `/api/v2/BlockActions/{pageGuid}/{blockGuid}/{action}`. Never forward Ev query parameters, especially person or opportunity identifiers. Validate `ObsidianBlockConfigBag`, `configurationValues`, top-level block GUID/type, reuse session and interaction GUIDs, send the server-only Rock API token, use no-store responses, and set mutation retries to zero.
 - KTD4. **Treat initialization refresh as an internal pinned seam.** Validate the returned block GUID, page-derived identity, block type GUID `35d5ef65-0b0d-4e99-82b5-3f5fc2e0344f`, initialization schema, and absence of `errorMessage`; fail closed on drift because Rock marks refresh as internal.
-- KTD5. **Use a dedicated least-privilege Rock API identity.** An eligible Rock block must have a fixed opportunity, `Exclude Non-Public Attributes = Yes`, API-identity access, raw `Disable Captcha Support = Yes`, and effective `disableCaptchaSupport === true`. EV supplies the server-only `Authorization-Token` for discovery and the exact `/api/v2/BlockActions/{pageGuid}/{blockGuid}/{RefreshObsidianBlockInitialization|Signup}` paths. The credential is never exposed to the browser. EV Turnstile remains the browser anti-bot control; Rock page rate limiting is defense in depth only.
+- KTD5. **Use a dedicated least-privilege Rock API identity.** An eligible Rock block must have a fixed opportunity, `Exclude Non-Public Attributes = Yes`, API-identity access, raw `Disable Captcha Support = Yes`, and effective `disableCaptchaSupport === true`. Ev supplies the server-only `Authorization-Token` for discovery and the exact `/api/v2/BlockActions/{pageGuid}/{blockGuid}/{RefreshObsidianBlockInitialization|Signup}` paths. The credential is never exposed to the browser. Ev Turnstile remains the browser anti-bot control; Rock page rate limiting is defense in depth only.
 - KTD6. **Use a PostgreSQL-backed one-use allowlist token.** The versioned, purpose/audience-bound token uses a dedicated rotating secret, strict algorithm and canonical encoding, timing-safe verification, a cryptographically random nonce, issued-at and expiry. It holds only minimal public constraints: allowed campus IDs, hidden single-campus default, phone flags, and bounded attribute keys plus GUID/type/configuration metadata. At start, store only the nonce digest, purpose, page/block identity, and expiry in a dedicated application-database ledger. After all correctable validation succeeds and immediately before dispatch, atomically `DELETE ... WHERE expires_at > now() RETURNING` the matching row; database unavailability, no returned row, or replay fails closed, while any attempted dispatch leaves the nonce consumed. A bounded cleanup deletes expired rows without storing visitor values.
 - KTD6a. **Use the same PostgreSQL boundary for privacy-safe rate counters.** Store only an HMAC of the trusted client address, route class, fixed-window start, count, and expiry. Permit at most 10 starts and 5 submits per trusted client address per 10 minutes, return `429` with `Retry-After`, and fail closed if the counter cannot be updated. Trust `CF-Connecting-IP` only when the Railway origin is locked to Cloudflare and that proxy contract is verified; never trust browser-supplied forwarding headers. Thresholds may be tightened by server-only configuration but tests and documentation use these defaults.
-- KTD7. **Support an explicit attribute matrix.** Reuse current field primitives only where Connection Request string serialization matches. Initially fail closed for required file controls; file support requires a separately proven bounded streaming contract with no EV temp file, cache, queue, or retry plus documented Rock abandoned-upload retention. Optional unsupported controls may be omitted only when that does not alter Rock validation or user expectations.
+- KTD7. **Support an explicit attribute matrix.** Reuse current field primitives only where Connection Request string serialization matches. Initially fail closed for required file controls; file support requires a separately proven bounded streaming contract with no Ev temp file, cache, queue, or retry plus documented Rock abandoned-upload retention. Optional unsupported controls may be omitted only when that does not alter Rock validation or user expectations.
 - KTD8. **Keep 19.2 completion message-only.** Sanitize Lava HTML with the existing DOMPurify boundary. Do not parse redirects from HTML. Harden Workflow redirects with a same-origin or explicitly trusted destination validator without adding a redirect to Connection Signup.
 - KTD9. **Migrate by an enforced discriminator and reviewed page identity.** Expand both table families with nullable columns and a temporary Workflow default; backfill only null discriminators; preflight exact Newish candidates by parent slug, child row identity, path/order/layout and old GUID; assert invariants; then add equivalent `CHECK` constraints and indexes. The down migration must inspect both families and atomically refuse before DDL whenever Connection rows exist.
 
@@ -174,11 +174,11 @@ Product Contract created from the selected handoff and current Rock 19.2 verific
 ```mermaid
 flowchart TB
   Editor["Payload editor"] --> Picker["Connection signup picker"]
-  Picker --> Discovery["EV discovery route"]
+  Picker --> Discovery["Ev discovery route"]
   Discovery --> RockMetadata["Rock REST metadata"]
   Discovery --> RockRefresh["Authenticated Rock refresh action"]
-  Page["Published EV page"] --> Client["Generic connection signup client"]
-  Client --> EVRoute["EV initialization and submission route"]
+  Page["Published Ev page"] --> Client["Generic connection signup client"]
+  Client --> EVRoute["Ev initialization and submission route"]
   EVRoute --> PublishedGate["Payload publication gate"]
   EVRoute --> Turnstile["Cloudflare Turnstile"]
   EVRoute --> Context["Signed connection context"]
@@ -193,24 +193,24 @@ flowchart TB
 ```mermaid
 sequenceDiagram
   participant Browser
-  participant EV
+  participant Ev
   participant Turnstile
   participant Rock
-  Browser->>EV: GET site key
+  Browser->>Ev: GET site key
   Browser->>Turnstile: Complete start challenge
-  Browser->>EV: POST start with block GUID and token
-  EV->>Turnstile: Verify hostname and start action
-  EV->>EV: Check published reference and current eligibility
-  EV->>Rock: Authenticated Rock refresh
-  Rock-->>EV: Block configuration
-  EV-->>Browser: Public schema and signed context
+  Browser->>Ev: POST start with block GUID and token
+  Ev->>Turnstile: Verify hostname and start action
+  Ev->>Ev: Check published reference and current eligibility
+  Ev->>Rock: Authenticated Rock refresh
+  Rock-->>Ev: Block configuration
+  Ev-->>Browser: Public schema and signed context
   Browser->>Turnstile: Complete submit challenge
-  Browser->>EV: POST bounded values and signed context
-  EV->>Turnstile: Verify hostname and submit action
-  EV->>EV: Verify identity, consume nonce, validate allowlists
-  EV->>Rock: Authenticated Rock Signup once
-  Rock-->>EV: Result type and response message
-  EV-->>Browser: Sanitized terminal state
+  Browser->>Ev: POST bounded values and signed context
+  Ev->>Turnstile: Verify hostname and submit action
+  Ev->>Ev: Verify identity, consume nonce, validate allowlists
+  Ev->>Rock: Authenticated Rock Signup once
+  Rock-->>Ev: Result type and response message
+  Ev-->>Browser: Sanitized terminal state
 ```
 
 #### Eligibility gate
@@ -254,7 +254,7 @@ stateDiagram-v2
 - **Payload schema:** `formEmbed` gains a discriminator and a second identifier field across live and version tables. The same migration adds narrowly scoped PostgreSQL nonce-ledger and rate-window tables containing no submission values.
 - **Security boundary:** Origin and Turnstile helpers become shared; Connection context stays protocol-specific. Existing workflow redirect navigation gains validation.
 - **Rock administration:** Eligible blocks remain on an internal integration page and are available to the dedicated least-privilege API identity.
-- **User data:** Visitor values transit EV memory and Rock only. Logs, context tokens, caches, Payload, and tests must not retain real submission data.
+- **User data:** Visitor values transit Ev memory and Rock only. Logs, context tokens, caches, Payload, and tests must not retain real submission data.
 - **Operations:** The migration and local dev server must run only against a verified development database. Rock proxy readiness is checked separately from code deployment.
 - **Release order:** Configure the Rock block on its dedicated internal page, grant the API identity minimum access, and prove authenticated eligibility plus unauthenticated denial; then deploy the application and Newish-switching migration. If replacement changes the GUID, update migration, seed, tests, and picker selection before merge rather than after deployment.
 
@@ -288,8 +288,8 @@ File, image, person, address, campus, gender, date-time, unknown, or configurati
 
 - **Rock internal refresh drift:** Pin types and tests to 19.2, validate the block type and response schema, and fail closed with an operator-safe diagnostic.
 - **CAPTCHA mismatch:** Current live Newish is ineligible until Rock CAPTCHA is disabled on the proxy configuration. Never weaken the eligibility check to make testing pass.
-- **Direct Rock bypass:** A CAPTCHA-disabled action bypasses every EV control unless the dedicated page and BlockAction paths are access-controlled outside Rock. Activation is blocked until a network/WAF/service-auth rule proves unauthenticated direct refresh and signup are denied while EV server calls succeed; rate limiting is defense in depth only.
-- **Replay and request volume:** Turnstile does not prevent reuse with a fresh token. Atomically consume signed-context nonces, fail closed when the shared store is unavailable, and apply EV-edge/application rate limits using an explicit trusted-client-IP policy; Rock will otherwise see the proxy address.
+- **Direct Rock bypass:** A CAPTCHA-disabled action bypasses every Ev control unless the dedicated page and BlockAction paths are access-controlled outside Rock. Activation is blocked until a network/WAF/service-auth rule proves unauthenticated direct refresh and signup are denied while Ev server calls succeed; rate limiting is defense in depth only.
+- **Replay and request volume:** Turnstile does not prevent reuse with a fresh token. Atomically consume signed-context nonces, fail closed when the shared store is unavailable, and apply Ev-edge/application rate limits using an explicit trusted-client-IP policy; Rock will otherwise see the proxy address.
 - **Duplicate requests after timeout:** Never retry `Signup`. Tell visitors the outcome is uncertain and advise contact before resubmitting.
 - **Dynamic field mismatch:** Unknown field types may serialize differently from Workflow fields. Maintain an explicit support matrix and reject unsafe configurations.
 - **Migration drift:** A successful build cannot prove database schema correctness. Inspect generated SQL and test both live and version tables on a safe database.
@@ -371,7 +371,7 @@ File, image, person, address, campus, gender, date-time, unknown, or configurati
 
 ### U3. Build the reusable Connection Signup client and shared form primitives
 
-- **Goal:** Render the normalized Rock schema accessibly and submit through EV with clear state transitions and sanitized results.
+- **Goal:** Render the normalized Rock schema accessibly and submit through Ev with clear state transitions and sanitized results.
 - **Requirements:** R10, R15-R19, R32, AE1, AE3-AE4; KTD1, KTD7-KTD8.
 - **Dependencies:** U1, U2.
 - **Files:** `src/components/forms/RockConnectionOpportunitySignup.tsx`, `src/components/forms/RockConnectionOpportunitySignup.test.tsx`, `src/components/forms/RockForm.tsx`, `src/components/forms/RockAttributeField.tsx`, `src/components/forms/TurnstileWidget.tsx`, `src/components/forms/SafeRockHtml.tsx`, `src/lib/rock-connection-signups/field-types.ts`, `src/lib/rock-connection-signups/field-types.test.ts`.
@@ -449,9 +449,9 @@ File, image, person, address, campus, gender, date-time, unknown, or configurati
 - **Files:** `src/app/api/rock-forms/[workflowTypeGuid]/route.test.ts`, `src/lib/rock-forms/context-token.test.ts`, `src/components/forms/RockForm.tsx`, `docs/rock-connection-signups.md`.
 - **Approach:**
   1. Add or preserve characterization coverage for Workflow start, complex fields, redirects, and shared helpers affected by extraction.
-  2. Document exact Rock administrator settings, EV-only edge control, environment configuration, safe release order, direct-denial verification, rate-limit trusted-client-IP policy, and no-production-submit boundary.
+  2. Document exact Rock administrator settings, Ev-only edge control, environment configuration, safe release order, direct-denial verification, rate-limit trusted-client-IP policy, and no-production-submit boundary.
   3. Run full repository gates, then verify Newish, Contact, and one complex Workflow form in the browser at desktop and mobile sizes.
-  4. Inspect browser network traffic for same-origin-only EV APIs and stop before the final Rock mutation.
+  4. Inspect browser network traffic for same-origin-only Ev APIs and stop before the final Rock mutation.
   5. As a separate pre-activation operator gate, run one synthetic end-to-end request against non-production Rock, verify the created Connection Request and supported attributes, then remove it according to that environment's test-data procedure. Do not substitute a production request.
 - **Patterns to follow:** Existing Vitest route tests, `docs/solutions/developer-experience/payload-dev-server-database-target-safety.md`, repository build guidance.
 - **Test scenarios:**
@@ -460,7 +460,7 @@ File, image, person, address, campus, gender, date-time, unknown, or configurati
   - Workflow redirects accept relative or explicitly trusted destinations and reject external, protocol-relative, or unsafe schemes.
   - Newish loads the Connection Signup schema and never requests `/api/rock-forms/00778880-81fe-4871-aa91-7c81783b8c4d`.
   - Desktop and mobile Newish layouts remain usable with validation, loading, and Turnstile states.
-  - Network inspection shows EV endpoints from the browser and no direct Rock request; read-only probes prove direct Rock refresh and signup are denied without the EV-only credential/network while EV server requests reach refresh.
+  - Network inspection shows Ev endpoints from the browser and no direct Rock request; read-only probes prove direct Rock refresh and signup are denied without the Ev-only credential/network while Ev server requests reach refresh.
   - A separately authorized non-production receipt records the synthetic marker, expected Rock request ID/fields, cleanup result, environment, and timestamp without copying PII or secrets into repository artifacts.
 - **Verification:** Automated gates pass; browser findings are reported separately; no real Connection Request is created.
 
@@ -476,7 +476,7 @@ File, image, person, address, campus, gender, date-time, unknown, or configurati
 | `npm run build` | U1-U6 | Payload types regenerate and the Next.js production build succeeds. |
 | `git diff --check` | U1-U6 | No whitespace errors or malformed patches remain. |
 | Safe migration apply/rollback | U5 | Current/version schema and data transformations behave honestly on a verified development database. |
-| Rock access-control prerequisite | U1, U2, U6 | Before Newish activation, direct unauthenticated refresh and signup are denied, EV server refresh succeeds, raw and effective CAPTCHA-disable settings agree, and EV rate limiting has a trusted-client-IP policy. |
+| Rock access-control prerequisite | U1, U2, U6 | Before Newish activation, direct unauthenticated refresh and signup are denied, Ev server refresh succeeds, raw and effective CAPTCHA-disable settings agree, and Ev rate limiting has a trusted-client-IP policy. |
 | Desktop and mobile browser QA | U3-U6 | Newish is usable, network traffic is same-origin, and Workflow forms retain behavior. |
 | Production mutation boundary | U2, U6 | Verification stops before `Signup`; the report states that no real production request was created. |
 
@@ -484,11 +484,11 @@ File, image, person, address, campus, gender, date-time, unknown, or configurati
 
 ## Definition of Done
 
-- All R1-R35 requirements and AE1-AE6 acceptance examples are implemented; deployment of the Newish-switching migration remains blocked until the documented Rock administrator, EV-only access-control, and non-production end-to-end prerequisites are proven.
+- All R1-R35 requirements and AE1-AE6 acceptance examples are implemented; deployment of the Newish-switching migration remains blocked until the documented Rock administrator, Ev-only access-control, and non-production end-to-end prerequisites are proven.
 - Payload editors can choose eligible Connection Signup blocks without free-form identifiers.
 - Newish uses the Connection source and contains no reference to the old Connect Card workflow.
 - Signed context, publication checks, eligibility checks, Turnstile, origin validation, field allowlists, and no-retry mutation behavior are covered by tests.
-- One-use nonce consumption, authenticated editor discovery, fixed-origin fetch hardening, privacy-safe logging, direct-Rock denial, and EV-side rate limiting are covered by tests or prerequisite evidence as appropriate.
+- One-use nonce consumption, authenticated editor discovery, fixed-origin fetch hardening, privacy-safe logging, direct-Rock denial, and Ev-side rate limiting are covered by tests or prerequisite evidence as appropriate.
 - Rock 19.2 types and tests contain no Connection Signup `redirectUrl` dependency.
 - Existing Workflow Form Builder forms and their advanced behavior remain covered and green.
 - The new migration, snapshot, registry entry, generated types, constraints, indexes, preflight/postcondition checks, and independently idempotent seed are internally consistent.
