@@ -41,6 +41,9 @@ importers:
       '@payloadcms/storage-s3':
         specifier: 3.87.1
         version: 3.87.1(@types/react@19.2.18)(monaco-editor@0.56.0)(next@16.3.0(@types/node@26.2.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(sass@1.102.0))(payload@3.87.1(graphql@17.0.2)(typescript@5.9.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.9.3)
+      '@sitebytom/payload-media-gallery':
+        specifier: 1.2.0
+        version: 1.2.0(@payloadcms/ui@3.87.1(@types/react@19.2.18)(monaco-editor@0.56.0)(next@16.3.0(@types/node@26.2.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(sass@1.102.0))(payload@3.87.1(graphql@17.0.2)(typescript@5.9.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.9.3))(next@16.3.0(@types/node@26.2.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(sass@1.102.0))(payload@3.87.1(graphql@17.0.2)(typescript@5.9.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@tailwindcss/postcss':
         specifier: 4.3.3
         version: 4.3.3
@@ -1855,6 +1858,20 @@ packages:
   '@sindresorhus/is@7.2.0':
     resolution: {integrity: sha512-P1Cz1dWaFfR4IR+U13mqqiGsLFf1KbayybWwdd2vfctdV6hDpUkgCY0nKOLLTMSoRd/jJNjtbqzf13K8DCCXQw==}
     engines: {node: '>=18'}
+
+  '@sitebytom/payload-media-gallery@1.2.0':
+    resolution: {integrity: sha512-J5bTPJJhgWu/oh8eF2HBthYZcEBX0v71HvSGw6Uhk8AM8tlNqCRno3nri30Y/lxUYGYWc3bBJi9RfRS7vtkomg==}
+    engines: {node: ^18.20.2 || >=20.9.0, pnpm: ^9 || ^10}
+    peerDependencies:
+      '@payloadcms/ui': ^3.73.0
+      next: ^15.0.0 || ^16.0.0
+      payload: ^3.73.0
+      react: ^18.0.0 || ^19.0.0
+
+  '@sitebytom/use-zoom-pan@1.0.5':
+    resolution: {integrity: sha512-CQTGVHAWWkWKR/eiEZEzmKcPqFQcHFkkJnulKBt2rxclxqaB+RVseENlPhWeN8bcyQXXNrsqIsYaiPtUoaCnBQ==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   '@smithy/core@3.31.1':
     resolution: {integrity: sha512-CyogUINxvi7C7LDsh8Syo6hVJOT9ckz4rG8dRZfTJ8r91HkMY59PnNooaj7WcHyxEkxPfBAmbgztZU+xTo76lg==}
@@ -6309,6 +6326,23 @@ snapshots:
   '@rolldown/pluginutils@1.0.1': {}
 
   '@sindresorhus/is@7.2.0': {}
+
+  '@sitebytom/payload-media-gallery@1.2.0(@payloadcms/ui@3.87.1(@types/react@19.2.18)(monaco-editor@0.56.0)(next@16.3.0(@types/node@26.2.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(sass@1.102.0))(payload@3.87.1(graphql@17.0.2)(typescript@5.9.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.9.3))(next@16.3.0(@types/node@26.2.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(sass@1.102.0))(payload@3.87.1(graphql@17.0.2)(typescript@5.9.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@dnd-kit/core': 6.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@dnd-kit/sortable': 10.0.0(@dnd-kit/core@6.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
+      '@dnd-kit/utilities': 3.2.2(react@19.2.8)
+      '@payloadcms/ui': 3.87.1(@types/react@19.2.18)(monaco-editor@0.56.0)(next@16.3.0(@types/node@26.2.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(sass@1.102.0))(payload@3.87.1(graphql@17.0.2)(typescript@5.9.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.9.3)
+      '@sitebytom/use-zoom-pan': 1.0.5(react@19.2.8)
+      next: 16.3.0(@types/node@26.2.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(sass@1.102.0)
+      payload: 3.87.1(graphql@17.0.2)(typescript@5.9.3)
+      react: 19.2.8
+    transitivePeerDependencies:
+      - react-dom
+
+  '@sitebytom/use-zoom-pan@1.0.5(react@19.2.8)':
+    dependencies:
+      react: 19.2.8
 
   '@smithy/core@3.31.1':
     dependencies:
