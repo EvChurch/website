@@ -20,7 +20,8 @@ import {
 import { minorUnitsToNzd, validateNzDate, validatePeriod } from './blinkpay/validation'
 import { givingBankCode, givingBankTransferDetails, type GivingBankTransferPreparation } from './bank-transfer'
 
-const CAPABILITY_TTL_MS = 30 * 60 * 1000
+const CHECKOUT_CAPABILITY_TTL_MS = 30 * 60 * 1000
+const BANK_TRANSFER_ACKNOWLEDGEMENT_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const CONTROL = /[\u0000-\u001f\u007f]/u
 
 export type CheckoutResultCode = 'processing' | 'cancelled' | 'rejected' | 'expired' | 'unknown' | 'verified'
@@ -222,7 +223,7 @@ export async function prepareGivingBankTransfer(
     submissionDigest: canonicalSubmissionDigest(dependencies.digestSecret, submission),
     correlationKey: uuid(),
     returnCapabilityDigest: capabilityDigest('return', capability),
-    returnCapabilityExpiresAt: new Date(now.getTime() + CAPABILITY_TTL_MS),
+    returnCapabilityExpiresAt: new Date(now.getTime() + BANK_TRANSFER_ACKNOWLEDGEMENT_TTL_MS),
     currentTime: now,
   })
   if (created.disposition !== 'start') throw new GivingCheckoutError('conflict')
@@ -337,11 +338,11 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
     const created = await dependencies.repository.createOrReuse({
       ...input, submission, submissionKeyDigest: keyDigest, submissionDigest, correlationKey: uuid(),
       returnCapabilityDigest: capabilityDigest('return', returnToken),
-      returnCapabilityExpiresAt: new Date(current.getTime() + CAPABILITY_TTL_MS),
+      returnCapabilityExpiresAt: new Date(current.getTime() + CHECKOUT_CAPABILITY_TTL_MS),
       currentTime: current,
     })
     let checkout = created.checkout
-    await dependencies.repository.rotateStatusCapability(checkout.id, capabilityDigest('status', statusToken), capabilityDigest('status', statusToken), new Date(current.getTime() + CAPABILITY_TTL_MS))
+    await dependencies.repository.rotateStatusCapability(checkout.id, capabilityDigest('status', statusToken), capabilityDigest('status', statusToken), new Date(current.getTime() + CHECKOUT_CAPABILITY_TTL_MS))
     if (created.disposition === 'redirect' && checkout.gatewayRedirectUri) return { outcome: 'redirect', gatewayRedirectUri: checkout.gatewayRedirectUri, statusToken, returnToken, correlationKey: checkout.correlationKey, reused: true } satisfies GivingCheckoutStartResult
     if (created.disposition === 'recover') return { outcome: 'unknown', retryAllowed: false, statusToken, correlationKey: checkout.correlationKey, reused: created.reused } satisfies GivingCheckoutStartResult
     const identity: GivingIdentityInput = { kind: 'guest', firstName: submission.firstName, lastName: submission.lastName, email: submission.email }
@@ -441,7 +442,7 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
       if (!isGivingCapabilityToken(token)) throw new GivingCheckoutError('unavailable')
       const statusToken = random(32).toString('base64url')
       const current = now()
-      const checkout = await dependencies.repository.consumeReturn(capabilityDigest('return', token), expectedProviderId, current, capabilityDigest('status', statusToken), capabilityDigest('status', statusToken), new Date(current.getTime() + CAPABILITY_TTL_MS))
+      const checkout = await dependencies.repository.consumeReturn(capabilityDigest('return', token), expectedProviderId, current, capabilityDigest('status', statusToken), capabilityDigest('status', statusToken), new Date(current.getTime() + CHECKOUT_CAPABILITY_TTL_MS))
       if (!checkout) throw new GivingCheckoutError('unavailable')
       try {
         await verify(checkout.id)

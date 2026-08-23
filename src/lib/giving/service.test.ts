@@ -95,6 +95,7 @@ function returnToken(result: GivingCheckoutStartResult) {
 describe('giving checkout orchestration', () => {
   it('prepares direct-bank references through the same Rock identity resolution without calling BlinkPay', async () => {
     const repo = repository()
+    const createOrReuse = vi.spyOn(repo, 'createOrReuse')
     const resolveIdentity = vi.fn(async () => {
       repo.checkouts[0].giverId = 9
       repo.checkouts[0].bankReference = 'EV123'
@@ -121,6 +122,9 @@ describe('giving checkout orchestration', () => {
       emailDeliveryId: 101,
     })
     expect(second).toMatchObject({ ...first, acknowledgementToken: expect.any(String) })
+    expect(createOrReuse).toHaveBeenCalledWith(expect.objectContaining({
+      returnCapabilityExpiresAt: new Date('2026-09-14T00:00:00Z'),
+    }))
     expect(resolveIdentity).toHaveBeenCalledTimes(1)
     expect(repo.operations).toHaveLength(0)
   })
@@ -220,9 +224,13 @@ describe('giving checkout orchestration', () => {
 
   it('reuses an identical submission, commits caller-owned keys before the call and verifies one-off settlement authoritatively', async () => {
     const { checkout, blinkPay, repo } = service()
+    const createOrReuse = vi.spyOn(repo, 'createOrReuse')
     const first = await checkout.start({ ...context, submission: baseSubmission })
     const second = await checkout.start({ ...context, submission: baseSubmission })
     expect(second).toMatchObject({ reused: true, gatewayRedirectUri: first.gatewayRedirectUri })
+    expect(createOrReuse).toHaveBeenCalledWith(expect.objectContaining({
+      returnCapabilityExpiresAt: new Date('2026-08-15T00:30:00Z'),
+    }))
     expect(blinkPay.createQuickPayment).toHaveBeenCalledTimes(1)
     expect(blinkPay.createQuickPayment.mock.calls[0][0].pcr).toEqual({ particulars: 'GEN', code: 'ALOVELACE', reference: 'EV123' })
     expect(blinkPay.createQuickPayment.mock.calls[0][1]).toEqual({ requestId: repo.operations[0].requestId, idempotencyKey: repo.operations[0].idempotencyKey })
