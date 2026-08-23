@@ -5,6 +5,7 @@ import { postgresAdapter } from '@payloadcms/db-postgres'
 import { mcpPlugin, type MCPPluginConfig } from '@payloadcms/plugin-mcp'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { s3Storage } from '@payloadcms/storage-s3'
+import { mediaGalleryPlugin } from '@sitebytom/payload-media-gallery'
 import sharp from 'sharp'
 
 // Collections
@@ -194,6 +195,7 @@ export default buildConfig({
   globals: [...applicationGlobals],
 
   plugins: [
+    mediaGalleryPlugin({ collections: ['media'] }),
     mcpPlugin({
       collections: mcpCollections,
       globals: mcpGlobals,
