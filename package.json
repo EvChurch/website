@@ -57,20 +57,20 @@
     "zustand": "5.0.14"
   },
   "devDependencies": {
-    "@payloadcms/ui": "3.87.1",
+    "@payloadcms/ui": "3.88.0",
     "@types/canvas-confetti": "^1.9.0",
     "@types/jsdom": "^30.0.0",
     "@types/node": "26.2.0",
     "@types/pg": "8.21.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
-    "@typescript-eslint/eslint-plugin": "^8.66.0",
-    "@typescript-eslint/parser": "^8.66.0",
+    "@typescript-eslint/eslint-plugin": "^8.67.0",
+    "@typescript-eslint/parser": "^8.67.0",
     "dotenv": "17.4.2",
     "eslint": "10.8.1",
-    "sass": "1.102.0",
+    "sass": "1.103.1",
     "typescript": "5.9.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "packageManager": "pnpm@10.34.5+sha512.a4ee05f2f73658255bd6a89859c065a45c28a57daefae2c893a168ee2b73168c37b91e83e57ea67654ad03f03031746430e8bce38e362e042605fb8abc80192e",
   "pnpm": {
