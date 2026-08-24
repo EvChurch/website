@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
+    "preview:giving-emails": "tsx watch scripts/preview-giving-emails.ts",
     "build": "payload generate:types && next build",
     "test": "vitest run",
     "test:migration:postgres": "vitest run src/migration-tests",
