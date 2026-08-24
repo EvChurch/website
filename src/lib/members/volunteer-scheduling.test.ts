@@ -432,6 +432,7 @@ describe('volunteer scheduling adapter', () => {
     await expect(deleteVolunteerScheduleUnavailability(
       42,
       `rock-unavailability:${GUIDS.other}`,
+      new Date('2026-08-18T00:00:00Z'),
     )).resolves.toEqual({ status: 'deleted' })
 
     expect(fetchMock).toHaveBeenCalledTimes(4)
