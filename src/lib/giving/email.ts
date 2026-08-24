@@ -24,11 +24,14 @@ export interface GivingEmailSource {
 
 export interface GivingEmailMessage { to: string; subject: string; text: string; html: string }
 export interface GivingEmailTransport { send(message: GivingEmailMessage, idempotencyKey: string): Promise<{ providerId: string }> }
+export interface GivingEmailBuildOptions { acknowledgementUrl?: string }
 type ClaimResult = { status: 'claimed'; delivery: GivingEmailSource } | { status: 'skipped' }
 
 const LEASE_MS = 5 * 60 * 1000
 const MAX_ATTEMPTS = 6
 const RESEND_EMAILS_URL = 'https://api.resend.com/emails'
+const STEVE_MULLINS_AVATAR_URL = 'https://www.ev.church/api/media/file/steve-mullins-1.jpg'
+const EXECUTIVE_COMMITTEE_URL = 'https://www.ev.church/give#executive-committee'
 
 function escapeHtml(value: string) {
   return value.replace(/[&<>'"]/gu, (character) => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' })[character] ?? character)
@@ -41,17 +44,36 @@ function giftSummary(source: GivingEmailSource) {
   return `${amount} to ${source.fundName} ${frequency}${source.firstPaymentDate ? `, starting ${source.firstPaymentDate}` : ''}`
 }
 
-function encouragement(firstName: string) {
-  return `Thank you, ${firstName}. Your generosity helps sustain gospel ministry across Ev—from church life and the next generation to training workers and planting churches. Thank you for the part you’re playing.`
+function partnershipMessage(source: GivingEmailSource) {
+  const heading = source.frequency === 'one-off'
+    ? 'Thank you for your partnership in the gospel.'
+    : 'Thank you for your faithful partnership in the gospel.'
+  const gratitude = source.frequency === 'one-off'
+    ? 'We thank God for you and for the generosity you’ve shown.'
+    : 'We thank God for you and for your regular commitment to gospel ministry through Ev.'
+  const impact = 'Together with others across our church family, you’re helping sustain gospel ministry so people across Auckland can hear about Jesus, grow in him, and be equipped to serve.'
+  const verse = '“I thank my God every time I remember you… because of your partnership in the gospel from the first day until now.” — Philippians 1:3–5'
+  const closing = 'We’re genuinely grateful to be partnering with you in this work.'
+
+  return {
+    text: [heading, gratitude, '', impact, '', verse, '', closing].join('\n'),
+    html: `<p><strong>${escapeHtml(heading)}</strong></p><p>${escapeHtml(gratitude)}</p><p>${escapeHtml(impact)}</p><blockquote style="border-left:4px solid #E22A30;margin:24px 0;padding:8px 18px">${escapeHtml(verse)}</blockquote><p>${escapeHtml(closing)}</p>`,
+  }
 }
 
-export function buildGivingEmail(source: GivingEmailSource, now = new Date()): GivingEmailMessage {
+function executiveCommitteeSignOff() {
+  return {
+    text: ['God bless,', '', 'Steve Mullins', `On behalf of the Executive Committee of Ev Church: ${EXECUTIVE_COMMITTEE_URL}`].join('\n'),
+    html: `<p style="margin-bottom:24px">God bless,</p><table role="presentation" style="border-collapse:collapse"><tbody><tr><td style="padding:0 14px 0 0;vertical-align:middle"><div style="border-radius:999px;height:64px;overflow:hidden;width:64px"><img src="${STEVE_MULLINS_AVATAR_URL}" alt="Steve Mullins" width="107" height="160" style="display:block;height:160px;margin-left:-22px;margin-top:-8px;max-width:none;width:107px"></div></td><td style="padding:0;vertical-align:middle"><strong>Steve Mullins</strong><br>On behalf of the <a href="${EXECUTIVE_COMMITTEE_URL}" style="color:#E22A30;text-decoration:underline">Executive Committee of Ev Church</a></td></tr></tbody></table>`,
+  }
+}
+
+export function buildGivingEmail(source: GivingEmailSource, now = new Date(), options: GivingEmailBuildOptions = {}): GivingEmailMessage {
   const firstName = source.name.trim().split(/\s+/u)[0] || 'there'
   const summary = giftSummary(source)
-  const verse = '“Each person should do as he has decided in his heart—not reluctantly or out of compulsion, since God loves a cheerful giver.” — 2 Corinthians 9:7'
   if (source.kind === 'bank-transfer-details') {
     const details = givingBankTransferDetails(source.fundCode, source.bankCode, source.bankReference)
-    const acknowledgementUrl = createGivingBankAcknowledgementUrl(source.checkoutId, now)
+    const acknowledgementUrl = options.acknowledgementUrl ?? createGivingBankAcknowledgementUrl(source.checkoutId, now)
     const text = [
       `Hi ${firstName},`, '', 'Here are the bank details for the gift you prepared at ev.church.', '',
       `Gift: ${summary}`, `Account name: ${details.accountName}`, `Account number: ${details.accountNumber}`,
@@ -71,11 +93,21 @@ export function buildGivingEmail(source: GivingEmailSource, now = new Date()): G
     : source.frequency === 'one-off'
       ? 'Your gift is confirmed.'
       : 'Your recurring gift is confirmed and its schedule is active.'
+  const detailLabel = source.kind === 'bank-transfer-thanks' ? 'Gift setup' : 'Confirmed gift'
+  const partnership = partnershipMessage(source)
+  const signOff = executiveCommitteeSignOff()
+  const subject = source.kind === 'bank-transfer-thanks'
+    ? source.frequency === 'one-off'
+      ? 'Thank you for setting up your gift to Ev Church'
+      : 'Thank you for setting up regular giving to Ev Church'
+    : source.frequency === 'one-off'
+      ? 'Thank you for your gift to Ev Church'
+      : 'Thank you for your regular giving to Ev Church'
   return {
     to: source.email,
-    subject: 'Thank you for giving to Ev Church',
-    text: [`Hi ${firstName},`, '', confirmation, '', encouragement(firstName), '', verse].join('\n'),
-    html: `<p>Hi ${escapeHtml(firstName)},</p><p><strong>${escapeHtml(confirmation)}</strong></p><p>${escapeHtml(encouragement(firstName))}</p><blockquote style="border-left:4px solid #E22A30;margin:24px 0;padding:8px 18px">${escapeHtml(verse)}</blockquote>`,
+    subject,
+    text: [`Hi ${firstName},`, '', confirmation, '', `${detailLabel}: ${summary}`, '', partnership.text, '', signOff.text].join('\n'),
+    html: `<p>Hi ${escapeHtml(firstName)},</p><p><strong>${escapeHtml(confirmation)}</strong></p><p><strong>${escapeHtml(detailLabel)}:</strong> ${escapeHtml(summary)}</p>${partnership.html}${signOff.html}`,
   }
 }
 

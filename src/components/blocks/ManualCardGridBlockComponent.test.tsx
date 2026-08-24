@@ -107,6 +107,7 @@ describe('ManualCardGridBlockComponent', () => {
     expect(markup).toContain('text-brand-black')
     expect(markup).toContain('text-dark-grey')
     expect(markup).toContain('Senior Pastor and Chair')
+    expect(markup).toContain('id="executive-committee"')
     expect(markup).toContain('rowan.jpg')
     expect(markup).not.toContain('rowan-thumbnail.jpg')
     expect(markup).toContain('object-position:50% 20%')

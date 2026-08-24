@@ -442,7 +442,10 @@ export function ManualCardGridBlockComponent({
               </p>
             )}
             {heading && (
-              <h2 className="mt-3 text-h2 leading-heading text-brand-black">
+              <h2
+                id={heading === 'Executive Committee' ? 'executive-committee' : undefined}
+                className="mt-3 scroll-mt-24 text-h2 leading-heading text-brand-black"
+              >
                 {heading}
               </h2>
             )}
