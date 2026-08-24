@@ -55,3 +55,19 @@ describe('sermon media caching', () => {
     }
   })
 })
+
+describe('Payload theme client hints', () => {
+  it('limits color-scheme client hints to the Payload admin', async () => {
+    const headers = await nextConfig.headers?.()
+    const clientHintRules = headers?.filter((rule) =>
+      rule.headers.some(
+        ({ key, value }) =>
+          ['Accept-CH', 'Critical-CH'].includes(key) &&
+          value === 'Sec-CH-Prefers-Color-Scheme',
+      ),
+    )
+
+    expect(clientHintRules).toHaveLength(1)
+    expect(clientHintRules?.[0]?.source).toBe('/admin/:path*')
+  })
+})

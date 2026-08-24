@@ -86,4 +86,23 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default withPayload(nextConfig)
+const payloadConfig = withPayload(nextConfig)
+const payloadHeaders = payloadConfig.headers
+
+payloadConfig.headers = async () => {
+  const headers = (await payloadHeaders?.()) ?? []
+
+  return headers.map((rule) => {
+    const requestsColorScheme = rule.headers.some(
+      ({ key, value }) =>
+        ['Accept-CH', 'Critical-CH'].includes(key) &&
+        value === 'Sec-CH-Prefers-Color-Scheme',
+    )
+
+    return requestsColorScheme
+      ? { ...rule, source: '/admin/:path*' }
+      : rule
+  })
+}
+
+export default payloadConfig
