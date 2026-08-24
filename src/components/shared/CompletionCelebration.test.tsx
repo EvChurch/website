@@ -20,9 +20,19 @@ vi.mock('canvas-confetti', () => ({ default: { create } }))
 describe('CompletionCelebration', () => {
   let container: HTMLDivElement
   let root: Root
+  let transferDescriptor: PropertyDescriptor | undefined
 
   beforeEach(() => {
     vi.useFakeTimers()
+    vi.stubGlobal('Worker', class Worker {})
+    vi.stubGlobal('OffscreenCanvas', class OffscreenCanvas {})
+    vi.stubGlobal('OffscreenCanvasRenderingContext2D', class OffscreenCanvasRenderingContext2D {})
+    vi.stubGlobal('createImageBitmap', vi.fn())
+    transferDescriptor = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, 'transferControlToOffscreen')
+    Object.defineProperty(HTMLCanvasElement.prototype, 'transferControlToOffscreen', {
+      configurable: true,
+      value: vi.fn(),
+    })
     container = document.createElement('div')
     document.body.append(container)
     root = createRoot(container)
@@ -31,7 +41,10 @@ describe('CompletionCelebration', () => {
   afterEach(async () => {
     await act(async () => root.unmount())
     container.remove()
+    if (transferDescriptor) Object.defineProperty(HTMLCanvasElement.prototype, 'transferControlToOffscreen', transferDescriptor)
+    else Reflect.deleteProperty(HTMLCanvasElement.prototype, 'transferControlToOffscreen')
     vi.useRealTimers()
+    vi.unstubAllGlobals()
     vi.restoreAllMocks()
     vi.clearAllMocks()
   })
