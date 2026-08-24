@@ -3,12 +3,20 @@
 import confetti from 'canvas-confetti'
 import { useEffect, useRef } from 'react'
 
+function canUseConfettiWorker() {
+  return typeof globalThis.Worker === 'function'
+    && typeof globalThis.OffscreenCanvas === 'function'
+    && typeof globalThis.OffscreenCanvasRenderingContext2D === 'function'
+    && typeof globalThis.createImageBitmap === 'function'
+    && typeof HTMLCanvasElement.prototype.transferControlToOffscreen === 'function'
+}
+
 export function CompletionCelebration() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas || !canvas.getContext('2d')) return
+    if (!canvas || (!canUseConfettiWorker() && !canvas.getContext('2d'))) return
 
     const celebrate = confetti.create(canvas, {
       resize: true,
