@@ -8,7 +8,7 @@ export function CompletionCelebration() {
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas || !canvas.getContext('2d')) return
+    if (!canvas) return
 
     const celebrate = confetti.create(canvas, {
       resize: true,
