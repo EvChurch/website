@@ -211,8 +211,8 @@ describe('syncConnectGroups', () => {
       ([{ endpoint }]) => endpoint === 'Schedules',
     )
     expect(scheduleCalls).toHaveLength(2)
-    expect(scheduleCalls[0][0].params.$filter.split(' or ')).toHaveLength(25)
-    expect(scheduleCalls[1][0].params.$filter).toBe('Id eq 126')
+    expect(scheduleCalls[0][0].params.$filter.split(' or ')).toHaveLength(15)
+    expect(scheduleCalls[1][0].params.$filter.split(' or ')).toHaveLength(11)
   })
 
   it('maps groups led by coaching-group members to that coaching group leaders', async () => {
