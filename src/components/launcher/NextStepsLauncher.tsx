@@ -83,6 +83,39 @@ const MOBILE_LAUNCHER_QUERY = "(max-width: 639px)";
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const LAUNCHER_CLOSE_FALLBACK_MS = 300;
 const MAX_LAUNCHER_TARGET_LENGTH = 128;
+const LAUNCHER_SCROLL_RESTORE_STORAGE_KEY = "ev-launcher-scroll-restore";
+
+function rememberLauncherScrollRestore(pathname: string, scrollTop: number) {
+  try {
+    window.sessionStorage.setItem(
+      LAUNCHER_SCROLL_RESTORE_STORAGE_KEY,
+      JSON.stringify({ pathname, scrollTop }),
+    );
+  } catch {
+    // Scroll restoration is a progressive enhancement when storage is unavailable.
+  }
+}
+
+function consumeLauncherScrollRestore(pathname: string): number | null {
+  try {
+    const stored = window.sessionStorage.getItem(
+      LAUNCHER_SCROLL_RESTORE_STORAGE_KEY,
+    );
+    window.sessionStorage.removeItem(LAUNCHER_SCROLL_RESTORE_STORAGE_KEY);
+    if (!stored) return null;
+
+    const parsed: unknown = JSON.parse(stored);
+    if (typeof parsed !== "object" || parsed === null) return null;
+    const candidate = parsed as { pathname?: unknown; scrollTop?: unknown };
+    return candidate.pathname === pathname &&
+      typeof candidate.scrollTop === "number" &&
+      Number.isFinite(candidate.scrollTop)
+      ? candidate.scrollTop
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 function viewForLauncherItem(item: LauncherItem): LauncherView | null {
   switch (item.action.type) {
@@ -386,7 +419,6 @@ export function NextStepsLauncher({
   const restoreTriggerFocusRef = useRef(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handledLauncherTargetRef = useRef<string | null>(null);
-  const pendingScrollRestoreRef = useRef<number | null>(null);
 
   const connectCardImageUrl = useMemo(() => {
     for (const item of items ?? []) {
@@ -449,7 +481,7 @@ export function NextStepsLauncher({
         return;
       }
 
-      pendingScrollRestoreRef.current = window.scrollY;
+      rememberLauncherScrollRestore(url.pathname, window.scrollY);
     };
 
     document.addEventListener("click", rememberScrollPosition, true);
@@ -778,18 +810,23 @@ export function NextStepsLauncher({
 
   useEffect(() => {
     if (state.presentation === "collapsed") return;
-    const scrollTop = pendingScrollRestoreRef.current;
+    const scrollTop = consumeLauncherScrollRestore(window.location.pathname);
     if (scrollTop === null) return;
-    pendingScrollRestoreRef.current = null;
 
+    let restoreFrame: number | null = null;
     const animationFrame = window.requestAnimationFrame(() => {
-      const previousScrollBehavior =
-        document.documentElement.style.scrollBehavior;
-      document.documentElement.style.scrollBehavior = "auto";
-      window.scrollTo(window.scrollX, scrollTop);
-      document.documentElement.style.scrollBehavior = previousScrollBehavior;
+      restoreFrame = window.requestAnimationFrame(() => {
+        const previousScrollBehavior =
+          document.documentElement.style.scrollBehavior;
+        document.documentElement.style.scrollBehavior = "auto";
+        window.scrollTo(window.scrollX, scrollTop);
+        document.documentElement.style.scrollBehavior = previousScrollBehavior;
+      });
     });
-    return () => window.cancelAnimationFrame(animationFrame);
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      if (restoreFrame !== null) window.cancelAnimationFrame(restoreFrame);
+    };
   }, [launcherTarget, state.presentation]);
 
   useEffect(() => {
