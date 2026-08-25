@@ -271,7 +271,7 @@ export async function syncConnectGroups(): Promise<SyncResult> {
           $filter: batch.map((id) => `Id eq ${id}`).join(' or '),
           $orderby: 'Id',
           $select:
-            'Id,Description,FriendlyScheduleText,IsActive,WeeklyDayOfWeek,WeeklyTimeOfDay',
+            'Id,Description,IsActive,WeeklyDayOfWeek,WeeklyTimeOfDay',
         },
       }))
     }

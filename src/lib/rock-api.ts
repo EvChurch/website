@@ -354,7 +354,7 @@ export type RockGroup = {
 export type RockSchedule = {
   Id: number
   Description: string
-  FriendlyScheduleText: string
+  FriendlyScheduleText?: string | null
   IsActive: boolean
   WeeklyDayOfWeek: number | null
   WeeklyTimeOfDay: string | null
