@@ -199,6 +199,22 @@ describe('syncConnectGroups', () => {
     ])
   })
 
+  it('batches schedule filters below Rock OData node limits', async () => {
+    mockRockGroups(
+      Array.from({ length: 26 }, (_, index) => group(index + 1, `Group ${index + 1}`)),
+    )
+    mocks.fetchActiveGroupMembers.mockResolvedValue([])
+
+    await syncConnectGroups()
+
+    const scheduleCalls = mocks.rockFetchAll.mock.calls.filter(
+      ([{ endpoint }]) => endpoint === 'Schedules',
+    )
+    expect(scheduleCalls).toHaveLength(2)
+    expect(scheduleCalls[0][0].params.$filter.split(' or ')).toHaveLength(25)
+    expect(scheduleCalls[1][0].params.$filter).toBe('Id eq 126')
+  })
+
   it('maps groups led by coaching-group members to that coaching group leaders', async () => {
     mockRockGroups(
       [
