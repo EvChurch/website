@@ -39,6 +39,12 @@ vi.mock('./ServiceTimesBlockComponent', () => ({
   ),
 }))
 
+vi.mock('./ConnectGroupsBlockComponent', () => ({
+  ConnectGroupsBlockComponent: ({ heading }: { heading?: string | null }) => (
+    <div data-connect-groups-heading={heading} />
+  ),
+}))
+
 vi.mock('./FormEmbedBlockComponent', () => ({
   FormEmbedBlockComponent: ({
     fallbackContactLabel,
@@ -120,5 +126,15 @@ describe('RenderBlocks', () => {
 
     expect(markup).toContain('data-campus="central"')
     expect(markup).toContain('data-heading="Central events"')
+  })
+
+  it('renders a Connect Groups finder block', () => {
+    const markup = renderToStaticMarkup(
+      <RenderBlocks
+        blocks={[{ blockType: 'connectGroups', heading: 'Choose your group' }]}
+      />,
+    )
+
+    expect(markup).toContain('data-connect-groups-heading="Choose your group"')
   })
 })

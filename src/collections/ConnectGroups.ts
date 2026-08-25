@@ -39,6 +39,26 @@ export const ConnectGroups: CollectionConfig = {
       },
     },
     {
+      name: 'rockGroupGuid',
+      type: 'text',
+      required: true,
+      unique: true,
+      index: true,
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'publicName',
+      type: 'text',
+      required: true,
+      admin: {
+        readOnly: true,
+        description: 'Public location or group name supplied by Rock.',
+      },
+    },
+    {
       name: 'description',
       type: 'richText',
     },
@@ -53,6 +73,13 @@ export const ConnectGroups: CollectionConfig = {
         {
           name: 'email',
           type: 'email',
+        },
+        {
+          name: 'photoId',
+          type: 'number',
+          admin: {
+            readOnly: true,
+          },
         },
       ],
     },
@@ -78,6 +105,30 @@ export const ConnectGroups: CollectionConfig = {
     {
       name: 'capacity',
       type: 'number',
+    },
+    {
+      name: 'meetingDay',
+      type: 'number',
+      min: 0,
+      max: 6,
+      admin: {
+        readOnly: true,
+        description: 'Rock day of week, where Sunday is 0.',
+      },
+    },
+    {
+      name: 'meetingTime',
+      type: 'text',
+      admin: {
+        readOnly: true,
+      },
+    },
+    {
+      name: 'scheduleText',
+      type: 'text',
+      admin: {
+        readOnly: true,
+      },
     },
     {
       name: 'campus',

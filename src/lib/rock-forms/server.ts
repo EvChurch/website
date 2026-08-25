@@ -76,6 +76,7 @@ export async function getPublicRockWorkflow(
 
 type WorkflowEntryRequest = {
   context: { sessionGuid: string; interactionGuid: string }
+  pageParameters?: Record<string, string>
   personId?: number | null
   workflowGuid?: string | null
   actionTypeGuid?: string | null
@@ -94,6 +95,7 @@ async function callWorkflowEntry(
     body: {
       __context: {
         pageParameters: {
+          ...request.pageParameters,
           WorkflowTypeGuid: workflowTypeGuid,
           ...(request.personId ? { PersonId: String(request.personId) } : {}),
         },
@@ -247,6 +249,7 @@ async function getKnownPersonEntryValues(
 export async function startRockForm(
   workflowTypeGuid: string,
   personId: number | null = null,
+  pageParameters: Record<string, string> = {},
 ): Promise<RockFormSchema> {
   const workflow = await getPublicRockWorkflow(workflowTypeGuid)
 
@@ -259,6 +262,7 @@ export async function startRockForm(
   const action = await callWorkflowEntry(workflow.guid, {
     context: { sessionGuid, interactionGuid },
     personId,
+    pageParameters,
   })
 
   return await buildRockFormSchema({

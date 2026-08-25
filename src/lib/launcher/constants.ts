@@ -1,8 +1,12 @@
+import { CONNECT_GROUP_WORKFLOW_GUID } from '@/lib/connect-groups/constants'
+
 export const PLAN_A_VISIT_WORKFLOW_GUID =
   'de3d06a6-7fca-41a5-8c37-a485767de970'
 
 export const CONNECT_CARD_WORKFLOW_GUID =
   '00778880-81fe-4871-aa91-7c81783b8c4d'
+
+export { CONNECT_GROUP_WORKFLOW_GUID }
 
 export const LAUNCHER_CAMPUS_STORAGE_KEY = 'ev-next-steps-campus'
 
@@ -14,4 +18,5 @@ export const KIDS_ENROLMENT_LAUNCHER_HREF =
 export const FIXED_LAUNCHER_WORKFLOW_GUIDS = new Set([
   PLAN_A_VISIT_WORKFLOW_GUID,
   CONNECT_CARD_WORKFLOW_GUID,
+  CONNECT_GROUP_WORKFLOW_GUID,
 ])

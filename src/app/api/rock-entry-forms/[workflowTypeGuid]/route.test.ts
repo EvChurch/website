@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   submitForm: vi.fn(),
   getSession: vi.fn(),
   getProfileState: vi.fn(),
+  isActiveConnectGroupGuid: vi.fn(),
 }))
 
 vi.mock('@/auth/auth0-client', () => ({
@@ -28,6 +29,10 @@ vi.mock('@/lib/rock-forms/context-token', () => ({
   verifyRockFormContextToken: mocks.verifyContext,
 }))
 
+vi.mock('@/lib/connect-groups/server', () => ({
+  isActiveConnectGroupGuid: mocks.isActiveConnectGroupGuid,
+}))
+
 vi.mock('@/lib/rock-forms/config', () => ({
   getTurnstileSiteKey: mocks.getSiteKey,
 }))
@@ -41,6 +46,7 @@ vi.mock('@/lib/rock-forms/server', () => ({
 }))
 
 import { GET, POST } from './route'
+import { CONNECT_GROUP_WORKFLOW_GUID } from '@/lib/connect-groups/constants'
 
 const workflowTypeGuid = '874418b5-a477-4382-94dc-38060b005bfa'
 const routeContext = { params: Promise.resolve({ workflowTypeGuid }) }
@@ -64,6 +70,7 @@ describe('Rock form route', () => {
     mocks.getSiteKey.mockReturnValue('test-site-key')
     mocks.getSession.mockResolvedValue(null)
     mocks.getProfileState.mockReturnValue(null)
+    mocks.isActiveConnectGroupGuid.mockResolvedValue(true)
     process.env.ROCK_WORKFLOW_REDIRECT_ORIGINS = 'https://www.ev.church'
   })
 
@@ -89,7 +96,7 @@ describe('Rock form route', () => {
     const response = await POST(postRequest(body), routeContext)
     expect(response.status).toBe(200)
     expect(mocks.verifyTurnstile).toHaveBeenCalledOnce()
-    expect(mocks.startForm).toHaveBeenCalledWith(workflowTypeGuid, null)
+    expect(mocks.startForm).toHaveBeenCalledWith(workflowTypeGuid, null, {})
   })
 
   it('starts a Rock workflow for the authenticated member person', async () => {
@@ -106,7 +113,58 @@ describe('Rock form route', () => {
     const response = await POST(postRequest(body), routeContext)
 
     expect(response.status).toBe(200)
-    expect(mocks.startForm).toHaveBeenCalledWith(workflowTypeGuid, 42)
+    expect(mocks.startForm).toHaveBeenCalledWith(workflowTypeGuid, 42, {})
+  })
+
+  it('passes a validated Connect Group into the existing Rock workflow', async () => {
+    const groupGuid = '9756a8fd-a865-4070-add3-03b3396c4b9a'
+    const connectContext = {
+      params: Promise.resolve({ workflowTypeGuid: CONNECT_GROUP_WORKFLOW_GUID }),
+    }
+    const body = new FormData()
+    body.set('intent', 'start')
+    body.set('turnstileToken', 'verified-token')
+    body.set('groupGuid', groupGuid.toUpperCase())
+    mocks.startForm.mockResolvedValue({ workflowName: 'Join a Connect Group' })
+
+    const response = await POST(
+      postRequest(
+        body,
+        'http://localhost',
+        `http://localhost/api/rock-entry-forms/${CONNECT_GROUP_WORKFLOW_GUID}`,
+      ),
+      connectContext,
+    )
+
+    expect(response.status).toBe(200)
+    expect(mocks.isActiveConnectGroupGuid).toHaveBeenCalledWith(groupGuid)
+    expect(mocks.startForm).toHaveBeenCalledWith(
+      CONNECT_GROUP_WORKFLOW_GUID,
+      null,
+      { GroupGuid: groupGuid },
+    )
+  })
+
+  it('rejects a Connect Group that is not active in the Rock mirror', async () => {
+    const groupGuid = '9756a8fd-a865-4070-add3-03b3396c4b9a'
+    mocks.isActiveConnectGroupGuid.mockResolvedValue(false)
+    const body = new FormData()
+    body.set('intent', 'start')
+    body.set('turnstileToken', 'verified-token')
+    body.set('groupGuid', groupGuid)
+
+    const response = await POST(
+      postRequest(
+        body,
+        'http://localhost',
+        `http://localhost/api/rock-entry-forms/${CONNECT_GROUP_WORKFLOW_GUID}`,
+      ),
+      { params: Promise.resolve({ workflowTypeGuid: CONNECT_GROUP_WORKFLOW_GUID }) },
+    )
+
+    expect(response.status).toBe(400)
+    expect(mocks.verifyTurnstile).not.toHaveBeenCalled()
+    expect(mocks.startForm).not.toHaveBeenCalled()
   })
 
   it('uses the Railway public hostname for Turnstile behind the production proxy', async () => {

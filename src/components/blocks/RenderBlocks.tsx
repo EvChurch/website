@@ -18,6 +18,7 @@ import { LatestSermonBlockComponent } from './LatestSermonBlockComponent'
 import { UpcomingEventsBlockComponent } from './UpcomingEventsBlockComponent'
 import { ServiceTimesBlockComponent } from './ServiceTimesBlockComponent'
 import { DailyReadingBlockComponent } from './DailyReadingBlockComponent'
+import { ConnectGroupsBlockComponent } from './ConnectGroupsBlockComponent'
 import type {
   FormEmbedBlock as PayloadFormEmbedBlock,
   UpcomingEventsBlock as PayloadUpcomingEventsBlock,
@@ -254,6 +255,13 @@ interface ServiceTimesBlockType extends BaseBlock {
   }>
 }
 
+interface ConnectGroupsBlockType extends BaseBlock {
+  blockType: 'connectGroups'
+  eyebrow?: string | null
+  heading?: string | null
+  description?: string | null
+}
+
 export type RenderableBlock =
   | HeroBlock
   | ContentBlock
@@ -274,6 +282,7 @@ export type RenderableBlock =
   | LatestSermonBlockType
   | DailyReadingBlockType
   | ServiceTimesBlockType
+  | ConnectGroupsBlockType
   | PayloadUpcomingEventsBlock
   | BaseBlock
 
@@ -323,6 +332,18 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
                 key={key}
                 heading={b.heading}
                 services={b.services}
+              />
+            )
+          }
+
+          case 'connectGroups': {
+            const b = block as ConnectGroupsBlockType
+            return (
+              <ConnectGroupsBlockComponent
+                key={key}
+                eyebrow={b.eyebrow}
+                heading={b.heading}
+                description={b.description}
               />
             )
           }

@@ -87,6 +87,16 @@ describe('syncConnectGroups', () => {
       },
     })
     expect(mocks.rockFetchAll).toHaveBeenCalledWith({
+      endpoint: 'Schedules',
+      getKey: expect.any(Function),
+      params: {
+        $filter: 'Id eq 101',
+        $orderby: 'Id',
+        $select:
+          'Id,Description,FriendlyScheduleText,IsActive,WeeklyDayOfWeek,WeeklyTimeOfDay',
+      },
+    })
+    expect(mocks.rockFetchAll).toHaveBeenCalledWith({
       endpoint: 'Groups',
       getKey: expect.any(Function),
       params: {
@@ -122,8 +132,10 @@ describe('syncConnectGroups', () => {
       id: 501,
       data: expect.objectContaining({
         rockGroupId: 1,
+        rockGroupGuid: '00000000-0000-4000-8000-000000000001',
+        scheduleText: 'Tuesday at 7:00 PM',
         campus: 100,
-        leaders: [{ name: 'Alex Leader', email: 'person101@example.com' }],
+        leaders: [{ name: 'Alex Leader', email: 'person101@example.com', photoId: null }],
       }),
       req: transactionRequest,
     })
@@ -377,8 +389,24 @@ function mockRockGroups(
   connectGroups: ReturnType<typeof group>[],
   coachingGroups: ReturnType<typeof group>[] = [],
 ) {
-  mocks.rockFetchAll.mockImplementation(({ params }: { params: { $filter: string } }) =>
-    Promise.resolve(params.$filter.includes('ParentGroupId eq') ? coachingGroups : connectGroups),
+  mocks.rockFetchAll.mockImplementation(
+    ({ endpoint, params }: { endpoint: string; params: { $filter: string } }) => {
+      if (endpoint === 'Schedules') {
+        return Promise.resolve(
+          connectGroups.map((connectGroup) => ({
+            Id: connectGroup.ScheduleId,
+            Description: 'Tuesday at 7:00 PM',
+            FriendlyScheduleText: 'Tuesday at 7:00 PM',
+            IsActive: true,
+            WeeklyDayOfWeek: 2,
+            WeeklyTimeOfDay: '19:00:00',
+          })),
+        )
+      }
+      return Promise.resolve(
+        params.$filter.includes('ParentGroupId eq') ? coachingGroups : connectGroups,
+      )
+    },
   )
 }
 
@@ -390,11 +418,13 @@ function group(
 ) {
   return {
     Id,
+    Guid: `00000000-0000-4000-8000-${String(Id).padStart(12, '0')}`,
     Name,
     Description: '',
     IsActive: true,
     GroupCapacity: null,
     CampusId,
+    ScheduleId: Id + 100,
     ParentGroupId,
     GroupLocations: [],
   }
