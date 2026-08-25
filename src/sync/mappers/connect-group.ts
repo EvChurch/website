@@ -45,7 +45,7 @@ export function mapRockConnectGroup(
         : null,
     scheduleText:
       schedule?.IsActive
-        ? schedule.FriendlyScheduleText.trim() || schedule.Description.trim() || null
+        ? schedule.FriendlyScheduleText?.trim() || schedule.Description.trim() || null
         : null,
     isActive: rock.IsActive,
     _campusRockId: rock.CampusId,

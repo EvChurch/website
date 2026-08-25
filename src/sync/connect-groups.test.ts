@@ -93,7 +93,7 @@ describe('syncConnectGroups', () => {
         $filter: 'Id eq 101',
         $orderby: 'Id',
         $select:
-          'Id,Description,FriendlyScheduleText,IsActive,WeeklyDayOfWeek,WeeklyTimeOfDay',
+          'Id,Description,IsActive,WeeklyDayOfWeek,WeeklyTimeOfDay',
       },
     })
     expect(mocks.rockFetchAll).toHaveBeenCalledWith({

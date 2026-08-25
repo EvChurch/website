@@ -78,4 +78,31 @@ describe('mapRockConnectGroup', () => {
       scheduleText: 'Sunday at 12:30 PM',
     })
   })
+
+  it('uses the persisted description when FriendlyScheduleText is not selectable', () => {
+    const mapped = mapRockConnectGroup(
+      {
+        Id: 10,
+        Guid: 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA',
+        Name: 'Example Group',
+        Description: '',
+        IsActive: true,
+        ParentGroupId: null,
+        GroupCapacity: null,
+        CampusId: 2,
+        ScheduleId: 89,
+        GroupLocations: [],
+        Members: [],
+      },
+      {
+        Id: 89,
+        Description: 'Tuesday at 7:00 PM',
+        IsActive: true,
+        WeeklyDayOfWeek: 2,
+        WeeklyTimeOfDay: '19:00:00',
+      },
+    )
+
+    expect(mapped.scheduleText).toBe('Tuesday at 7:00 PM')
+  })
 })
