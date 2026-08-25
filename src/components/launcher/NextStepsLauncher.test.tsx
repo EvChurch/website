@@ -206,6 +206,7 @@ describe("NextStepsLauncher", () => {
     navigation.pathname = "/about";
     window.history.replaceState(null, "", "/about");
     window.localStorage.clear();
+    window.sessionStorage.clear();
     mockMobileViewport(false);
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
       callback(0);
@@ -434,6 +435,8 @@ describe("NextStepsLauncher", () => {
     link.click();
     link.remove();
 
+    await act(async () => root.unmount());
+    root = createRoot(container);
     scrollY.mockReturnValue(0);
     window.history.replaceState(null, "", "/about?launcher=home");
     await act(async () => {
