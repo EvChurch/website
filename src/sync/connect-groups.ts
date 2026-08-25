@@ -5,6 +5,7 @@ import {
   type RockGroup,
   type RockGroupMember,
   type RockPerson,
+  type RockSchedule,
 } from '@/lib/rock-api'
 import { getPayloadClient } from '@/lib/payload'
 
@@ -250,6 +251,28 @@ export async function syncConnectGroups(): Promise<SyncResult> {
         $orderby: 'Name,Id',
       },
     })
+    const scheduleIds = Array.from(
+      new Set(
+        groups.flatMap((group) =>
+          Number.isInteger(group.ScheduleId) && (group.ScheduleId ?? 0) > 0
+            ? [group.ScheduleId as number]
+            : [],
+        ),
+      ),
+    )
+    const schedules = scheduleIds.length > 0
+      ? await rockFetchAll<RockSchedule>({
+          endpoint: 'Schedules',
+          getKey: (schedule) => requireDurableId(schedule.Id, 'Rock schedule'),
+          params: {
+            $filter: scheduleIds.map((id) => `Id eq ${id}`).join(' or '),
+            $orderby: 'Id',
+            $select:
+              'Id,Description,FriendlyScheduleText,IsActive,WeeklyDayOfWeek,WeeklyTimeOfDay',
+          },
+        })
+      : []
+    const scheduleById = new Map(schedules.map((schedule) => [schedule.Id, schedule]))
     const memberSnapshots: Array<{ groupId: number; memberships: RockGroupMember[] }> = []
     for (const group of groups) {
       memberSnapshots.push({
@@ -298,7 +321,10 @@ export async function syncConnectGroups(): Promise<SyncResult> {
 
     const preparedGroups: PreparedRecord[] = groups.map((group, index) => {
       const members = memberSnapshots[index].memberships
-      const mapped = mapRockConnectGroup({ ...group, Members: members })
+      const mapped = mapRockConnectGroup(
+        { ...group, Members: members },
+        group.ScheduleId ? scheduleById.get(group.ScheduleId) ?? null : null,
+      )
       const { _campusRockId, ...publicGroup } = mapped
       const campus =
         _campusRockId === null ? null : campusPayloadIdByRockId.get(_campusRockId)

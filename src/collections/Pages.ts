@@ -20,6 +20,7 @@ import { LatestSermonBlock } from '@/blocks/LatestSermonBlock'
 import { UpcomingEventsBlock } from '@/blocks/UpcomingEventsBlock'
 import { ServiceTimesBlock } from '@/blocks/ServiceTimesBlock'
 import { DailyReadingBlock } from '@/blocks/DailyReadingBlock'
+import { ConnectGroupsBlock } from '@/blocks/ConnectGroupsBlock'
 import { createCacheInvalidationHook } from '@/hooks/revalidateCacheTags'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 
@@ -84,6 +85,7 @@ export const Pages: CollectionConfig = {
         GospelStepperBlock,
         LatestSermonBlock,
         UpcomingEventsBlock,
+        ConnectGroupsBlock,
       ],
     },
     {

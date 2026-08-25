@@ -337,16 +337,27 @@ export async function fetchDailyBibleReadingCommunications(): Promise<RockCommun
 
 export type RockGroup = {
   Id: number
+  Guid: string
   Name: string
   Description: string
   IsActive: boolean
   ParentGroupId: number | null
   GroupCapacity: number | null
   CampusId: number | null
+  ScheduleId: number | null
   Members: RockGroupMember[]
   GroupLocations: Array<{
     Location?: { Street1?: string; City?: string }
   }>
+}
+
+export type RockSchedule = {
+  Id: number
+  Description: string
+  FriendlyScheduleText: string
+  IsActive: boolean
+  WeeklyDayOfWeek: number | null
+  WeeklyTimeOfDay: string | null
 }
 
 export type RockRegistrationInstance = {

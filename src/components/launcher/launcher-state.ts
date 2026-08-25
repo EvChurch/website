@@ -5,7 +5,7 @@ export type LauncherView =
   | { type: 'catalogue' }
   | { type: 'giving' }
   | { type: 'feedback'; title: string }
-  | { type: 'workflow'; workflowTypeGuid: string; imageUrl?: string; body?: unknown; shareTarget?: string; title: string }
+  | { type: 'workflow'; workflowTypeGuid: string; imageUrl?: string; body?: unknown; groupGuid?: string; shareTarget?: string; title: string }
   | { type: 'connection'; blockGuid: string; imageUrl?: string; body?: unknown; shareTarget?: string; title: string }
   | { type: 'registration'; href: string; registrationInstanceId: number; title: string }
   | { type: 'registrationPage'; href: string; imageUrl?: string; body?: unknown; shareTarget: string; title: string }

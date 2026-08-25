@@ -372,6 +372,13 @@ async function seed() {
         ],
       },
       {
+        blockType: 'connectGroups',
+        eyebrow: 'Find your people',
+        heading: 'Find a Connect Group',
+        description:
+          'Explore Connect Groups across Auckland and choose one that works for you.',
+      },
+      {
         blockType: 'cta',
         heading: 'Everyone is welcome',
         text: 'We would love to meet you. Come as you are. No dress code, no expectations. Just a warm community ready to welcome you.',

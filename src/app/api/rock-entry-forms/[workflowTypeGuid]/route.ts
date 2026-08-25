@@ -22,6 +22,10 @@ import type { RockPersonBasicValues, RockPersonEntryValues } from '@/lib/rock-fo
 import { isSameOriginRequest } from '@/lib/request-origin'
 import { safeRockWorkflowRedirect } from '@/lib/rock-forms/redirect'
 import { TurnstileVerificationError } from '@/lib/turnstile'
+import {
+  CONNECT_GROUP_WORKFLOW_GUID,
+} from '@/lib/connect-groups/constants'
+import { isActiveConnectGroupGuid } from '@/lib/connect-groups/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -210,6 +214,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const body = await boundedFormData(request)
     const isStart = body.get('intent') === 'start'
+    const requestedGroupGuid = String(body.get('groupGuid') || '').toLowerCase()
+    if (
+      requestedGroupGuid &&
+      (!isStart ||
+        workflowTypeGuid.toLowerCase() !== CONNECT_GROUP_WORKFLOW_GUID ||
+        !isGuid(requestedGroupGuid) ||
+        !(await isActiveConnectGroupGuid(requestedGroupGuid)))
+    ) {
+      return jsonError('Invalid Connect Group identifier', 400)
+    }
 
     if (!(await isRockFormPublished(workflowTypeGuid))) {
       return jsonError('This form is not published on the website', 404)
@@ -232,7 +246,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     if (isStart) {
       return NextResponse.json(
-        await startRockForm(workflowTypeGuid, await authenticatedPersonId(request)),
+        await startRockForm(
+          workflowTypeGuid,
+          await authenticatedPersonId(request),
+          requestedGroupGuid ? { GroupGuid: requestedGroupGuid } : {},
+        ),
       )
     }
 

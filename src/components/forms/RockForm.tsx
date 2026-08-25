@@ -583,12 +583,14 @@ function PersonSearchField({
 
 export function RockForm({
   workflowTypeGuid,
+  groupGuid,
   initialSchema = null,
   fallbackAction = DEFAULT_FORM_FALLBACK_ACTION,
   scrollContainerRef,
   personDefaults,
 }: {
   workflowTypeGuid: string
+  groupGuid?: string
   initialSchema?: RockFormSchema | null
   fallbackAction?: FormFallbackAction
   scrollContainerRef?: RefObject<HTMLElement | null>
@@ -689,7 +691,7 @@ export function RockForm({
       startController.current?.abort()
       submitController.current?.abort()
     }
-  }, [workflowTypeGuid, initialSchema, startupRetryKey, personDefaults])
+  }, [workflowTypeGuid, groupGuid, initialSchema, startupRetryKey, personDefaults])
 
   const startForm = useCallback(
     async (token: string) => {
@@ -703,6 +705,7 @@ export function RockForm({
         const body = new FormData()
         body.set('intent', 'start')
         body.set('turnstileToken', token)
+        if (groupGuid) body.set('groupGuid', groupGuid)
         const response = await fetch(`/api/rock-entry-forms/${workflowTypeGuid}`, {
           method: 'POST',
           body,
@@ -726,7 +729,7 @@ export function RockForm({
         }
       }
     },
-    [workflowTypeGuid, applySchema],
+    [workflowTypeGuid, groupGuid, applySchema],
   )
 
   const fieldsBySection = useMemo(() => {

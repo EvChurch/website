@@ -44,7 +44,10 @@ import {
   GIVING_LAUNCHER_HREF,
   LAUNCHER_CAMPUS_STORAGE_KEY,
   PLAN_A_VISIT_WORKFLOW_GUID,
+  CONNECT_GROUP_WORKFLOW_GUID,
 } from "@/lib/launcher/constants";
+import { CONNECT_GROUP_LAUNCHER_TARGET } from "@/lib/connect-groups/constants";
+import { isGuid } from "@/lib/rock-forms/constants";
 import type { LauncherCampus, LauncherItem } from "@/lib/launcher/types";
 import type { PublicSiteFeedbackSettings } from "@/lib/site-feedback/settings";
 import {
@@ -90,6 +93,7 @@ function viewForLauncherItem(item: LauncherItem): LauncherView | null {
         workflowTypeGuid: item.action.workflowTypeGuid,
         imageUrl: item.action.imageUrl,
         body: item.action.body,
+        groupGuid: item.action.groupGuid,
         shareTarget: item.id,
       };
     case "connection":
@@ -179,6 +183,12 @@ export function safeRegistrationInstanceId(value: unknown): number | null {
   if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) return null;
   const id = Number(value);
   return Number.isSafeInteger(id) ? id : null;
+}
+
+export function safeConnectGroupGuid(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const guid = value.toLowerCase();
+  return isGuid(guid) ? guid : null;
 }
 
 function registrationLauncherHref(registrationInstanceId: number): string {
@@ -354,6 +364,7 @@ export function NextStepsLauncher({
   const searchParams = useSearchParams();
   const launcherTarget = searchParams.get("launcher");
   const registrationInstanceIdParam = searchParams.get("registrationInstanceId");
+  const groupGuidParam = searchParams.get("groupGuid");
   const pathname = initialPathname ?? currentPathname ?? "/";
   const [state, dispatch] = useReducer(launcherReducer, null, () =>
     createLauncherState(),
@@ -483,6 +494,8 @@ export function NextStepsLauncher({
       `${pathname}?launcher=${launcherTarget}`,
       launcherTarget === "registration"
         ? `registrationInstanceId=${registrationInstanceIdParam ?? ""}`
+        : launcherTarget === CONNECT_GROUP_LAUNCHER_TARGET
+          ? `groupGuid=${groupGuidParam ?? ""}`
         : "",
     ]
       .filter(Boolean)
@@ -508,6 +521,17 @@ export function NextStepsLauncher({
         imageUrl: connectCardImageUrl,
         shareTarget: "connect",
       };
+    } else if (launcherTarget === CONNECT_GROUP_LAUNCHER_TARGET) {
+      const groupGuid = safeConnectGroupGuid(groupGuidParam);
+      if (groupGuid) {
+        targetView = {
+          type: "workflow",
+          title: "Join a Connect Group",
+          workflowTypeGuid: CONNECT_GROUP_WORKFLOW_GUID,
+          groupGuid,
+          shareTarget: CONNECT_GROUP_LAUNCHER_TARGET,
+        };
+      }
     } else if (launcherTarget === "feedback" && feedback) {
       targetView = { type: "feedback", title: feedback.modalTitle };
     } else if (launcherTarget === "registration") {
@@ -555,6 +579,7 @@ export function NextStepsLauncher({
     launcherTarget,
     pathname,
     registrationInstanceIdParam,
+    groupGuidParam,
     selectedCampusItems,
   ]);
 
@@ -570,6 +595,7 @@ export function NextStepsLauncher({
     const nextSearchParams = new URLSearchParams(searchParams.toString());
     nextSearchParams.delete("launcher");
     nextSearchParams.delete("registrationInstanceId");
+    nextSearchParams.delete("groupGuid");
     const query = nextSearchParams.toString();
     router.replace(`${pathname}${query ? `?${query}` : ""}`, { scroll: false });
   }, [pathname, router, searchParams]);
@@ -1017,6 +1043,7 @@ export function NextStepsLauncher({
             )}
             <RockForm
               workflowTypeGuid={state.view.workflowTypeGuid}
+              groupGuid={state.view.groupGuid}
               scrollContainerRef={scrollRef}
               personDefaults={memberProfile}
             />
@@ -1232,11 +1259,14 @@ export function NextStepsLauncher({
                         state.view.registrationInstanceId,
                       ),
                     }
+                  : state.view.type === "workflow" && state.view.groupGuid
+                    ? { groupGuid: state.view.groupGuid }
                   : undefined
               }
               pathname={
                 state.view.type === "registration" ||
-                state.view.type === "registrationPage"
+                state.view.type === "registrationPage" ||
+                (state.view.type === "workflow" && Boolean(state.view.groupGuid))
                   ? pathname
                   : undefined
               }

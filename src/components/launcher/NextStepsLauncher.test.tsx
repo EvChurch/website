@@ -23,10 +23,10 @@ vi.mock("@/components/audio/AudioPlayerProvider", () => ({
   useAudioPlayer: () => mediaPlayer,
 }));
 vi.mock("@/components/forms/RockForm", () => ({
-  RockForm: ({ workflowTypeGuid }: { workflowTypeGuid: string }) => (
+  RockForm: ({ workflowTypeGuid, groupGuid }: { workflowTypeGuid: string; groupGuid?: string }) => (
     <label>
       Form draft
-      <input aria-label={`Workflow ${workflowTypeGuid}`} />
+      <input aria-label={`Workflow ${workflowTypeGuid}`} data-group-guid={groupGuid} />
     </label>
   ),
 }));
@@ -50,6 +50,7 @@ import {
   launcherShareHref,
   launcherShareTarget,
   NextStepsLauncher,
+  safeConnectGroupGuid,
   safeRegistrationInstanceId,
 } from "./NextStepsLauncher";
 import {
@@ -67,6 +68,7 @@ import {
 } from "@/components/giving/GivingExperienceProvider";
 import {
   CONNECT_CARD_WORKFLOW_GUID,
+  CONNECT_GROUP_WORKFLOW_GUID,
   LAUNCHER_CAMPUS_STORAGE_KEY,
   PLAN_A_VISIT_WORKFLOW_GUID,
 } from "@/lib/launcher/constants";
@@ -413,6 +415,26 @@ describe("NextStepsLauncher", () => {
     ).not.toBeNull();
     expect(button(container, "Back")).toBeTruthy();
     expect(button(container, "Close next steps")).toBeTruthy();
+  });
+
+  it("opens the Connect Group workflow with the selected group", async () => {
+    const groupGuid = "9756a8fd-a865-4070-add3-03b3396c4b9a";
+    navigation.pathname = "/connect-groups";
+    window.history.replaceState(
+      null,
+      "",
+      `/connect-groups?launcher=connect-group&groupGuid=${groupGuid}`,
+    );
+
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+
+    const form = container.querySelector(
+      `input[aria-label="Workflow ${CONNECT_GROUP_WORKFLOW_GUID}"]`,
+    );
+    expect(form?.getAttribute("data-group-guid")).toBe(groupGuid);
+    expect(button(container, "Share Join a Connect Group")).toBeTruthy();
   });
 
   it("opens giving from the validated giving launcher target", async () => {
@@ -1402,6 +1424,14 @@ describe("NextStepsLauncher", () => {
     expect(safeRegistrationInstanceId("0")).toBeNull();
     expect(safeRegistrationInstanceId("81x")).toBeNull();
     expect(safeRegistrationInstanceId("9007199254740992")).toBeNull();
+  });
+
+  it("accepts only valid Connect Group GUIDs", () => {
+    expect(safeConnectGroupGuid("9756A8FD-A865-4070-ADD3-03B3396C4B9A")).toBe(
+      "9756a8fd-a865-4070-add3-03b3396c4b9a",
+    );
+    expect(safeConnectGroupGuid("not-a-guid")).toBeNull();
+    expect(safeConnectGroupGuid(null)).toBeNull();
   });
 
   it("accepts only constrained Registration-site paths", () => {
