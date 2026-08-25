@@ -83,39 +83,6 @@ const MOBILE_LAUNCHER_QUERY = "(max-width: 639px)";
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const LAUNCHER_CLOSE_FALLBACK_MS = 300;
 const MAX_LAUNCHER_TARGET_LENGTH = 128;
-const LAUNCHER_SCROLL_RESTORE_STORAGE_KEY = "ev-launcher-scroll-restore";
-
-function rememberLauncherScrollRestore(pathname: string, scrollTop: number) {
-  try {
-    window.sessionStorage.setItem(
-      LAUNCHER_SCROLL_RESTORE_STORAGE_KEY,
-      JSON.stringify({ pathname, scrollTop }),
-    );
-  } catch {
-    // Scroll restoration is a progressive enhancement when storage is unavailable.
-  }
-}
-
-function consumeLauncherScrollRestore(pathname: string): number | null {
-  try {
-    const stored = window.sessionStorage.getItem(
-      LAUNCHER_SCROLL_RESTORE_STORAGE_KEY,
-    );
-    window.sessionStorage.removeItem(LAUNCHER_SCROLL_RESTORE_STORAGE_KEY);
-    if (!stored) return null;
-
-    const parsed: unknown = JSON.parse(stored);
-    if (typeof parsed !== "object" || parsed === null) return null;
-    const candidate = parsed as { pathname?: unknown; scrollTop?: unknown };
-    return candidate.pathname === pathname &&
-      typeof candidate.scrollTop === "number" &&
-      Number.isFinite(candidate.scrollTop)
-      ? candidate.scrollTop
-      : null;
-  } catch {
-    return null;
-  }
-}
 
 function viewForLauncherItem(item: LauncherItem): LauncherView | null {
   switch (item.action.type) {
@@ -228,6 +195,74 @@ function registrationLauncherHref(registrationInstanceId: number): string {
   const url = new URL("https://registration.ev.church/");
   url.searchParams.set("RegistrationInstanceId", String(registrationInstanceId));
   return url.toString();
+}
+
+function launcherViewForTarget({
+  target,
+  registrationInstanceIdParam,
+  groupGuidParam,
+  connectCardImageUrl,
+  feedback,
+  selectedCampusItems,
+}: {
+  target: string;
+  registrationInstanceIdParam?: string | null;
+  groupGuidParam?: string | null;
+  connectCardImageUrl?: string;
+  feedback?: PublicSiteFeedbackSettings | null;
+  selectedCampusItems: LauncherItem[];
+}): LauncherView | null {
+  if (target === "home") return { type: "home" };
+  if (target === "catalogue") return { type: "catalogue" };
+  if (target === "visit") {
+    return {
+      type: "workflow",
+      title: "Plan a Visit",
+      workflowTypeGuid: PLAN_A_VISIT_WORKFLOW_GUID,
+      imageUrl: PLAN_A_VISIT_IMAGE_URL,
+      shareTarget: "visit",
+    };
+  }
+  if (target === "connect") {
+    return {
+      type: "workflow",
+      title: "Connect Card",
+      workflowTypeGuid: CONNECT_CARD_WORKFLOW_GUID,
+      imageUrl: connectCardImageUrl,
+      shareTarget: "connect",
+    };
+  }
+  if (target === CONNECT_GROUP_LAUNCHER_TARGET) {
+    const groupGuid = safeConnectGroupGuid(groupGuidParam);
+    return groupGuid
+      ? {
+          type: "workflow",
+          title: "Join a Connect Group",
+          workflowTypeGuid: CONNECT_GROUP_WORKFLOW_GUID,
+          groupGuid,
+          shareTarget: CONNECT_GROUP_LAUNCHER_TARGET,
+        }
+      : null;
+  }
+  if (target === "feedback") {
+    return feedback ? { type: "feedback", title: feedback.modalTitle } : null;
+  }
+  if (target === "registration") {
+    const registrationInstanceId = safeRegistrationInstanceId(
+      registrationInstanceIdParam,
+    );
+    return registrationInstanceId
+      ? {
+          type: "registration",
+          href: registrationLauncherHref(registrationInstanceId),
+          registrationInstanceId,
+          title: "Registration",
+        }
+      : null;
+  }
+
+  const item = selectedCampusItems.find(({ id }) => id === target);
+  return item ? viewForLauncherItem(item) : null;
 }
 
 function LauncherShareButton({
@@ -441,6 +476,60 @@ export function NextStepsLauncher({
     );
   }, [items, state.campusSlug]);
 
+  const openLauncherTarget = useCallback(
+    ({
+      target,
+      registrationInstanceIdParam,
+      groupGuidParam,
+    }: {
+      target: string;
+      registrationInstanceIdParam?: string | null;
+      groupGuidParam?: string | null;
+    }) => {
+      if (
+        !campusReady ||
+        !target ||
+        target.length > MAX_LAUNCHER_TARGET_LENGTH
+      ) {
+        return false;
+      }
+
+      if (target === "give") {
+        if (!giving.givingSurfaceAvailable) return false;
+        dispatch({
+          type: "openGiving",
+          presentation: isMobile ? "fullscreen" : "compact",
+        });
+        return true;
+      }
+
+      const targetView = launcherViewForTarget({
+        target,
+        registrationInstanceIdParam,
+        groupGuidParam,
+        connectCardImageUrl,
+        feedback,
+        selectedCampusItems,
+      });
+      if (!targetView) return false;
+
+      dispatch({
+        type: "openView",
+        presentation: isMobile ? "fullscreen" : "compact",
+        view: targetView,
+      });
+      return true;
+    },
+    [
+      campusReady,
+      connectCardImageUrl,
+      feedback,
+      giving.givingSurfaceAvailable,
+      isMobile,
+      selectedCampusItems,
+    ],
+  );
+
   useEffect(() => {
     const mediaQuery = window.matchMedia(MOBILE_LAUNCHER_QUERY);
     const updateViewport = () => setIsMobile(mediaQuery.matches);
@@ -450,7 +539,7 @@ export function NextStepsLauncher({
   }, []);
 
   useEffect(() => {
-    const rememberScrollPosition = (event: MouseEvent) => {
+    const openSamePageLauncher = (event: MouseEvent) => {
       if (
         event.button !== 0 ||
         event.metaKey ||
@@ -475,19 +564,32 @@ export function NextStepsLauncher({
       const url = new URL(anchor.href, window.location.href);
       if (
         url.origin !== window.location.origin ||
-        url.pathname !== window.location.pathname ||
-        !url.searchParams.has("launcher")
+        url.pathname !== window.location.pathname
       ) {
         return;
       }
 
-      rememberLauncherScrollRestore(url.pathname, window.scrollY);
+      const targetName = url.searchParams.get("launcher");
+      if (
+        !targetName ||
+        !openLauncherTarget({
+          target: targetName,
+          registrationInstanceIdParam: url.searchParams.get(
+            "registrationInstanceId",
+          ),
+          groupGuidParam: url.searchParams.get("groupGuid"),
+        })
+      ) {
+        return;
+      }
+
+      event.preventDefault();
     };
 
-    document.addEventListener("click", rememberScrollPosition, true);
+    document.addEventListener("click", openSamePageLauncher, true);
     return () =>
-      document.removeEventListener("click", rememberScrollPosition, true);
-  }, []);
+      document.removeEventListener("click", openSamePageLauncher, true);
+  }, [openLauncherTarget]);
 
   useEffect(() => {
     const openRegistration = (event: Event) => {
@@ -510,12 +612,11 @@ export function NextStepsLauncher({
           title,
         },
       });
-      handledLauncherTargetRef.current = `${pathname}?launcher=registration`;
     };
 
     window.addEventListener(OPEN_EVENT_REGISTRATION, openRegistration);
     return () => window.removeEventListener(OPEN_EVENT_REGISTRATION, openRegistration);
-  }, [isMobile, pathname]);
+  }, [isMobile]);
 
   useEffect(() => {
     if (isMobile && state.presentation === "compact") {
@@ -575,85 +676,26 @@ export function NextStepsLauncher({
       .join("&");
     if (handledLauncherTargetRef.current === handledTargetKey) return;
 
-    let targetView: LauncherView | null = null;
-    if (launcherTarget === "home") targetView = { type: "home" };
-    else if (launcherTarget === "catalogue") targetView = { type: "catalogue" };
-    else if (launcherTarget === "visit") {
-      targetView = {
-        type: "workflow",
-        title: "Plan a Visit",
-        workflowTypeGuid: PLAN_A_VISIT_WORKFLOW_GUID,
-        imageUrl: PLAN_A_VISIT_IMAGE_URL,
-        shareTarget: "visit",
-      };
-    } else if (launcherTarget === "connect") {
-      targetView = {
-        type: "workflow",
-        title: "Connect Card",
-        workflowTypeGuid: CONNECT_CARD_WORKFLOW_GUID,
-        imageUrl: connectCardImageUrl,
-        shareTarget: "connect",
-      };
-    } else if (launcherTarget === CONNECT_GROUP_LAUNCHER_TARGET) {
-      const groupGuid = safeConnectGroupGuid(groupGuidParam);
-      if (groupGuid) {
-        targetView = {
-          type: "workflow",
-          title: "Join a Connect Group",
-          workflowTypeGuid: CONNECT_GROUP_WORKFLOW_GUID,
-          groupGuid,
-          shareTarget: CONNECT_GROUP_LAUNCHER_TARGET,
-        };
-      }
-    } else if (launcherTarget === "feedback" && feedback) {
-      targetView = { type: "feedback", title: feedback.modalTitle };
-    } else if (launcherTarget === "registration") {
-      const registrationInstanceId = safeRegistrationInstanceId(
+    if (
+      !openLauncherTarget({
+        target: launcherTarget,
         registrationInstanceIdParam,
-      );
-      if (registrationInstanceId) {
-        targetView = {
-          type: "registration",
-          href: registrationLauncherHref(registrationInstanceId),
-          registrationInstanceId,
-          title: "Registration",
-        };
-      }
-    } else if (launcherTarget === "give" && giving.givingSurfaceAvailable) {
-      handledLauncherTargetRef.current = handledTargetKey;
-      dispatch({
-        type: "openGiving",
-        presentation: isMobile ? "fullscreen" : "compact",
-      });
-      return;
-    } else {
-      const item = selectedCampusItems.find(({ id }) => id === launcherTarget);
-      targetView = item ? viewForLauncherItem(item) : null;
-    }
-
-    if (!targetView) {
+        groupGuidParam,
+      })
+    ) {
       if (handledLauncherTargetRef.current) dispatch({ type: "close" });
       handledLauncherTargetRef.current = null;
       return;
     }
 
     handledLauncherTargetRef.current = handledTargetKey;
-    dispatch({
-      type: "openView",
-      presentation: isMobile ? "fullscreen" : "compact",
-      view: targetView,
-    });
   }, [
     campusReady,
-    connectCardImageUrl,
-    feedback,
-    giving.givingSurfaceAvailable,
-    isMobile,
     launcherTarget,
     pathname,
     registrationInstanceIdParam,
     groupGuidParam,
-    selectedCampusItems,
+    openLauncherTarget,
   ]);
 
   useEffect(() => {
@@ -807,27 +849,6 @@ export function NextStepsLauncher({
       panelRef.current?.querySelector<HTMLElement>(focusableSelector)?.focus();
     });
   }, [state.presentation === "collapsed"]);
-
-  useEffect(() => {
-    if (state.presentation === "collapsed") return;
-    const scrollTop = consumeLauncherScrollRestore(window.location.pathname);
-    if (scrollTop === null) return;
-
-    let restoreFrame: number | null = null;
-    const animationFrame = window.requestAnimationFrame(() => {
-      restoreFrame = window.requestAnimationFrame(() => {
-        const previousScrollBehavior =
-          document.documentElement.style.scrollBehavior;
-        document.documentElement.style.scrollBehavior = "auto";
-        window.scrollTo(window.scrollX, scrollTop);
-        document.documentElement.style.scrollBehavior = previousScrollBehavior;
-      });
-    });
-    return () => {
-      window.cancelAnimationFrame(animationFrame);
-      if (restoreFrame !== null) window.cancelAnimationFrame(restoreFrame);
-    };
-  }, [launcherTarget, state.presentation]);
 
   useEffect(() => {
     if (state.view.type === "catalogue" && scrollRef.current) {

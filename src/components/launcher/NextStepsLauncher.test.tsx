@@ -206,7 +206,6 @@ describe("NextStepsLauncher", () => {
     navigation.pathname = "/about";
     window.history.replaceState(null, "", "/about");
     window.localStorage.clear();
-    window.sessionStorage.clear();
     mockMobileViewport(false);
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
       callback(0);
@@ -418,8 +417,7 @@ describe("NextStepsLauncher", () => {
     expect(button(container, "Close next steps")).toBeTruthy();
   });
 
-  it("restores the page position after a same-page launcher link opens", async () => {
-    const scrollY = vi.spyOn(window, "scrollY", "get").mockReturnValue(480);
+  it("opens a same-page launcher link without navigating or scrolling", async () => {
     const scrollTo = vi
       .spyOn(window, "scrollTo")
       .mockImplementation(() => undefined);
@@ -432,31 +430,37 @@ describe("NextStepsLauncher", () => {
     link.href = "/about?launcher=home";
     link.textContent = "Open launcher";
     document.body.appendChild(link);
-    link.click();
+    await act(async () => link.click());
     link.remove();
 
-    await act(async () => root.unmount());
-    root = createRoot(container);
-    scrollY.mockReturnValue(0);
-    window.history.replaceState(null, "", "/about?launcher=home");
-    await act(async () => {
-      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
-    });
-
-    expect(scrollTo).toHaveBeenCalledWith(0, 480);
+    expect(window.location.pathname).toBe("/about");
+    expect(window.location.search).toBe("");
+    expect(button(container, "Share Your next step")).toBeTruthy();
+    expect(scrollTo).not.toHaveBeenCalled();
   });
 
-  it("does not restore scroll when a launcher URL is loaded directly", async () => {
-    const scrollTo = vi
-      .spyOn(window, "scrollTo")
-      .mockImplementation(() => undefined);
-    window.history.replaceState(null, "", "/about?launcher=home");
+  it("opens the selected Connect Group without navigating", async () => {
+    const groupGuid = "9756a8fd-a865-4070-add3-03b3396c4b9a";
+    navigation.pathname = "/connect-groups";
+    window.history.replaceState(null, "", "/connect-groups");
 
     await act(async () => {
       root.render(<NextStepsLauncher campuses={campuses} items={items} />);
     });
 
-    expect(scrollTo).not.toHaveBeenCalled();
+    const link = document.createElement("a");
+    link.href = `?launcher=connect-group&groupGuid=${groupGuid}`;
+    document.body.appendChild(link);
+    await act(async () => link.click());
+    link.remove();
+
+    expect(window.location.pathname).toBe("/connect-groups");
+    expect(window.location.search).toBe("");
+    expect(
+      container.querySelector(
+        `input[aria-label="Workflow ${CONNECT_GROUP_WORKFLOW_GUID}"]`,
+      )?.getAttribute("data-group-guid"),
+    ).toBe(groupGuid);
   });
 
   it("opens the Connect Group workflow with the selected group", async () => {
