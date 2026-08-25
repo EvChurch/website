@@ -18,6 +18,7 @@ export const CONNECT_GROUP_TYPE_IDS = [25, 46] as const
 export const CONNECT_GROUP_COACH_SECURITY_GROUP_ID = 33287
 export const CONNECT_GROUP_COACHING_PARENT_IDS = [28241, 28781, 28782] as const
 const CONNECT_GROUP_COACHING_GROUP_TYPE_ID = 23
+const SCHEDULE_FILTER_BATCH_SIZE = 25
 
 const MIN_EXISTING_RECORDS_FOR_DROP_GUARD = 10
 const MIN_ACCEPTABLE_SNAPSHOT_RATIO = 0.5
@@ -260,18 +261,20 @@ export async function syncConnectGroups(): Promise<SyncResult> {
         ),
       ),
     )
-    const schedules = scheduleIds.length > 0
-      ? await rockFetchAll<RockSchedule>({
-          endpoint: 'Schedules',
-          getKey: (schedule) => requireDurableId(schedule.Id, 'Rock schedule'),
-          params: {
-            $filter: scheduleIds.map((id) => `Id eq ${id}`).join(' or '),
-            $orderby: 'Id',
-            $select:
-              'Id,Description,FriendlyScheduleText,IsActive,WeeklyDayOfWeek,WeeklyTimeOfDay',
-          },
-        })
-      : []
+    const schedules: RockSchedule[] = []
+    for (let offset = 0; offset < scheduleIds.length; offset += SCHEDULE_FILTER_BATCH_SIZE) {
+      const batch = scheduleIds.slice(offset, offset + SCHEDULE_FILTER_BATCH_SIZE)
+      schedules.push(...await rockFetchAll<RockSchedule>({
+        endpoint: 'Schedules',
+        getKey: (schedule) => requireDurableId(schedule.Id, 'Rock schedule'),
+        params: {
+          $filter: batch.map((id) => `Id eq ${id}`).join(' or '),
+          $orderby: 'Id',
+          $select:
+            'Id,Description,FriendlyScheduleText,IsActive,WeeklyDayOfWeek,WeeklyTimeOfDay',
+        },
+      }))
+    }
     const scheduleById = new Map(schedules.map((schedule) => [schedule.Id, schedule]))
     const memberSnapshots: Array<{ groupId: number; memberships: RockGroupMember[] }> = []
     for (const group of groups) {
