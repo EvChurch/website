@@ -417,6 +417,45 @@ describe("NextStepsLauncher", () => {
     expect(button(container, "Close next steps")).toBeTruthy();
   });
 
+  it("restores the page position after a same-page launcher link opens", async () => {
+    const scrollY = vi.spyOn(window, "scrollY", "get").mockReturnValue(480);
+    const scrollTo = vi
+      .spyOn(window, "scrollTo")
+      .mockImplementation(() => undefined);
+
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+
+    const link = document.createElement("a");
+    link.href = "/about?launcher=home";
+    link.textContent = "Open launcher";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    scrollY.mockReturnValue(0);
+    window.history.replaceState(null, "", "/about?launcher=home");
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+
+    expect(scrollTo).toHaveBeenCalledWith(0, 480);
+  });
+
+  it("does not restore scroll when a launcher URL is loaded directly", async () => {
+    const scrollTo = vi
+      .spyOn(window, "scrollTo")
+      .mockImplementation(() => undefined);
+    window.history.replaceState(null, "", "/about?launcher=home");
+
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
   it("opens the Connect Group workflow with the selected group", async () => {
     const groupGuid = "9756a8fd-a865-4070-add3-03b3396c4b9a";
     navigation.pathname = "/connect-groups";

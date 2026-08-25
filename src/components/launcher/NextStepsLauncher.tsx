@@ -386,6 +386,7 @@ export function NextStepsLauncher({
   const restoreTriggerFocusRef = useRef(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handledLauncherTargetRef = useRef<string | null>(null);
+  const pendingScrollRestoreRef = useRef<number | null>(null);
 
   const connectCardImageUrl = useMemo(() => {
     for (const item of items ?? []) {
@@ -414,6 +415,46 @@ export function NextStepsLauncher({
     updateViewport();
     mediaQuery.addEventListener("change", updateViewport);
     return () => mediaQuery.removeEventListener("change", updateViewport);
+  }, []);
+
+  useEffect(() => {
+    const rememberScrollPosition = (event: MouseEvent) => {
+      if (
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const anchor = target.closest<HTMLAnchorElement>("a[href]");
+      if (
+        !anchor ||
+        anchor.target === "_blank" ||
+        anchor.hasAttribute("download")
+      ) {
+        return;
+      }
+
+      const url = new URL(anchor.href, window.location.href);
+      if (
+        url.origin !== window.location.origin ||
+        url.pathname !== window.location.pathname ||
+        !url.searchParams.has("launcher")
+      ) {
+        return;
+      }
+
+      pendingScrollRestoreRef.current = window.scrollY;
+    };
+
+    document.addEventListener("click", rememberScrollPosition, true);
+    return () =>
+      document.removeEventListener("click", rememberScrollPosition, true);
   }, []);
 
   useEffect(() => {
@@ -734,6 +775,22 @@ export function NextStepsLauncher({
       panelRef.current?.querySelector<HTMLElement>(focusableSelector)?.focus();
     });
   }, [state.presentation === "collapsed"]);
+
+  useEffect(() => {
+    if (state.presentation === "collapsed") return;
+    const scrollTop = pendingScrollRestoreRef.current;
+    if (scrollTop === null) return;
+    pendingScrollRestoreRef.current = null;
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      const previousScrollBehavior =
+        document.documentElement.style.scrollBehavior;
+      document.documentElement.style.scrollBehavior = "auto";
+      window.scrollTo(window.scrollX, scrollTop);
+      document.documentElement.style.scrollBehavior = previousScrollBehavior;
+    });
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [launcherTarget, state.presentation]);
 
   useEffect(() => {
     if (state.view.type === "catalogue" && scrollRef.current) {
