@@ -59,7 +59,10 @@ export const generateBlurPlaceholder: CollectionAfterChangeHook = async ({
       collection: 'media',
       id: doc.id,
       data: { blurDataURL },
-      context: { skipBlurGeneration: true },
+      context: {
+        skipBlurGeneration: true,
+        ...(context?.skipCacheInvalidation ? { skipCacheInvalidation: true } : {}),
+      },
       req,
     })
 

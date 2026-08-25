@@ -48,6 +48,7 @@ export async function syncRockImage({
   const media = await payload.create({
     collection: 'media',
     data: { alt, rockImageGuid: guid },
+    context: { skipCacheInvalidation: true },
     file: {
       data: image.buffer,
       mimetype: image.contentType,
