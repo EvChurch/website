@@ -15,7 +15,10 @@ export async function ConnectGroupsBlockComponent({
   if (groups.length === 0) return null
 
   return (
-    <section className="bg-warm-white px-5 py-20 lg:px-8 lg:py-28">
+    <section
+      id="find-a-connect-group"
+      className="scroll-mt-24 bg-warm-white px-5 py-20 lg:scroll-mt-28 lg:px-8 lg:py-28"
+    >
       <div className="mx-auto max-w-[80rem]">
         <div className="max-w-3xl">
           {eyebrow && (
