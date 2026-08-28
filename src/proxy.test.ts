@@ -109,18 +109,20 @@ describe('admin Auth0 proxy', () => {
 
   it.each([
     ['/Give', '/give'],
-    ['/Login', '/member-sign-in'],
-    ['/login', '/member-sign-in'],
-  ])('permanently redirects legacy public path %s', async (source, destination) => {
+    ['/Login', '/members'],
+    ['/login', '/members'],
+  ])('uses managed missing-path data for legacy public path %s', async (source, destination) => {
+    findRedirect.mockResolvedValue(destination)
+
     const response = await proxy(
       new NextRequest(`https://www.ev.church${source}?returnurl=%2Fcampus%2Fnorth`),
     )
 
-    expect(response.status).toBe(308)
+    expect(findRedirect).toHaveBeenCalledWith(source)
+    expect(response.status).toBe(307)
     expect(response.headers.get('location')).toBe(
       `https://www.ev.church${destination}`,
     )
-    expect(findRedirect).not.toHaveBeenCalled()
   })
 
   it('opens a validated launcher target from a missing path', async () => {
