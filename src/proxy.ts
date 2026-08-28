@@ -20,12 +20,6 @@ const LEGACY_KIDS_ENROLMENT_PATHS = new Set([
   '/kids/enrollment',
 ])
 
-const LEGACY_PUBLIC_REDIRECTS = new Map([
-  ['/Give', '/give'],
-  ['/Login', '/member-sign-in'],
-  ['/login', '/member-sign-in'],
-])
-
 export async function proxy(request: NextRequest) {
   const isAdminAuthRoute = matchesPathPrefix(request.nextUrl.pathname, '/auth')
   const isAdminRoute = matchesPathPrefix(request.nextUrl.pathname, '/admin')
@@ -52,10 +46,6 @@ export async function proxy(request: NextRequest) {
       const requestHeaders = new Headers(request.headers)
       requestHeaders.delete(PUBLIC_PATH_HEADER)
       return NextResponse.next({ request: { headers: requestHeaders } })
-    }
-    const legacyDestination = LEGACY_PUBLIC_REDIRECTS.get(request.nextUrl.pathname)
-    if (legacyDestination) {
-      return NextResponse.redirect(new URL(legacyDestination, request.url), 308)
     }
     if (LEGACY_KIDS_ENROLMENT_PATHS.has(normalizedPath)) {
       return NextResponse.redirect(
