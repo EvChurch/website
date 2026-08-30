@@ -1,5 +1,6 @@
 const ROCK_ORIGIN = 'https://rock.ev.church'
 const ROCK_FETCH_TIMEOUT_MS = 10_000
+const ROCK_IMAGE_PATHS = new Set(['/GetAvatar.ashx', '/GetImage.ashx'])
 
 const FORWARDED_REQUEST_HEADERS = [
   'accept',
@@ -12,7 +13,7 @@ const worker = {
   async fetch(request: Request): Promise<Response> {
     const requestUrl = new URL(request.url)
 
-    if (!requestUrl.pathname.startsWith('/GetImage')) {
+    if (!ROCK_IMAGE_PATHS.has(requestUrl.pathname)) {
       return new Response('Not found', { status: 404 })
     }
 
