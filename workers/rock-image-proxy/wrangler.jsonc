@@ -9,6 +9,10 @@
     {
       "pattern": "www.ev.church/GetImage*",
       "zone_name": "ev.church"
+    },
+    {
+      "pattern": "www.ev.church/GetAvatar*",
+      "zone_name": "ev.church"
     }
   ]
 }

@@ -43,7 +43,29 @@ describe('rock image proxy worker', () => {
     expect(response.headers.has('set-cookie')).toBe(false)
   })
 
-  it('rejects requests outside the GetImage path', async () => {
+  it('forwards GetAvatar requests to Rock with their path and query string', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('avatar', {
+        headers: { 'content-type': 'image/jpeg' },
+        status: 200,
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const response = await worker.fetch(
+      new Request('https://www.ev.church/GetAvatar.ashx?PhotoId=3822'),
+    )
+
+    expect(fetchMock).toHaveBeenCalledOnce()
+    const upstreamRequest = fetchMock.mock.calls[0]?.[0] as Request
+    expect(upstreamRequest.url).toBe(
+      'https://rock.ev.church/GetAvatar.ashx?PhotoId=3822',
+    )
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('image/jpeg')
+  })
+
+  it('rejects requests outside the supported image paths', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
 
