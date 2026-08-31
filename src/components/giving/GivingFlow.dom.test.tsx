@@ -112,6 +112,8 @@ describe('GivingFlow', () => {
   afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.useRealTimers(); vi.unstubAllGlobals() })
 
   it('completes a monthly signed-in path and ends with a concise BlinkPay handoff', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date('2026-08-15T12:00:00.000Z'))
     await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{ signedIn: true, firstName: 'Alex', lastName: 'Taylor', email: 'alex@example.com' }} />))
     await act(async () => change(container.querySelector('input')!, '50'))
     await act(async () => button(container, 'Continue')?.click())
