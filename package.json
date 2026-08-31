@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "next dev",
     "preview:giving-emails": "tsx watch scripts/preview-giving-emails.ts",
-    "build": "payload generate:types && next build",
+    "build": "payload generate:types && payload generate:importmap && next build",
     "test": "vitest run",
     "test:migration:postgres": "vitest run src/migration-tests",
     "seed": "tsx src/seed/seed-pages.ts",
@@ -15,6 +15,7 @@
     "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives",
     "payload": "payload",
     "generate:types": "payload generate:types",
+    "generate:importmap": "payload generate:importmap",
     "sync:rock": "tsx src/workers/rock-sync.ts",
     "sync:daily-bible-readings": "tsx src/workers/daily-bible-reading-import.ts"
   },

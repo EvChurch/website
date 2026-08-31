@@ -4,7 +4,13 @@ import type { NextConfig } from 'next'
 const LONG_LIVED_ASSET_CACHE_CONTROL =
   'public, max-age=31536000, s-maxage=31536000, immutable'
 
+const allowedDevOrigins = process.env.NEXT_ALLOWED_DEV_ORIGINS
+  ?.split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
+
 const nextConfig: NextConfig = {
+  ...(allowedDevOrigins?.length ? { allowedDevOrigins } : {}),
   async headers() {
     return [
       ...[
