@@ -74,8 +74,8 @@ export function nextGivingStep(
   fundConfirmed = true,
 ): GivingStep {
   if (answers.amountMinor === null) return 'amount'
-  if (answers.fund === null || !fundConfirmed) return 'fund'
   if (answers.frequency === null) return 'frequency'
+  if (answers.fund === null || !fundConfirmed) return 'fund'
   if (answers.frequency !== 'one-off' && answers.startDate === null) return 'starting-date'
   for (const field of missingIdentity) {
     if (!answers[field].trim()) return `identity-${field}`
