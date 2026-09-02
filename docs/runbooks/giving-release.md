@@ -1,6 +1,6 @@
 # Giving release controls
 
-BlinkPay acquisition is controlled by the website's authenticated giving eligibility. During the initial production test period, the website offers BlinkPay only after member chrome resolves a real signed-in profile whose email is an exact `@ev.church` address. Signed-out visitors and non-matching signed-in profiles remain on the direct bank-transfer path.
+BlinkPay acquisition is controlled by the website's authenticated giving eligibility. During the initial production test period, the website offers BlinkPay only after member chrome resolves a real signed-in profile whose email is an exact `@ev.church` or `@evchurch.nz` address. Signed-out visitors and non-matching signed-in profiles remain on the direct bank-transfer path.
 
 `BLINKPAY_DEFAULT_ENVIRONMENT` selects the server-owned BlinkPay environment and defaults to `sandbox`. Keep Sandbox credentials in the `BLINKPAY_SANDBOX_*` variables. Change the selector to `production` only after the production evidence below is complete; never place Sandbox credentials in the production variables.
 
@@ -25,7 +25,7 @@ These checks are operational guidance rather than runtime blockers:
 - Verified Ev reconciliation, alerting and operator response evidence.
 - Acquisition shutdown and lifecycle-sustainment rehearsal.
 
-The server accepts BlinkPay checkouts when the selected environment configuration is valid. The authenticated `@ev.church` cohort is a short production test frontend gate, not an API authorization boundary.
+The server accepts BlinkPay checkouts when the selected environment configuration is valid. The authenticated `@ev.church` and `@evchurch.nz` cohort is a short production test frontend gate, not an API authorization boundary.
 
 ## Required evidence sequence
 
