@@ -700,13 +700,40 @@ describe('GivingFlow', () => {
     expect(container.textContent).toContain('still checking the outcome')
     expect(container.textContent).toContain('Do not try again')
     expect(button(container,'Return to your saved gift')).toBeUndefined()
+    expect(container.textContent).not.toContain('Would you tell us what happened?')
+  })
+
+  it('shows neutral failed copy and records one category-only feedback answer',async()=>{
+    window.history.replaceState(null,'','/?giving=return')
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({state:'rejected',retryAllowed:true,kind:'one-off'}),{status:200,headers:{'content-type':'application/json'}}))
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested/>))
+    await act(async()=>Promise.resolve())
+
+    expect(container.textContent).toContain('Gift not completed')
+    expect(container.textContent).toContain('No gift was made.')
+    expect(container.textContent).toContain('Would you tell us what happened?')
+    expect(container.textContent).toContain('I went back to change something')
+    expect(container.textContent).toContain('I decided not to give')
+    expect(container.textContent).toContain('I was testing')
+    expect(container.textContent).toContain('Something didn\u2019t work')
+    expect(container.textContent).toContain('Prefer not to say')
+
+    const testingOption=container.querySelector<HTMLInputElement>('input[value="testing"]')!
+    await act(async()=>testingOption.click())
+    await act(async()=>button(container,'Send feedback')?.click())
+
+    expect(trackGivingEvent.mock.calls.filter(([event])=>event==='giving_outcome_feedback')).toEqual([
+      ['giving_outcome_feedback',{step:'result',outcome:'failed',feedback_reason:'testing'}],
+    ])
+    expect(container.textContent).toContain('Thanks for letting us know.')
+    expect(button(container,'Send feedback')).toBeUndefined()
   })
 
   it('shows delayed reassurance and limits retry to definitive failed outcomes',()=>{
     expect(givingCheckoutPresentation({state:'processing',retryAllowed:true,kind:'one-off'},false)).toEqual({message:'We’re confirming your gift with BlinkPay.',showRetry:false})
     expect(givingCheckoutPresentation({state:'processing',retryAllowed:true,kind:'one-off'},true)).toEqual({message:'This is taking a little longer. You may safely close this flow while Ev keeps checking; there is no need to try again.',showRetry:false})
     expect(givingCheckoutPresentation({state:'unknown',retryAllowed:true,kind:'recurring'}).showRetry).toBe(false)
-    for(const state of ['cancelled','rejected','expired'] as const)expect(givingCheckoutPresentation({state,retryAllowed:true,kind:'one-off'}).showRetry).toBe(true)
+    for(const state of ['cancelled','rejected','expired'] as const)expect(givingCheckoutPresentation({state,retryAllowed:true,kind:'one-off'})).toEqual({message:'No gift was made.',showRetry:true})
     expect(givingCheckoutPresentation({state:'verified',retryAllowed:false,kind:'recurring'}).message).toContain('schedule is active')
   })
 
