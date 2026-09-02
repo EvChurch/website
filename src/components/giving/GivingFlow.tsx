@@ -7,7 +7,7 @@ import { GIVING_REQUEST_MARKERS, isGivingCapabilityToken, parseGivingCheckoutSta
 import { trackGivingEvent, type GivingAnalyticsStep, type GivingFeedbackReason } from '@/lib/giving/analytics'
 import { GIVING_BANK_ACCOUNT, type GivingBankTransferPreparation } from '@/lib/giving/bank-transfer'
 import { assertRedirectUri } from '@/lib/giving/blinkpay/validation'
-import { draftAnswers, createGivingState, givingReducer, previousGivingStep, type GivingAnswers, type GivingFrequency, type GivingIdentityField, type GivingStep } from './giving-state'
+import { draftAnswers, createGivingState, givingReducer, previousGivingStep, type GivingAction, type GivingAnswers, type GivingFrequency, type GivingIdentityField, type GivingStep } from './giving-state'
 import { AmountStep } from './steps/AmountStep'
 import { FrequencyStep } from './steps/FrequencyStep'
 import { FundStep } from './steps/FundStep'
@@ -80,6 +80,7 @@ export function safeGivingGatewayRedirect(value: unknown, allowedOrigins: readon
 }
 
 const definitiveFailedGivingStates: readonly GivingCheckoutStatus['state'][] = ['cancelled', 'rejected', 'expired']
+const GIVING_DRAFT_DISCARD_TIMEOUT_MS = 10_000
 
 export function givingCheckoutPresentation(status: GivingCheckoutStatus, delayed = false) {
   let message: string
@@ -152,6 +153,8 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   const [bankAcknowledging, setBankAcknowledging] = useState(false)
   const [bankAcknowledged, setBankAcknowledged] = useState(false)
   const [paymentMode, setPaymentMode] = useState<'blinkpay' | 'bank-transfer' | null>(null)
+  const [identityReady, setIdentityReady] = useState(!identity.signedIn || (['firstName','lastName','email'] as const).every((field) => Boolean(known[field])))
+  const [savingProgress, setSavingProgress] = useState(false)
   const giving = useGivingExperience()
   const flowRef = useRef<HTMLElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -171,10 +174,17 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   const asyncGeneration = useRef(0)
   const asyncAbort = useRef(new AbortController())
   const givingWasActive = useRef(false)
+  const stateRef = useRef(state)
+  stateRef.current = state
+  const pendingDraftSave = useRef<Promise<void>>(Promise.resolve())
+  const draftSaveAbort = useRef(new AbortController())
+  const savingCompletedStep = useRef(false)
+  const discardingDraft = useRef(false)
+  const closeAfterDiscard = useRef(false)
   const verifiedFingerprint = useRef<string | null>(null)
   const editedIdentity = useRef(new Set<GivingIdentityField>())
   const memberIdentity = useRef<Partial<Record<GivingIdentityField,string>>>(known)
-  const identityResolved = useRef(!identity.signedIn || (['firstName','lastName','email'] as const).every((field) => Boolean(known[field])))
+  const signedInIdentityResolved = useRef(identity.signedIn && (['firstName','lastName','email'] as const).every((field) => Boolean(known[field])))
 
   const answerFingerprint = useMemo(() => JSON.stringify([
     state.answers.amountMinor,
@@ -212,6 +222,41 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     pollTimer.current = null
     delayedTimer.current = null
   }, [])
+  const persistDraft = useCallback(async (answers: GivingAnswers, fundConfirmed: boolean, signal?: AbortSignal) => {
+    const saved = draftAnswers(answers, fundConfirmed)
+    if (!saved) return
+    const response = await fetch('/api/giving/drafts', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(saved), signal, keepalive: true })
+    if (!response.ok) throw new Error('draft unavailable')
+  }, [])
+  const saveCompletedStep = useCallback((actions: readonly GivingAction[]) => {
+    if (discardingDraft.current || savingCompletedStep.current) return
+    const nextState = actions.reduce(givingReducer, stateRef.current)
+    draftSaveAbort.current.abort()
+    draftSaveAbort.current = new AbortController()
+    const signal = draftSaveAbort.current.signal
+    savingCompletedStep.current = true
+    setSavingProgress(true)
+    const save = persistDraft(nextState.answers, nextState.fundConfirmed, signal)
+    pendingDraftSave.current = save
+    void save.then(() => {
+      if (discardingDraft.current || signal.aborted) return
+      if (draftSaveAbort.current.signal === signal) {
+        savingCompletedStep.current = false
+        setSavingProgress(false)
+      }
+      setError(undefined)
+      for (const action of actions) dispatch(action)
+    }).catch((error: unknown) => {
+      if (!discardingDraft.current && !(error instanceof DOMException && error.name === 'AbortError')) {
+        setError('We could not save your progress. Please try again.')
+      }
+    }).finally(() => {
+      if (draftSaveAbort.current.signal === signal && savingCompletedStep.current) {
+        savingCompletedStep.current = false
+        setSavingProgress(false)
+      }
+    })
+  }, [persistDraft])
 
   if (!flowSubmissionKey.current) flowSubmissionKey.current = submissionKey()
   useEffect(() => {
@@ -235,8 +280,6 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     if (!panel) return
     positionGivingSurface(scroller, panel, flowRef.current.querySelector<HTMLElement>('[data-giving-progress]'), intent)
   }, [checkout.type, customDateOpen, state.step])
-  const stateRef = useRef(state)
-  stateRef.current = state
   useEffect(() => {
     if (!giving.givingViewActive) return
     if (!trackedStart.current) {
@@ -250,14 +293,13 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     if(checkout.type==='status'&&checkout.status.state==='verified'&&!trackedVerified.current){trackedVerified.current=true;trackGivingEvent('giving_outcome_verified',{step:'result',outcome:'verified'})}
   },[checkout,giving.givingViewActive,state.step])
   useEffect(() => giving.registerGivingBackHandler(() => {
-    if (checkout.type === 'submitting') return true
+    if (checkout.type === 'submitting' || savingCompletedStep.current) return true
     if (checkout.type !== 'configuring' || previousGivingStep(stateRef.current) === null) return false
     scrollIntent.current = 'edit'
     setError(undefined)
     dispatch({ type: 'back' })
     return true
   }), [checkout.type, giving.registerGivingBackHandler])
-  useEffect(() => giving.registerGivingCloseHandler(() => checkout.type === 'submitting'), [checkout.type, giving.registerGivingCloseHandler])
   useEffect(() => {
     if (giving.givingViewActive) {
       givingWasActive.current = true
@@ -267,7 +309,14 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     if (givingWasActive.current) cancelAsyncWork()
   }, [cancelAsyncWork, giving.givingViewActive])
   useEffect(() => {
-    if (!giving.givingViewActive || !identity.signedIn || identityResolved.current) return
+    if (!giving.givingViewActive || !identity.signedIn || signedInIdentityResolved.current) return
+    if ((['firstName','lastName','email'] as const).every((field) => Boolean(known[field]))) {
+      memberIdentity.current = known
+      signedInIdentityResolved.current = true
+      setIdentityReady(true)
+      return
+    }
+    setIdentityReady(false)
     const operation = currentOperation()
     setIdentityLoading(true)
     void (async () => {
@@ -283,14 +332,17 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
         }
         memberIdentity.current = hydrated
         dispatch({type:'hydrateIdentity',identity:hydrated,unedited:(['firstName','lastName','email'] as const).filter((field)=>!editedIdentity.current.has(field))})
-        identityResolved.current = true
+        signedInIdentityResolved.current = true
       } catch {
-        if (operationIsCurrent(operation)) identityResolved.current = true
+        if (operationIsCurrent(operation)) signedInIdentityResolved.current = true
       } finally {
-        if (operationIsCurrent(operation)) setIdentityLoading(false)
+        if (operationIsCurrent(operation)) {
+          setIdentityLoading(false)
+          setIdentityReady(true)
+        }
       }
     })()
-  }, [currentOperation,giving.givingViewActive,identity.signedIn,operationIsCurrent])
+  }, [currentOperation,giving.givingViewActive,identity.signedIn,known,operationIsCurrent])
   useEffect(() => {
     if (!turnstileToken) return
     if (state.step === 'review' && verifiedFingerprint.current === answerFingerprint) return
@@ -308,18 +360,19 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     const response = await fetch('/api/giving/drafts', { cache: 'no-store', signal: operation.signal })
     if (!operationIsCurrent(operation)) return false
     if (!response.ok) return false
-    const payload = await response.json() as { answers?: { amountMinor: number; fundId: number; frequency: typeof state.answers.frequency; startDate: string | null; firstName: string; lastName: string; email: string } }
+    const payload = await response.json() as { answers?: { amountMinor: number; fundId: number | null; fundConfirmed: boolean; frequency: typeof state.answers.frequency; startDate: string | null; firstName: string; lastName: string; email: string } }
     if (!operationIsCurrent(operation)) return false
     const saved = payload.answers
-    const fund = funds.find((candidate) => candidate.id === saved?.fundId) ?? null
-    if (!saved?.frequency) return false
+    if (!saved) return false
+    const fund = saved.fundId === null ? funds.find((candidate) => candidate.isDefault) ?? null : funds.find((candidate) => candidate.id === saved.fundId) ?? null
     const restored = { ...saved, fund }
     for (const field of ['firstName','lastName','email'] as const) {
       if (!editedIdentity.current.has(field)) restored[field] = memberIdentity.current[field] || known[field] || saved[field]
     }
-    dispatch({ type: 'restore', answers: restored, missingIdentity: (['firstName','lastName','email'] as const).filter((field)=>!restored[field]) })
+    const requiredIdentity = (['firstName','lastName','email'] as const).filter((field) => !identity.signedIn || !restored[field])
+    dispatch({ type: 'restore', answers: restored, fundConfirmed: saved.fundConfirmed && fund !== null, missingIdentity: requiredIdentity })
     return true
-  }, [currentOperation, funds, known, operationIsCurrent])
+  }, [currentOperation, funds, identity.signedIn, known, operationIsCurrent])
 
   const pollStatus = useCallback(async function poll(): Promise<void> {
     if(!pollActive.current||pollInFlight.current)return
@@ -349,6 +402,10 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
 
   useEffect(() => {
     if (!resumeRequested) return
+    if (identity.signedIn && (!identityReady || !signedInIdentityResolved.current)) {
+      setRestoring(true)
+      return
+    }
     const returning = new URLSearchParams(window.location.search).get('giving') === 'return'
     const operation = currentOperation()
     setRestoring(true)
@@ -364,24 +421,58 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     if (returning) delayedTimer.current = setTimeout(() => {
       if (operationIsCurrent(operation)) setCheckout((current) => current.type === 'status' ? { ...current, delayed: true } : current)
     }, 8_000)
-  }, [currentOperation, operationIsCurrent, pollStatus, restoreDraft, resumeRequested])
+  }, [currentOperation, identity.signedIn, identityReady, operationIsCurrent, pollStatus, restoreDraft, resumeRequested])
+  useEffect(() => giving.registerGivingCloseHandler(() => {
+    if (checkout.type === 'submitting' || discardingDraft.current) return true
+    if (closeAfterDiscard.current) {
+      closeAfterDiscard.current = false
+      return false
+    }
+    discardingDraft.current = true
+    void (async () => {
+      draftSaveAbort.current.abort()
+      draftSaveAbort.current = new AbortController()
+      savingCompletedStep.current = false
+      setSavingProgress(false)
+      const discardAbort = new AbortController()
+      const discardTimer = window.setTimeout(() => discardAbort.abort(), GIVING_DRAFT_DISCARD_TIMEOUT_MS)
+      try {
+        const response = await fetch('/api/giving/drafts?scope=flow', { method: 'DELETE', keepalive: true, signal: discardAbort.signal })
+        if (!response.ok) throw new Error('draft unavailable')
+      } catch {
+        discardingDraft.current = false
+        setError('We could not discard your saved gift. Please try closing it again.')
+        return
+      } finally {
+        window.clearTimeout(discardTimer)
+      }
+      pendingDraftSave.current = Promise.resolve()
+      const resetIdentity = Object.fromEntries((['firstName','lastName','email'] as const).map((field) => [field, memberIdentity.current[field] || known[field]]))
+      dispatch({ type: 'reset', funds, identity: resetIdentity })
+      editedIdentity.current.clear()
+      flowSubmissionKey.current = submissionKey()
+      setCheckout({ type: 'configuring' })
+      setError(undefined)
+      setTurnstileToken('')
+      setBankTransfer(null)
+      closeAfterDiscard.current = true
+      discardingDraft.current = false
+      giving.dismissGiving()
+    })()
+    return true
+  }), [checkout.type, funds, giving.dismissGiving, giving.registerGivingCloseHandler, identity.signedIn, known])
   useEffect(() => {
     pollActive.current=true
     return () => {
       cancelAsyncWork()
+      draftSaveAbort.current.abort()
+      savingCompletedStep.current = false
+      setSavingProgress(false)
       if (!leavingFlow.current) void fetch('/api/giving/drafts', { method: 'DELETE', keepalive: true })
     }
   }, [cancelAsyncWork])
 
-  const next = () => { scrollIntent.current = 'forward'; setError(undefined); dispatch({ type: 'next' }) }
-  const persistDraft = async (signal?: AbortSignal) => {
-    const operation = currentOperation()
-    const answers = draftAnswers(state.answers)
-    if (!answers) throw new Error('invalid draft')
-    const response = await fetch('/api/giving/drafts', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(answers), signal: signal ?? operation.signal })
-    if (!operationIsCurrent(operation)) throw new DOMException('Giving flow closed', 'AbortError')
-    if (!response.ok) throw new Error('draft unavailable')
-  }
+  const next = () => { scrollIntent.current = 'forward'; setError(undefined); saveCompletedStep([{ type: 'next' }]) }
   const submit = async () => {
     if (!turnstileToken || state.step !== 'review' || verifiedFingerprint.current !== answerFingerprint || !state.answers.amountMinor || !state.answers.fund || !state.answers.frequency) return
     const operation = currentOperation()
@@ -393,7 +484,11 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     leavingFlow.current = true
     setCheckout({ type: 'submitting' });setError(undefined)
     try {
-      await persistDraft(submitAbort.signal)
+      draftSaveAbort.current.abort()
+      savingCompletedStep.current = false
+      await pendingDraftSave.current.catch(() => undefined)
+      await persistDraft(state.answers, state.fundConfirmed, submitAbort.signal)
+      if (!operationIsCurrent(operation)) return
       const response = await fetch('/api/giving/checkouts', { method:'POST',headers:{'content-type':'application/json','x-ev-giving-request':'checkout-v1'},body:JSON.stringify({submissionKey:flowSubmissionKey.current,amountMinor:state.answers.amountMinor,fundId:state.answers.fund.id,frequency:state.answers.frequency,firstPaymentDate:state.answers.frequency==='one-off'?null:state.answers.startDate,firstName:state.answers.firstName,lastName:state.answers.lastName,email:state.answers.email,turnstileToken}),signal:submitAbort.signal })
       const value = await response.json() as { outcome?: unknown; retryAllowed?: unknown; gatewayRedirectUri?: unknown }
       rotateSubmissionKey = response.status >= 500 && value.retryAllowed === true
@@ -536,13 +631,13 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
       ? <GivingCompletion firstName={status.firstName} kind={status.kind} onDone={() => giving.dismissGiving()} />
       : <div className="rounded-2xl bg-white p-5 shadow-sm"><p role="status" className="font-semibold">{presentation.message}</p>{presentation.showRetry && <button type="button" className="mt-5 font-semibold text-rich-red" onClick={() => void returnToGift()}>Return to your saved gift</button>}{showFeedback && <GivingOutcomeFeedback />}</div>
   } else switch (state.step) {
-    case 'amount': content = <AmountStep value={state.answers.amountMinor} error={error} onContinue={(amountMinor) => { if (!amountMinor || amountMinor < 100) { setError('Enter an amount of at least $1.00.'); return };scrollIntent.current = 'forward';setError(undefined);dispatch({ type: 'commitAmount', amountMinor }) }} />; break
-    case 'fund': content = <FundStep funds={funds} selected={state.answers.fund?.id ?? null} onSelect={(fund) => { scrollIntent.current = 'forward';dispatch({ type: 'setFund', fund });dispatch({ type: 'next' }) }} />; break
-    case 'frequency': content = <FrequencyStep selected={state.answers.frequency} onSelect={(frequency) => { dispatch({ type: 'setFrequency', frequency }); queueMicrotask(next) }} />; break
-    case 'starting-date': content = <StartingDateStep value={state.answers.startDate} frequency={state.answers.frequency!} amountMinor={state.answers.amountMinor!} onCustomOpenChange={(open) => { scrollIntent.current = 'surface';setCustomDateOpen(open) }} onInvalid={() => setError('Choose a valid starting date.')} onSelect={(startDate) => { setCustomDateOpen(false); setError(undefined); dispatch({ type: 'setStartDate', startDate }); queueMicrotask(next) }} />; break
+    case 'amount': content = <AmountStep value={state.answers.amountMinor} error={error} onContinue={(amountMinor) => { if (!amountMinor || amountMinor < 100) { setError('Enter an amount of at least $1.00.'); return };scrollIntent.current = 'forward';setError(undefined);saveCompletedStep([{ type: 'commitAmount', amountMinor }]) }} />; break
+    case 'fund': content = <FundStep funds={funds} selected={state.answers.fund?.id ?? null} onSelect={(fund) => { scrollIntent.current = 'forward';saveCompletedStep([{ type: 'setFund', fund }, { type: 'next' }]) }} />; break
+    case 'frequency': content = <FrequencyStep selected={state.answers.frequency} onSelect={(frequency) => { scrollIntent.current = 'forward';saveCompletedStep([{ type: 'setFrequency', frequency }, { type: 'next' }]) }} />; break
+    case 'starting-date': content = <StartingDateStep value={state.answers.startDate} frequency={state.answers.frequency!} amountMinor={state.answers.amountMinor!} onCustomOpenChange={(open) => { scrollIntent.current = 'surface';setCustomDateOpen(open) }} onInvalid={() => setError('Choose a valid starting date.')} onSelect={(startDate) => { setCustomDateOpen(false); setError(undefined); scrollIntent.current = 'forward';saveCompletedStep([{ type: 'setStartDate', startDate }, { type: 'next' }]) }} />; break
     case 'identity-firstName': case 'identity-lastName': case 'identity-email': {
       const field = state.step.replace('identity-', '') as GivingIdentityField
-      const continueIdentity = editingName.current && field === 'firstName' ? () => { scrollIntent.current = 'forward';dispatch({ type: 'edit', step: 'identity-lastName' }) } : editingName.current && field === 'lastName' ? () => { editingName.current = false;next() } : next
+      const continueIdentity = editingName.current && field === 'firstName' ? () => { scrollIntent.current = 'forward';saveCompletedStep([{ type: 'edit', step: 'identity-lastName' }]) } : editingName.current && field === 'lastName' ? () => { editingName.current = false;next() } : next
       content = identity.signedIn && identityLoading
         ? <p role="status">Loading your saved details…</p>
         : <IdentityStep field={field} value={state.answers[field]} onChange={(value) => {editedIdentity.current.add(field);dispatch({ type: 'setIdentity', field, value })}} onContinue={continueIdentity} />;break
@@ -574,5 +669,5 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     || (previewStep === 'fund' && state.answers.fund !== null)
     || (previewStep === 'starting-date' && state.answers.startDate !== null)
   )
-  return <section aria-labelledby="giving-step-heading" className="mx-auto flex min-h-full max-w-lg flex-col py-2 [overflow-anchor:none]" data-giving-private ref={flowRef}>{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} currentStep={state.step} visitedSteps={state.history} placement="before" onEdit={editAnswer} />}<div key={transitionKey} data-giving-step data-question-panel={highlightedQuestion ? 'highlighted' : undefined} className={`animate-fade-in-up motion-reduce:animate-none ${highlightedQuestion ? 'rounded-[2rem] bg-warm-grey/35 p-5 shadow-sm ring-1 ring-warm-grey/50' : ''}`}><h3 ref={headingRef} tabIndex={-1} id="giving-step-heading" className="mb-6 text-2xl font-semibold text-brand-black outline-none">{heading}</h3><div>{content}{error && state.step !== 'amount' && checkout.type === 'configuring' && <p role="alert" className="mt-4 text-sm text-rich-red">{error}</p>}</div></div>{previewStep && !previewHasEditableAnswer && <GivingStepPreview step={previewStep} label={titles[previewStep]} />}{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} currentStep={state.step} visitedSteps={state.history} placement="after" onEdit={editAnswer} />}<div className="sticky bottom-0 z-10 mt-auto bg-warm-white/95 pb-1 pt-6 backdrop-blur-sm" data-giving-progress><div role="progressbar" aria-label="Giving progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} className="h-5 overflow-hidden rounded-full bg-warm-grey/55"><div className="h-full rounded-full bg-rich-red transition-[width] duration-500 ease-out motion-reduce:transition-none" style={{ width: `${progress}%` }} /></div></div></section>
+  return <section aria-labelledby="giving-step-heading" aria-busy={savingProgress} inert={savingProgress} className="mx-auto flex min-h-full max-w-lg flex-col py-2 [overflow-anchor:none]" data-giving-private ref={flowRef}>{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} currentStep={state.step} visitedSteps={state.history} placement="before" onEdit={editAnswer} />}<div key={transitionKey} data-giving-step data-question-panel={highlightedQuestion ? 'highlighted' : undefined} className={`animate-fade-in-up motion-reduce:animate-none ${highlightedQuestion ? 'rounded-[2rem] bg-warm-grey/35 p-5 shadow-sm ring-1 ring-warm-grey/50' : ''}`}><h3 ref={headingRef} tabIndex={-1} id="giving-step-heading" className="mb-6 text-2xl font-semibold text-brand-black outline-none">{heading}</h3><div>{content}{error && (checkout.type !== 'configuring' || state.step !== 'amount') && <p role="alert" className="mt-4 text-sm text-rich-red">{error}</p>}</div></div>{previewStep && !previewHasEditableAnswer && <GivingStepPreview step={previewStep} label={titles[previewStep]} />}{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} currentStep={state.step} visitedSteps={state.history} placement="after" onEdit={editAnswer} />}<div className="sticky bottom-0 z-10 mt-auto bg-warm-white/95 pb-1 pt-6 backdrop-blur-sm" data-giving-progress><div role="progressbar" aria-label="Giving progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} className="h-5 overflow-hidden rounded-full bg-warm-grey/55"><div className="h-full rounded-full bg-rich-red transition-[width] duration-500 ease-out motion-reduce:transition-none" style={{ width: `${progress}%` }} /></div></div></section>
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { PublicGivingFund } from '@/lib/giving/contracts'
-import { createGivingState, givingReducer, nextGivingStep } from './giving-state'
+import { createGivingState, draftAnswers, givingReducer, nextGivingStep } from './giving-state'
 
 const funds: PublicGivingFund[] = [
   { id: 1, name: 'Community', code: 'COMM', sortOrder: 0, isDefault: false, apprenticeRelated: false },
@@ -165,9 +165,36 @@ describe('giving state', () => {
   it('uses the actual missing identity set after restoring a signed-in draft', () => {
     const saved = { ...createGivingState(funds).answers, amountMinor: 5000, frequency: 'monthly' as const, startDate: '2026-09-01', firstName: 'Fresh', lastName: 'Member', email: '' }
     let state = createGivingState(funds)
-    state = givingReducer(state, { type: 'restore', answers: saved, missingIdentity: ['email'] })
+    state = givingReducer(state, { type: 'restore', answers: saved, fundConfirmed: true, missingIdentity: ['email'] })
     expect(state.step).toBe('identity-email')
-    state = givingReducer(state, { type: 'restore', answers: { ...saved, email: 'fresh@example.com' }, missingIdentity: [] })
+    state = givingReducer(state, { type: 'restore', answers: { ...saved, email: 'fresh@example.com' }, fundConfirmed: true, missingIdentity: [] })
     expect(state.step).toBe('review')
+  })
+
+  it('serializes and restores partial progress without confirming the default fund', () => {
+    const initial = createGivingState(funds)
+    const answers = { ...initial.answers, amountMinor: 10000 }
+    expect(draftAnswers(answers, false)).toEqual({
+      amountMinor: 10000,
+      fundId: null,
+      fundConfirmed: false,
+      frequency: null,
+      startDate: null,
+      firstName: '',
+      lastName: '',
+      email: '',
+    })
+
+    const restored = givingReducer(initial, { type: 'restore', answers, fundConfirmed: false })
+    expect(restored.step).toBe('frequency')
+    expect(restored.history).toEqual(['amount'])
+    expect(restored.answers.fund).toBe(funds[1])
+  })
+
+  it('resets an explicitly discarded flow', () => {
+    let state = createGivingState(funds)
+    state = givingReducer(state, { type: 'commitAmount', amountMinor: 10000 })
+    state = givingReducer(state, { type: 'reset', funds })
+    expect(state).toMatchObject({ step: 'amount', history: [], fundConfirmed: false, answers: { amountMinor: null, frequency: null } })
   })
 })

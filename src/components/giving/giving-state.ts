@@ -45,7 +45,8 @@ export type GivingAction =
   | { type: 'next'; missingIdentity?: readonly GivingIdentityField[] }
   | { type: 'back' }
   | { type: 'edit'; step: GivingStep; returnTo?: GivingStep }
-  | { type: 'restore'; answers: GivingAnswers; missingIdentity?: GivingIdentityField[] }
+  | { type: 'restore'; answers: GivingAnswers; fundConfirmed: boolean; missingIdentity?: GivingIdentityField[] }
+  | { type: 'reset'; funds: readonly PublicGivingFund[]; identity?: Partial<Record<GivingIdentityField, string>> }
 
 export function createGivingState(
   funds: readonly PublicGivingFund[],
@@ -182,23 +183,30 @@ export function givingReducer(state: GivingState, action: GivingAction): GivingS
       return step ? { ...move(state, step), editReturnStep: null, linearNavigation: true } : state
     }
     case 'restore':
+      const restoredIdentity = action.missingIdentity ?? state.missingIdentity
+      const restoredStep = nextGivingStep(action.answers, restoredIdentity, action.fundConfirmed)
+      const restoredOrder = givingStepOrder(action.answers)
       return {
-        step: nextGivingStep(action.answers, action.missingIdentity ?? state.missingIdentity),
+        step: restoredStep,
         answers: action.answers,
-        history: [],
+        history: restoredOrder.slice(0, restoredOrder.indexOf(restoredStep)).filter((step) =>
+          !step.startsWith('identity-') || restoredIdentity.includes(step.replace('identity-', '') as GivingIdentityField)),
         editReturnStep: null,
         linearNavigation: false,
-        fundConfirmed: true,
-        missingIdentity: action.missingIdentity ?? state.missingIdentity,
+        fundConfirmed: action.fundConfirmed,
+        missingIdentity: restoredIdentity,
       }
+    case 'reset':
+      return createGivingState(action.funds, action.identity)
   }
 }
 
-export function draftAnswers(answers: GivingAnswers) {
-  if (!answers.fund || !answers.frequency || answers.amountMinor === null) return null
+export function draftAnswers(answers: GivingAnswers, fundConfirmed: boolean) {
+  if (answers.amountMinor === null) return null
   return {
     amountMinor: answers.amountMinor,
-    fundId: answers.fund.id,
+    fundId: fundConfirmed ? answers.fund?.id ?? null : null,
+    fundConfirmed: fundConfirmed && answers.fund !== null,
     frequency: answers.frequency,
     startDate: answers.startDate,
     firstName: answers.firstName,

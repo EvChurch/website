@@ -30,6 +30,7 @@ import { DELETE, GET, PUT } from './route'
 const answers = {
   amountMinor: 5000,
   fundId: 2,
+  fundConfirmed: true,
   frequency: 'monthly',
   startDate: '2026-09-01',
   firstName: '',
@@ -124,7 +125,7 @@ describe('giving drafts route', () => {
   })
 
   it('requires same origin to revoke and clears the bound resume cookie', async () => {
-    const request = new NextRequest('https://www.ev.church/api/giving/drafts', {
+    const request = new NextRequest('https://www.ev.church/api/giving/drafts?scope=flow', {
       method: 'DELETE',
       headers: { origin: 'https://www.ev.church', cookie: '__Host-ev_giving_resume=resume-token' },
     })
@@ -132,9 +133,36 @@ describe('giving drafts route', () => {
     expect(response.status).toBe(200)
     expect(state.revokeSession).toHaveBeenCalledWith('resume-token')
     expect(response.headers.get('set-cookie')).toContain('__Host-ev_giving_resume=;')
+    expect(response.headers.get('set-cookie')).toContain('__Host-ev_giving_checkout=;')
+    expect(response.headers.get('set-cookie')).toContain('__Host-ev_giving_return=;')
 
     const denied = await DELETE(new NextRequest('https://www.ev.church/api/giving/drafts', { method: 'DELETE', headers: { origin: 'https://evil.test' } }))
     expect(denied.status).toBe(403)
     expect(state.revokeSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('clears browser resume capabilities when server revocation is unavailable', async () => {
+    state.revokeSession.mockRejectedValueOnce(new Error('database unavailable'))
+    const response = await DELETE(new NextRequest('https://www.ev.church/api/giving/drafts?scope=flow', {
+      method: 'DELETE',
+      headers: { origin: 'https://www.ev.church', cookie: '__Host-ev_giving_resume=resume-token' },
+    }))
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('set-cookie')).toContain('__Host-ev_giving_resume=;')
+    expect(response.headers.get('set-cookie')).toContain('__Host-ev_giving_checkout=;')
+    expect(response.headers.get('set-cookie')).toContain('__Host-ev_giving_return=;')
+  })
+
+  it('preserves payment recovery capabilities during ordinary draft cleanup', async () => {
+    const response = await DELETE(new NextRequest('https://www.ev.church/api/giving/drafts', {
+      method: 'DELETE',
+      headers: { origin: 'https://www.ev.church', cookie: '__Host-ev_giving_resume=resume-token' },
+    }))
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('set-cookie')).toContain('__Host-ev_giving_resume=;')
+    expect(response.headers.get('set-cookie')).not.toContain('__Host-ev_giving_checkout=;')
+    expect(response.headers.get('set-cookie')).not.toContain('__Host-ev_giving_return=;')
   })
 })

@@ -109,6 +109,28 @@ describe('GivingFlow', () => {
     expect(container.textContent).toContain('Continue with BlinkPay')
     expect(container.textContent).toContain('BlinkPay is a trusted third party')
   })
+
+  it('hydrates identity before restoring after production changes from anonymous to signed in', async () => {
+    const requests: string[] = []
+    let resolveIdentity: ((response: Response) => void) | undefined
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      const url = String(input)
+      requests.push(url)
+      if (url === '/api/giving/identity') return new Promise<Response>((resolve) => { resolveIdentity = resolve })
+      if (url === '/api/giving/drafts' && !init?.method) return Promise.resolve(new Response(JSON.stringify({ answers: { amountMinor: 2500, fundId: 2, fundConfirmed: true, frequency: 'one-off', startDate: null, firstName: '', lastName: '', email: '' } }), { status: 200, headers: { 'content-type': 'application/json' } }))
+      return Promise.resolve(new Response(null, { status: 204 }))
+    })
+    await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{ signedIn: false }} />))
+    await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{ signedIn: true }} resumeRequested />))
+    expect(container.textContent).toContain('Restoring your gift')
+    expect(container.querySelector('input')).toBeNull()
+    await act(async () => resolveIdentity?.(new Response(JSON.stringify({ signedIn: true, firstName: 'Fresh', lastName: 'Member', email: 'fresh@example.com' }), { status: 200, headers: { 'content-type': 'application/json' } })))
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)))
+
+    expect(requests.indexOf('/api/giving/identity')).toBeLessThan(requests.indexOf('/api/giving/drafts'))
+    expect(container.textContent).toContain('Continue with BlinkPay')
+    expect(container.textContent).not.toContain('What is your first name?')
+  })
   afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.useRealTimers(); vi.unstubAllGlobals() })
 
   it('completes a monthly signed-in path and ends with a concise BlinkPay handoff', async () => {
@@ -475,7 +497,7 @@ describe('GivingFlow', () => {
   it('merges fresh signed-in Rock identity over a resumed blank guest draft', async () => {
     window.history.replaceState(null, '', '/events')
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ answers: {
-      amountMinor: 5000, fundId: 2, frequency: 'monthly', startDate: '2026-09-01',
+      amountMinor: 5000, fundId: 2, fundConfirmed: true, frequency: 'monthly', startDate: '2026-09-01',
       firstName: '', lastName: '', email: '',
     } }), { status: 200, headers: { 'content-type': 'application/json' } }))
     await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested identity={{ signedIn: true, firstName: 'Fresh', lastName: 'Member', email: 'fresh@example.com' }} />))
@@ -489,13 +511,145 @@ describe('GivingFlow', () => {
     vi.mocked(fetch).mockImplementation(async(input)=>String(input)==='/api/giving/identity'
       ? new Response(JSON.stringify({signedIn:true,firstName:'Fresh',lastName:'Member'}),{status:200,headers:{'content-type':'application/json'}})
       : new Response(JSON.stringify({ answers: {
-          amountMinor: 5000, fundId: 2, frequency: 'monthly', startDate: '2026-09-01',
+          amountMinor: 5000, fundId: 2, fundConfirmed: true, frequency: 'monthly', startDate: '2026-09-01',
           firstName: '', lastName: '', email: '',
         } }), { status: 200, headers: { 'content-type': 'application/json' } }))
     await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested identity={{ signedIn: true, firstName: 'Fresh', lastName: 'Member' }} />))
     await act(async () => Promise.resolve())
     expect(container.textContent).toContain('What is your email')
     expect(container.textContent).not.toContain('What is your first name')
+  })
+
+  it('restores an amount-only draft at frequency with the amount still editable', async () => {
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (String(input) === '/api/giving/drafts' && !init?.method) {
+        return new Response(JSON.stringify({ answers: {
+          amountMinor: 10000,
+          fundId: null,
+          fundConfirmed: false,
+          frequency: null,
+          startDate: null,
+          firstName: '',
+          lastName: '',
+          email: '',
+        } }), { status: 200, headers: { 'content-type': 'application/json' } })
+      }
+      return new Response(null, { status: 204 })
+    })
+
+    await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested />))
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)))
+
+    expect(container.textContent).toContain('How often?')
+    expect(container.textContent).toContain('I’d like to give $100.00+$0.50')
+    expect(container.querySelector('[aria-label="Change amount"]')).toBeTruthy()
+  })
+
+  it('saves completed steps progressively and discards them before explicit close', async () => {
+    const writes: Array<Record<string, unknown>> = []
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (String(input) === '/api/giving/drafts' && init?.method === 'PUT') writes.push(JSON.parse(String(init.body)))
+      return new Response(null, { status: 204 })
+    })
+    await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{ signedIn: true, firstName: 'Alex', lastName: 'Taylor', email: 'alex@example.com' }} />))
+
+    await act(async () => change(container.querySelector('input')!, '100'))
+    expect(writes).toHaveLength(0)
+    await act(async () => button(container, 'Continue')?.click())
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)))
+    expect(writes.at(-1)).toMatchObject({ amountMinor: 10000, fundId: null, fundConfirmed: false, frequency: null })
+    expect(vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === 'PUT')?.[1]?.keepalive).toBe(true)
+
+    await act(async () => button(container, 'Just this once')?.click())
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)))
+    expect(writes.at(-1)).toMatchObject({ amountMinor: 10000, fundId: null, fundConfirmed: false, frequency: 'one-off' })
+
+    await act(async () => button(container, 'General')?.click())
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)))
+    expect(writes.at(-1)).toMatchObject({ amountMinor: 10000, fundId: 2, fundConfirmed: true, frequency: 'one-off' })
+
+    expect(givingContext.close?.()).toBe(true)
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)))
+    expect(vi.mocked(fetch).mock.calls.some(([input, init]) => String(input) === '/api/giving/drafts?scope=flow' && init?.method === 'DELETE')).toBe(true)
+    expect(givingContext.dismiss).toHaveBeenCalledOnce()
+    expect(container.textContent).toContain('How much would you like to give?')
+    expect(givingContext.close?.()).toBe(false)
+  })
+
+  it('keeps the flow open when explicit discard fails', async () => {
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (String(input) === '/api/giving/drafts?scope=flow' && init?.method === 'DELETE') throw new Error('offline')
+      return new Response(null, { status: 204 })
+    })
+    await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} />))
+
+    expect(givingContext.close?.()).toBe(true)
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)))
+
+    expect(givingContext.dismiss).not.toHaveBeenCalled()
+    expect(container.textContent).toContain('We could not discard your saved gift. Please try closing it again.')
+    await act(async () => change(container.querySelector('input')!, '100'))
+    await act(async () => button(container, 'Continue')?.click())
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)))
+    const resumedSave = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === 'PUT')
+    expect(resumedSave?.[1]?.signal?.aborted).toBe(false)
+  })
+
+  it('aborts a stalled progressive save before explicit discard', async () => {
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      if (String(input) === '/api/giving/drafts' && init?.method === 'PUT') {
+        return new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+        })
+      }
+      return Promise.resolve(new Response(null, { status: 204 }))
+    })
+    await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} />))
+    await act(async () => change(container.querySelector('input')!, '100'))
+    await act(async () => button(container, 'Continue')?.click())
+
+    expect(givingContext.close?.()).toBe(true)
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)))
+
+    expect(givingContext.dismiss).toHaveBeenCalledOnce()
+  })
+
+  it('does not show the next step until the completed answer is saved', async () => {
+    let resolveSave: ((response: Response) => void) | undefined
+    vi.mocked(fetch).mockImplementation((_input, init) => {
+      if (init?.method !== 'PUT') return Promise.resolve(new Response(null, { status: 204 }))
+      return new Promise<Response>((resolve) => { resolveSave = resolve })
+    })
+    await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} />))
+    await act(async () => change(container.querySelector('input')!, '100'))
+    await act(async () => button(container, 'Continue')?.click())
+    expect(container.textContent).toContain('How much would you like to give?')
+
+    await act(async () => resolveSave?.(new Response(null, { status: 204 })))
+    expect(container.textContent).toContain('How often?')
+  })
+
+  it('allows explicit discard to be retried when its request stalls', async () => {
+    vi.useFakeTimers()
+    let deleteCalls = 0
+    vi.mocked(fetch).mockImplementation((_input, init) => {
+      if (init?.method !== 'DELETE') return Promise.resolve(new Response(null, { status: 204 }))
+      deleteCalls += 1
+      if (deleteCalls > 1) return Promise.resolve(new Response(null, { status: 204 }))
+      return new Promise<Response>((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+      })
+    })
+    await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} />))
+
+    expect(givingContext.close?.()).toBe(true)
+    await act(async () => vi.advanceTimersByTimeAsync(10_000))
+
+    expect(givingContext.dismiss).not.toHaveBeenCalled()
+    expect(container.textContent).toContain('We could not discard your saved gift. Please try closing it again.')
+    expect(givingContext.close?.()).toBe(true)
+    await act(async () => Promise.resolve())
+    expect(givingContext.dismiss).toHaveBeenCalledOnce()
   })
 
   it('accepts only exact BlinkPay HTTPS gateway origins', () => {
@@ -625,10 +779,15 @@ describe('GivingFlow', () => {
 
   it('consumes Back and Close while checkout submission is pending and preserves its draft on unmount', async () => {
     let resolveDraft: ((response: Response) => void) | undefined
+    let draftCalls=0
     let checkoutCalls=0
     vi.mocked(fetch).mockImplementation((input,init) => {
       const url=String(input)
-      if(url==='/api/giving/drafts'&&init?.method==='PUT')return new Promise<Response>((resolve)=>{resolveDraft=resolve})
+      if(url==='/api/giving/drafts'&&init?.method==='PUT'){
+        draftCalls+=1
+        if(draftCalls<=3)return Promise.resolve(new Response(null,{status:204}))
+        return new Promise<Response>((resolve)=>{resolveDraft=resolve})
+      }
       if(url==='/api/giving/checkouts'){checkoutCalls+=1;return Promise.resolve(new Response(null,{status:500}))}
       return Promise.resolve(new Response(null,{status:204}))
     })
