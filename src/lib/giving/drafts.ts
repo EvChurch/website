@@ -20,8 +20,9 @@ export function givingCapabilityCookieNames(secure: boolean) {
 
 export interface GivingDraftAnswers {
   amountMinor: number
-  fundId: number
-  frequency: GivingFrequency
+  fundId: number | null
+  fundConfirmed: boolean
+  frequency: GivingFrequency | null
   startDate: string | null
   firstName: string
   lastName: string
@@ -73,22 +74,35 @@ export function validateGivingDraftAnswers(value: unknown): GivingDraftAnswers {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new GivingDraftCapabilityError()
   const candidate = value as Record<string, unknown>
   const keys = Object.keys(candidate).sort()
-  const expected = ['amountMinor', 'email', 'firstName', 'frequency', 'fundId', 'lastName', 'startDate'].sort()
-  const legacyExpected = [...expected, 'returnPathname'].sort()
+  const previousExpected = ['amountMinor', 'email', 'firstName', 'frequency', 'fundId', 'lastName', 'startDate'].sort()
+  const expected = [...previousExpected, 'fundConfirmed'].sort()
+  const legacyExpected = [...previousExpected, 'returnPathname'].sort()
   const matches = (shape: string[]) => keys.length === shape.length && keys.every((key, index) => key === shape[index])
-  if (!matches(expected) && !matches(legacyExpected)) throw new GivingDraftCapabilityError()
+  if (!matches(expected) && !matches(previousExpected) && !matches(legacyExpected)) throw new GivingDraftCapabilityError()
   const frequency = candidate.frequency
+  const fundId = candidate.fundId
+  const fundConfirmed = candidate.fundConfirmed ?? true
   if (!Number.isSafeInteger(candidate.amountMinor) || Number(candidate.amountMinor) <= 0 ||
-      !Number.isSafeInteger(candidate.fundId) || Number(candidate.fundId) <= 0 ||
-      !GIVING_FREQUENCIES.includes(frequency as GivingFrequency) ||
+      (fundId !== null && (!Number.isSafeInteger(fundId) || Number(fundId) <= 0)) ||
+      (frequency !== null && !GIVING_FREQUENCIES.includes(frequency as GivingFrequency)) ||
+      typeof fundConfirmed !== 'boolean' || (fundConfirmed && fundId === null) ||
+      (frequency === null && candidate.startDate !== null) ||
       (candidate.startDate !== null && (typeof candidate.startDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/u.test(candidate.startDate))) ||
       typeof candidate.firstName !== 'string' || candidate.firstName.length > 150 ||
       typeof candidate.lastName !== 'string' || candidate.lastName.length > 150 ||
       typeof candidate.email !== 'string' || candidate.email.length > 320) {
     throw new GivingDraftCapabilityError()
   }
-  const { returnPathname: _legacyReturnPathname, ...answers } = candidate
-  return answers as unknown as GivingDraftAnswers
+  return {
+    amountMinor: Number(candidate.amountMinor),
+    fundId: fundId === null ? null : Number(fundId),
+    fundConfirmed,
+    frequency: frequency as GivingFrequency | null,
+    startDate: candidate.startDate as string | null,
+    firstName: candidate.firstName,
+    lastName: candidate.lastName,
+    email: candidate.email,
+  }
 }
 
 export function createGivingDraftService(
