@@ -11,6 +11,7 @@ export const dynamic = 'force-dynamic'
 
 export interface GivingReturnDependencies {
   consume(token: string, expectedProviderId: string | null): Promise<{ statusToken: string; checkoutId: number }>
+  validateStatus(token: string): Promise<void>
   completionUrl?(): URL
 }
 
@@ -53,32 +54,45 @@ function callbackAlias(url: URL): true | false {
   return value.length > 0 && value.length <= 128 && (error === null || error.length <= 512) ? true : false
 }
 
-async function defaultConsume(token: string, expectedProviderId: string | null) {
+async function givingService() {
   const payload = await getPayloadClient()
   const pool = requireGivingPostgresPool(payload)
   const noIdentity = async () => { throw new Error('Identity unavailable') }
-  const service = createGivingCheckoutService({
+  return createGivingCheckoutService({
     repository: createPostgresGivingCheckoutRepository(pool),
     digestSecret: process.env.GIVING_CHECKOUT_DIGEST_SECRET ?? '',
     resolveIdentity: noIdentity,
     blinkPay: getBlinkPayRuntimeClient,
   })
-  return service.consumeReturn(token, expectedProviderId)
+}
+
+async function defaultConsume(token: string, expectedProviderId: string | null) {
+  return (await givingService()).consumeReturn(token, expectedProviderId)
+}
+
+async function defaultValidateStatus(token: string) {
+  await (await givingService()).status(token)
 }
 
 export async function handleGivingReturnGet(
   request: NextRequest,
-  dependencies: GivingReturnDependencies = { consume: defaultConsume },
+  dependencies: GivingReturnDependencies = { consume: defaultConsume, validateStatus: defaultValidateStatus },
 ) {
   try {
     const alias = callbackAlias(request.nextUrl)
     if (alias === false) return unavailable()
     const completionUrl = dependencies.completionUrl?.() ?? givingCompletionUrl()
-    const token = request.cookies.get('__Host-ev_giving_return')?.value
-    if (!token) {
-      const statusToken = request.cookies.get('__Host-ev_giving_checkout')?.value
-      return statusToken && isGivingCapabilityToken(statusToken) ? completionRedirect(completionUrl) : unavailable()
+    const statusToken = request.cookies.get('__Host-ev_giving_checkout')?.value
+    if (statusToken && isGivingCapabilityToken(statusToken)) {
+      try {
+        await dependencies.validateStatus(statusToken)
+        return completionRedirect(completionUrl)
+      } catch {
+        // A stale status capability can still accompany the first provider return.
+      }
     }
+    const token = request.cookies.get('__Host-ev_giving_return')?.value
+    if (!token) return unavailable()
     const result = await dependencies.consume(token, null)
     const response = completionRedirect(completionUrl)
     response.cookies.set('__Host-ev_giving_checkout', result.statusToken, {
