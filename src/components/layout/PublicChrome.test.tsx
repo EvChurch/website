@@ -121,36 +121,39 @@ describe('PublicChrome', () => {
     await act(async () => root.unmount())
   })
 
-  it('enables BlinkPay only for an exact signed-in Ev email without impersonation', async () => {
-    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
-      memberProfile: { name: 'Aroha Ngata', email: 'aroha@ev.church', avatarUrl: '/member-avatar' },
-      memberCampusSlug: 'north',
-      adminHref: null,
-      impersonation: null,
-      givingResumeRequested: false,
-      givingTurnstileSiteKey: 'turnstile-key',
-      postHogIdentity: null,
-    }), { status: 200, headers: { 'content-type': 'application/json' } }))
-    const container = document.createElement('div')
-    document.body.append(container)
-    const root = createRoot(container)
+  it('enables BlinkPay only for exact signed-in Ev email domains without impersonation', async () => {
+    for (const email of ['aroha@ev.church', 'aroha@evchurch.nz']) {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({
+        memberProfile: { name: 'Aroha Ngata', email, avatarUrl: '/member-avatar' },
+        memberCampusSlug: 'north',
+        adminHref: null,
+        impersonation: null,
+        givingResumeRequested: false,
+        givingTurnstileSiteKey: 'turnstile-key',
+        postHogIdentity: null,
+      }), { status: 200, headers: { 'content-type': 'application/json' } }))
+      const container = document.createElement('div')
+      document.body.append(container)
+      const root = createRoot(container)
 
-    await act(async () => root.render(
-      <PublicChrome
-        {...givingProps}
-        givingFunds={publicGivingFunds}
-        givingRuntime={{ eligibility: 'production', gatewayOrigins: ['https://secure.blinkpay.co.nz'] }}
-        launcher={launcher}
-        feedback={null}
-        announcement={null}
-        footer={<div data-footer />}
-      >
-        <p>Page</p>
-      </PublicChrome>,
-    ))
+      await act(async () => root.render(
+        <PublicChrome
+          {...givingProps}
+          givingFunds={publicGivingFunds}
+          givingRuntime={{ eligibility: 'production', gatewayOrigins: ['https://secure.blinkpay.co.nz'] }}
+          launcher={launcher}
+          feedback={null}
+          announcement={null}
+          footer={<div data-footer />}
+        >
+          <p>Page</p>
+        </PublicChrome>,
+      ))
 
-    expect(container.querySelector('[data-giving-eligibility]')?.getAttribute('data-blinkpay-eligible')).toBe('true')
-    await act(async () => root.unmount())
+      expect(container.querySelector('[data-giving-eligibility]')?.getAttribute('data-blinkpay-eligible')).toBe('true')
+      await act(async () => root.unmount())
+      container.remove()
+    }
   })
 
   it('keeps BlinkPay eligibility unresolved until private member chrome returns', async () => {
@@ -195,6 +198,10 @@ describe('PublicChrome', () => {
     const states = [
       {
         memberProfile: { name: 'Aroha Ngata', email: 'aroha@staff.ev.church', avatarUrl: null },
+        impersonation: null,
+      },
+      {
+        memberProfile: { name: 'Aroha Ngata', email: 'aroha@staff.evchurch.nz', avatarUrl: null },
         impersonation: null,
       },
       {
