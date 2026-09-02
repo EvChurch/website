@@ -15,8 +15,8 @@ const answerSurface = 'relative flex min-h-14 w-full items-center rounded-full p
 export function GivingStepPreview({ step, label }: { step: GivingStep; label: string }) {
   return (
     <div aria-hidden="true" data-giving-step-preview={step} className="pointer-events-none mt-8">
-      <div data-giving-preview-outline className="min-h-14 w-full rounded-full shadow-sm ring-1 ring-inset ring-warm-grey/45">
-        <div data-giving-answer-preview className={`${answerSurface} animate-fade-in-up bg-white text-dark-grey [mask-image:linear-gradient(to_bottom,#000_0%,#000_45%,transparent_100%)] motion-reduce:animate-none`}>{label}</div>
+      <div data-giving-preview-outline className="min-h-14 w-full rounded-full ring-1 ring-inset ring-warm-grey/25">
+        <div data-giving-answer-preview className={`${answerSurface} animate-fade-in-up bg-white text-dark-grey [mask-image:linear-gradient(to_bottom,rgba(0,0,0,0.6)_0%,transparent_80%)] motion-reduce:animate-none`}>{label}</div>
       </div>
     </div>
   )
