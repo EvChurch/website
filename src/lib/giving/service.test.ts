@@ -360,6 +360,33 @@ describe('giving checkout orchestration', () => {
     expect(completeOneOff).toHaveBeenCalledTimes(1)
   })
 
+  it('treats a rejected one-off payment as terminal when its consent is consumed', async () => {
+    const rejected = {
+      quick_payment_id: 'quick-1',
+      consent: {
+        consent_id: 'consent-1',
+        status: 'Consumed',
+        creation_timestamp: '2026-08-15T00:00:00Z',
+        status_updated_timestamp: '2026-08-15T00:00:01Z',
+        detail: {},
+        payments: [{
+          payment_id: 'payment-1',
+          type: 'single',
+          status: 'Rejected',
+          creation_timestamp: '2026-08-15T00:00:00Z',
+          status_updated_timestamp: '2026-08-15T00:00:01Z',
+          detail: {},
+          refunds: [],
+        }],
+      },
+    }
+    const { checkout } = service(repository(), { getQuickPayment: vi.fn(async () => rejected) })
+    const started = await checkout.start({ ...context, submission: baseSubmission })
+    const returned = await checkout.consumeReturn(returnToken(started))
+
+    expect(await checkout.status(returned.statusToken)).toEqual({ state: 'rejected', retryAllowed: true, kind: 'one-off' })
+  })
+
   it('rejects a mismatched callback alias without consuming the return capability', async () => {
     const { checkout } = service()
     const started = await checkout.start({ ...context, submission: baseSubmission })

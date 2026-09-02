@@ -421,7 +421,9 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
       if (!operation?.providerId) return dependencies.repository.setProcessing(checkout.id)
       const quick = await blinkPay.getQuickPayment(operation.providerId)
       const settled = quick.consent.payments.find((payment) => blinkPay.isPaymentSettled(payment))
+      const rejected = quick.consent.payments.find((payment) => payment.status === 'Rejected')
       if (settled) await dependencies.repository.completeOneOff(checkout, settled.payment_id, new Date(settled.status_updated_timestamp), settled.provider_correlation_id)
+      else if (rejected) await dependencies.repository.setFailed(checkout.id, 'rejected')
       else {
         const failure = failedConsent(quick.consent.status)
         if (failure) await dependencies.repository.setFailed(checkout.id, failure)
