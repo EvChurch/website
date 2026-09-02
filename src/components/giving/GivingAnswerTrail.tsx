@@ -1,4 +1,4 @@
-import type { GivingAnswers, GivingStep } from './giving-state'
+import { givingStepOrder, type GivingAnswers, type GivingStep } from './giving-state'
 import { givingStartDateSummary } from './steps/StartingDateStep'
 
 const frequencyLabels: Record<Exclude<GivingAnswers['frequency'], null>, string> = {
@@ -35,16 +35,7 @@ function summary(step: GivingStep, answers: GivingAnswers): { label: string; val
 
 export function GivingAnswerTrail({ answers, currentStep, visitedSteps, placement, onEdit }: { answers: GivingAnswers; currentStep: GivingStep; visitedSteps: readonly GivingStep[]; placement: 'before' | 'after'; onEdit: (step: GivingStep) => void }) {
   if (currentStep === 'review') return null
-  const journey: GivingStep[] = [
-    'amount',
-    'frequency',
-    'fund',
-    ...(answers.frequency === 'one-off' ? [] : ['starting-date' as const]),
-    'identity-firstName',
-    'identity-lastName',
-    'identity-email',
-    'review',
-  ]
+  const journey = givingStepOrder(answers)
   const currentIndex = journey.indexOf(currentStep)
   const visited = new Set(visitedSteps)
   const candidates = placement === 'before'

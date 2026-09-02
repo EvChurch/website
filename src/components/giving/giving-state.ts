@@ -85,26 +85,41 @@ export function nextGivingStep(
   return 'review'
 }
 
+export function givingStepOrder(answers: GivingAnswers): GivingStep[] {
+  return [
+    'amount',
+    'frequency',
+    'fund',
+    ...(answers.frequency === 'one-off' ? [] : ['starting-date' as const]),
+    'identity-firstName',
+    'identity-lastName',
+    'identity-email',
+    'review',
+  ]
+}
+
 function move(state: GivingState, step: GivingStep): GivingState {
   if (step === state.step) return state
   return { ...state, step, history: state.history.includes(state.step) ? state.history : [...state.history, state.step] }
 }
 
 function givingJourney(state: GivingState): GivingStep[] {
-  return [
-    'amount',
-    'frequency',
-    'fund',
-    ...(state.answers.frequency === 'one-off' ? [] : ['starting-date' as const]),
+  const identitySteps = new Set<GivingStep>([
     ...state.missingIdentity.map((field) => `identity-${field}` as const),
-    'review',
-  ]
+    ...state.history.filter((step) => step.startsWith('identity-')),
+    ...(state.step.startsWith('identity-') ? [state.step] : []),
+  ])
+  return givingStepOrder(state.answers).filter((step) => !step.startsWith('identity-') || identitySteps.has(step))
 }
 
 function adjacentGivingStep(state: GivingState, offset: -1 | 1): GivingStep | null {
   const journey = givingJourney(state)
   const index = journey.indexOf(state.step)
   return journey[index + offset] ?? null
+}
+
+export function previousGivingStep(state: GivingState): GivingStep | null {
+  return state.editReturnStep ?? adjacentGivingStep(state, -1)
 }
 
 export function givingReducer(state: GivingState, action: GivingAction): GivingState {
@@ -163,8 +178,8 @@ export function givingReducer(state: GivingState, action: GivingAction): GivingS
     case 'edit':
       return { ...move(state, action.step), editReturnStep: action.returnTo ?? state.editReturnStep, linearNavigation: false }
     case 'back': {
-      const step = adjacentGivingStep(state, -1)
-      return step ? { ...move(state, step), editReturnStep: null, linearNavigation: true } : state
+      const step = previousGivingStep(state)
+      return step ? { ...move(state, step), editReturnStep: null, linearNavigation: state.editReturnStep === null } : state
     }
     case 'restore':
       return {

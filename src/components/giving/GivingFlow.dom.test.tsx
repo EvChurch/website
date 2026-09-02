@@ -572,6 +572,23 @@ describe('GivingFlow', () => {
     expect(container.textContent).toContain('What fund should this be for?')
   })
 
+  it('returns to the originating step when backing out of an explicit answer edit', async () => {
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
+    await act(async()=>change(container.querySelector('input')!,'25'))
+    await act(async()=>button(container,'Continue')?.click())
+    await act(async()=>button(container,'Every month')?.click())
+    await act(async()=>button(container,'General')?.click())
+    expect(container.textContent).toContain('Starting when?')
+
+    await act(async()=>container.querySelector<HTMLButtonElement>('[aria-label="Change amount"]')?.click())
+    expect(container.textContent).toContain('How much would you like to give?')
+
+    let handled = false
+    await act(async()=>{ handled = givingContext.back?.() ?? false })
+    expect(handled).toBe(true)
+    expect(container.textContent).toContain('Starting when?')
+  })
+
   it('consumes Back and Close while checkout submission is pending and preserves its draft on unmount', async () => {
     let resolveDraft: ((response: Response) => void) | undefined
     let checkoutCalls=0
