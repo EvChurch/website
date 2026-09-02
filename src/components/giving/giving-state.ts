@@ -119,7 +119,7 @@ function adjacentGivingStep(state: GivingState, offset: -1 | 1): GivingStep | nu
 }
 
 export function previousGivingStep(state: GivingState): GivingStep | null {
-  return state.editReturnStep ?? adjacentGivingStep(state, -1)
+  return adjacentGivingStep(state, -1)
 }
 
 export function givingReducer(state: GivingState, action: GivingAction): GivingState {
@@ -179,7 +179,7 @@ export function givingReducer(state: GivingState, action: GivingAction): GivingS
       return { ...move(state, action.step), editReturnStep: action.returnTo ?? state.editReturnStep, linearNavigation: false }
     case 'back': {
       const step = previousGivingStep(state)
-      return step ? { ...move(state, step), editReturnStep: null, linearNavigation: state.editReturnStep === null } : state
+      return step ? { ...move(state, step), editReturnStep: null, linearNavigation: true } : state
     }
     case 'restore':
       return {

@@ -99,7 +99,7 @@ describe('giving state', () => {
     expect(state.step).toBe('fund')
   })
 
-  it('backs out of an explicit amount edit to its originating step', () => {
+  it('does not use an explicit edit origin as a Back destination', () => {
     let state = createGivingState(funds, { firstName: 'Alex', lastName: 'Taylor', email: 'alex@example.com' })
     state = {
       ...state,
@@ -110,7 +110,24 @@ describe('giving state', () => {
 
     state = givingReducer(state, { type: 'edit', step: 'amount', returnTo: 'review' })
     state = givingReducer(state, { type: 'back' })
-    expect(state.step).toBe('review')
+    expect(state.step).toBe('amount')
+  })
+
+  it('backs from a later edited answer to its canonical previous step', () => {
+    let state = createGivingState(funds, { firstName: 'Alex', lastName: 'Taylor', email: 'alex@example.com' })
+    state = {
+      ...state,
+      step: 'starting-date',
+      fundConfirmed: true,
+      answers: { ...state.answers, amountMinor: 5000, frequency: 'monthly', startDate: '2026-09-01' },
+    }
+
+    state = givingReducer(state, { type: 'edit', step: 'fund', returnTo: 'starting-date' })
+    state = givingReducer(state, { type: 'back' })
+    expect(state.step).toBe('frequency')
+    state = givingReducer(state, { type: 'setFrequency', frequency: 'monthly' })
+    state = givingReducer(state, { type: 'next' })
+    expect(state.step).toBe('fund')
   })
 
   it('backs from the current identity step after profile hydration fills it', () => {
