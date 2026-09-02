@@ -7,6 +7,8 @@ import { PublicChrome } from '@/components/layout/PublicChrome'
 import { OrganizationJsonLd } from '@/components/seo/OrganizationJsonLd'
 import { resolveGivingRuntimeConfiguration } from '@/lib/giving/availability'
 import { getCachedActiveGivingFunds } from '@/lib/giving/funds'
+import { DEFAULT_GIVING_TRANSACTION_FEE_MINOR } from '@/lib/giving/fees'
+import { getCachedGivingTransactionFeeMinor } from '@/lib/giving/settings'
 import { loadLauncherData } from '@/lib/launcher/service-guide'
 import { loadSiteFeedbackSettings } from '@/lib/site-feedback/settings'
 import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
@@ -90,10 +92,19 @@ export default async function FrontendLayout({ children }: { children: ReactNode
       return []
     }
   }
-  const [launcher, feedback, givingFunds] = await Promise.all([
+  const loadGivingTransactionFee = async () => {
+    try {
+      return await getCachedGivingTransactionFeeMinor()
+    } catch {
+      console.error('Giving settings are unavailable.')
+      return DEFAULT_GIVING_TRANSACTION_FEE_MINOR
+    }
+  }
+  const [launcher, feedback, givingFunds, givingTransactionFeeMinor] = await Promise.all([
     loadLauncherData(),
     loadSiteFeedbackSettings(),
     loadGivingFunds(),
+    loadGivingTransactionFee(),
   ])
   const givingRuntime = resolveGivingRuntimeConfiguration()
 
@@ -109,6 +120,7 @@ export default async function FrontendLayout({ children }: { children: ReactNode
           announcement={<AnnouncementBanner />}
           footer={<Footer />}
           givingFunds={givingFunds}
+          givingTransactionFeeMinor={givingTransactionFeeMinor}
           givingRuntime={givingRuntime}
         >
           {children}

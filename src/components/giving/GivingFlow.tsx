@@ -17,6 +17,7 @@ import { GivingAnswerTrail, GivingStepPreview } from './GivingAnswerTrail'
 import { BankTransferHandoff } from './BankTransferHandoff'
 import { GivingCompletion, GivingPreparation } from './GivingCompletion'
 import { useGivingExperience } from './GivingExperienceProvider'
+import { DEFAULT_GIVING_TRANSACTION_FEE_MINOR } from '@/lib/giving/fees'
 
 export interface GivingFlowIdentity { signedIn: boolean; firstName?: string; lastName?: string; email?: string }
 type CheckoutView = { type: 'configuring' } | { type: 'submitting' } | { type: 'status'; status: GivingCheckoutStatus; delayed: boolean }
@@ -42,17 +43,23 @@ export function givingProgress(step: GivingStep, frequency: GivingFrequency | nu
   return Math.round(((steps.indexOf(step) + 1) / steps.length) * 100)
 }
 
-export function givingHandoffSummary(answers: GivingAnswers) {
+export function givingHandoffSummary(answers: GivingAnswers, transactionFeeMinor = DEFAULT_GIVING_TRANSACTION_FEE_MINOR) {
   const amount = `$${((answers.amountMinor ?? 0) / 100).toFixed(2)}`
+  const fee = `$${(transactionFeeMinor / 100).toFixed(2)}`
+  const total = `$${(((answers.amountMinor ?? 0) + transactionFeeMinor) / 100).toFixed(2)}`
   const fund = answers.fund?.name ?? 'your selected fund'
-  if (answers.frequency === 'one-off') return `You’re giving ${amount} to ${fund} just this once.`
+  if (answers.frequency === 'one-off') return transactionFeeMinor > 0
+    ? `You’re giving ${amount} plus a ${fee} transaction fee to ${fund} just this once. BlinkPay will charge ${total}.`
+    : `You’re giving ${amount} to ${fund} just this once.`
   const frequency = answers.frequency === 'weekly' ? 'every week'
     : answers.frequency === 'fortnightly' ? 'every two weeks'
       : answers.frequency === 'monthly' ? 'every month'
         : answers.frequency === 'annual' ? 'every year'
           : 'every day'
   const starting = answers.startDate ? `, starting ${givingStartDateSummary(answers.startDate)}` : ''
-  return `You’re giving ${amount} to ${fund} ${frequency}${starting}.`
+  return transactionFeeMinor > 0
+    ? `You’re giving ${amount} plus a ${fee} transaction fee to ${fund} ${frequency}${starting}. BlinkPay will charge ${total} each time.`
+    : `You’re giving ${amount} to ${fund} ${frequency}${starting}.`
 }
 
 type GivingScrollIntent = 'forward' | 'edit' | 'surface'
@@ -138,7 +145,7 @@ function submissionKey() {
   return btoa(binary).replace(/\+/gu, '-').replace(/\//gu, '_').replace(/=+$/gu, '')
 }
 
-export function GivingFlow({ funds, identity = { signedIn: false }, resumeRequested = false, turnstileSiteKey, gatewayOrigins }: { funds: PublicGivingFund[]; identity?: GivingFlowIdentity; resumeRequested?: boolean; turnstileSiteKey: string; gatewayOrigins: readonly string[] }) {
+export function GivingFlow({ funds, identity = { signedIn: false }, resumeRequested = false, transactionFeeMinor = DEFAULT_GIVING_TRANSACTION_FEE_MINOR, turnstileSiteKey, gatewayOrigins }: { funds: PublicGivingFund[]; identity?: GivingFlowIdentity; resumeRequested?: boolean; transactionFeeMinor?: number; turnstileSiteKey: string; gatewayOrigins: readonly string[] }) {
   const known = useMemo(() => ({ firstName: identity.firstName ?? '', lastName: identity.lastName ?? '', email: identity.email ?? '' }), [identity.email, identity.firstName, identity.lastName])
   const [state, dispatch] = useReducer(givingReducer, undefined, () => createGivingState(funds, known))
   const [error, setError] = useState<string>()
@@ -156,6 +163,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   const [identityReady, setIdentityReady] = useState(!identity.signedIn || (['firstName','lastName','email'] as const).every((field) => Boolean(known[field])))
   const [savingProgress, setSavingProgress] = useState(false)
   const giving = useGivingExperience()
+  const applicableTransactionFeeMinor = giving.blinkPayEnabled ? transactionFeeMinor : 0
   const flowRef = useRef<HTMLElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const scrollIntent = useRef<GivingScrollIntent | null>(null)
@@ -489,7 +497,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
       await pendingDraftSave.current.catch(() => undefined)
       await persistDraft(state.answers, state.fundConfirmed, submitAbort.signal)
       if (!operationIsCurrent(operation)) return
-      const response = await fetch('/api/giving/checkouts', { method:'POST',headers:{'content-type':'application/json','x-ev-giving-request':'checkout-v1'},body:JSON.stringify({submissionKey:flowSubmissionKey.current,amountMinor:state.answers.amountMinor,fundId:state.answers.fund.id,frequency:state.answers.frequency,firstPaymentDate:state.answers.frequency==='one-off'?null:state.answers.startDate,firstName:state.answers.firstName,lastName:state.answers.lastName,email:state.answers.email,turnstileToken}),signal:submitAbort.signal })
+      const response = await fetch('/api/giving/checkouts', { method:'POST',headers:{'content-type':'application/json','x-ev-giving-request':'checkout-v1'},body:JSON.stringify({submissionKey:flowSubmissionKey.current,amountMinor:state.answers.amountMinor,transactionFeeMinor:applicableTransactionFeeMinor,fundId:state.answers.fund.id,frequency:state.answers.frequency,firstPaymentDate:state.answers.frequency==='one-off'?null:state.answers.startDate,firstName:state.answers.firstName,lastName:state.answers.lastName,email:state.answers.email,turnstileToken}),signal:submitAbort.signal })
       const value = await response.json() as { outcome?: unknown; retryAllowed?: unknown; gatewayRedirectUri?: unknown }
       rotateSubmissionKey = response.status >= 500 && value.retryAllowed === true
       if (!operationIsCurrent(operation)) return
@@ -526,6 +534,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
         body: JSON.stringify({
           submissionKey: flowSubmissionKey.current,
           amountMinor: state.answers.amountMinor,
+          transactionFeeMinor: 0,
           fundId: state.answers.fund.id,
           frequency: state.answers.frequency,
           firstPaymentDate: state.answers.frequency === 'one-off' ? null : state.answers.startDate,
@@ -631,7 +640,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
       ? <GivingCompletion firstName={status.firstName} kind={status.kind} onDone={() => giving.dismissGiving()} />
       : <div className="rounded-2xl bg-white p-5 shadow-sm"><p role="status" className="font-semibold">{presentation.message}</p>{presentation.showRetry && <button type="button" className="mt-5 font-semibold text-rich-red" onClick={() => void returnToGift()}>Return to your saved gift</button>}{showFeedback && <GivingOutcomeFeedback />}</div>
   } else switch (state.step) {
-    case 'amount': content = <AmountStep value={state.answers.amountMinor} error={error} onContinue={(amountMinor) => { if (!amountMinor || amountMinor < 100) { setError('Enter an amount of at least $1.00.'); return };scrollIntent.current = 'forward';setError(undefined);saveCompletedStep([{ type: 'commitAmount', amountMinor }]) }} />; break
+    case 'amount': content = <AmountStep value={state.answers.amountMinor} transactionFeeMinor={applicableTransactionFeeMinor} error={error} onContinue={(amountMinor) => { if (!amountMinor || amountMinor < 100) { setError('Enter an amount of at least $1.00.'); return };scrollIntent.current = 'forward';setError(undefined);saveCompletedStep([{ type: 'commitAmount', amountMinor }]) }} />; break
     case 'fund': content = <FundStep funds={funds} selected={state.answers.fund?.id ?? null} onSelect={(fund) => { scrollIntent.current = 'forward';saveCompletedStep([{ type: 'setFund', fund }, { type: 'next' }]) }} />; break
     case 'frequency': content = <FrequencyStep selected={state.answers.frequency} onSelect={(frequency) => { scrollIntent.current = 'forward';saveCompletedStep([{ type: 'setFrequency', frequency }, { type: 'next' }]) }} />; break
     case 'starting-date': content = <StartingDateStep value={state.answers.startDate} frequency={state.answers.frequency!} amountMinor={state.answers.amountMinor!} onCustomOpenChange={(open) => { scrollIntent.current = 'surface';setCustomDateOpen(open) }} onInvalid={() => setError('Choose a valid starting date.')} onSelect={(startDate) => { setCustomDateOpen(false); setError(undefined); scrollIntent.current = 'forward';saveCompletedStep([{ type: 'setStartDate', startDate }, { type: 'next' }]) }} />; break
@@ -646,12 +655,12 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
       if (paymentMode === null) {
         content = <p role="status" className="text-sm text-dark-grey">Preparing your payment options…</p>
       } else if (paymentMode === 'blinkpay') {
-        content = <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-warm-grey/60"><p className="text-lg leading-relaxed text-dark-grey">You’ll now be taken to BlinkPay to complete your payment setup with your bank. BlinkPay is a trusted third party that uses open banking technology.</p><div className="mt-6"><TurnstileWidget siteKey={turnstileSiteKey} action="giving-checkout" resetKey={turnstileReset} onToken={handleTurnstileToken} onError={setError} /><p className="mt-4 rounded-2xl bg-warm-grey/35 px-5 py-4 font-semibold text-brand-black">{givingHandoffSummary(state.answers)}</p><button type="button" disabled={!turnstileToken} onClick={() => void submit()} className="mt-4 min-h-14 w-full rounded-full bg-rich-red px-5 font-semibold text-white transition hover:bg-deep-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red focus-visible:ring-offset-2 disabled:opacity-50">Continue to BlinkPay</button></div></div>
+        content = <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-warm-grey/60"><p className="text-lg leading-relaxed text-dark-grey">You’ll now be taken to BlinkPay to complete your payment setup with your bank. BlinkPay is a trusted third party that uses open banking technology.</p><div className="mt-6"><TurnstileWidget siteKey={turnstileSiteKey} action="giving-checkout" resetKey={turnstileReset} onToken={handleTurnstileToken} onError={setError} /><p className="mt-4 rounded-2xl bg-warm-grey/35 px-5 py-4 font-semibold text-brand-black">{givingHandoffSummary(state.answers, applicableTransactionFeeMinor)}</p><button type="button" disabled={!turnstileToken} onClick={() => void submit()} className="mt-4 min-h-14 w-full rounded-full bg-rich-red px-5 font-semibold text-white transition hover:bg-deep-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red focus-visible:ring-offset-2 disabled:opacity-50">Continue to BlinkPay</button></div></div>
       } else {
         content = bankTransfer
           ? bankAcknowledged
             ? <GivingCompletion firstName={state.answers.firstName} kind="bank-transfer" onDone={() => giving.dismissGiving()} />
-            : <BankTransferHandoff details={bankTransfer} summary={givingHandoffSummary(state.answers)} acknowledged={false} acknowledging={bankAcknowledging} onAcknowledge={() => void acknowledgeBankSetup()} />
+            : <BankTransferHandoff details={bankTransfer} summary={givingHandoffSummary(state.answers, 0)} acknowledged={false} acknowledging={bankAcknowledging} onAcknowledge={() => void acknowledgeBankSetup()} />
           : <div className="py-3"><TurnstileWidget siteKey={turnstileSiteKey} action="giving-checkout" resetKey={turnstileReset} onToken={handleTurnstileToken} onError={setError} />{bankPreparationRetryRequired ? <button type="button" className="mt-4 min-h-12 w-full rounded-full bg-rich-red px-5 font-semibold text-white transition hover:bg-deep-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red focus-visible:ring-offset-2" onClick={retryBankTransferPreparation}>Try again</button> : <p role="status" className="text-sm text-dark-grey">Preparing your bank details…</p>}</div>
       }
       break
@@ -669,5 +678,5 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     || (previewStep === 'fund' && state.answers.fund !== null)
     || (previewStep === 'starting-date' && state.answers.startDate !== null)
   )
-  return <section aria-labelledby="giving-step-heading" aria-busy={savingProgress} inert={savingProgress} className="mx-auto flex min-h-full max-w-lg flex-col py-2 [overflow-anchor:none]" data-giving-private ref={flowRef}>{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} currentStep={state.step} visitedSteps={state.history} placement="before" onEdit={editAnswer} />}<div key={transitionKey} data-giving-step data-question-panel={highlightedQuestion ? 'highlighted' : undefined} className={`animate-fade-in-up motion-reduce:animate-none ${highlightedQuestion ? 'rounded-[2rem] bg-warm-grey/35 p-5 shadow-sm ring-1 ring-warm-grey/50' : ''}`}><h3 ref={headingRef} tabIndex={-1} id="giving-step-heading" className="mb-6 text-2xl font-semibold text-brand-black outline-none">{heading}</h3><div>{content}{error && (checkout.type !== 'configuring' || state.step !== 'amount') && <p role="alert" className="mt-4 text-sm text-rich-red">{error}</p>}</div></div>{previewStep && !previewHasEditableAnswer && <GivingStepPreview step={previewStep} label={titles[previewStep]} />}{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} currentStep={state.step} visitedSteps={state.history} placement="after" onEdit={editAnswer} />}<div className="sticky bottom-0 z-10 mt-auto bg-warm-white/95 pb-1 pt-6 backdrop-blur-sm" data-giving-progress><div role="progressbar" aria-label="Giving progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} className="h-5 overflow-hidden rounded-full bg-warm-grey/55"><div className="h-full rounded-full bg-rich-red transition-[width] duration-500 ease-out motion-reduce:transition-none" style={{ width: `${progress}%` }} /></div></div></section>
+  return <section aria-labelledby="giving-step-heading" aria-busy={savingProgress} inert={savingProgress} className="mx-auto flex min-h-full max-w-lg flex-col py-2 [overflow-anchor:none]" data-giving-private ref={flowRef}>{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} transactionFeeMinor={applicableTransactionFeeMinor} currentStep={state.step} visitedSteps={state.history} placement="before" onEdit={editAnswer} />}<div key={transitionKey} data-giving-step data-question-panel={highlightedQuestion ? 'highlighted' : undefined} className={`animate-fade-in-up motion-reduce:animate-none ${highlightedQuestion ? 'rounded-[2rem] bg-warm-grey/35 p-5 shadow-sm ring-1 ring-warm-grey/50' : ''}`}><h3 ref={headingRef} tabIndex={-1} id="giving-step-heading" className="mb-6 text-2xl font-semibold text-brand-black outline-none">{heading}</h3><div>{content}{error && (checkout.type !== 'configuring' || state.step !== 'amount') && <p role="alert" className="mt-4 text-sm text-rich-red">{error}</p>}</div></div>{previewStep && !previewHasEditableAnswer && <GivingStepPreview step={previewStep} label={titles[previewStep]} />}{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} transactionFeeMinor={applicableTransactionFeeMinor} currentStep={state.step} visitedSteps={state.history} placement="after" onEdit={editAnswer} />}<div className="sticky bottom-0 z-10 mt-auto bg-warm-white/95 pb-1 pt-6 backdrop-blur-sm" data-giving-progress><div role="progressbar" aria-label="Giving progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} className="h-5 overflow-hidden rounded-full bg-warm-grey/55"><div className="h-full rounded-full bg-rich-red transition-[width] duration-500 ease-out motion-reduce:transition-none" style={{ width: `${progress}%` }} /></div></div></section>
 }

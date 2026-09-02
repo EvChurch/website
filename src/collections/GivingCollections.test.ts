@@ -38,6 +38,9 @@ describe('private giving collection access', () => {
     expect(field(GivingCheckouts, 'status')).toMatchObject({ options: ['draft','authorising','verifying','unknown','completed','failed'] })
     expect(field(GivingSchedules, 'status')).toMatchObject({ options: ['pending','active','unknown','cancel_pending','cancelled','failed'] })
     expect(field(BlinkPayWebhookEvents, 'status')).toMatchObject({ options: ['pending','processing','retry','processed','quarantined','dead'] })
+    expect(field(GivingCheckouts, 'transactionFeeMinor')).toBeDefined()
+    expect(field(GivingGifts, 'transactionFeeMinor')).toBeDefined()
+    expect(field(GivingSchedules, 'transactionFeeMinor')).toBeDefined()
   })
 
   it('marks provider, lifecycle, provenance and correlation fields read-only in admin', () => {

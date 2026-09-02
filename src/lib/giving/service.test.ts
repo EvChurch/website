@@ -4,7 +4,7 @@ import { createGivingCheckoutService, GivingCheckoutError, prepareGivingBankTran
 import type { ResolvedGivingIdentity } from './rock-identity'
 
 const context = { contextKey: 'sandbox', environment: 'sandbox' as const, synthetic: true }
-const baseSubmission = { submissionKey: 'A'.repeat(43), amountMinor: 2500, fundId: 1, frequency: 'one-off' as const, firstPaymentDate: null, firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.com', turnstileToken: 'turnstile' }
+const baseSubmission = { submissionKey: 'A'.repeat(43), amountMinor: 2500, transactionFeeMinor: 50, fundId: 1, frequency: 'one-off' as const, firstPaymentDate: null, firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.com', turnstileToken: 'turnstile' }
 
 interface TestSchedule { checkoutId: number; consentId: number; providerScheduleId: string; status: 'pending' | 'active' }
 
@@ -37,7 +37,7 @@ function repository(): GivingCheckoutRepository & { checkouts: GivingCheckoutRec
         returns.set(input.returnCapabilityDigest, existing.id)
         return { checkout: existing, reused: true, disposition: 'start' as const }
       }
-      const checkout: GivingCheckoutRecord = { contextKey: input.contextKey, environment: input.environment, synthetic: input.synthetic, id: checkouts.length + 1, giverId: null, bankReference: null, bankCode: 'ALOVELACE', fundId: 1, fundName: 'General', fundCode: 'GEN', fundAccountingKey: 'general', amountMinor: input.submission.amountMinor, frequency: input.submission.frequency, firstPaymentDate: input.submission.firstPaymentDate, correlationKey: input.correlationKey, submissionKeyDigest: input.submissionKeyDigest, submissionDigest: input.submissionDigest, gatewayRedirectUri: null, status: 'draft', resultCode: null }
+      const checkout: GivingCheckoutRecord = { contextKey: input.contextKey, environment: input.environment, synthetic: input.synthetic, id: checkouts.length + 1, giverId: null, bankReference: null, bankCode: 'ALOVELACE', fundId: 1, fundName: 'General', fundCode: 'GEN', fundAccountingKey: 'general', amountMinor: input.submission.amountMinor, transactionFeeMinor: input.submission.transactionFeeMinor, frequency: input.submission.frequency, firstPaymentDate: input.submission.firstPaymentDate, correlationKey: input.correlationKey, submissionKeyDigest: input.submissionKeyDigest, submissionDigest: input.submissionDigest, gatewayRedirectUri: null, status: 'draft', resultCode: null }
       checkouts.push(checkout); returns.set(input.returnCapabilityDigest, checkout.id)
       return { checkout, reused: false, disposition: 'start' as const }
     },
@@ -79,7 +79,7 @@ function service(repo = repository(), overrides: Partial<GivingCheckoutBlinkPayC
     createEnduringConsent: vi.fn(async (_input,keys) => ({ outcome: 'succeeded' as const, value: { consent_id: 'consent-1', redirect_uri: 'https://sandbox.debit.blinkpay.co.nz/gateway/consent' }, metadata: keys })),
     getEnduringConsent: vi.fn(async () => ({ consent_id: 'consent-1', status: 'Authorised', creation_timestamp: '2026-08-15T00:00:00Z', status_updated_timestamp: '2026-08-15T00:00:01Z', detail: {}, payments: [] })),
     createFixedRecurringPayment: vi.fn(async (_input,keys) => ({ outcome: 'succeeded' as const, value: { fixed_recurring_payment_id: 'schedule-1' }, metadata: keys })),
-    getFixedRecurringPayment: vi.fn(async () => ({ fixed_recurring_payment_id: 'schedule-1', consent_id: 'consent-1', status: 'active', start_date: '2026-09-01', next_payment_date: '2026-09-01', amount: { total: '25.00', currency: 'NZD' as const }, pcr: { particulars: 'GEN' }, retry_strategy: 'same_day' as const, creation_timestamp: '2026-08-15T00:00:02Z' })),
+    getFixedRecurringPayment: vi.fn(async () => ({ fixed_recurring_payment_id: 'schedule-1', consent_id: 'consent-1', status: 'active', start_date: '2026-09-01', next_payment_date: '2026-09-01', amount: { total: '25.50', currency: 'NZD' as const }, pcr: { particulars: 'GEN' }, retry_strategy: 'same_day' as const, creation_timestamp: '2026-08-15T00:00:02Z' })),
     isPaymentSettled: (value: { status: string }) => value.status === 'AcceptedSettlementCompleted', isConsentAuthorised: (value: { status: string }) => value.status === 'Authorised', isFixedRecurringPaymentActive: (value: { status: string }) => value.status === 'active',
   } satisfies GivingCheckoutBlinkPayClient
   const client: GivingCheckoutBlinkPayClient = { ...blinkPay, ...overrides }
@@ -144,6 +144,7 @@ describe('giving checkout orchestration', () => {
       fundCode: 'GEN',
       fundAccountingKey: 'general',
       amountMinor: baseSubmission.amountMinor,
+      transactionFeeMinor: baseSubmission.transactionFeeMinor,
       frequency: baseSubmission.frequency,
       firstPaymentDate: baseSubmission.firstPaymentDate,
       correlationKey: 'interrupted-checkout',
@@ -193,6 +194,7 @@ describe('giving checkout orchestration', () => {
       fundCode: 'GEN',
       fundAccountingKey: 'general',
       amountMinor: baseSubmission.amountMinor,
+      transactionFeeMinor: baseSubmission.transactionFeeMinor,
       frequency: baseSubmission.frequency,
       firstPaymentDate: baseSubmission.firstPaymentDate,
       correlationKey: 'blinkpay-checkout',
@@ -232,6 +234,7 @@ describe('giving checkout orchestration', () => {
       returnCapabilityExpiresAt: new Date('2026-08-15T00:30:00Z'),
     }))
     expect(blinkPay.createQuickPayment).toHaveBeenCalledTimes(1)
+    expect(blinkPay.createQuickPayment.mock.calls[0][0].amount).toEqual({ total: '25.50', currency: 'NZD' })
     expect(blinkPay.createQuickPayment.mock.calls[0][0].pcr).toEqual({ particulars: 'GEN', code: 'ALOVELACE', reference: 'EV123' })
     expect(blinkPay.createQuickPayment.mock.calls[0][1]).toEqual({ requestId: repo.operations[0].requestId, idempotencyKey: repo.operations[0].idempotencyKey })
     expect(blinkPay.createQuickPayment.mock.calls[0][1]).toEqual({
@@ -402,6 +405,8 @@ describe('giving checkout orchestration', () => {
     await checkout.consumeReturn(returnToken(started))
     await checkout.verify(1)
     expect(blinkPay.createFixedRecurringPayment).toHaveBeenCalledTimes(1)
+    expect(blinkPay.createEnduringConsent.mock.calls[0][0].maximum_amount_period).toEqual({ total: '25.50', currency: 'NZD' })
+    expect(blinkPay.createFixedRecurringPayment.mock.calls[0][0].amount).toEqual({ total: '25.50', currency: 'NZD' })
     expect(blinkPay.createFixedRecurringPayment.mock.calls[0][0].pcr).toEqual({ particulars: 'GEN', code: 'ALOVELACE', reference: 'EV123' })
     expect(blinkPay.getEnduringConsent).toHaveBeenCalled()
     expect(blinkPay.getFixedRecurringPayment).toHaveBeenCalled()

@@ -11,6 +11,7 @@ import { GIVING_CHECKOUT_ORCHESTRATION_UP_SQL } from '../migrations/20260815_230
 import { GIVING_BANK_CODE_UP_SQL } from '../migrations/20260817_010000_giving_bank_code'
 import { GIVING_BANK_ACKNOWLEDGEMENT_UP_SQL } from '../migrations/20260817_020000_giving_bank_acknowledgement'
 import { GIVING_EMAIL_DELIVERIES_UP_SQL } from '../migrations/20260822_010000_giving_email_deliveries'
+import { GIVING_TRANSACTION_FEES_UP_SQL } from '../migrations/20260903_010000_giving_transaction_fees'
 
 const databaseUrl = process.env.GIVING_MIGRATION_TEST_DATABASE_URL
 
@@ -36,6 +37,7 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     await pool.query(GIVING_BANK_CODE_UP_SQL)
     await pool.query(GIVING_BANK_ACKNOWLEDGEMENT_UP_SQL)
     await pool.query(GIVING_EMAIL_DELIVERIES_UP_SQL)
+    await pool.query(GIVING_TRANSACTION_FEES_UP_SQL)
     await pool.query("INSERT INTO giving_funds(name,code,accounting_key,is_default) VALUES('General','GEN','general',true)")
   })
 
@@ -47,7 +49,7 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
       environment: 'sandbox' as const,
       synthetic: true,
       submission: {
-        submissionKey: 'A'.repeat(43), amountMinor: 2500, fundId: 1, frequency: 'one-off' as const,
+        submissionKey: 'A'.repeat(43), amountMinor: 2500, transactionFeeMinor: 50, fundId: 1, frequency: 'one-off' as const,
         firstPaymentDate: null, firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.com', turnstileToken: 'token',
       },
       submissionKeyDigest: overrides.keyDigest ?? `key-${scope}`,
@@ -286,7 +288,7 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     const checkout = (await repository.get(created.checkout.id))!
     const consentProviderId = '22222222-2222-4222-8222-222222222223'
     const consent = await repository.recordConsentAuthorised(checkout, consentProviderId, new Date('2026-08-15T00:00:00Z'))
-    const scheduleRequestDigest = createHash('sha256').update(JSON.stringify({ action:'blinkpay.create-schedule',checkoutId:checkout.id,contextKey:checkout.contextKey,amountMinor:checkout.amountMinor,frequency:checkout.frequency,firstPaymentDate:checkout.firstPaymentDate,fundCode:checkout.fundCode,bankReference:checkout.bankReference })).digest('hex')
+    const scheduleRequestDigest = createHash('sha256').update(JSON.stringify({ action:'blinkpay.create-schedule',checkoutId:checkout.id,contextKey:checkout.contextKey,amountMinor:checkout.amountMinor,transactionFeeMinor:checkout.transactionFeeMinor,frequency:checkout.frequency,firstPaymentDate:checkout.firstPaymentDate,fundCode:checkout.fundCode,bankReference:checkout.bankReference })).digest('hex')
     const operation = await repository.prepareOperation(checkout, 'blinkpay.create-schedule', scheduleRequestDigest, {
       requestId: 'request-key-recovery-0001', idempotencyKey: 'idempotency-recovery-0001',
     })
@@ -298,7 +300,7 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     const createFixedRecurringPayment = vi.fn()
     const getFixedRecurringPayment = vi.fn().mockResolvedValue({
       fixed_recurring_payment_id: providerScheduleId, consent_id: consentProviderId, status: 'active',
-      start_date: '2026-09-01', next_payment_date: '2026-09-01', amount: { total: '25.00', currency: 'NZD' },
+      start_date: '2026-09-01', next_payment_date: '2026-09-01', amount: { total: '25.50', currency: 'NZD' },
       pcr: { particulars: 'GEN', reference: 'EV323' }, retry_strategy: 'same_day', creation_timestamp: '2026-08-15T00:00:00Z',
     })
     const service = createGivingCheckoutService({
@@ -310,16 +312,16 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
       } as never,
       resolveIdentity: vi.fn(), digestSecret: 's'.repeat(32), now: () => new Date('2026-08-15T00:01:00Z'),
     })
-    expect(checkout).toMatchObject({ firstPaymentDate:'2026-09-01',amountMinor:2500,frequency:'monthly' })
+    expect(checkout).toMatchObject({ firstPaymentDate:'2026-09-01',amountMinor:2500,transactionFeeMinor:50,frequency:'monthly' })
     expect(await repository.findOperation(checkout.id,'blinkpay.create-schedule')).toMatchObject({ providerId:providerScheduleId,status:'unknown' })
     await service.continueRecurring(checkout, consentProviderId)
 
     expect(createFixedRecurringPayment).not.toHaveBeenCalled()
     expect(getFixedRecurringPayment).toHaveBeenCalledWith(providerScheduleId)
-    expect((await pool.query(`SELECT context_key,environment,synthetic,checkout_id,giver_id,consent_id,provider_schedule_id,status,frequency,amount_minor
+    expect((await pool.query(`SELECT context_key,environment,synthetic,checkout_id,giver_id,consent_id,provider_schedule_id,status,frequency,amount_minor,transaction_fee_minor
       FROM giving_schedules WHERE checkout_id=$1`,[checkout.id])).rows).toEqual([{
       context_key:checkout.contextKey,environment:'sandbox',synthetic:true,checkout_id:checkout.id,giver_id:checkout.giverId,
-      consent_id:consent,provider_schedule_id:providerScheduleId,status:'active',frequency:'monthly',amount_minor:'2500',
+      consent_id:consent,provider_schedule_id:providerScheduleId,status:'active',frequency:'monthly',amount_minor:'2500',transaction_fee_minor:'50',
     }])
     expect((await repository.findOperation(checkout.id,'blinkpay.create-schedule'))?.status).toBe('succeeded')
     expect((await repository.get(checkout.id))?.status).toBe('completed')

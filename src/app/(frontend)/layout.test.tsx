@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getCachedActiveGivingFunds: vi.fn().mockResolvedValue([
     { id: 1, name: 'General', code: 'GENERAL', sortOrder: 0, isDefault: true, apprenticeRelated: false },
   ]),
+  getCachedGivingTransactionFeeMinor: vi.fn().mockResolvedValue(50),
   resolveGivingRuntimeConfiguration: vi.fn().mockReturnValue(null),
   publicChrome: vi.fn(({ children }: {
     children: React.ReactNode
@@ -23,6 +24,7 @@ vi.mock('next/font/google', () => ({
 vi.mock('@/lib/launcher/service-guide', () => ({ loadLauncherData: mocks.loadLauncherData }))
 vi.mock('@/lib/site-feedback/settings', () => ({ loadSiteFeedbackSettings: mocks.loadSiteFeedbackSettings }))
 vi.mock('@/lib/giving/funds', () => ({ getCachedActiveGivingFunds: mocks.getCachedActiveGivingFunds }))
+vi.mock('@/lib/giving/settings', () => ({ getCachedGivingTransactionFeeMinor: mocks.getCachedGivingTransactionFeeMinor }))
 vi.mock('@/lib/giving/availability', () => ({ resolveGivingRuntimeConfiguration: mocks.resolveGivingRuntimeConfiguration }))
 vi.mock('@/components/layout/PublicChrome', () => ({ PublicChrome: mocks.publicChrome }))
 vi.mock('@/components/layout/AnnouncementBanner', () => ({ AnnouncementBanner: () => null }))
@@ -39,6 +41,7 @@ describe('FrontendLayout public rendering boundary', () => {
       { id: 1, name: 'General', code: 'GENERAL', sortOrder: 0, isDefault: true, apprenticeRelated: false },
     ])
     mocks.resolveGivingRuntimeConfiguration.mockReturnValue(null)
+    mocks.getCachedGivingTransactionFeeMinor.mockResolvedValue(50)
   })
 
   it('does not import request headers, session readers, or admin authentication', () => {
@@ -69,6 +72,7 @@ describe('FrontendLayout public rendering boundary', () => {
     mocks.loadLauncherData.mockResolvedValue(launcher)
     mocks.loadSiteFeedbackSettings.mockResolvedValue(feedback)
     mocks.resolveGivingRuntimeConfiguration.mockReturnValue(givingRuntime)
+    mocks.getCachedGivingTransactionFeeMinor.mockResolvedValue(75)
 
     const markup = renderToStaticMarkup(await FrontendLayout({ children: <section>Public page</section> }))
 
@@ -80,6 +84,7 @@ describe('FrontendLayout public rendering boundary', () => {
       footer: expect.anything(),
       launcher,
       givingFunds: [{ id: 1, name: 'General', code: 'GENERAL', sortOrder: 0, isDefault: true, apprenticeRelated: false }],
+      givingTransactionFeeMinor: 75,
       givingRuntime,
     }, undefined)
     expect(JSON.stringify(mocks.publicChrome.mock.calls)).not.toContain('memberProfile')

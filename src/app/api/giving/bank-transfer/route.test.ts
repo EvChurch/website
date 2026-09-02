@@ -6,6 +6,7 @@ import { handleGivingBankTransferPost, type GivingBankTransferRouteDependencies 
 const body = {
   submissionKey: 'A'.repeat(43),
   amountMinor: 2500,
+  transactionFeeMinor: 0,
   fundId: 1,
   frequency: 'one-off',
   firstPaymentDate: null,

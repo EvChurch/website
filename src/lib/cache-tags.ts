@@ -26,6 +26,7 @@ export const CACHE_TAGS = {
   siteSettings: 'site-settings',
   sermonPipeline: 'sermon-pipeline',
   givingFunds: 'giving-funds',
+  givingSettings: 'giving-settings',
   missingPaths: 'missing-paths',
 } as const
 

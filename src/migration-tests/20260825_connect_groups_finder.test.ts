@@ -18,7 +18,7 @@ describe('Connect Groups finder migration', () => {
   })
 
   it('registers after the existing migrations', () => {
-    expect(migrations.at(-1)?.name).toBe('20260825_120000_connect_groups_finder')
+    expect(migrations.findIndex(({ name }) => name === '20260825_120000_connect_groups_finder')).toBeGreaterThan(-1)
   })
 
   it('executes reversible SQL', async () => {
