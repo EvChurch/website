@@ -61,14 +61,18 @@ export function GivingExperienceProvider({
   children,
   givingExperience = null,
   serverEligibility,
+  blinkPayEligibilityResolved = true,
+  blinkPayEligible = false,
   resumeRequested = false,
 }: {
   children: ReactNode
   givingExperience?: ReactNode
   serverEligibility: GivingServerEligibility
+  blinkPayEligibilityResolved?: boolean
+  blinkPayEligible?: boolean
   resumeRequested?: boolean
 }) {
-  const [flagState, setFlagState] = useState<GivingFlagState>('unresolved')
+  const [flagOverride, setFlagOverride] = useState<GivingFlagState | null>(null)
   const [givingRequestId, setGivingRequestId] = useState(0)
   const [givingDismissRequestId, setGivingDismissRequestId] = useState(0)
   const [givingViewActive, setGivingViewActive] = useState(false)
@@ -79,7 +83,9 @@ export function GivingExperienceProvider({
   const givingCloseHandler = useRef<(() => boolean) | null>(null)
   const rendererReady = givingExperience !== null
   const givingSurfaceAvailable = rendererReady
-  const blinkPayEnabled = serverEligibility !== null && flagState === 'enabled'
+  const flagState = flagOverride ?? (!blinkPayEligibilityResolved ? 'unresolved' : blinkPayEligible ? 'enabled' : 'disabled')
+  const blinkPayAllowed = flagOverride ? flagOverride === 'enabled' : blinkPayEligibilityResolved && blinkPayEligible
+  const blinkPayEnabled = serverEligibility !== null && blinkPayAllowed
 
   const openGiving = useCallback(() => {
     if (!rendererReady) return false
@@ -143,12 +149,15 @@ export function GivingExperienceProvider({
     openGiving,
     registerGivingBackHandler,
     registerGivingCloseHandler,
-    setFlagState,
+    setFlagState: setFlagOverride,
     setGivingViewActive,
   }), [
     consumeGivingRequest,
     consumeGivingDismissRequest,
     dismissGiving,
+    blinkPayEligibilityResolved,
+    blinkPayEligible,
+    flagOverride,
     blinkPayEnabled,
     flagState,
     givingSurfaceAvailable,

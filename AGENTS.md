@@ -30,9 +30,9 @@ not needed for that outcome.
   genuinely open-ended bug, `$ce-plan` for unresolved or large-scope work, and
   `$ce-code-review` for high-risk review. A concrete build request may be
   implemented directly.
-- Commit, push, open a PR, deploy, or mutate production only when the user's
-  request authorizes that action. When asked to ship, continue through the
-  requested delivery steps without adding optional gates.
+- Commit, push, open a PR, or mutate production only when the user's request
+  authorizes that action. Production deploys must come from a PR merged into
+  `main`; do not deploy production from a local worktree or CLI snapshot.
 
 If implementation exposes a product decision that materially changes scope or
 user-visible behavior, pause and ask. Otherwise make reasonable, reversible

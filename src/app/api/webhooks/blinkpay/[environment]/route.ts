@@ -18,11 +18,11 @@ interface WebhookContract {
 
 function loadContract(environment: GivingEnvironment, env: Record<string, string | undefined> = process.env): WebhookContract {
   const prefix = environment === 'sandbox' ? 'BLINKPAY_SANDBOX' : 'BLINKPAY_PRODUCTION'
-  const contractVersion = env[`${prefix}_WEBHOOK_CONTRACT_VERSION`] ?? ''
-  const signatureHeader = env[`${prefix}_WEBHOOK_SIGNATURE_HEADER`] ?? ''
-  const signatureFormat = env[`${prefix}_WEBHOOK_SIGNATURE_FORMAT`] ?? ''
-  const eventFormat = env[`${prefix}_WEBHOOK_EVENT_FORMAT`] ?? ''
-  const acknowledgementStatus = Number(env[`${prefix}_WEBHOOK_ACK_STATUS`])
+  const contractVersion = env[`${prefix}_WEBHOOK_CONTRACT_VERSION`] ?? 'blinkpay-debit-1.0.49'
+  const signatureHeader = env[`${prefix}_WEBHOOK_SIGNATURE_HEADER`] ?? 'x-signature'
+  const signatureFormat = env[`${prefix}_WEBHOOK_SIGNATURE_FORMAT`] ?? 'timestamp-sha256-v1'
+  const eventFormat = env[`${prefix}_WEBHOOK_EVENT_FORMAT`] ?? 'fixed-recurring-payment-event-v1'
+  const acknowledgementStatus = Number(env[`${prefix}_WEBHOOK_ACK_STATUS`] ?? 204)
   const secrets = (env[`${prefix}_WEBHOOK_SECRETS`] ?? env[`${prefix}_WEBHOOK_SECRET`] ?? '').split(',').map((value) => value.trim()).filter(Boolean)
   if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/u.test(contractVersion) || !/^[a-z0-9][a-z0-9-]{0,63}$/u.test(signatureHeader) || ![200,202,204].includes(acknowledgementStatus)) throw new Error('BlinkPay webhook contract is not configured')
   return { contractVersion, signatureHeader, signatureFormat, eventFormat, secrets, acknowledgementStatus: acknowledgementStatus as 200 | 202 | 204 }

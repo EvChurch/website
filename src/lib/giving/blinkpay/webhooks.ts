@@ -1,9 +1,12 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 
 const SIGNATURE = /^t=(0|[1-9]\d{0,10}),v1=([a-f0-9]{64})$/u
-const EVENT_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u
-const EVENT_TYPE = /^[A-Za-z][A-Za-z0-9._:-]{0,127}$/u
-const REFERENCE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
+const FIXED_RECURRING_EVENT_TYPES = new Set([
+  'urn:nz:co:blinkpay:debit:events:fixed-recurring-payment-completed',
+  'urn:nz:co:blinkpay:debit:events:fixed-recurring-payment-failed',
+  'urn:nz:co:blinkpay:debit:events:fixed-recurring-payment-cancelled',
+])
 
 export const BLINKPAY_WEBHOOK_RELEASE_BLOCKER = 'BlinkPay tenant evidence must confirm the configured signature header, signing grammar, event envelope and acknowledgement semantics before activation.'
 
@@ -24,7 +27,11 @@ export function verifyBlinkPayWebhook(input: VerifyBlinkPayWebhookInput): { time
   if (!input.contractVersion) fail('Webhook contract is not configured')
   if (input.signatureFormat !== 'timestamp-sha256-v1') fail('Webhook signature format is not configured')
   if (!input.signature) fail('Webhook signature is missing')
-  if (input.secrets.length < 1 || input.secrets.length > 2 || input.secrets.some((secret) => Buffer.byteLength(secret) < 32)) fail('Webhook keyring is not configured')
+  if (
+    input.secrets.length < 1 ||
+    input.secrets.length > 2 ||
+    input.secrets.some((secret) => !/^whsec_[A-Za-z0-9._:-]{6,}$/u.test(secret))
+  ) fail('Webhook keyring is not configured')
   const match = SIGNATURE.exec(input.signature)
   if (!match) fail('Webhook signature is malformed')
   const timestamp = Number(match[1])
@@ -49,24 +56,29 @@ export interface ParsedBlinkPayWebhookEvent {
   payload: Record<string, unknown>
 }
 
-function exactKeys(value: Record<string, unknown>, keys: string[]) {
-  const actual = Object.keys(value).sort()
-  const expected = [...keys].sort()
-  return actual.length === expected.length && actual.every((key, index) => key === expected[index])
-}
-
 export function parseWebhookEvent(rawBody: Buffer, eventFormat: string): ParsedBlinkPayWebhookEvent {
-  if (eventFormat !== 'reference-event-v1') fail('Webhook event format is not configured')
+  if (eventFormat !== 'fixed-recurring-payment-event-v1') fail('Webhook event format is not configured')
   let parsed: unknown
   try { parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(rawBody)) } catch { fail('Webhook body is not valid JSON') }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) fail('Webhook event envelope is invalid')
   const payload = parsed as Record<string, unknown>
-  if (!exactKeys(payload, ['id', 'type', 'data']) || !EVENT_ID.test(String(payload.id)) || !EVENT_TYPE.test(String(payload.type)) || !payload.data || typeof payload.data !== 'object' || Array.isArray(payload.data)) fail('Webhook event envelope is invalid')
-  const data = payload.data as Record<string, unknown>
-  const references = ([['payment', 'payment_id'], ['schedule', 'fixed_recurring_payment_id'], ['consent', 'consent_id']] as const)
-    .filter(([, key]) => typeof data[key] === 'string' && REFERENCE_ID.test(String(data[key])))
-  if (references.length !== 1 || !exactKeys(data, [references[0]![1]])) fail('Webhook event envelope is invalid')
-  return { eventId: String(payload.id), eventType: String(payload.type), referenceType: references[0]![0], referenceId: String(data[references[0]![1]]), payload }
+  const keys = Object.keys(payload).sort()
+  const hasPayment = keys.includes('payment_id')
+  const expected = ['consent_id', 'event_id', 'event_type', 'frp_id', ...(hasPayment ? ['payment_id'] : []), 'timestamp'].sort()
+  if (
+    keys.length !== expected.length ||
+    !keys.every((key, index) => key === expected[index]) ||
+    !UUID.test(String(payload.event_id)) ||
+    !FIXED_RECURRING_EVENT_TYPES.has(String(payload.event_type)) ||
+    !UUID.test(String(payload.frp_id)) ||
+    !UUID.test(String(payload.consent_id)) ||
+    (hasPayment && !UUID.test(String(payload.payment_id))) ||
+    typeof payload.timestamp !== 'string' ||
+    Number.isNaN(Date.parse(payload.timestamp))
+  ) fail('Webhook event envelope is invalid')
+  return hasPayment
+    ? { eventId: String(payload.event_id), eventType: String(payload.event_type), referenceType: 'payment', referenceId: String(payload.payment_id), payload }
+    : { eventId: String(payload.event_id), eventType: String(payload.event_type), referenceType: 'schedule', referenceId: String(payload.frp_id), payload }
 }
 
 export function webhookPayloadDigest(rawBody: Buffer): string { return createHash('sha256').update(rawBody).digest('hex') }

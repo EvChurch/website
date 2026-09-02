@@ -117,6 +117,39 @@ describe('GivingExperienceProvider', () => {
     expect(container.querySelector('output')?.textContent).toBe('3:0')
   })
 
+  it('reports BlinkPay eligibility as unresolved until the member audience check completes', async () => {
+    await act(async () => root.render(
+      <GivingExperienceProvider
+        serverEligibility="production"
+        blinkPayEligibilityResolved={false}
+        givingExperience={<div>Giving flow</div>}
+      >
+        <Probe />
+      </GivingExperienceProvider>,
+    ))
+
+    expect(container.querySelector('output')?.dataset).toMatchObject({
+      flag: 'unresolved',
+      blinkpay: 'false',
+    })
+
+    await act(async () => root.render(
+      <GivingExperienceProvider
+        serverEligibility="production"
+        blinkPayEligibilityResolved
+        blinkPayEligible
+        givingExperience={<div>Giving flow</div>}
+      >
+        <Probe />
+      </GivingExperienceProvider>,
+    ))
+
+    expect(container.querySelector('output')?.dataset).toMatchObject({
+      flag: 'enabled',
+      blinkpay: 'true',
+    })
+  })
+
   it('consumes each monotonic open request once and never reuses a stale id', async () => {
     function Consumer() {
       const giving = useGivingExperience()
