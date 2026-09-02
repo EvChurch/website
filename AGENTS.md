@@ -38,6 +38,19 @@ If implementation exposes a product decision that materially changes scope or
 user-visible behavior, pause and ask. Otherwise make reasonable, reversible
 assumptions and keep moving.
 
+## Codex Worktrees
+
+- The project-level Codex MCP configuration lives in `.codex/config.toml` and is
+  tracked so new Git worktrees inherit the Ev Church integrations.
+- Do not put credential values in `.codex/config.toml`. The Payload MCP bearer
+  header is read from `EV_CHURCH_PAYLOAD_MCP_AUTHORIZATION`; AdLoop and Search
+  Console credentials remain machine-local under the user's home directory.
+- Use `pnpm check:worktree` for a quick smoke check after opening a new worktree.
+  It verifies the expected integration wiring and local command/credential
+  availability without printing secret values.
+- Keep ad hoc machine-local MCP overrides in `.codex/*.local.toml`, which are
+  intentionally ignored by Git.
+
 ## Tech Stack
 
 - Framework: Next.js 16 App Router with embedded Payload CMS 3

@@ -1,0 +1,28 @@
+[mcp_servers.ev_church_payload]
+url = "https://www.ev.church/api/mcp"
+enabled = true
+default_tools_approval_mode = "writes"
+env_http_headers = { Authorization = "EV_CHURCH_PAYLOAD_MCP_AUTHORIZATION" }
+
+[mcp_servers.ev_church_search_console]
+command = "npx"
+args = ["-y", "search-console-mcp"]
+env_vars = [
+  "PATH",
+  "HOME",
+  "XDG_CONFIG_HOME",
+  "GOOGLE_APPLICATION_CREDENTIALS",
+]
+startup_timeout_sec = 30
+tool_timeout_sec = 120
+
+[mcp_servers.adloop]
+command = "adloop"
+args = []
+env_vars = [
+  "PATH",
+  "HOME",
+  "ADLOOP_CONFIG",
+  "GOOGLE_ADS_CONFIGURATION_FILE",
+  "GOOGLE_APPLICATION_CREDENTIALS",
+]
