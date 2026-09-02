@@ -22,7 +22,7 @@ export function GivingFrequencyPreview() {
 
 function summary(step: GivingStep, answers: GivingAnswers): { label: string; value: string } | null {
   switch (step) {
-    case 'amount': return answers.amountMinor === null ? null : { label: 'amount', value: `I’d like to give $${(answers.amountMinor / 100).toFixed(2)}` }
+    case 'amount': return answers.amountMinor === null ? null : { label: 'amount', value: `I’d like to give $${(answers.amountMinor / 100).toFixed(2)} +$0.50` }
     case 'fund': return answers.fund ? { label: 'fund', value: `for ${answers.fund.name}` } : null
     case 'frequency': return answers.frequency ? { label: 'frequency', value: frequencyLabels[answers.frequency] } : null
     case 'starting-date': return answers.startDate ? { label: 'starting date', value: `starting ${givingStartDateSummary(answers.startDate)}` } : null

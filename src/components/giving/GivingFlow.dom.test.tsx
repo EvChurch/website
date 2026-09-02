@@ -121,7 +121,7 @@ describe('GivingFlow', () => {
     expect(document.activeElement?.textContent).toContain('Every week')
     expect(container.querySelector('[data-question-panel="highlighted"]')).toBeTruthy()
     expect(container.querySelector('[aria-label="Change amount"]')).toBeTruthy()
-    expect(container.textContent).toContain('I’d like to give $50.00')
+    expect(container.textContent).toContain('I’d like to give $50.00 +$0.50')
     expect(container.textContent).not.toContain('More options')
     expect(container.textContent).not.toContain('Every day')
     expect(container.textContent).not.toContain('Every year')
