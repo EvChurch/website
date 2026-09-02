@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { getBlinkPayRuntimeClient } from '@/lib/giving/blinkpay/runtime-client'
+import { isGivingCapabilityToken } from '@/lib/giving/contracts'
 import { requireGivingPostgresPool } from '@/lib/giving/postgres'
 import { GIVING_PRIVATE_HEADERS } from '@/lib/giving/request-boundary'
 import { createGivingCheckoutService, createPostgresGivingCheckoutRepository } from '@/lib/giving/service'
@@ -29,6 +30,12 @@ function givingCompletionUrl() {
     throw new Error('APP_BASE_URL must use HTTPS outside local development')
   }
   return new URL('/?giving=return', base)
+}
+
+function completionRedirect(completionUrl: URL) {
+  const response = NextResponse.redirect(completionUrl, 303)
+  for (const [key, value] of Object.entries(GIVING_PRIVATE_HEADERS)) response.headers.set(key, value)
+  return response
 }
 
 function callbackAlias(url: URL): true | false {
@@ -66,12 +73,14 @@ export async function handleGivingReturnGet(
   try {
     const alias = callbackAlias(request.nextUrl)
     if (alias === false) return unavailable()
-    const token = request.cookies.get('__Host-ev_giving_return')?.value
-    if (!token) return unavailable()
     const completionUrl = dependencies.completionUrl?.() ?? givingCompletionUrl()
+    const token = request.cookies.get('__Host-ev_giving_return')?.value
+    if (!token) {
+      const statusToken = request.cookies.get('__Host-ev_giving_checkout')?.value
+      return statusToken && isGivingCapabilityToken(statusToken) ? completionRedirect(completionUrl) : unavailable()
+    }
     const result = await dependencies.consume(token, null)
-    const response = NextResponse.redirect(completionUrl, 303)
-    for (const [key, value] of Object.entries(GIVING_PRIVATE_HEADERS)) response.headers.set(key, value)
+    const response = completionRedirect(completionUrl)
     response.cookies.set('__Host-ev_giving_checkout', result.statusToken, {
       httpOnly: true, secure: true, sameSite: 'strict', path: '/', maxAge: 30 * 60,
     })

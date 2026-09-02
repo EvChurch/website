@@ -11,6 +11,12 @@ function request(query = '?cid=provider-correlation', withCookie = true) {
   })
 }
 
+function replayRequest(query: string) {
+  return new NextRequest(`https://www.ev.church/give/return${query}`, {
+    headers: { cookie: `__Host-ev_giving_checkout=${'S'.repeat(43)}` },
+  })
+}
+
 function dependencies(consume: GivingReturnDependencies['consume']): GivingReturnDependencies {
   return { consume, completionUrl: () => new URL('https://www.ev.church/?giving=return') }
 }
@@ -85,5 +91,17 @@ describe('BlinkPay hosted return', () => {
 
     expect(response.status).toBe(303)
     expect(consume).toHaveBeenCalledWith(returnToken, null)
+  })
+
+  it('redirects a replayed BlinkPay decline when the checkout status capability remains', async () => {
+    const consume = vi.fn(async () => ({ statusToken: 'S'.repeat(43), checkoutId: 1 }))
+    const response = await handleGivingReturnGet(
+      replayRequest('?cid=7f04b1de-c78c-4422-b92b-84e3f87606b5&error=The+payment+was+declined+and+you+were+not+charged'),
+      dependencies(consume),
+    )
+
+    expect(response.status).toBe(303)
+    expect(response.headers.get('location')).toBe('https://www.ev.church/?giving=return')
+    expect(consume).not.toHaveBeenCalled()
   })
 })
