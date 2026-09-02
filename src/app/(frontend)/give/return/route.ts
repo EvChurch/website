@@ -31,11 +31,19 @@ function givingCompletionUrl() {
   return new URL('/?giving=return', base)
 }
 
-function callbackAlias(url: URL): string | false {
+function callbackAlias(url: URL): true | false {
   if (url.searchParams.size === 0) return false
-  if (url.searchParams.size !== 1) return false
-  const [key, value] = url.searchParams.entries().next().value!
-  return ['cid', 'consent_id'].includes(key) && value.length > 0 && value.length <= 128 ? value : false
+  const cid = url.searchParams.getAll('cid')
+  const consentId = url.searchParams.getAll('consent_id')
+  const errors = url.searchParams.getAll('error')
+  if (cid.length + consentId.length !== 1) return false
+  if (errors.length > 1) return false
+  for (const key of url.searchParams.keys()) {
+    if (!['cid', 'consent_id', 'error'].includes(key)) return false
+  }
+  const value = cid[0] ?? consentId[0] ?? ''
+  const error = errors[0] ?? null
+  return value.length > 0 && value.length <= 128 && (error === null || error.length <= 512) ? true : false
 }
 
 async function defaultConsume(token: string, expectedProviderId: string | null) {
@@ -61,7 +69,7 @@ export async function handleGivingReturnGet(
     const token = request.cookies.get('__Host-ev_giving_return')?.value
     if (!token) return unavailable()
     const completionUrl = dependencies.completionUrl?.() ?? givingCompletionUrl()
-    const result = await dependencies.consume(token, alias)
+    const result = await dependencies.consume(token, null)
     const response = NextResponse.redirect(completionUrl, 303)
     for (const [key, value] of Object.entries(GIVING_PRIVATE_HEADERS)) response.headers.set(key, value)
     response.cookies.set('__Host-ev_giving_checkout', result.statusToken, {
