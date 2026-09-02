@@ -29,6 +29,7 @@ export interface GivingState {
   answers: GivingAnswers
   history: GivingStep[]
   editReturnStep: GivingStep | null
+  linearNavigation: boolean
   missingIdentity: GivingIdentityField[]
   fundConfirmed: boolean
 }
@@ -54,6 +55,7 @@ export function createGivingState(
     step: 'amount',
     history: [],
     editReturnStep: null,
+    linearNavigation: false,
     fundConfirmed: false,
     missingIdentity: (['firstName', 'lastName', 'email'] as const).filter((field) => !identity[field]),
     answers: {
@@ -83,9 +85,41 @@ export function nextGivingStep(
   return 'review'
 }
 
+export function givingStepOrder(answers: GivingAnswers): GivingStep[] {
+  return [
+    'amount',
+    'frequency',
+    'fund',
+    ...(answers.frequency === 'one-off' ? [] : ['starting-date' as const]),
+    'identity-firstName',
+    'identity-lastName',
+    'identity-email',
+    'review',
+  ]
+}
+
 function move(state: GivingState, step: GivingStep): GivingState {
   if (step === state.step) return state
-  return { ...state, step, history: [...state.history, state.step] }
+  return { ...state, step, history: state.history.includes(state.step) ? state.history : [...state.history, state.step] }
+}
+
+function givingJourney(state: GivingState): GivingStep[] {
+  const identitySteps = new Set<GivingStep>([
+    ...state.missingIdentity.map((field) => `identity-${field}` as const),
+    ...state.history.filter((step) => step.startsWith('identity-')),
+    ...(state.step.startsWith('identity-') ? [state.step] : []),
+  ])
+  return givingStepOrder(state.answers).filter((step) => !step.startsWith('identity-') || identitySteps.has(step))
+}
+
+function adjacentGivingStep(state: GivingState, offset: -1 | 1): GivingStep | null {
+  const journey = givingJourney(state)
+  const index = journey.indexOf(state.step)
+  return journey[index + offset] ?? null
+}
+
+export function previousGivingStep(state: GivingState): GivingStep | null {
+  return state.editReturnStep ?? adjacentGivingStep(state, -1)
 }
 
 export function givingReducer(state: GivingState, action: GivingAction): GivingState {
@@ -121,21 +155,31 @@ export function givingReducer(state: GivingState, action: GivingAction): GivingS
     }
     case 'commitAmount': {
       const answers = { ...state.answers, amountMinor: action.amountMinor }
-      const required = nextGivingStep(answers, state.missingIdentity, state.fundConfirmed)
+      const required = state.linearNavigation ? 'frequency' : nextGivingStep(answers, state.missingIdentity, state.fundConfirmed)
       const step = state.editReturnStep && required === 'review' ? state.editReturnStep : required
-      return { ...state, answers, step, history: [...state.history, state.step], editReturnStep: step === state.editReturnStep ? null : state.editReturnStep }
+      return {
+        ...move({ ...state, answers }, step),
+        editReturnStep: step === state.editReturnStep ? null : state.editReturnStep,
+        linearNavigation: state.linearNavigation && step !== 'review',
+      }
     }
     case 'next': {
-      const required = nextGivingStep(state.answers, action.missingIdentity ?? state.missingIdentity, state.fundConfirmed)
+      const required = state.linearNavigation
+        ? adjacentGivingStep(state, 1) ?? 'review'
+        : nextGivingStep(state.answers, action.missingIdentity ?? state.missingIdentity, state.fundConfirmed)
       const step = state.editReturnStep && required === 'review' ? state.editReturnStep : required
       const moved = move(state, step)
-      return step === state.editReturnStep ? { ...moved, editReturnStep: null } : moved
+      return {
+        ...moved,
+        editReturnStep: step === state.editReturnStep ? null : state.editReturnStep,
+        linearNavigation: state.linearNavigation && step !== 'review',
+      }
     }
     case 'edit':
-      return { ...move(state, action.step), editReturnStep: action.returnTo ?? state.editReturnStep }
+      return { ...move(state, action.step), editReturnStep: action.returnTo ?? state.editReturnStep, linearNavigation: false }
     case 'back': {
-      const step = state.history.at(-1)
-      return step ? { ...state, step, history: state.history.slice(0, -1), editReturnStep: null } : state
+      const step = previousGivingStep(state)
+      return step ? { ...move(state, step), editReturnStep: null, linearNavigation: state.editReturnStep === null } : state
     }
     case 'restore':
       return {
@@ -143,6 +187,7 @@ export function givingReducer(state: GivingState, action: GivingAction): GivingS
         answers: action.answers,
         history: [],
         editReturnStep: null,
+        linearNavigation: false,
         fundConfirmed: true,
         missingIdentity: action.missingIdentity ?? state.missingIdentity,
       }

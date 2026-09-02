@@ -1,4 +1,4 @@
-import type { GivingAnswers, GivingStep } from './giving-state'
+import { givingStepOrder, type GivingAnswers, type GivingStep } from './giving-state'
 import { givingStartDateSummary } from './steps/StartingDateStep'
 
 const frequencyLabels: Record<Exclude<GivingAnswers['frequency'], null>, string> = {
@@ -22,7 +22,7 @@ export function GivingFrequencyPreview() {
 
 function summary(step: GivingStep, answers: GivingAnswers): { label: string; value: string } | null {
   switch (step) {
-    case 'amount': return answers.amountMinor === null ? null : { label: 'amount', value: `I’d like to give $${(answers.amountMinor / 100).toFixed(2)}` }
+    case 'amount': return answers.amountMinor === null ? null : { label: 'amount', value: `I’d like to give $${(answers.amountMinor / 100).toFixed(2)} +$0.50` }
     case 'fund': return answers.fund ? { label: 'fund', value: `for ${answers.fund.name}` } : null
     case 'frequency': return answers.frequency ? { label: 'frequency', value: frequencyLabels[answers.frequency] } : null
     case 'starting-date': return answers.startDate ? { label: 'starting date', value: `starting ${givingStartDateSummary(answers.startDate)}` } : null
@@ -35,16 +35,7 @@ function summary(step: GivingStep, answers: GivingAnswers): { label: string; val
 
 export function GivingAnswerTrail({ answers, currentStep, visitedSteps, placement, onEdit }: { answers: GivingAnswers; currentStep: GivingStep; visitedSteps: readonly GivingStep[]; placement: 'before' | 'after'; onEdit: (step: GivingStep) => void }) {
   if (currentStep === 'review') return null
-  const journey: GivingStep[] = [
-    'amount',
-    'frequency',
-    'fund',
-    ...(answers.frequency === 'one-off' ? [] : ['starting-date' as const]),
-    'identity-firstName',
-    'identity-lastName',
-    'identity-email',
-    'review',
-  ]
+  const journey = givingStepOrder(answers)
   const currentIndex = journey.indexOf(currentStep)
   const visited = new Set(visitedSteps)
   const candidates = placement === 'before'

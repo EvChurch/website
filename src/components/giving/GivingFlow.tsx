@@ -7,7 +7,7 @@ import { GIVING_REQUEST_MARKERS, isGivingCapabilityToken, parseGivingCheckoutSta
 import { trackGivingEvent, type GivingAnalyticsStep, type GivingFeedbackReason } from '@/lib/giving/analytics'
 import { GIVING_BANK_ACCOUNT, type GivingBankTransferPreparation } from '@/lib/giving/bank-transfer'
 import { assertRedirectUri } from '@/lib/giving/blinkpay/validation'
-import { draftAnswers, createGivingState, givingReducer, type GivingAnswers, type GivingFrequency, type GivingIdentityField, type GivingStep } from './giving-state'
+import { draftAnswers, createGivingState, givingReducer, previousGivingStep, type GivingAnswers, type GivingFrequency, type GivingIdentityField, type GivingStep } from './giving-state'
 import { AmountStep } from './steps/AmountStep'
 import { FrequencyStep } from './steps/FrequencyStep'
 import { FundStep } from './steps/FundStep'
@@ -251,7 +251,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   },[checkout,giving.givingViewActive,state.step])
   useEffect(() => giving.registerGivingBackHandler(() => {
     if (checkout.type === 'submitting') return true
-    if (checkout.type !== 'configuring' || stateRef.current.history.length === 0) return false
+    if (checkout.type !== 'configuring' || previousGivingStep(stateRef.current) === null) return false
     scrollIntent.current = 'edit'
     setError(undefined)
     dispatch({ type: 'back' })

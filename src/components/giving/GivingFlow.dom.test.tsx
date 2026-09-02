@@ -121,7 +121,7 @@ describe('GivingFlow', () => {
     expect(document.activeElement?.textContent).toContain('Every week')
     expect(container.querySelector('[data-question-panel="highlighted"]')).toBeTruthy()
     expect(container.querySelector('[aria-label="Change amount"]')).toBeTruthy()
-    expect(container.textContent).toContain('I’d like to give $50.00')
+    expect(container.textContent).toContain('I’d like to give $50.00 +$0.50')
     expect(container.textContent).not.toContain('More options')
     expect(container.textContent).not.toContain('Every day')
     expect(container.textContent).not.toContain('Every year')
@@ -551,6 +551,42 @@ describe('GivingFlow', () => {
     expect(button(container,'Continue to BlinkPay')?.disabled).toBe(true)
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
     expect(button(container,'Continue to BlinkPay')?.disabled).toBe(false)
+  })
+
+  it('uses Back and Continue to walk completed steps linearly', async () => {
+    await reachSignedInReview(container, root)
+    expect(container.textContent).toContain('Continue with BlinkPay')
+
+    await act(async()=>givingContext.back?.())
+    expect(container.textContent).toContain('What fund should this be for?')
+    await act(async()=>givingContext.back?.())
+    expect(container.textContent).toContain('How often?')
+    await act(async()=>givingContext.back?.())
+    expect(container.textContent).toContain('How much would you like to give?')
+
+    await act(async()=>change(container.querySelector('input')!,'30'))
+    await act(async()=>button(container,'Continue')?.click())
+    expect(container.textContent).toContain('How often?')
+    expect(container.textContent).not.toContain('Continue with BlinkPay')
+    await act(async()=>button(container,'Just this once')?.click())
+    expect(container.textContent).toContain('What fund should this be for?')
+  })
+
+  it('returns to the originating step when backing out of an explicit answer edit', async () => {
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
+    await act(async()=>change(container.querySelector('input')!,'25'))
+    await act(async()=>button(container,'Continue')?.click())
+    await act(async()=>button(container,'Every month')?.click())
+    await act(async()=>button(container,'General')?.click())
+    expect(container.textContent).toContain('Starting when?')
+
+    await act(async()=>container.querySelector<HTMLButtonElement>('[aria-label="Change amount"]')?.click())
+    expect(container.textContent).toContain('How much would you like to give?')
+
+    let handled = false
+    await act(async()=>{ handled = givingContext.back?.() ?? false })
+    expect(handled).toBe(true)
+    expect(container.textContent).toContain('Starting when?')
   })
 
   it('consumes Back and Close while checkout submission is pending and preserves its draft on unmount', async () => {
