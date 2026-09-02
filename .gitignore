@@ -1,9 +1,9 @@
 # Dependencies
 node_modules/
 
-# MCP server config (contains API keys)
+# Machine-local MCP server config (contains API keys)
 .mcp.json
-.codex/config.toml
+.codex/*.local.toml
 
 # Compound Engineering machine-local preferences
 .compound-engineering/*.local.yaml

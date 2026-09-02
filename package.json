@@ -12,6 +12,7 @@
     "test:migration:postgres": "vitest run src/migration-tests",
     "seed": "tsx src/seed/seed-pages.ts",
     "start": "next start",
+    "check:worktree": "node scripts/check-worktree-integrations.mjs",
     "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives",
     "payload": "payload",
     "generate:types": "payload generate:types",
