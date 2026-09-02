@@ -180,36 +180,25 @@ describe('AnalyticsManager', () => {
     expect(container.querySelector('[data-ga-path="/sermons"]')).not.toBeNull()
   })
 
-  it('subscribes to fresh flag decisions without emitting flag-called events', async () => {
+  it('does not use PostHog feature flags for giving eligibility', async () => {
     function FlagStateProbe() {
       return <output data-flag-state>{useGivingExperience().flagState}</output>
     }
 
     posthog.isFeatureEnabled.mockReturnValue(true)
     await act(async () => root.render(
-      <GivingExperienceProvider serverEligibility="production">
+      <GivingExperienceProvider serverEligibility="production" blinkPayEligible>
         <AnalyticsManager />
         <FlagStateProbe />
       </GivingExperienceProvider>,
     ))
 
-    expect(posthog.onFeatureFlags).toHaveBeenCalledOnce()
-    const callback = posthog.onFeatureFlags.mock.calls[0]?.[0]
-    await act(async () => callback([], {}, { errorsLoading: false }))
-
-    expect(posthog.isFeatureEnabled).toHaveBeenCalledWith(
-      'launcher-giving-pilot',
-      { fresh: true, send_event: false },
-    )
+    expect(posthog.onFeatureFlags).not.toHaveBeenCalled()
+    expect(posthog.isFeatureEnabled).not.toHaveBeenCalled()
     expect(container.querySelector('[data-flag-state]')?.textContent).toBe('enabled')
-
-    posthog.isFeatureEnabled.mockReturnValue(undefined)
-    await act(async () => callback([], {}, { errorsLoading: false }))
-    expect(container.querySelector('[data-flag-state]')?.textContent).toBe('failed')
   })
 
-  it('falls back when PostHog never resolves feature flags', async () => {
-    vi.useFakeTimers()
+  it('keeps giving eligibility disabled without an eligible signed-in profile', async () => {
     function FlagStateProbe() {
       return <output data-flag-state>{useGivingExperience().flagState}</output>
     }
@@ -219,10 +208,7 @@ describe('AnalyticsManager', () => {
         <FlagStateProbe />
       </GivingExperienceProvider>,
     ))
-    expect(container.querySelector('[data-flag-state]')?.textContent).toBe('unresolved')
-    await act(async () => vi.advanceTimersByTimeAsync(3_000))
-    expect(container.querySelector('[data-flag-state]')?.textContent).toBe('failed')
-    vi.useRealTimers()
+    expect(container.querySelector('[data-flag-state]')?.textContent).toBe('disabled')
   })
 
   it('identifies signed-in members and resets anonymous browsers', async () => {

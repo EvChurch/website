@@ -9,16 +9,12 @@ import {
   mustPauseAnalyticsCapture,
 } from '@/lib/analytics-privacy'
 import { useGivingExperience } from '@/components/giving/GivingExperienceProvider'
-import {
-  GIVING_FLAG_KEY,
-  sanitizeAnalyticsPayload,
-} from '@/lib/giving/analytics'
+import { sanitizeAnalyticsPayload } from '@/lib/giving/analytics'
 import { GA_ID, GoogleAnalytics } from './GoogleAnalytics'
 import type { MemberChromeState } from '@/lib/member-chrome'
 
 let postHogInitialized = false
 let privateCaptureActive = false
-export const POSTHOG_FLAG_TIMEOUT_MS = 3_000
 
 // A browser extension (the known source is an Outlook/Office family one) injects
 // a script that rejects a promise with a plain string. Exception autocapture
@@ -151,53 +147,15 @@ export function AnalyticsManager({
   postHogIdentity?: MemberChromeState['postHogIdentity']
 } = {}) {
   const pathname = usePathname()
-  const { givingViewActive, setFlagState } = useGivingExperience()
+  const { givingViewActive } = useGivingExperience()
   const lastIdentity = useRef<string | null | undefined>(undefined)
   const mayTrack = canTrackAnalyticsPath(pathname)
   const privatePath = mustPauseAnalyticsCapture(pathname)
   const pausePrivateCapture = givingViewActive || privatePath
 
   useEffect(() => {
-    if (privatePath) {
-      setFlagState('failed')
-      return
-    }
-    if (!initializePostHog()) {
-      setFlagState('failed')
-      return
-    }
-
-    try {
-      let settled = false
-      const timeout = window.setTimeout(() => {
-        if (!settled) setFlagState('failed')
-      }, POSTHOG_FLAG_TIMEOUT_MS)
-      const unsubscribe = posthog.onFeatureFlags((_flags, _variants, context) => {
-        settled = true
-        window.clearTimeout(timeout)
-        if (context?.errorsLoading) {
-          setFlagState('failed')
-          return
-        }
-        try {
-          const enabled = posthog.isFeatureEnabled(GIVING_FLAG_KEY, {
-            fresh: true,
-            send_event: false,
-          })
-          setFlagState(enabled === true ? 'enabled' : enabled === false ? 'disabled' : 'failed')
-        } catch {
-          setFlagState('failed')
-        }
-      })
-      return () => {
-        settled = true
-        window.clearTimeout(timeout)
-        unsubscribe()
-      }
-    } catch {
-      setFlagState('failed')
-    }
-  }, [privatePath, setFlagState])
+    if (!privatePath) initializePostHog()
+  }, [privatePath])
 
   useEffect(() => {
     if (privatePath || postHogIdentity === undefined || !initializePostHog()) return

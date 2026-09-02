@@ -116,10 +116,15 @@ export function PublicChrome({
         gatewayOrigins={givingRuntime?.gatewayOrigins ?? []}
       />
     : <GivingUnavailable />
+  const blinkPayEligible = memberChromeResolved &&
+    memberChrome.impersonation === null &&
+    /^[^@]+@ev\.church$/iu.test(memberChrome.memberProfile?.email ?? '')
 
   return (
     <GivingExperienceProvider
       serverEligibility={givingRuntime?.eligibility ?? null}
+      blinkPayEligibilityResolved={memberChromeResolved}
+      blinkPayEligible={blinkPayEligible}
       resumeRequested={givingResumeRequested}
       givingExperience={givingExperience}
     >
