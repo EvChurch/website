@@ -26,7 +26,7 @@ describe('BlinkPay hosted return', () => {
     expect(cookies).toContain('__Host-ev_giving_checkout=')
     expect(cookies).toContain('__Host-ev_giving_return=;')
     expect(cookies.toLowerCase()).toContain('samesite=strict')
-    expect(consume).toHaveBeenCalledWith(returnToken, 'provider-correlation')
+    expect(consume).toHaveBeenCalledWith(returnToken, null)
   })
 
   it('uses APP_BASE_URL instead of Railway internal request origin', async () => {
@@ -64,7 +64,7 @@ describe('BlinkPay hosted return', () => {
     }
   })
 
-  it('requires the return cookie and accepts only one provider correlation alias', async () => {
+  it('requires the return cookie and accepts only one BlinkPay callback alias', async () => {
     const consume = vi.fn(async () => ({ statusToken: 'S'.repeat(43), checkoutId: 1 }))
     expect((await handleGivingReturnGet(request('', true), dependencies(consume))).status).toBe(404)
     expect((await handleGivingReturnGet(request('?cid=abc', false), dependencies(consume))).status).toBe(404)
@@ -74,5 +74,16 @@ describe('BlinkPay hosted return', () => {
     for (const query of ['?cid=a&cid=b', '?cid=a&consent_id=a', '?status=success', '?redirect=https://evil.test']) {
       expect((await handleGivingReturnGet(request(query), dependencies(consume))).status).toBe(404)
     }
+  })
+
+  it('accepts BlinkPay cancellation returns with a consent id and optional error message', async () => {
+    const consume = vi.fn(async () => ({ statusToken: 'S'.repeat(43), checkoutId: 1 }))
+    const response = await handleGivingReturnGet(
+      request('?cid=a0b3b75e-232f-4bf0-8a70-7bcb733db5ca&error=We+couldn%27t+process+your+payment+request'),
+      dependencies(consume),
+    )
+
+    expect(response.status).toBe(303)
+    expect(consume).toHaveBeenCalledWith(returnToken, null)
   })
 })
