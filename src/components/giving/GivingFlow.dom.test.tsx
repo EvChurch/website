@@ -433,6 +433,8 @@ describe('GivingFlow', () => {
     expect(frequencyPreview?.getAttribute('aria-hidden')).toBe('true')
     expect(frequencyPreview?.textContent).toBe('How often?')
     expect(frequencyPreview?.textContent).not.toContain('Every week')
+    expect(frequencyPreview?.className).toContain('mt-4')
+    expect(frequencyPreview?.className).not.toContain('mt-8')
     expect(frequencyPreview?.className).not.toContain('overflow-hidden')
     expect(frequencyPreview?.className).not.toContain('mask-image')
     expect(frequencyPreview?.closest('[data-giving-step]')).toBeNull()
