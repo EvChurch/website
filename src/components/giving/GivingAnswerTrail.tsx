@@ -10,12 +10,12 @@ const frequencyLabels: Record<Exclude<GivingAnswers['frequency'], null>, string>
   annual: 'Every year',
 }
 
-const answerSurface = 'relative flex min-h-14 w-full items-center rounded-full bg-white px-5 text-left font-semibold text-dark-grey shadow-sm'
+const answerSurface = 'relative flex min-h-14 w-full items-center rounded-full px-5 text-left font-semibold'
 
 export function GivingStepPreview({ step, label }: { step: GivingStep; label: string }) {
   return (
-    <div aria-hidden="true" data-giving-step-preview={step} className="pointer-events-none mt-8 opacity-50">
-      <div data-giving-answer-preview className={`${answerSurface} animate-fade-in-up ring-1 ring-warm-grey/30 motion-reduce:animate-none`}>{label}</div>
+    <div aria-hidden="true" data-giving-step-preview={step} className="pointer-events-none mt-8">
+      <div data-giving-answer-preview className={`${answerSurface} animate-fade-in-up bg-white/55 text-dark-grey/75 shadow-sm ring-1 ring-warm-grey/45 motion-reduce:animate-none`}>{label}</div>
     </div>
   )
 }
@@ -56,7 +56,7 @@ export function GivingAnswerTrail({ answers, currentStep, visitedSteps, placemen
           onClick={() => onEdit(step)}
           aria-label={`Change ${label}`}
           data-giving-answer
-          className={`group ${answerSurface} animate-fade-in-up pr-24 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red motion-reduce:animate-none motion-reduce:transform-none`}
+          className={`group ${answerSurface} animate-fade-in-up bg-white pr-24 text-dark-grey shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red motion-reduce:animate-none motion-reduce:transform-none`}
         >
           <span className="truncate">{value}</span>
           <span className="absolute right-5 text-sm font-semibold text-rich-red opacity-60 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 sm:opacity-0">Change</span>
