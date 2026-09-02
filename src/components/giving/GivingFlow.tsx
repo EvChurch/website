@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, u
 
 import { TurnstileWidget } from '@/components/forms/TurnstileWidget'
 import { GIVING_REQUEST_MARKERS, isGivingCapabilityToken, parseGivingCheckoutStatus, type GivingCheckoutStatus, type PublicGivingFund } from '@/lib/giving/contracts'
-import { trackGivingEvent, type GivingAnalyticsStep } from '@/lib/giving/analytics'
+import { trackGivingEvent, type GivingAnalyticsStep, type GivingFeedbackReason } from '@/lib/giving/analytics'
 import { GIVING_BANK_ACCOUNT, type GivingBankTransferPreparation } from '@/lib/giving/bank-transfer'
 import { assertRedirectUri } from '@/lib/giving/blinkpay/validation'
 import { draftAnswers, createGivingState, givingReducer, type GivingAnswers, type GivingFrequency, type GivingIdentityField, type GivingStep } from './giving-state'
@@ -79,17 +79,48 @@ export function safeGivingGatewayRedirect(value: unknown, allowedOrigins: readon
   try { return assertRedirectUri(value,allowedOrigins) } catch { return null }
 }
 
+const definitiveFailedGivingStates: readonly GivingCheckoutStatus['state'][] = ['cancelled', 'rejected', 'expired']
+
 export function givingCheckoutPresentation(status: GivingCheckoutStatus, delayed = false) {
   let message: string
   switch(status.state){
     case'verified':message=status.kind==='recurring'?'Your recurring gift is confirmed and its schedule is active.':'Your gift is confirmed.';break
     case'processing':message=delayed?'This is taking a little longer. You may safely close this flow while Ev keeps checking; there is no need to try again.':'We’re confirming your gift with BlinkPay.';break
     case'unknown':message='We’re still checking the outcome. Do not try again; Ev will reconcile it safely.';break
-    case'cancelled':message='Bank authorisation was cancelled. No gift was made.';break
-    case'expired':message='Bank authorisation expired, so setup was not completed.';break
-    case'rejected':message='The bank did not accept the setup, so no gift was made.';break
+    case'cancelled':case'expired':case'rejected':message='No gift was made.';break
   }
-  return {message,showRetry:status.retryAllowed && ['cancelled','rejected','expired'].includes(status.state)}
+  return {message,showRetry:status.retryAllowed && definitiveFailedGivingStates.includes(status.state)}
+}
+
+const givingFeedbackOptions: readonly { value: GivingFeedbackReason; label: string }[] = [
+  { value: 'change-something', label: 'I went back to change something' },
+  { value: 'decided-not-to-give', label: 'I decided not to give' },
+  { value: 'testing', label: 'I was testing' },
+  { value: 'technical-problem', label: 'Something didn\u2019t work' },
+  { value: 'prefer-not-to-say', label: 'Prefer not to say' },
+]
+
+function GivingOutcomeFeedback() {
+  const [reason, setReason] = useState<GivingFeedbackReason | null>(null)
+  const [sent, setSent] = useState(false)
+
+  const submit = () => {
+    if (!reason || sent) return
+    trackGivingEvent('giving_outcome_feedback', { step: 'result', outcome: 'failed', feedback_reason: reason })
+    setSent(true)
+  }
+
+  if (sent) return <p role="status" className="mt-6 border-t border-warm-grey pt-5 text-sm font-semibold">Thanks for letting us know.</p>
+
+  return <form className="mt-6 border-t border-warm-grey pt-5" onSubmit={(event) => { event.preventDefault();submit() }}>
+    <fieldset>
+      <legend className="font-semibold">Would you tell us what happened? <span className="font-normal text-dark-grey">(Optional)</span></legend>
+      <div className="mt-3 space-y-3">
+        {givingFeedbackOptions.map((option) => <label key={option.value} className="flex cursor-pointer items-start gap-3 text-sm text-dark-grey"><input type="radio" name="giving-feedback-reason" value={option.value} checked={reason === option.value} onChange={() => setReason(option.value)} className="mt-0.5 size-4 accent-rich-red" /> <span>{option.label}</span></label>)}
+      </div>
+    </fieldset>
+    <button type="submit" disabled={!reason} className="mt-5 min-h-11 rounded-full bg-rich-red px-5 font-semibold text-white transition hover:bg-deep-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red focus-visible:ring-offset-2 disabled:opacity-50">Send feedback</button>
+  </form>
 }
 
 export function givingStatusPollDelay(attempt:number){
@@ -500,9 +531,10 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   else if (checkout.type === 'status') {
     const { status, delayed } = checkout
     const presentation = givingCheckoutPresentation(status,delayed)
+    const showFeedback = definitiveFailedGivingStates.includes(status.state)
     content = status.state === 'verified'
       ? <GivingCompletion firstName={status.firstName} kind={status.kind} onDone={() => giving.dismissGiving()} />
-      : <div className="rounded-2xl bg-white p-5 shadow-sm"><p role="status" className="font-semibold">{presentation.message}</p>{presentation.showRetry && <button type="button" className="mt-5 font-semibold text-rich-red" onClick={() => void returnToGift()}>Return to your saved gift</button>}</div>
+      : <div className="rounded-2xl bg-white p-5 shadow-sm"><p role="status" className="font-semibold">{presentation.message}</p>{presentation.showRetry && <button type="button" className="mt-5 font-semibold text-rich-red" onClick={() => void returnToGift()}>Return to your saved gift</button>}{showFeedback && <GivingOutcomeFeedback />}</div>
   } else switch (state.step) {
     case 'amount': content = <AmountStep value={state.answers.amountMinor} error={error} onContinue={(amountMinor) => { if (!amountMinor || amountMinor < 100) { setError('Enter an amount of at least $1.00.'); return };scrollIntent.current = 'forward';setError(undefined);dispatch({ type: 'commitAmount', amountMinor }) }} />; break
     case 'fund': content = <FundStep funds={funds} selected={state.answers.fund?.id ?? null} onSelect={(fund) => { scrollIntent.current = 'forward';dispatch({ type: 'setFund', fund });dispatch({ type: 'next' }) }} />; break
@@ -530,7 +562,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
       break
     }
   }
-  const heading = checkout.type === 'status' ? (checkout.status.state === 'verified' ? 'Giving complete' : 'Your giving result') : checkout.type === 'submitting' ? (paymentMode === 'blinkpay' ? 'Opening BlinkPay' : 'Preparing your bank details') : customDateOpen && state.step === 'starting-date' ? 'OK, choose a start date' : state.step === 'review' ? (paymentMode === 'blinkpay' ? 'Continue with BlinkPay' : paymentMode === 'bank-transfer' ? (bankAcknowledged ? 'Giving complete' : 'Bank transfer details') : 'Payment details') : titles[state.step]
+  const heading = checkout.type === 'status' ? (checkout.status.state === 'verified' ? 'Giving complete' : definitiveFailedGivingStates.includes(checkout.status.state) ? 'Gift not completed' : 'Your giving result') : checkout.type === 'submitting' ? (paymentMode === 'blinkpay' ? 'Opening BlinkPay' : 'Preparing your bank details') : customDateOpen && state.step === 'starting-date' ? 'OK, choose a start date' : state.step === 'review' ? (paymentMode === 'blinkpay' ? 'Continue with BlinkPay' : paymentMode === 'bank-transfer' ? (bankAcknowledged ? 'Giving complete' : 'Bank transfer details') : 'Payment details') : titles[state.step]
   const progress = checkout.type === 'configuring' ? givingProgress(state.step, state.answers.frequency) : 100
   const transitionKey = checkout.type === 'configuring' ? state.step : checkout.type
   const highlightedQuestion = checkout.type === 'configuring' && state.step !== 'amount' && state.step !== 'review'
