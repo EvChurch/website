@@ -73,6 +73,32 @@ describe('giving state', () => {
     expect(state.answers).toMatchObject({ amountMinor: 7500, frequency: 'monthly', startDate: '2026-09-01', email: 'alex@example.com' })
   })
 
+  it('moves backward and forward linearly after revisiting completed steps', () => {
+    let state = createGivingState(funds, { firstName: 'Alex', lastName: 'Taylor', email: 'alex@example.com' })
+    state = {
+      ...state,
+      step: 'review',
+      fundConfirmed: true,
+      history: ['amount', 'frequency', 'fund', 'starting-date', 'amount', 'frequency'],
+      answers: { ...state.answers, amountMinor: 5000, frequency: 'monthly', startDate: '2026-09-01' },
+    }
+
+    state = givingReducer(state, { type: 'back' })
+    expect(state.step).toBe('starting-date')
+    state = givingReducer(state, { type: 'back' })
+    expect(state.step).toBe('fund')
+    state = givingReducer(state, { type: 'back' })
+    expect(state.step).toBe('frequency')
+    state = givingReducer(state, { type: 'back' })
+    expect(state.step).toBe('amount')
+
+    state = givingReducer(state, { type: 'commitAmount', amountMinor: 7500 })
+    expect(state.step).toBe('frequency')
+    state = givingReducer(state, { type: 'setFrequency', frequency: 'monthly' })
+    state = givingReducer(state, { type: 'next' })
+    expect(state.step).toBe('fund')
+  })
+
   it('requires an explicit fund confirmation while retaining the default selection', () => {
     let state = createGivingState(funds)
     state = givingReducer(state, { type: 'commitAmount', amountMinor: 5000 })

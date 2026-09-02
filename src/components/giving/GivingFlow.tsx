@@ -251,7 +251,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   },[checkout,giving.givingViewActive,state.step])
   useEffect(() => giving.registerGivingBackHandler(() => {
     if (checkout.type === 'submitting') return true
-    if (checkout.type !== 'configuring' || stateRef.current.history.length === 0) return false
+    if (checkout.type !== 'configuring' || stateRef.current.step === 'amount') return false
     scrollIntent.current = 'edit'
     setError(undefined)
     dispatch({ type: 'back' })

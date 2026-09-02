@@ -553,6 +553,25 @@ describe('GivingFlow', () => {
     expect(button(container,'Continue to BlinkPay')?.disabled).toBe(false)
   })
 
+  it('uses Back and Continue to walk completed steps linearly', async () => {
+    await reachSignedInReview(container, root)
+    expect(container.textContent).toContain('Continue with BlinkPay')
+
+    await act(async()=>givingContext.back?.())
+    expect(container.textContent).toContain('What fund should this be for?')
+    await act(async()=>givingContext.back?.())
+    expect(container.textContent).toContain('How often?')
+    await act(async()=>givingContext.back?.())
+    expect(container.textContent).toContain('How much would you like to give?')
+
+    await act(async()=>change(container.querySelector('input')!,'30'))
+    await act(async()=>button(container,'Continue')?.click())
+    expect(container.textContent).toContain('How often?')
+    expect(container.textContent).not.toContain('Continue with BlinkPay')
+    await act(async()=>button(container,'Just this once')?.click())
+    expect(container.textContent).toContain('What fund should this be for?')
+  })
+
   it('consumes Back and Close while checkout submission is pending and preserves its draft on unmount', async () => {
     let resolveDraft: ((response: Response) => void) | undefined
     let checkoutCalls=0
