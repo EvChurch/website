@@ -12,17 +12,17 @@ const frequencyLabels: Record<Exclude<GivingAnswers['frequency'], null>, string>
 
 const answerSurface = 'relative flex min-h-14 w-full items-center rounded-full bg-white px-5 text-left font-semibold text-dark-grey shadow-sm'
 
-export function GivingFrequencyPreview() {
+export function GivingStepPreview({ step, label }: { step: GivingStep; label: string }) {
   return (
-    <div aria-hidden="true" data-frequency-preview className="pointer-events-none mt-8 max-h-14 overflow-hidden opacity-50 [mask-image:linear-gradient(to_bottom,#000_0%,#000_45%,transparent_100%)]">
-      <div data-giving-answer-preview className={`${answerSurface} animate-fade-in-up motion-reduce:animate-none`}>How often?</div>
+    <div aria-hidden="true" data-giving-step-preview={step} className="pointer-events-none mt-8 opacity-50">
+      <div data-giving-answer-preview className={`${answerSurface} animate-fade-in-up ring-1 ring-warm-grey/30 motion-reduce:animate-none`}>{label}</div>
     </div>
   )
 }
 
 function summary(step: GivingStep, answers: GivingAnswers): { label: string; value: string } | null {
   switch (step) {
-    case 'amount': return answers.amountMinor === null ? null : { label: 'amount', value: `I’d like to give $${(answers.amountMinor / 100).toFixed(2)} +$0.50` }
+    case 'amount': return answers.amountMinor === null ? null : { label: 'amount', value: `I’d like to give $${(answers.amountMinor / 100).toFixed(2)}+$0.50` }
     case 'fund': return answers.fund ? { label: 'fund', value: `for ${answers.fund.name}` } : null
     case 'frequency': return answers.frequency ? { label: 'frequency', value: frequencyLabels[answers.frequency] } : null
     case 'starting-date': return answers.startDate ? { label: 'starting date', value: `starting ${givingStartDateSummary(answers.startDate)}` } : null
