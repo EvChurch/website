@@ -10,6 +10,16 @@ const frequencyLabels: Record<Exclude<GivingAnswers['frequency'], null>, string>
   annual: 'Every year',
 }
 
+const answerSurface = 'relative flex min-h-14 w-full items-center rounded-full bg-white px-5 text-left font-semibold text-dark-grey shadow-sm'
+
+export function GivingFrequencyPreview() {
+  return (
+    <div aria-hidden="true" data-frequency-preview className="pointer-events-none mt-8 max-h-14 overflow-hidden opacity-50 [mask-image:linear-gradient(to_bottom,#000_0%,#000_45%,transparent_100%)]">
+      <div data-giving-answer-preview className={`${answerSurface} animate-fade-in-up motion-reduce:animate-none`}>How often?</div>
+    </div>
+  )
+}
+
 function summary(step: GivingStep, answers: GivingAnswers): { label: string; value: string } | null {
   switch (step) {
     case 'amount': return answers.amountMinor === null ? null : { label: 'amount', value: `I’d like to give $${(answers.amountMinor / 100).toFixed(2)}` }
@@ -27,8 +37,8 @@ export function GivingAnswerTrail({ answers, currentStep, visitedSteps, placemen
   if (currentStep === 'review') return null
   const journey: GivingStep[] = [
     'amount',
-    'fund',
     'frequency',
+    'fund',
     ...(answers.frequency === 'one-off' ? [] : ['starting-date' as const]),
     'identity-firstName',
     'identity-lastName',
@@ -55,7 +65,7 @@ export function GivingAnswerTrail({ answers, currentStep, visitedSteps, placemen
           onClick={() => onEdit(step)}
           aria-label={`Change ${label}`}
           data-giving-answer
-          className="group relative flex min-h-14 w-full animate-fade-in-up items-center rounded-full bg-white px-5 pr-24 text-left font-semibold text-dark-grey shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red motion-reduce:animate-none motion-reduce:transform-none"
+          className={`group ${answerSurface} animate-fade-in-up pr-24 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red motion-reduce:animate-none motion-reduce:transform-none`}
         >
           <span className="truncate">{value}</span>
           <span className="absolute right-5 text-sm font-semibold text-rich-red opacity-60 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 sm:opacity-0">Change</span>
