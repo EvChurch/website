@@ -175,7 +175,7 @@ describe('GivingFlow', () => {
     const laterAnswers = Array.from(container.querySelectorAll('[data-giving-answer]')).map((answer) => answer.textContent)
     expect(laterAnswers[0]).toContain('Every month')
     expect(laterAnswers[1]).toContain('for General')
-    expect(container.querySelector('[data-giving-step-preview="frequency"]')?.textContent).toBe('How often?')
+    expect(container.querySelector('[data-giving-step-preview="frequency"]')).toBeNull()
     await act(async () => change(container.querySelector('input')!, '55'))
     await act(async () => button(container, 'Continue')?.click())
     expect(container.textContent).toContain('Starting when?')
@@ -187,6 +187,22 @@ describe('GivingFlow', () => {
     expect(container.textContent).toContain('complete your payment setup with your bank')
     expect(container.textContent).toContain('You’re giving $55.00 to General every month, starting tomorrow.')
     expect(container.textContent).not.toContain('$55.00 NZD')
+  })
+
+  it('hides a future-step preview when that answer is already editable', async () => {
+    await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{ signedIn: true, firstName: 'Alex', lastName: 'Taylor', email: 'alex@example.com' }} />))
+    await act(async () => change(container.querySelector('input')!, '50'))
+    await act(async () => button(container, 'Continue')?.click())
+    await act(async () => button(container, 'Every month')?.click())
+    await act(async () => button(container, 'General')?.click())
+
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Change amount"]')?.click())
+    expect(container.textContent).toContain('Every month')
+    expect(container.querySelector('[data-giving-step-preview="frequency"]')).toBeNull()
+
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Change frequency"]')?.click())
+    expect(container.textContent).toContain('for General')
+    expect(container.querySelector('[data-giving-step-preview="fund"]')).toBeNull()
   })
 
   it('keeps apprentice funds out of the normal list and reveals them from the subdued option', async () => {
@@ -423,11 +439,13 @@ describe('GivingFlow', () => {
     const previewOutline = frequencyPreview?.querySelector('[data-giving-preview-outline]')
     expect(previewOutline?.className).toContain('rounded-full')
     expect(previewOutline?.className).toContain('ring-inset')
+    expect(previewOutline?.className).not.toContain('shadow')
     const previewSurface = frequencyPreview?.querySelector('[data-giving-answer-preview]')
     expect(previewSurface?.className).toContain('rounded-full')
     expect(previewSurface?.className).toContain('bg-white')
     expect(previewSurface?.className).toContain('text-dark-grey')
-    expect(previewSurface?.className).toContain('mask-image')
+    expect(previewSurface?.className).toContain('rgba(0,0,0,0.6)')
+    expect(previewSurface?.className).toContain('transparent_80%')
     expect(progress?.getAttribute('aria-label')).toBe('Giving progress')
     expect(progress?.className).toContain('h-5')
     expect(progress?.getAttribute('aria-valuenow')).toBe(String(givingProgress('amount', null)))
