@@ -415,6 +415,22 @@ describe('giving checkout orchestration', () => {
     expect(await checkout.status(returned.statusToken)).toEqual({ state: 'rejected', retryAllowed: true, kind: 'recurring' })
   })
 
+  it('treats a revoked recurring consent as a cancelled gift', async () => {
+    const getEnduringConsent = vi.fn(async () => ({
+      consent_id: 'consent-1',
+      status: 'Revoked',
+      creation_timestamp: '2026-08-15T00:00:00Z',
+      status_updated_timestamp: '2026-08-15T00:00:01Z',
+      detail: {},
+      payments: [],
+    }))
+    const { checkout } = service(repository(), { getEnduringConsent })
+    const started = await checkout.start({ ...context, submission: { ...baseSubmission, frequency: 'weekly', firstPaymentDate: '2026-09-01' } })
+    const returned = await checkout.consumeReturn(returnToken(started))
+
+    expect(await checkout.status(returned.statusToken)).toEqual({ state: 'cancelled', retryAllowed: true, kind: 'recurring' })
+  })
+
   it('marks an ambiguous schedule exception unknown and does not retry it', async () => {
     const createFixedRecurringPayment = vi.fn(async () => { throw new TypeError('network unavailable') })
     const { checkout } = service(repository(), { createFixedRecurringPayment })

@@ -273,10 +273,12 @@ function amount(amountMinor: number): BlinkPayAmount { return { total: minorUnit
 function keys(operation: GivingCheckoutOperation): BlinkPayOperationKeys { return { requestId: operation.requestId, idempotencyKey: operation.idempotencyKey } }
 function failedConsent(status: string): 'cancelled' | 'rejected' | 'expired' | null {
   const normal = status.toLowerCase()
-  if (normal.includes('cancel')) return 'cancelled'
-  if (normal.includes('expir')) return 'expired'
-  if (normal.includes('reject') || normal.includes('fail')) return 'rejected'
-  return null
+  switch (normal) {
+    case 'cancelled': case 'canceled': case 'revoked': return 'cancelled'
+    case 'expired': case 'gatewaytimeout': return 'expired'
+    case 'rejected': case 'failed': return 'rejected'
+    default: return null
+  }
 }
 
 export function createGivingCheckoutService(dependencies: GivingCheckoutDependencies) {
