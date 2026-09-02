@@ -26,8 +26,8 @@ const titles: Record<GivingStep, string> = {
 }
 const progressSteps: readonly GivingStep[] = [
   'amount',
-  'fund',
   'frequency',
+  'fund',
   'starting-date',
   'identity-firstName',
   'identity-lastName',

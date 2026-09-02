@@ -76,11 +76,14 @@ describe('giving state', () => {
   it('requires an explicit fund confirmation while retaining the default selection', () => {
     let state = createGivingState(funds)
     state = givingReducer(state, { type: 'commitAmount', amountMinor: 5000 })
-    expect(state.step).toBe('fund')
+    expect(state.step).toBe('frequency')
     expect(state.answers.fund).toBe(funds[1])
+    state = givingReducer(state, { type: 'setFrequency', frequency: 'monthly' })
+    state = givingReducer(state, { type: 'next' })
+    expect(state.step).toBe('fund')
     state = givingReducer(state, { type: 'setFund', fund: funds[1] })
     state = givingReducer(state, { type: 'next' })
-    expect(state.step).toBe('frequency')
+    expect(state.step).toBe('starting-date')
   })
 
   it('uses the actual missing identity set after restoring a signed-in draft', () => {
