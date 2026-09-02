@@ -51,6 +51,7 @@ import * as migration_20260821_120000_rock_form_registration_pages from './20260
 import * as migration_20260821_150000_rock_form_connection_opportunities from './20260821_150000_rock_form_connection_opportunities';
 import * as migration_20260822_010000_giving_email_deliveries from './20260822_010000_giving_email_deliveries';
 import * as migration_20260825_120000_connect_groups_finder from './20260825_120000_connect_groups_finder';
+import * as migration_20260903_010000_giving_transaction_fees from './20260903_010000_giving_transaction_fees';
 
 export const migrations = [
   {
@@ -317,5 +318,10 @@ export const migrations = [
     up: migration_20260825_120000_connect_groups_finder.up,
     down: migration_20260825_120000_connect_groups_finder.down,
     name: '20260825_120000_connect_groups_finder',
+  },
+  {
+    up: migration_20260903_010000_giving_transaction_fees.up,
+    down: migration_20260903_010000_giving_transaction_fees.down,
+    name: '20260903_010000_giving_transaction_fees',
   },
 ];

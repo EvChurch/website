@@ -80,6 +80,7 @@ export async function handleGivingBankTransferPost(request: NextRequest, depende
     if (!trustedGivingMutation(request, GIVING_REQUEST_MARKERS.bankTransfer)) return response({ error: 'Giving unavailable' }, 403)
     if (!isGivingJson(request)) return response({ error: 'Giving unavailable' }, 415)
     const submission = validateGivingCheckoutSubmission(await boundedGivingJson(request))
+    if (submission.transactionFeeMinor !== 0) throw new GivingCheckoutError('invalid')
     const address = trustedGivingClientAddress(request.headers)
     await dependencies.verifyTurnstile({
       token: submission.turnstileToken,

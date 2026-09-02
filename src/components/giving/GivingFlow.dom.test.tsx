@@ -207,7 +207,7 @@ describe('GivingFlow', () => {
     await act(async () => button(container, 'Tomorrow')?.click())
     expect(container.textContent).toContain('Continue with BlinkPay')
     expect(container.textContent).toContain('complete your payment setup with your bank')
-    expect(container.textContent).toContain('You’re giving $55.00 to General every month, starting tomorrow.')
+    expect(container.textContent).toContain('You’re giving $55.00 plus a $0.50 transaction fee to General every month, starting tomorrow. BlinkPay will charge $55.50 each time.')
     expect(container.textContent).not.toContain('$55.00 NZD')
   })
 
@@ -286,7 +286,7 @@ describe('GivingFlow', () => {
     await act(async () => change(emailInput, 'ada@example.com'))
     await act(async () => button(container, 'Continue')?.click())
     expect(container.textContent).toContain('Continue with BlinkPay')
-    expect(container.textContent).toContain('You’re giving $25.00 to General just this once.')
+    expect(container.textContent).toContain('You’re giving $25.00 plus a $0.50 transaction fee to General just this once. BlinkPay will charge $25.50.')
   })
 
   it('shows direct bank-transfer details when the BlinkPay rollout flag is off', async () => {
@@ -372,6 +372,7 @@ describe('GivingFlow', () => {
     expect(container.textContent).toContain('ALOVELACE')
     const call = vi.mocked(fetch).mock.calls.find(([input]) => String(input) === '/api/giving/bank-transfer')
     expect(call?.[1]?.headers).toMatchObject({ 'x-ev-giving-request': 'bank-transfer-v1' })
+    expect(JSON.parse(String(call?.[1]?.body))).toMatchObject({ amountMinor: 2500, transactionFeeMinor: 0 })
     expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input) === '/api/giving/checkouts')).toBe(false)
     await act(async()=>button(container,"I've set this up")?.click())
     expect(container.textContent).toContain('Thank you, Ada')
@@ -678,6 +679,7 @@ describe('GivingFlow', () => {
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
     await act(async()=>button(container,'Continue to BlinkPay')?.click())
     expect(checkoutBodies).toHaveLength(2)
+    expect(checkoutBodies[0]).toMatchObject({ amountMinor: 2500, transactionFeeMinor: 50 })
     expect(checkoutBodies[0].submissionKey).toBe(checkoutBodies[1].submissionKey)
     expect(String(checkoutBodies[0].submissionKey)).toHaveLength(43)
     expect(vi.mocked(fetch).mock.calls.some(([input])=>String(input).startsWith('/give/resume/'))).toBe(false)

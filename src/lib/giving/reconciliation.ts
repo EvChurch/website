@@ -172,7 +172,7 @@ function checkoutFromRow(row: Record<string, unknown>): GivingCheckoutRecord {
     id: Number(row.checkout_id), contextKey: String(row.context_key), environment: row.environment as GivingEnvironment,
     synthetic: Boolean(row.synthetic), giverId: Number(row.giver_id),
     bankReference: String(row.bank_reference), bankCode: String(row.bank_code), fundId: Number(row.fund_id), fundName: String(row.fund_name), fundCode: String(row.fund_code),
-    fundAccountingKey: String(row.fund_accounting_key), amountMinor: Number(row.amount_minor), frequency: row.frequency as GivingCheckoutRecord['frequency'],
+    fundAccountingKey: String(row.fund_accounting_key), amountMinor: Number(row.amount_minor), transactionFeeMinor: Number(row.transaction_fee_minor), frequency: row.frequency as GivingCheckoutRecord['frequency'],
     firstPaymentDate, correlationKey: String(row.correlation_key),
     submissionKeyDigest: String(row.submission_key_digest), submissionDigest: String(row.submission_digest), gatewayRedirectUri: row.gateway_redirect_uri ? String(row.gateway_redirect_uri) : null,
     status: row.checkout_status as GivingCheckoutRecord['status'], resultCode: row.result_code as GivingCheckoutRecord['resultCode'],
@@ -279,7 +279,8 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
                    checkout.id checkout_id, checkout.context_key, checkout.environment,
                    checkout.synthetic, checkout.giver_id,
                    checkout.fund_id, checkout.fund_name, checkout.fund_code,
-                   checkout.fund_accounting_key, schedule.amount_minor schedule_amount_minor
+                   checkout.fund_accounting_key, schedule.amount_minor schedule_amount_minor,
+                   schedule.transaction_fee_minor schedule_transaction_fee_minor
             FROM giving_consents consent
             JOIN giving_schedules schedule
               ON schedule.consent_id=consent.id AND schedule.context_key=consent.context_key
@@ -293,6 +294,7 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
               AND schedule.synthetic=consent.synthetic
               AND checkout.synthetic=consent.synthetic
               AND schedule.amount_minor=checkout.amount_minor
+              AND schedule.transaction_fee_minor=checkout.transaction_fee_minor
             FOR UPDATE OF consent,schedule,checkout
           `, [event.environment,o.paymentConsentId])).rows[0]
           if (!provenance) {
@@ -302,13 +304,13 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
           }
           await client.query(`INSERT INTO giving_gifts(
               context_key,environment,synthetic,checkout_id,giver_id,consent_id,schedule_id,
-              fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,provider_payment_id,status)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending')
+              fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,transaction_fee_minor,provider_payment_id,status)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'pending')
             ON CONFLICT(environment,provider_payment_id) DO NOTHING`, [
             provenance.context_key,provenance.environment,provenance.synthetic,
             provenance.checkout_id,provenance.giver_id,provenance.consent_id,provenance.schedule_id,
             provenance.fund_id,provenance.fund_name,provenance.fund_code,provenance.fund_accounting_key,
-            provenance.schedule_amount_minor,o.referenceId,
+            provenance.schedule_amount_minor,provenance.schedule_transaction_fee_minor,o.referenceId,
           ])
           aggregate = (await client.query(`SELECT id,status,provider_status,provider_status_updated_at,
               context_key,synthetic,consent_id,schedule_id
@@ -445,7 +447,7 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
       return result.rows.map((row) => Number(row.id))
     },
     async authorisedConsentsWithoutSchedule(limit = 100) {
-      const result = await pool.query(`SELECT c.provider_consent_id,co.id checkout_id,co.context_key,co.environment,co.synthetic,co.giver_id,g.bank_reference,co.bank_code,co.fund_id,co.fund_name,co.fund_code,co.fund_accounting_key,co.amount_minor,co.frequency,co.first_payment_date,co.correlation_key,co.submission_key_digest,co.submission_digest,co.gateway_redirect_uri,co.status checkout_status,co.result_code
+      const result = await pool.query(`SELECT c.provider_consent_id,co.id checkout_id,co.context_key,co.environment,co.synthetic,co.giver_id,g.bank_reference,co.bank_code,co.fund_id,co.fund_name,co.fund_code,co.fund_accounting_key,co.amount_minor,co.transaction_fee_minor,co.frequency,co.first_payment_date,co.correlation_key,co.submission_key_digest,co.submission_digest,co.gateway_redirect_uri,co.status checkout_status,co.result_code
         FROM giving_consents c JOIN giving_checkouts co ON co.id=c.checkout_id AND co.context_key=c.context_key JOIN giving_givers g ON g.id=co.giver_id AND g.context_key=co.context_key LEFT JOIN giving_schedules s ON s.consent_id=c.id WHERE c.status='authorised' AND s.id IS NULL ORDER BY c.updated_at LIMIT $1`, [limit])
       return result.rows.map((row) => ({ checkout: checkoutFromRow(row), providerConsentId: String(row.provider_consent_id) }))
     },

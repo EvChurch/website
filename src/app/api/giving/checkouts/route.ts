@@ -11,6 +11,7 @@ import { createPostgresGivingRateLimitStore, enforceGivingRateLimits, GivingRate
 import { requireGivingPostgresPool } from '@/lib/giving/postgres'
 import { boundedGivingJson, GIVING_PRIVATE_HEADERS, InvalidGivingRequestError, isGivingJson, trustedGivingMutation } from '@/lib/giving/request-boundary'
 import { createGivingCheckoutService, createPostgresGivingCheckoutRepository, GivingCheckoutError, validateGivingCheckoutSubmission, type GivingCheckoutStartResult, type GivingCheckoutSubmission } from '@/lib/giving/service'
+import { getGivingTransactionFeeMinor } from '@/lib/giving/settings'
 import { getPayloadClient } from '@/lib/payload'
 import { verifyTurnstileToken } from '@/lib/turnstile'
 
@@ -27,6 +28,7 @@ export function configuredGivingCheckoutAuthority(config: ReturnType<typeof load
 }
 export interface GivingCheckoutRouteDependencies {
   authority(request: NextRequest): Promise<Authority>
+  transactionFeeMinor(request: NextRequest): Promise<number>
   rateLimitStore: GivingRateLimitStore
   verifyTurnstile(input: { token: string; remoteIp: string; expectedHostname: string | null; expectedAction: string }): Promise<void>
   memberSubject?(request: NextRequest): Promise<string | null>
@@ -85,6 +87,9 @@ async function defaultStart(authority: GivingContext, submission: GivingCheckout
 
 const defaults: GivingCheckoutRouteDependencies = {
   authority: defaultAuthority,
+  async transactionFeeMinor() {
+    return getGivingTransactionFeeMinor()
+  },
   rateLimitStore: {
     async increment(input) {
       const payload = await getPayloadClient()
@@ -103,6 +108,7 @@ export async function handleGivingCheckoutPost(request: NextRequest, dependencie
     if (!trustedGivingMutation(request, GIVING_REQUEST_MARKERS.checkout)) return response({ error: 'Giving unavailable' }, 403)
     if (!isGivingJson(request)) return response({ error: 'Giving unavailable' }, 415)
     const submission = validateGivingCheckoutSubmission(await boundedGivingJson(request))
+    if (submission.transactionFeeMinor !== await dependencies.transactionFeeMinor(request)) throw new GivingCheckoutError('invalid')
     const address = trustedGivingClientAddress(request.headers)
     await dependencies.verifyTurnstile({ token: submission.turnstileToken, remoteIp: address, expectedHostname: process.env.NODE_ENV === 'production' ? 'www.ev.church' : null, expectedAction: GIVING_CHECKOUT_TURNSTILE_ACTION })
     const memberSubject = await dependencies.memberSubject?.(request) ?? null

@@ -15,6 +15,7 @@ import { AnalyticsManager } from '@/components/seo/AnalyticsManager'
 import type { LauncherData } from '@/lib/launcher/types'
 import type { GivingRuntimeConfiguration } from '@/lib/giving/availability'
 import type { PublicGivingFund } from '@/lib/giving/contracts'
+import { DEFAULT_GIVING_TRANSACTION_FEE_MINOR } from '@/lib/giving/fees'
 import {
   ANONYMOUS_MEMBER_CHROME,
   isAnonymousMemberChrome,
@@ -35,6 +36,7 @@ export function PublicChrome({
   announcement,
   footer,
   givingFunds,
+  givingTransactionFeeMinor = DEFAULT_GIVING_TRANSACTION_FEE_MINOR,
   givingRuntime,
 }: {
   children: ReactNode
@@ -43,6 +45,7 @@ export function PublicChrome({
   announcement: ReactNode
   footer: ReactNode
   givingFunds: PublicGivingFund[]
+  givingTransactionFeeMinor?: number
   givingRuntime: GivingRuntimeConfiguration | null
 }) {
   const pathname = usePathname()
@@ -112,6 +115,7 @@ export function PublicChrome({
   const givingExperience = givingFunds.length > 0
     ? <GivingFlow
         funds={givingFunds}
+        transactionFeeMinor={givingTransactionFeeMinor}
         identity={{ signedIn: memberChrome.memberProfile !== null }}
         resumeRequested={givingResumeRequested}
         turnstileSiteKey={givingTurnstileSiteKey}

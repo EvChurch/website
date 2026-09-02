@@ -19,6 +19,7 @@ import {
 } from './blinkpay/types'
 import { minorUnitsToNzd, validateNzDate, validatePeriod } from './blinkpay/validation'
 import { givingBankCode, givingBankTransferDetails, type GivingBankTransferPreparation } from './bank-transfer'
+import { MAX_GIVING_TRANSACTION_FEE_MINOR } from './fees'
 
 const CHECKOUT_CAPABILITY_TTL_MS = 30 * 60 * 1000
 const BANK_TRANSFER_ACKNOWLEDGEMENT_TTL_MS = 30 * 24 * 60 * 60 * 1000
@@ -29,6 +30,7 @@ export type CheckoutResultCode = 'processing' | 'cancelled' | 'rejected' | 'expi
 export interface GivingCheckoutSubmission {
   submissionKey: string
   amountMinor: number
+  transactionFeeMinor: number
   fundId: number
   frequency: GivingFrequency
   firstPaymentDate: string | null
@@ -48,6 +50,7 @@ export interface GivingCheckoutRecord extends GivingContext {
   fundCode: string
   fundAccountingKey: string
   amountMinor: number
+  transactionFeeMinor: number
   frequency: GivingFrequency
   firstPaymentDate: string | null
   correlationKey: string
@@ -157,10 +160,12 @@ function boundedText(value: unknown, maximum: number) {
 }
 
 export function validateGivingCheckoutSubmission(value: unknown): GivingCheckoutSubmission {
-  const keys = ['submissionKey','amountMinor','fundId','frequency','firstPaymentDate','firstName','lastName','email','turnstileToken']
+  const keys = ['submissionKey','amountMinor','transactionFeeMinor','fundId','frequency','firstPaymentDate','firstName','lastName','email','turnstileToken']
   if (!exactObject(value, keys)) throw new GivingCheckoutError('invalid')
   const frequency = String(value.frequency)
   if (!isGivingCapabilityToken(value.submissionKey) || !Number.isSafeInteger(value.amountMinor) || Number(value.amountMinor) <= 0 ||
+      !Number.isSafeInteger(value.transactionFeeMinor) || Number(value.transactionFeeMinor) < 0 || Number(value.transactionFeeMinor) > MAX_GIVING_TRANSACTION_FEE_MINOR ||
+      !Number.isSafeInteger(Number(value.amountMinor) + Number(value.transactionFeeMinor)) ||
       !Number.isSafeInteger(value.fundId) || Number(value.fundId) <= 0 ||
       !GIVING_FREQUENCIES.includes(frequency as GivingFrequency) ||
       !boundedText(value.firstName, 100) || !boundedText(value.lastName, 100) || !boundedText(value.email, 320) || !boundedText(value.turnstileToken, 4096)) {
@@ -189,6 +194,7 @@ function submissionKeyDigest(secret: string, context: GivingContext, submissionK
 function canonicalSubmissionDigest(secret: string, submission: GivingCheckoutSubmission) {
   const canonical = JSON.stringify({
     amountMinor: submission.amountMinor,
+    transactionFeeMinor: submission.transactionFeeMinor,
     fundId: submission.fundId,
     frequency: submission.frequency,
     firstPaymentDate: submission.firstPaymentDate,
@@ -204,7 +210,7 @@ function capabilityDigest(purpose: 'return' | 'status', token: string) {
 }
 
 function requestDigest(action: string, checkout: GivingCheckoutRecord) {
-  return createHash('sha256').update(JSON.stringify({ action, checkoutId: checkout.id, contextKey: checkout.contextKey, amountMinor: checkout.amountMinor, frequency: checkout.frequency, firstPaymentDate: checkout.firstPaymentDate, fundCode: checkout.fundCode, bankReference: checkout.bankReference })).digest('hex')
+  return createHash('sha256').update(JSON.stringify({ action, checkoutId: checkout.id, contextKey: checkout.contextKey, amountMinor: checkout.amountMinor, transactionFeeMinor: checkout.transactionFeeMinor, frequency: checkout.frequency, firstPaymentDate: checkout.firstPaymentDate, fundCode: checkout.fundCode, bankReference: checkout.bankReference })).digest('hex')
 }
 
 export async function prepareGivingBankTransfer(
@@ -270,6 +276,7 @@ export async function acknowledgeGivingBankSetupByCheckoutId(
 }
 
 function amount(amountMinor: number): BlinkPayAmount { return { total: minorUnitsToNzd(amountMinor), currency: 'NZD' } }
+function chargedAmountMinor(checkout: GivingCheckoutRecord) { return checkout.amountMinor + checkout.transactionFeeMinor }
 function keys(operation: GivingCheckoutOperation): BlinkPayOperationKeys { return { requestId: operation.requestId, idempotencyKey: operation.idempotencyKey } }
 function failedConsent(status: string): 'cancelled' | 'rejected' | 'expired' | null {
   const normal = status.toLowerCase()
@@ -304,8 +311,8 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
     let result
     try {
       result = action === 'blinkpay.create-payment'
-        ? await blinkPay.createQuickPayment({ type: 'single', flow: { detail: { type: 'gateway', redirect_uri: redirectUri } }, amount: amount(checkout.amountMinor), pcr }, keys(operation))
-        : await blinkPay.createEnduringConsent({ type: 'enduring', flow: { detail: { type: 'gateway', redirect_uri: redirectUri } }, from_timestamp: now().toISOString(), period: checkout.frequency as Exclude<GivingFrequency, 'one-off'>, maximum_amount_period: amount(checkout.amountMinor), maximum_amount_payment: amount(checkout.amountMinor) }, keys(operation))
+        ? await blinkPay.createQuickPayment({ type: 'single', flow: { detail: { type: 'gateway', redirect_uri: redirectUri } }, amount: amount(chargedAmountMinor(checkout)), pcr }, keys(operation))
+        : await blinkPay.createEnduringConsent({ type: 'enduring', flow: { detail: { type: 'gateway', redirect_uri: redirectUri } }, from_timestamp: now().toISOString(), period: checkout.frequency as Exclude<GivingFrequency, 'one-off'>, maximum_amount_period: amount(chargedAmountMinor(checkout)), maximum_amount_payment: amount(chargedAmountMinor(checkout)) }, keys(operation))
     } catch (error) {
       const rejected = typeof error === 'object' && error !== null && 'code' in error && error.code === 'request-rejected'
       if (rejected) {
@@ -382,8 +389,8 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
       try {
         result = await blinkPay.createFixedRecurringPayment({
           consent_id: consentId, consent_status: consent.status, period: checkout.frequency as Exclude<GivingFrequency, 'one-off'>,
-          start_date: checkout.firstPaymentDate!, amount: amount(checkout.amountMinor), amount_minor: checkout.amountMinor,
-          maximum_amount_payment_minor: checkout.amountMinor, maximum_amount_period_minor: checkout.amountMinor,
+          start_date: checkout.firstPaymentDate!, amount: amount(chargedAmountMinor(checkout)), amount_minor: chargedAmountMinor(checkout),
+          maximum_amount_payment_minor: chargedAmountMinor(checkout), maximum_amount_period_minor: chargedAmountMinor(checkout),
           pcr: { particulars: checkout.fundCode.slice(0, 12), code: checkout.bankCode, reference: checkout.bankReference ?? (() => { throw new GivingCheckoutError('conflict') })() }, retry_strategy: 'same_day',
         }, keys(operation))
       } catch (error) {
@@ -408,7 +415,7 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
     if (!operation.providerId) return
     const schedule = await blinkPay.getFixedRecurringPayment(operation.providerId)
     if (schedule.fixed_recurring_payment_id !== operation.providerId || schedule.consent_id !== consentId ||
-        schedule.amount.currency !== 'NZD' || schedule.amount.total !== minorUnitsToNzd(checkout.amountMinor) ||
+        schedule.amount.currency !== 'NZD' || schedule.amount.total !== minorUnitsToNzd(chargedAmountMinor(checkout)) ||
         schedule.start_date !== checkout.firstPaymentDate) throw new GivingCheckoutError('conflict')
     if (blinkPay.isFixedRecurringPaymentActive(schedule)) await dependencies.repository.completeSchedule(checkout, operation, localConsentId, schedule, now())
     else await dependencies.repository.setProcessing(checkout.id)
@@ -516,6 +523,7 @@ function checkoutRow(row: CheckoutRow | undefined): GivingCheckoutRecord | null 
     fundCode: String(row.fund_code),
     fundAccountingKey: String(row.fund_accounting_key),
     amountMinor: Number(row.amount_minor),
+    transactionFeeMinor: Number(row.transaction_fee_minor),
     frequency: row.frequency as GivingFrequency,
     firstPaymentDate: postgresDate(row.first_payment_date),
     correlationKey: String(row.correlation_key),
@@ -539,7 +547,7 @@ function operationRow(row: CheckoutRow | undefined): GivingCheckoutOperation | n
     requestDigest: String(row.request_digest),
   }
 }
-const CHECKOUT_COLUMNS = 'id,context_key,environment,synthetic,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,bank_code,amount_minor,frequency,first_payment_date,correlation_key,submission_key_digest,submission_digest,gateway_redirect_uri,status,result_code'
+const CHECKOUT_COLUMNS = 'id,context_key,environment,synthetic,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,bank_code,amount_minor,transaction_fee_minor,frequency,first_payment_date,correlation_key,submission_key_digest,submission_digest,gateway_redirect_uri,status,result_code'
 const CHECKOUT_SELECT = `${CHECKOUT_COLUMNS},(SELECT bank_reference FROM giving_givers WHERE giving_givers.id=giving_checkouts.giver_id) AS bank_reference,(SELECT split_part(name,' ',1) FROM giving_givers WHERE giving_givers.id=giving_checkouts.giver_id) AS giver_first_name`
 
 export function createPostgresGivingCheckoutRepository(pool: Pool): GivingCheckoutRepository {
@@ -610,15 +618,15 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
         const result = await client.query(`
           INSERT INTO giving_checkouts(
             context_key,environment,synthetic,fund_id,fund_name,fund_code,fund_accounting_key,
-            bank_code,amount_minor,frequency,first_payment_date,correlation_key,submission_key_digest,submission_digest,
+            bank_code,amount_minor,transaction_fee_minor,frequency,first_payment_date,correlation_key,submission_key_digest,submission_digest,
             return_capability_digest,return_capability_expires_at,status
-          ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'draft')
+          ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'draft')
           RETURNING ${CHECKOUT_COLUMNS}
         `, [
           input.contextKey, input.environment, input.synthetic,
           fund.id, fund.name, fund.code, fund.accounting_key,
           givingBankCode(input.submission.firstName, input.submission.lastName),
-          input.submission.amountMinor, input.submission.frequency, input.submission.firstPaymentDate,
+          input.submission.amountMinor, input.submission.transactionFeeMinor, input.submission.frequency, input.submission.firstPaymentDate,
           input.correlationKey, input.submissionKeyDigest, input.submissionDigest,
           input.returnCapabilityDigest, input.returnCapabilityExpiresAt,
         ])
@@ -836,8 +844,8 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
         const gift = await client.query(`
           INSERT INTO giving_gifts(
             context_key,environment,synthetic,checkout_id,giver_id,fund_id,fund_name,fund_code,
-            fund_accounting_key,amount_minor,provider_payment_id,status,provider_observed_at,provider_request_id
-          ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'settled',$12,$13)
+            fund_accounting_key,amount_minor,transaction_fee_minor,provider_payment_id,status,provider_observed_at,provider_request_id
+          ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'settled',$13,$14)
           ON CONFLICT(checkout_id) DO UPDATE SET
             provider_observed_at=GREATEST(giving_gifts.provider_observed_at,EXCLUDED.provider_observed_at)
           WHERE giving_gifts.context_key=EXCLUDED.context_key
@@ -845,9 +853,10 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
             AND giving_gifts.giver_id=EXCLUDED.giver_id
             AND giving_gifts.fund_id=EXCLUDED.fund_id
             AND giving_gifts.amount_minor=EXCLUDED.amount_minor
+            AND giving_gifts.transaction_fee_minor=EXCLUDED.transaction_fee_minor
             AND giving_gifts.provider_payment_id=EXCLUDED.provider_payment_id
           RETURNING id
-        `, [checkout.contextKey,checkout.environment,checkout.synthetic,checkout.id,checkout.giverId,checkout.fundId,checkout.fundName,checkout.fundCode,checkout.fundAccountingKey,checkout.amountMinor,paymentId,observedAt,providerRequestId??null])
+        `, [checkout.contextKey,checkout.environment,checkout.synthetic,checkout.id,checkout.giverId,checkout.fundId,checkout.fundName,checkout.fundCode,checkout.fundAccountingKey,checkout.amountMinor,checkout.transactionFeeMinor,paymentId,observedAt,providerRequestId??null])
         if (gift.rowCount !== 1) throw new GivingCheckoutError('conflict')
         const completed = await client.query(`UPDATE giving_checkouts SET status='completed',result_code='verified',updated_at=now() WHERE id=$1 AND context_key=$2 AND status IN ('authorising','verifying','unknown') RETURNING id`, [checkout.id, checkout.contextKey])
         if (completed.rowCount !== 1) throw new GivingCheckoutError('conflict')
@@ -888,15 +897,16 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
       return tx(pool, async (client) => {
         if (!checkout.giverId) throw new GivingCheckoutError('conflict')
         const schedule = await client.query(`
-          INSERT INTO giving_schedules(context_key,environment,synthetic,checkout_id,giver_id,consent_id,provider_schedule_id,status,frequency,amount_minor)
-          VALUES($1,$2,$3,$4,$5,$6,$7,'pending',$8,$9)
+          INSERT INTO giving_schedules(context_key,environment,synthetic,checkout_id,giver_id,consent_id,provider_schedule_id,status,frequency,amount_minor,transaction_fee_minor)
+          VALUES($1,$2,$3,$4,$5,$6,$7,'pending',$8,$9,$10)
           ON CONFLICT(consent_id) DO UPDATE SET provider_schedule_id=EXCLUDED.provider_schedule_id
           WHERE giving_schedules.context_key=EXCLUDED.context_key
             AND giving_schedules.checkout_id=EXCLUDED.checkout_id
             AND giving_schedules.giver_id=EXCLUDED.giver_id
             AND giving_schedules.provider_schedule_id=EXCLUDED.provider_schedule_id
+            AND giving_schedules.transaction_fee_minor=EXCLUDED.transaction_fee_minor
           RETURNING id
-        `, [checkout.contextKey,checkout.environment,checkout.synthetic,checkout.id,checkout.giverId,consentId,providerId,checkout.frequency,checkout.amountMinor])
+        `, [checkout.contextKey,checkout.environment,checkout.synthetic,checkout.id,checkout.giverId,consentId,providerId,checkout.frequency,checkout.amountMinor,checkout.transactionFeeMinor])
         if (schedule.rowCount !== 1) throw new GivingCheckoutError('conflict')
         const result = await client.query(`
           WITH updated AS (
@@ -918,15 +928,15 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
         const schedule = await client.query(`
           INSERT INTO giving_schedules(
             context_key,environment,synthetic,checkout_id,giver_id,consent_id,
-            provider_schedule_id,status,frequency,amount_minor,next_payment_date,provider_observed_at
+            provider_schedule_id,status,frequency,amount_minor,transaction_fee_minor,next_payment_date,provider_observed_at
           )
           SELECT $1::varchar,$2::varchar,$3::boolean,$4::integer,$5::integer,consent.id,
-                 $7::varchar,'active',$8::varchar,$9::numeric,$10::timestamptz,$11::timestamptz
+                 $7::varchar,'active',$8::varchar,$9::numeric,$10::numeric,$11::timestamptz,$12::timestamptz
           FROM giving_consents consent
           WHERE consent.id=$6 AND consent.context_key=$1 AND consent.environment=$2
             AND consent.synthetic=$3
             AND consent.checkout_id=$4 AND consent.giver_id=$5
-            AND consent.provider_consent_id=$12 AND consent.status='authorised'
+            AND consent.provider_consent_id=$13 AND consent.status='authorised'
           ON CONFLICT(consent_id) DO UPDATE SET
             status='active',next_payment_date=EXCLUDED.next_payment_date,
             provider_observed_at=GREATEST(giving_schedules.provider_observed_at,EXCLUDED.provider_observed_at),updated_at=now()
@@ -938,9 +948,10 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
             AND giving_schedules.provider_schedule_id=EXCLUDED.provider_schedule_id
             AND giving_schedules.frequency=EXCLUDED.frequency
             AND giving_schedules.amount_minor=EXCLUDED.amount_minor
+            AND giving_schedules.transaction_fee_minor=EXCLUDED.transaction_fee_minor
             AND giving_schedules.status IN ('pending','unknown','active')
           RETURNING id
-        `, [checkout.contextKey,checkout.environment,checkout.synthetic,checkout.id,checkout.giverId,consentId,provider.fixed_recurring_payment_id,checkout.frequency,checkout.amountMinor,provider.next_payment_date,observedAt,provider.consent_id])
+        `, [checkout.contextKey,checkout.environment,checkout.synthetic,checkout.id,checkout.giverId,consentId,provider.fixed_recurring_payment_id,checkout.frequency,checkout.amountMinor,checkout.transactionFeeMinor,provider.next_payment_date,observedAt,provider.consent_id])
         if (schedule.rowCount !== 1) throw new GivingCheckoutError('conflict')
         const operationResult = await client.query(`
           WITH updated AS (

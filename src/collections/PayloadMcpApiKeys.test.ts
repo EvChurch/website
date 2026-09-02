@@ -7,6 +7,7 @@ import {
   applicationGlobals,
   mcpCollections,
   mcpExcludedCollectionSlugs,
+  mcpExcludedGlobalSlugs,
   mcpGlobals,
   restrictMcpApiKeyCollection,
 } from '../../payload.config'
@@ -57,8 +58,9 @@ describe('Payload MCP API key access', () => {
       expect(mcpCollections).not.toHaveProperty(slug)
     }
     expect(Object.keys(mcpGlobals).sort()).toEqual(
-      applicationGlobals.map(({ slug }) => slug).sort(),
+      applicationGlobals.map(({ slug }) => slug).filter((slug) => !mcpExcludedGlobalSlugs.has(slug)).sort(),
     )
+    expect([...mcpExcludedGlobalSlugs]).toEqual(['giving-settings'])
     expect(Object.values(mcpCollections).every(({ enabled }) => enabled === true)).toBe(true)
     expect(Object.values(mcpGlobals).every(({ enabled }) => enabled === true)).toBe(true)
   })

@@ -50,6 +50,7 @@ import { isAdmin } from '@/access/roles'
 import { Navigation } from '@/globals/Navigation'
 import { SiteSettings } from '@/globals/SiteSettings'
 import { ServiceGuideSyncState } from '@/globals/ServiceGuideSyncState'
+import { GivingSettings } from '@/globals/GivingSettings'
 import {
   notificationJobConfigs,
   SITE_FEEDBACK_NOTIFICATION_AUTO_RUN,
@@ -116,6 +117,7 @@ export const applicationGlobals: GlobalConfig[] = [
   Navigation,
   SiteSettings,
   ServiceGuideSyncState,
+  GivingSettings,
 ]
 
 export const mcpExcludedCollectionSlugs = new Set([
@@ -132,6 +134,8 @@ export const mcpExcludedCollectionSlugs = new Set([
   'giving-drafts',
 ])
 
+export const mcpExcludedGlobalSlugs = new Set(['giving-settings'])
+
 function enableMcpEntities<T extends { slug: string }>(entities: T[]) {
   return Object.fromEntries(
     entities.map(({ slug }) => [slug, { enabled: true as const }]),
@@ -144,7 +148,9 @@ export const mcpCollections = enableMcpEntities(
   MCPPluginConfig['collections']
 >
 
-export const mcpGlobals = enableMcpEntities(applicationGlobals) satisfies NonNullable<
+export const mcpGlobals = enableMcpEntities(
+  applicationGlobals.filter(({ slug }) => !mcpExcludedGlobalSlugs.has(slug)),
+) satisfies NonNullable<
   MCPPluginConfig['globals']
 >
 
