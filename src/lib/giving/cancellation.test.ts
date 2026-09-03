@@ -1,17 +1,24 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createGivingCancellationService, GivingCancellationError, normalizeCancellationReason, type CancellationTarget, type GivingCancellationStore } from './cancellation'
+import { createGivingCancellationService, GivingCancellationError, memberCanCancelSchedule, normalizeCancellationReason, type CancellationTarget, type GivingCancellationStore } from './cancellation'
 import { BlinkPayClientError } from './blinkpay/client'
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
 
 function setup(providerOverrides: Record<string, unknown> = {}) {
   let nonce: { actorId:number;scheduleId:number;reasonDigest:string;tokenDigest:string;expiresAt:Date } | undefined
-  const target: CancellationTarget = { scheduleId:7,checkoutId:3,environment:'sandbox',providerScheduleId:'33333333-3333-4333-8333-333333333333',actorId:11,reason:'Donor request',operationId:9,keys:{requestId:'request-key-00000001',idempotencyKey:'idempotency-key-00000001'} }
+  const target = (input: { requestId: string; idempotencyKey: string }): CancellationTarget => ({
+    scheduleId:7,checkoutId:3,environment:'sandbox',providerScheduleId:'33333333-3333-4333-8333-333333333333',
+    actor:{kind:'admin',userId:11},reason:'Donor request',operationId:9,
+    keys:{requestId:input.requestId,idempotencyKey:input.idempotencyKey},
+  })
   const store: GivingCancellationStore = {
     issueNonce: vi.fn(async (input) => { nonce = input }),
     begin: vi.fn(async (input) => {
       if (!nonce || input.actorId !== nonce.actorId || input.scheduleId !== nonce.scheduleId || input.reasonDigest !== nonce.reasonDigest || input.tokenDigest !== nonce.tokenDigest) throw new GivingCancellationError('confirmation-invalid')
       nonce = undefined
-      return target
+      return target(input)
     }),
+    beginImmediate: vi.fn(async (input) => target(input)),
     finish: vi.fn(async () => undefined),
   }
   const provider = {
@@ -37,6 +44,10 @@ describe('giving schedule cancellation', () => {
     const prepared = await service.prepare({ actorId:11,scheduleId:7,reason:'Donor request' })
     await expect(service.confirm({ actorId:11,scheduleId:7,reason:'Donor request',nonce:prepared.nonce })).resolves.toEqual({ status:'cancelled' })
     expect(provider.cancelFixedRecurringPayment).toHaveBeenCalledTimes(1)
+    expect(provider.cancelFixedRecurringPayment).toHaveBeenCalledWith(
+      '33333333-3333-4333-8333-333333333333',
+      { requestId: expect.stringMatching(UUID_PATTERN), idempotencyKey: expect.stringMatching(UUID_PATTERN) },
+    )
     expect(store.finish).toHaveBeenCalledWith(expect.objectContaining({ outcome:'cancelled',target:expect.objectContaining({ scheduleId:7 }) }))
   })
 
@@ -69,5 +80,31 @@ describe('giving schedule cancellation', () => {
     const prepared=await rejected.service.prepare({actorId:11,scheduleId:7,reason:'Donor request'})
     await expect(rejected.service.confirm({actorId:11,scheduleId:7,reason:'Donor request',nonce:prepared.nonce})).resolves.toEqual({status:'not-cancelled'})
     expect(rejected.store.finish).toHaveBeenCalledWith(expect.objectContaining({outcome:'recoverable',errorCode:'provider-rejected'}))
+  })
+
+  it('uses email ownership for sandbox member schedules and alias ownership for production', () => {
+    const actor = {
+      kind: 'member' as const,
+      rockPersonId: 123,
+      rockPersonAliasId: 99,
+      auth0Subject: 'auth0|member',
+      email: 'Aroha@example.com',
+    }
+
+    expect(memberCanCancelSchedule(actor, {
+      synthetic: true,
+      email: 'aroha@example.com',
+      rockPersonAliasId: 4,
+    })).toBe(true)
+    expect(memberCanCancelSchedule(actor, {
+      synthetic: false,
+      email: 'aroha@example.com',
+      rockPersonAliasId: 4,
+    })).toBe(false)
+    expect(memberCanCancelSchedule(actor, {
+      synthetic: false,
+      email: 'other@example.com',
+      rockPersonAliasId: 99,
+    })).toBe(true)
   })
 })

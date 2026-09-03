@@ -43,11 +43,23 @@ describe('MembersPage Connect Group navigation', () => {
 
     expect(markup).toContain('href="/members/connect-groups/10"')
     expect(markup).toContain('href="/members/daily-readings"')
+    expect(markup).toContain('href="/members/connect-group-leader-resources"')
     expect(markup).toContain('href="/members/my-service"')
     expect(markup).toContain('My Service')
     expect(markup).toContain('requests')
     expect(markup).toContain('confirmed')
     expect(markup).toContain('Hebrews 5:11-14')
+    expect(markup).toContain('Open Daily Reading')
+    expect(markup).toContain('Open Study Resources')
+
+    const hrefs = [...markup.matchAll(/<a[^>]+href="([^"]+)"/gu)].map((match) => match[1])
+    expect(hrefs.slice(0, 5)).toEqual([
+      '/members/daily-readings',
+      '/members/connect-groups/10',
+      '/members/connect-group-leader-resources',
+      '/members/my-service',
+      '/members/giving',
+    ])
   })
 
   it('shows My Service without assignments or scheduling data', async () => {
@@ -66,6 +78,7 @@ describe('MembersPage Connect Group navigation', () => {
     const markup = renderToStaticMarkup(await MembersPage())
 
     expect(markup).toContain('href="/members/my-service"')
+    expect(markup).toContain('href="/members/connect-group-leader-resources"')
     expect(markup).toContain('rel="nofollow"')
     expect(markup).toContain('My Service')
   })

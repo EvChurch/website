@@ -28,13 +28,15 @@ describe('MemberPortalChrome', () => {
     expect(linkText).toBe('Connect Group')
     expect(markup).toContain('href="/members/daily-readings"')
     expect(markup).toContain('Daily Reading')
+    expect(markup).toContain('href="/members/giving"')
+    expect(markup).toContain('Giving')
     expect(markup).toContain('href="/members/my-service"')
     expect(markup).toContain('My Service')
     expect(markup).toContain('href="/members"')
     expect(markup).toContain('Overview')
     expect(markup).toContain('Study Resources')
     expect(markup).not.toContain('Leader Resources')
-    expect(markup.match(/rel="nofollow"/gu)).toHaveLength(5)
+    expect(markup.match(/rel="nofollow"/gu)).toHaveLength(6)
   })
 
   it('marks My Service active only for the service section', () => {
@@ -61,6 +63,7 @@ describe('MemberPortalChrome', () => {
       'Connect Group',
       'Study Resources',
       'My Service',
+      'Giving',
     ])
   })
 })

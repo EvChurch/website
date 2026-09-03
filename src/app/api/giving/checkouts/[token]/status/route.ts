@@ -4,6 +4,7 @@ import { createGivingCheckoutService, createPostgresGivingCheckoutRepository } f
 import { parseGivingCheckoutStatus, type GivingCheckoutStatus } from '@/lib/giving/contracts'
 import { getPayloadClient } from '@/lib/payload'
 import { requireGivingPostgresPool } from '@/lib/giving/postgres'
+import { getBlinkPayRuntimeClient } from '@/lib/giving/blinkpay/runtime-client'
 
 export const dynamic='force-dynamic'
 const HEADERS={'Cache-Control':'private, no-store, max-age=0','Referrer-Policy':'no-referrer','X-Robots-Tag':'noindex, nofollow, noarchive'}
@@ -13,7 +14,7 @@ function json(value:unknown,status:number){return NextResponse.json(value,{statu
 async function defaultRead(token:string){
   const payload=await getPayloadClient();const pool=requireGivingPostgresPool(payload)
   const unavailable=async()=>{throw new Error('provider unavailable')}
-  const service=createGivingCheckoutService({repository:createPostgresGivingCheckoutRepository(pool),digestSecret:process.env.GIVING_CHECKOUT_DIGEST_SECRET??'',resolveIdentity:unavailable,blinkPay:{createQuickPayment:unavailable,getQuickPayment:unavailable,createEnduringConsent:unavailable,getEnduringConsent:unavailable,createFixedRecurringPayment:unavailable,getFixedRecurringPayment:unavailable,isPaymentSettled:()=>false,isConsentAuthorised:()=>false,isFixedRecurringPaymentActive:()=>false}})
+  const service=createGivingCheckoutService({repository:createPostgresGivingCheckoutRepository(pool),digestSecret:process.env.GIVING_CHECKOUT_DIGEST_SECRET??'',resolveIdentity:unavailable,blinkPay:getBlinkPayRuntimeClient})
   return service.status(token)
 }
 

@@ -1343,6 +1343,10 @@ export function NextStepsLauncher({
               className={
                 state.view.type === "content"
                   ? "min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pb-6"
+                  : state.view.type === "giving"
+                    ? `min-h-0 flex-1 overflow-hidden ${
+                        formViewHasBanner ? "pt-0" : "pt-2 sm:pt-3"
+                      }`
                   : `min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6 ${
                       formViewHasBanner ? "pt-0" : "pt-2 sm:pt-3"
                     }`

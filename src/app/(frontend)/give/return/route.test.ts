@@ -11,6 +11,12 @@ function request(query = '?cid=provider-correlation', withCookie = true) {
   })
 }
 
+function requestWithReturnTo(returnTo: string, query = '?cid=provider-correlation') {
+  return new NextRequest(`https://www.ev.church/give/return${query}`, {
+    headers: { cookie: `__Host-ev_giving_return=${returnToken}; __Host-ev_giving_return_to=${encodeURIComponent(returnTo)}` },
+  })
+}
+
 function replayRequest(query: string, withReturnCookie = false) {
   const cookies = [`__Host-ev_giving_checkout=${'S'.repeat(43)}`]
   if (withReturnCookie) cookies.push(`__Host-ev_giving_return=${returnToken}`)
@@ -38,6 +44,20 @@ describe('BlinkPay hosted return', () => {
     expect(cookies).toContain('__Host-ev_giving_return=;')
     expect(cookies.toLowerCase()).toContain('samesite=strict')
     expect(consume).toHaveBeenCalledWith(returnToken, null)
+  })
+
+  it('redirects back to the page that launched giving', async () => {
+    const consume = vi.fn(async () => ({ statusToken: 'S'.repeat(43), checkoutId: 1 }))
+    vi.stubEnv('APP_BASE_URL', 'https://www.ev.church')
+    try {
+      const response = await handleGivingReturnGet(requestWithReturnTo('/about?giving=return'), { consume, validateStatus: vi.fn() })
+
+      expect(response.status).toBe(303)
+      expect(response.headers.get('location')).toBe('https://www.ev.church/about?giving=return')
+      expect(response.headers.get('set-cookie') ?? '').toContain('__Host-ev_giving_return_to=;')
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 
   it('uses APP_BASE_URL instead of Railway internal request origin', async () => {

@@ -45,9 +45,11 @@ assumptions and keep moving.
 - Do not put credential values in `.codex/config.toml`. The Payload MCP bearer
   header is read from `EV_CHURCH_PAYLOAD_MCP_AUTHORIZATION`; AdLoop and Search
   Console credentials remain machine-local under the user's home directory.
-- Use `pnpm check:worktree` for a quick smoke check after opening a new worktree.
-  It verifies the expected integration wiring and local command/credential
-  availability without printing secret values.
+- Use `pnpm check:worktree` after opening a new worktree. In Codex worktrees it
+  creates or reuses a worktree-specific local Postgres database, writes the
+  gitignored `.env.local`, runs migrations, and verifies the expected
+  integration wiring and local command/credential availability without printing
+  secret values.
 - Keep ad hoc machine-local MCP overrides in `.codex/*.local.toml`, which are
   intentionally ignored by Git.
 

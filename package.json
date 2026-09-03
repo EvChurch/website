@@ -13,6 +13,7 @@
     "seed": "tsx src/seed/seed-pages.ts",
     "start": "next start",
     "check:worktree": "node scripts/check-worktree-integrations.mjs",
+    "setup:worktree-db": "node scripts/setup-worktree-db.mjs",
     "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives",
     "payload": "payload",
     "generate:types": "payload generate:types",

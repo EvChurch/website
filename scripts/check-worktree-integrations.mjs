@@ -9,6 +9,14 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const configPath = resolve(repoRoot, '.codex/config.toml')
 const checks = []
 
+function run(command, args) {
+  return spawnSync(command, args, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    stdio: 'inherit',
+  }).status === 0
+}
+
 async function exists(path) {
   try {
     await access(path, constants.F_OK)
@@ -22,6 +30,12 @@ function commandExists(command) {
   return spawnSync('bash', ['-lc', `command -v ${command}`], {
     encoding: 'utf8',
   }).status === 0
+}
+
+function isCurrentCodexWorktree() {
+  const parts = repoRoot.split('/')
+  const codexIndex = parts.lastIndexOf('.codex')
+  return codexIndex >= 0 && parts[codexIndex + 1] === 'worktrees'
 }
 
 async function fileMode(path) {
@@ -52,6 +66,15 @@ for (const command of ['npx', 'adloop']) {
   })
 }
 
+if (isCurrentCodexWorktree()) {
+  for (const command of ['psql', 'createdb', 'dropdb', 'pg_dump', 'pg_restore']) {
+    checks.push({
+      name: `${command} is available on PATH`,
+      ok: commandExists(command),
+    })
+  }
+}
+
 const adloopFiles = [
   `${process.env.HOME}/.adloop/config.yaml`,
   `${process.env.HOME}/.adloop/credentials.json`,
@@ -77,6 +100,16 @@ let failed = 0
 for (const check of checks) {
   if (!check.ok) failed += 1
   console.log(`${check.ok ? 'ok' : 'missing'} - ${check.name}`)
+}
+
+if (failed === 0 && isCurrentCodexWorktree()) {
+  console.log('setting up worktree database')
+  if (!run('node', ['scripts/setup-worktree-db.mjs'])) failed += 1
+
+  if (failed === 0) {
+    console.log('applying worktree database migrations')
+    if (!run('pnpm', ['payload', 'migrate'])) failed += 1
+  }
 }
 
 process.exitCode = failed > 0 ? 1 : 0

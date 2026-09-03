@@ -65,10 +65,6 @@ export function givingHandoffSummary(answers: GivingAnswers, transactionFeeMinor
 type GivingScrollIntent = 'forward' | 'edit' | 'surface'
 
 export function positionGivingSurface(scroller: HTMLElement, panel: HTMLElement, progress: HTMLElement | null, intent: GivingScrollIntent) {
-  if (intent === 'forward') {
-    scroller.scrollTop = scroller.scrollHeight
-    return
-  }
   const scrollerRect = scroller.getBoundingClientRect()
   const panelRect = panel.getBoundingClientRect()
   const top = scrollerRect.top + 8
@@ -88,6 +84,7 @@ export function safeGivingGatewayRedirect(value: unknown, allowedOrigins: readon
 
 const definitiveFailedGivingStates: readonly GivingCheckoutStatus['state'][] = ['cancelled', 'rejected', 'expired']
 const GIVING_DRAFT_DISCARD_TIMEOUT_MS = 10_000
+export const GIVING_SAFE_CLOSE_REASSURANCE_DELAY_MS = 30_000
 
 export function givingCheckoutPresentation(status: GivingCheckoutStatus, delayed = false) {
   let message: string
@@ -277,7 +274,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     const intent = scrollIntent.current
     if (!intent || !flowRef.current) return
     scrollIntent.current = null
-    let scroller = flowRef.current.parentElement
+    let scroller = flowRef.current.querySelector<HTMLElement>('[data-giving-scroll]') ?? flowRef.current.parentElement
     while (scroller) {
       const overflowY = getComputedStyle(scroller).overflowY
       if ((overflowY === 'auto' || overflowY === 'scroll') && scroller.scrollHeight > scroller.clientHeight) break
@@ -411,12 +408,12 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   useEffect(() => {
     if (!resumeRequested) return
     if (identity.signedIn && (!identityReady || !signedInIdentityResolved.current)) {
-      setRestoring(true)
+      setRestoring(false)
       return
     }
     const returning = new URLSearchParams(window.location.search).get('giving') === 'return'
     const operation = currentOperation()
-    setRestoring(true)
+    setRestoring(returning)
     void (async () => {
       try {
         await (returning ? pollStatus() : restoreDraft())
@@ -428,7 +425,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     })()
     if (returning) delayedTimer.current = setTimeout(() => {
       if (operationIsCurrent(operation)) setCheckout((current) => current.type === 'status' ? { ...current, delayed: true } : current)
-    }, 8_000)
+    }, GIVING_SAFE_CLOSE_REASSURANCE_DELAY_MS)
   }, [currentOperation, identity.signedIn, identityReady, operationIsCurrent, pollStatus, restoreDraft, resumeRequested])
   useEffect(() => giving.registerGivingCloseHandler(() => {
     if (checkout.type === 'submitting' || discardingDraft.current) return true
@@ -630,7 +627,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   }
 
   let content
-  if (restoring) content = <p role="status">Restoring your gift…</p>
+  if (restoring) content = <p role="status">Checking your gift…</p>
   else if (checkout.type === 'submitting') content = <GivingPreparation mode={paymentMode === 'blinkpay' ? 'blinkpay' : 'bank-transfer'} />
   else if (checkout.type === 'status') {
     const { status, delayed } = checkout
@@ -678,5 +675,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     || (previewStep === 'fund' && state.answers.fund !== null)
     || (previewStep === 'starting-date' && state.answers.startDate !== null)
   )
-  return <section aria-labelledby="giving-step-heading" aria-busy={savingProgress} inert={savingProgress} className="mx-auto flex min-h-full max-w-lg flex-col py-2 [overflow-anchor:none]" data-giving-private ref={flowRef}>{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} transactionFeeMinor={applicableTransactionFeeMinor} currentStep={state.step} visitedSteps={state.history} placement="before" onEdit={editAnswer} />}<div key={transitionKey} data-giving-step data-question-panel={highlightedQuestion ? 'highlighted' : undefined} className={`animate-fade-in-up motion-reduce:animate-none ${highlightedQuestion ? 'rounded-[2rem] bg-warm-grey/35 p-5 shadow-sm ring-1 ring-warm-grey/50' : ''}`}><h3 ref={headingRef} tabIndex={-1} id="giving-step-heading" className="mb-6 text-2xl font-semibold text-brand-black outline-none">{heading}</h3><div>{content}{error && (checkout.type !== 'configuring' || state.step !== 'amount') && <p role="alert" className="mt-4 text-sm text-rich-red">{error}</p>}</div></div>{previewStep && !previewHasEditableAnswer && <GivingStepPreview step={previewStep} label={titles[previewStep]} />}{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} transactionFeeMinor={applicableTransactionFeeMinor} currentStep={state.step} visitedSteps={state.history} placement="after" onEdit={editAnswer} />}<div className="sticky bottom-0 z-10 mt-auto bg-warm-white/95 pb-1 pt-6 backdrop-blur-sm" data-giving-progress><div role="progressbar" aria-label="Giving progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} className="h-5 overflow-hidden rounded-full bg-warm-grey/55"><div className="h-full rounded-full bg-rich-red transition-[width] duration-500 ease-out motion-reduce:transition-none" style={{ width: `${progress}%` }} /></div></div></section>
+  const showProgress = heading !== 'Giving complete'
+  const hideHeading = heading === 'Giving complete'
+  return <section aria-labelledby="giving-step-heading" aria-busy={savingProgress} inert={savingProgress} className="relative mx-auto flex h-full min-h-0 w-full flex-col py-2 [overflow-anchor:none]" data-giving-private ref={flowRef}><div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" data-giving-scroll><div className={`mx-auto flex w-full max-w-lg flex-col px-4 sm:px-6 ${showProgress ? 'pb-24' : 'pb-4'}`}>{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} transactionFeeMinor={applicableTransactionFeeMinor} currentStep={state.step} visitedSteps={state.history} placement="before" onEdit={editAnswer} />}<div key={transitionKey} data-giving-step data-question-panel={highlightedQuestion ? 'highlighted' : undefined} className={`animate-fade-in-up motion-reduce:animate-none ${highlightedQuestion ? 'rounded-[2rem] bg-warm-grey/35 p-5 shadow-sm ring-1 ring-warm-grey/50' : ''}`}><h3 ref={headingRef} tabIndex={-1} id="giving-step-heading" className={hideHeading ? 'sr-only outline-none' : 'mb-6 text-2xl font-semibold text-brand-black outline-none'}>{heading}</h3><div>{content}{error && (checkout.type !== 'configuring' || state.step !== 'amount') && <p role="alert" className="mt-4 text-sm text-rich-red">{error}</p>}</div></div>{previewStep && !previewHasEditableAnswer && <GivingStepPreview step={previewStep} label={titles[previewStep]} />}{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} transactionFeeMinor={applicableTransactionFeeMinor} currentStep={state.step} visitedSteps={state.history} placement="after" onEdit={editAnswer} />}</div></div>{showProgress && <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 w-full bg-gradient-to-b from-warm-white/0 from-0% via-warm-white via-30% to-warm-white to-100% px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-12 sm:px-6 sm:pb-4" data-giving-progress><div className="mx-auto max-w-lg"><div role="progressbar" aria-label="Giving progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} className="h-5 overflow-hidden rounded-full bg-warm-grey/55"><div className="h-full rounded-full bg-rich-red transition-[width] duration-500 ease-out motion-reduce:transition-none" style={{ width: `${progress}%` }} /></div></div></div>}</section>
 }

@@ -14,7 +14,11 @@ describe('giving transaction fees migration', () => {
     expect(GIVING_TRANSACTION_FEES_DOWN_SQL).toContain('Cannot roll back giving transaction fees after fee-bearing activity')
   })
 
-  it('registers after the existing migrations', () => {
-    expect(migrations.at(-1)?.name).toBe('20260903_010000_giving_transaction_fees')
+  it('registers before migrations that depend on giving transaction fee snapshots', () => {
+    const transactionFeesIndex = migrations.findIndex((migration) => migration.name === '20260903_010000_giving_transaction_fees')
+    const memberGivingIndex = migrations.findIndex((migration) => migration.name === '20260903_010000_member_giving_self_service')
+
+    expect(transactionFeesIndex).toBeGreaterThanOrEqual(0)
+    expect(memberGivingIndex).toBeGreaterThan(transactionFeesIndex)
   })
 })
