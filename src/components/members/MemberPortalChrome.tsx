@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 
 import { MemberAvatar } from './MemberAvatar'
 
-export type MemberSection = 'overview' | 'service' | 'groups' | 'reading' | 'resources'
+export type MemberSection = 'overview' | 'service' | 'groups' | 'reading' | 'resources' | 'giving'
 
 export function memberConnectGroupHref(groups: Array<{ rockGroupId: number }>) {
   return groups.length === 1
@@ -33,6 +33,7 @@ export function MemberPortalChrome({
       href: '/members/connect-group-leader-resources',
     },
     { key: 'service' as const, label: 'My Service', href: '/members/my-service' },
+    { key: 'giving' as const, label: 'Giving', href: '/members/giving' },
   ]
 
   return (

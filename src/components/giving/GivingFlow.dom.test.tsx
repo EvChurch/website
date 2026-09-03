@@ -5,7 +5,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { PublicGivingFund } from '@/lib/giving/contracts'
-import { GIVING_STATUS_POLL_LIMIT, GivingFlow, givingCheckoutPresentation, givingProgress, givingStatusPollDelay, positionGivingSurface, safeGivingGatewayRedirect } from './GivingFlow'
+import { GIVING_SAFE_CLOSE_REASSURANCE_DELAY_MS, GIVING_STATUS_POLL_LIMIT, GivingFlow, givingCheckoutPresentation, givingProgress, givingStatusPollDelay, positionGivingSurface, safeGivingGatewayRedirect } from './GivingFlow'
 
 vi.mock('@/components/forms/TurnstileWidget', () => ({ TurnstileWidget: ({ onToken }: { onToken: (token: string) => void }) => <button type="button" data-turnstile onClick={() => onToken('turnstile-token')}>Pass security check</button> }))
 const trackGivingEvent=vi.hoisted(()=>vi.fn())
@@ -64,7 +64,7 @@ describe('giving surface positioning', () => {
     Object.defineProperty(scroller, 'scrollHeight', { configurable: true, value: 900 })
     scroller.scrollTop = 40
     positionGivingSurface(scroller, elementWithRect(450, 700), elementWithRect(540, 600), 'forward')
-    expect(scroller.scrollTop).toBe(900)
+    expect(scroller.scrollTop).toBe(208)
 
     scroller.scrollTop = 100
     positionGivingSurface(scroller, elementWithRect(-20, 280), elementWithRect(540, 600), 'edit')
@@ -122,14 +122,35 @@ describe('GivingFlow', () => {
     })
     await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{ signedIn: false }} />))
     await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{ signedIn: true }} resumeRequested />))
-    expect(container.textContent).toContain('Restoring your gift')
-    expect(container.querySelector('input')).toBeNull()
+    expect(container.textContent).not.toContain('Restoring your gift')
     await act(async () => resolveIdentity?.(new Response(JSON.stringify({ signedIn: true, firstName: 'Fresh', lastName: 'Member', email: 'fresh@example.com' }), { status: 200, headers: { 'content-type': 'application/json' } })))
     await act(async () => new Promise((resolve) => setTimeout(resolve, 0)))
 
     expect(requests.indexOf('/api/giving/identity')).toBeLessThan(requests.indexOf('/api/giving/drafts'))
     expect(container.textContent).toContain('Continue with BlinkPay')
     expect(container.textContent).not.toContain('What is your first name?')
+  })
+
+  it('checks for a resumable draft without flashing a restoring state when none is loaded yet', async () => {
+    let resolveDraft: ((response: Response) => void) | undefined
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      if (String(input) === '/api/giving/drafts' && !init?.method) {
+        return new Promise<Response>((resolve) => { resolveDraft = resolve })
+      }
+      return Promise.resolve(new Response(null, { status: 204 }))
+    })
+
+    await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested />))
+
+    expect(container.textContent).not.toContain('Restoring your gift')
+    expect(container.textContent).toContain('How much would you like to give?')
+    expect(container.querySelector('input')).toBeTruthy()
+
+    await act(async () => resolveDraft?.(new Response(null, { status: 404 })))
+
+    expect(container.textContent).not.toContain('Restoring your gift')
+    expect(container.textContent).toContain('How much would you like to give?')
+    expect(container.querySelector('input')).toBeTruthy()
   })
   afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.useRealTimers(); vi.unstubAllGlobals() })
 
@@ -319,6 +340,7 @@ describe('GivingFlow', () => {
     expect(container.textContent).toContain('Copied')
     await act(async()=>button(container,"I've set this up")?.click())
     expect(container.textContent).toContain('Thank you, Ada')
+    expect(container.querySelector('#giving-step-heading')?.className).toContain('sr-only')
     expect(container.textContent).toContain('Ev hasn’t verified a payment yet')
     expect(container.textContent).toContain('2 Corinthians 9:7')
     expect(button(container, 'Done')).toBeTruthy()
@@ -476,8 +498,21 @@ describe('GivingFlow', () => {
     expect(progress?.getAttribute('aria-valuenow')).toBe(String(givingProgress('amount', null)))
     expect(container.querySelector('[data-giving-step]')?.className).toContain('animate-fade-in')
     expect(progress?.firstElementChild?.className).toContain('duration-500')
-    expect(progress?.parentElement?.className).toContain('pb-1')
-    expect(progress?.parentElement?.className).not.toContain('pb-20')
+    const progressScrim = progress?.closest<HTMLElement>('[data-giving-progress]')
+    expect(progressScrim?.className).toContain('w-full')
+    expect(progressScrim?.className).toContain('absolute')
+    expect(progressScrim?.className).toContain('bottom-0')
+    expect(progressScrim?.className).not.toContain('sticky')
+    expect(progressScrim?.className).not.toContain('shrink-0')
+    expect(progressScrim?.className).not.toContain('w-dvw')
+    expect(progressScrim?.className).not.toContain('-translate-x')
+    expect(progressScrim?.className).toContain('from-warm-white/0')
+    expect(progressScrim?.className).toContain('via-30%')
+    expect(progressScrim?.className).toContain('via-warm-white')
+    expect(progressScrim?.className).not.toContain('-mb-')
+    expect(progressScrim?.className).toContain('env(safe-area-inset-bottom)')
+    expect(progressScrim?.className).not.toContain('pb-20')
+    expect(progress?.parentElement?.className).toContain('max-w-lg')
   })
 
   it('allows successive amount digits and a decimal without rewriting the field mid-entry', async () => {
@@ -880,8 +915,28 @@ describe('GivingFlow', () => {
     await act(async()=>vi.advanceTimersByTimeAsync(2_000))
     expect(statusCalls).toBe(3)
     expect(container.textContent).toContain('schedule is active')
+    expect(container.querySelector('[role="progressbar"]')).toBeNull()
     await act(async()=>vi.advanceTimersByTimeAsync(60_000))
     expect(statusCalls).toBe(3)
+  })
+
+  it('keeps actively confirming for 30 seconds before showing the safe-close reassurance',async()=>{
+    vi.useFakeTimers()
+    window.history.replaceState(null,'','/?giving=return')
+    vi.mocked(fetch).mockImplementation(async(input)=>{
+      if(String(input)==='/api/giving/checkouts/current/status'){
+        return new Response(JSON.stringify({state:'processing',retryAllowed:false,kind:'one-off'}),{status:200,headers:{'content-type':'application/json'}})
+      }
+      return new Response(null,{status:204})
+    })
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested/>))
+    expect(container.textContent).toContain('We’re confirming your gift with BlinkPay.')
+    expect(container.textContent).not.toContain('This is taking a little longer')
+    await act(async()=>vi.advanceTimersByTimeAsync(GIVING_SAFE_CLOSE_REASSURANCE_DELAY_MS-1))
+    expect(container.textContent).toContain('We’re confirming your gift with BlinkPay.')
+    expect(container.textContent).not.toContain('This is taking a little longer')
+    await act(async()=>vi.advanceTimersByTimeAsync(1))
+    expect(container.textContent).toContain('This is taking a little longer')
   })
 
   it('cancels an in-flight status poll on unmount and never schedules another',async()=>{

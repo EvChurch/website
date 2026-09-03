@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { beforeEach,describe,expect,it,vi } from 'vitest'
+import { afterEach,beforeEach,describe,expect,it,vi } from 'vitest'
 import { configuredGivingCheckoutAuthority,handleGivingCheckoutPost,resolveGivingCheckoutAuthority,type GivingCheckoutRouteDependencies } from './route'
 import type { BlinkPayConfig } from '@/lib/giving/blinkpay/types'
 
@@ -9,7 +9,20 @@ function dependencies():GivingCheckoutRouteDependencies{ return {authority:vi.fn
 
 describe('POST giving checkout',()=>{
   beforeEach(()=>vi.stubEnv('GIVING_RATE_LIMIT_SECRET','r'.repeat(32)))
+  afterEach(()=>vi.unstubAllEnvs())
   it('checks server authority and Turnstile before rate limiting or provider side effects',async()=>{const deps=dependencies();const response=await handleGivingCheckoutPost(request(),deps);expect(response.status).toBe(201);expect(deps.authority).toHaveBeenCalled();expect(vi.mocked(deps.verifyTurnstile).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(deps.rateLimitStore.increment).mock.invocationCallOrder[0]);expect(deps.startCheckout).toHaveBeenCalled();const cookies=response.headers.get('set-cookie')??'';expect(cookies).toContain('__Host-ev_giving_checkout=');expect(cookies).toContain('__Host-ev_giving_return=');expect(cookies.toLowerCase()).toContain('samesite=lax')})
+  it('stores the safe current page for the hosted BlinkPay return', async () => {
+    const deps = dependencies()
+    const response = await handleGivingCheckoutPost(request(body, {
+      referer: 'https://www.ev.church/about?launcher=give',
+    }), deps)
+
+    expect(response.status).toBe(201)
+    const cookies = response.headers.get('set-cookie') ?? ''
+    expect(cookies).toContain('__Host-ev_giving_return_to=%2Fabout%3Fgiving%3Dreturn')
+  })
+  it('accepts configured tunnel origins in development',async()=>{vi.stubEnv('NODE_ENV','development');vi.stubEnv('APP_BASE_URL','https://cons-catch-carlos-cape.trycloudflare.com');const deps=dependencies();const response=await handleGivingCheckoutPost(new NextRequest('http://0.0.0.0:3001/api/giving/checkouts',{method:'POST',headers:{origin:'https://cons-catch-carlos-cape.trycloudflare.com','sec-fetch-site':'same-origin','x-ev-giving-request':'checkout-v1','content-type':'application/json'},body:JSON.stringify(body)}),deps);expect(response.status).toBe(201);expect(deps.startCheckout).toHaveBeenCalledOnce()})
+  it('verifies Turnstile against the configured app hostname in production previews',async()=>{vi.stubEnv('NODE_ENV','production');vi.stubEnv('APP_BASE_URL','https://cons-catch-carlos-cape.trycloudflare.com');vi.stubEnv('GIVING_TRUST_CF_CONNECTING_IP','true');const deps=dependencies();const response=await handleGivingCheckoutPost(new NextRequest('http://0.0.0.0:3001/api/giving/checkouts',{method:'POST',headers:{origin:'https://cons-catch-carlos-cape.trycloudflare.com','sec-fetch-site':'same-origin','x-ev-giving-request':'checkout-v1','content-type':'application/json','cf-connecting-ip':'192.0.2.1'},body:JSON.stringify(body)}),deps);expect(response.status).toBe(201);expect(deps.verifyTurnstile).toHaveBeenCalledWith(expect.objectContaining({expectedHostname:'cons-catch-carlos-cape.trycloudflare.com'}))})
   it('returns typed no-retry 202 and sets only the status cookie for an ambiguous provider start',async()=>{const deps=dependencies();vi.mocked(deps.startCheckout).mockResolvedValue({outcome:'unknown',retryAllowed:false,statusToken:'U'.repeat(43),correlationKey:'correlation',reused:false});const response=await handleGivingCheckoutPost(request(),deps);expect(response.status).toBe(202);expect(await response.json()).toEqual({outcome:'unknown',retryAllowed:false,correlationKey:'correlation',reused:false});const cookies=response.headers.get('set-cookie')??'';expect(cookies).toContain('U'.repeat(43));expect(cookies).not.toContain('__Host-ev_giving_return=')})
   it('does not spend a rate-limit attempt when Turnstile rejects the request',async()=>{const deps=dependencies();vi.mocked(deps.verifyTurnstile).mockRejectedValue(new Error('turnstile unavailable'));const response=await handleGivingCheckoutPost(request(),deps);expect(response.status).toBe(503);expect(deps.rateLimitStore.increment).not.toHaveBeenCalled();expect(deps.startCheckout).not.toHaveBeenCalled()})
   it('rejects a client-supplied fee that does not match the current global setting',async()=>{const deps=dependencies();const response=await handleGivingCheckoutPost(request({...body,transactionFeeMinor:0}),deps);expect(response.status).toBe(400);expect(deps.verifyTurnstile).not.toHaveBeenCalled();expect(deps.startCheckout).not.toHaveBeenCalled()})

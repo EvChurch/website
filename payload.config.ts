@@ -44,6 +44,7 @@ import { GivingSchedules } from '@/collections/GivingSchedules'
 import { GivingProviderOperations } from '@/collections/GivingProviderOperations'
 import { BlinkPayWebhookEvents } from '@/collections/BlinkPayWebhookEvents'
 import { GivingDrafts } from '@/collections/GivingDrafts'
+import { GivingCancellationFeedback } from '@/collections/GivingCancellationFeedback'
 import { isAdmin } from '@/access/roles'
 
 // Globals
@@ -111,6 +112,7 @@ export const applicationCollections: CollectionConfig[] = [
   GivingProviderOperations,
   BlinkPayWebhookEvents,
   GivingDrafts,
+  GivingCancellationFeedback,
 ]
 
 export const applicationGlobals: GlobalConfig[] = [
@@ -132,6 +134,7 @@ export const mcpExcludedCollectionSlugs = new Set([
   'giving-provider-operations',
   'blinkpay-webhook-events',
   'giving-drafts',
+  'giving-cancellation-feedback',
 ])
 
 export const mcpExcludedGlobalSlugs = new Set(['giving-settings'])

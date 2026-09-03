@@ -18,6 +18,7 @@ import {
   type GivingFrequency,
 } from './blinkpay/types'
 import { minorUnitsToNzd, validateNzDate, validatePeriod } from './blinkpay/validation'
+import { blinkPayCallbackOrigin } from './blinkpay/config'
 import { givingBankCode, givingBankTransferDetails, type GivingBankTransferPreparation } from './bank-transfer'
 import { MAX_GIVING_TRANSACTION_FEE_MINOR } from './fees'
 
@@ -305,7 +306,7 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
     if (operation.status !== 'prepared') throw new GivingCheckoutError('unknown')
     await dependencies.repository.markSubmitted(operation.id)
     operation = { ...operation, status: 'submitted' }
-    const redirectUri = 'https://www.ev.church/give/return'
+    const redirectUri = `${blinkPayCallbackOrigin()}/give/return`
     if (!checkout.bankReference) throw new GivingCheckoutError('conflict')
     const pcr = { particulars: checkout.fundCode.slice(0, 12), code: checkout.bankCode, reference: checkout.bankReference }
     let result
@@ -846,10 +847,11 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
             context_key,environment,synthetic,checkout_id,giver_id,fund_id,fund_name,fund_code,
             fund_accounting_key,amount_minor,transaction_fee_minor,provider_payment_id,status,provider_observed_at,provider_request_id
           ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'settled',$13,$14)
-          ON CONFLICT(checkout_id) DO UPDATE SET
+          ON CONFLICT(environment,provider_payment_id) DO UPDATE SET
             provider_observed_at=GREATEST(giving_gifts.provider_observed_at,EXCLUDED.provider_observed_at)
           WHERE giving_gifts.context_key=EXCLUDED.context_key
             AND giving_gifts.environment=EXCLUDED.environment
+            AND giving_gifts.checkout_id=EXCLUDED.checkout_id
             AND giving_gifts.giver_id=EXCLUDED.giver_id
             AND giving_gifts.fund_id=EXCLUDED.fund_id
             AND giving_gifts.amount_minor=EXCLUDED.amount_minor

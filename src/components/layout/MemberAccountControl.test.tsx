@@ -122,8 +122,11 @@ describe('MemberAccountControl', () => {
     expect(menu?.textContent).toContain('aroha@example.com')
     expect(menu?.querySelector('img')).not.toBeNull()
     expect(menu?.textContent).toContain('Overview')
+    expect(menu?.textContent).toContain('Daily Reading')
     expect(menu?.textContent).toContain('My Service')
     expect(menu?.textContent).toContain('Connect Group')
+    expect(menu?.textContent).toContain('Study Resources')
+    expect(menu?.textContent).toContain('Giving')
     expect(menu?.textContent).toContain('Admin')
     expect(menu?.textContent).toContain('Log out')
     expect(menu?.textContent).not.toContain('personId')
@@ -132,10 +135,15 @@ describe('MemberAccountControl', () => {
 
     const links = [...(menu?.querySelectorAll<HTMLAnchorElement>('a') ?? [])]
       .map((link) => link.getAttribute('href'))
-    expect(links).toContain('/members')
-    expect(links).toContain('/members/my-service')
-    expect(links).toContain('/members/connect-groups')
-    expect(links).toContain('/admin/impersonate')
+    expect(links.slice(0, 7)).toEqual([
+      '/members',
+      '/members/daily-readings',
+      '/members/connect-groups',
+      '/members/connect-group-leader-resources',
+      '/members/my-service',
+      '/members/giving',
+      '/admin/impersonate',
+    ])
     expect(links.some(l => l?.startsWith('/auth/logout'))).toBe(true)
     const privateLinks = [...container.querySelectorAll<HTMLAnchorElement>(
       'a[href^="/auth/"], a[href="/members"], a[href^="/members/"]',
@@ -292,15 +300,23 @@ describe('MemberAccountControl', () => {
     expect(trigger.textContent).toContain('Aroha Ngata')
     expect(trigger.textContent).toContain('aroha@example.com')
     expect(expandedPanel?.textContent).toContain('Overview')
+    expect(expandedPanel?.textContent).toContain('Daily Reading')
     expect(expandedPanel?.textContent).toContain('My Service')
     expect(expandedPanel?.textContent).toContain('Connect Group')
+    expect(expandedPanel?.textContent).toContain('Study Resources')
+    expect(expandedPanel?.textContent).toContain('Giving')
     expect(expandedPanel?.textContent).toContain('Log out')
 
     const links = [...(expandedPanel?.querySelectorAll<HTMLAnchorElement>('a') ?? [])]
       .map((link) => link.getAttribute('href'))
-    expect(links).toContain('/members')
-    expect(links).toContain('/members/my-service')
-    expect(links).toContain('/members/connect-groups')
+    expect(links.slice(0, 6)).toEqual([
+      '/members',
+      '/members/daily-readings',
+      '/members/connect-groups',
+      '/members/connect-group-leader-resources',
+      '/members/my-service',
+      '/members/giving',
+    ])
     expect(links.some(l => l?.startsWith('/auth/logout'))).toBe(true)
     const privateLinks = [...container.querySelectorAll<HTMLAnchorElement>(
       'a[href^="/auth/"], a[href="/members"], a[href^="/members/"]',

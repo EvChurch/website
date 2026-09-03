@@ -4,6 +4,7 @@ import { getBlinkPayRuntimeClient } from '@/lib/giving/blinkpay/runtime-client'
 import { isGivingCapabilityToken } from '@/lib/giving/contracts'
 import { requireGivingPostgresPool } from '@/lib/giving/postgres'
 import { GIVING_PRIVATE_HEADERS } from '@/lib/giving/request-boundary'
+import { givingReturnToCookieName, safeGivingReturnDestination } from '@/lib/giving/return-destination'
 import { createGivingCheckoutService, createPostgresGivingCheckoutRepository } from '@/lib/giving/service'
 import { getPayloadClient } from '@/lib/payload'
 
@@ -31,6 +32,20 @@ function givingCompletionUrl() {
     throw new Error('APP_BASE_URL must use HTTPS outside local development')
   }
   return new URL('/?giving=return', base)
+}
+
+function givingCompletionUrlForRequest(request: NextRequest) {
+  const base = givingCompletionUrl()
+  const stored = request.cookies.get(givingReturnToCookieName())?.value
+  if (!stored) return base
+  let decoded: string
+  try {
+    decoded = decodeURIComponent(stored)
+  } catch {
+    return base
+  }
+  const destination = safeGivingReturnDestination(decoded, [base.origin])
+  return destination ? new URL(destination, base) : base
 }
 
 function completionRedirect(completionUrl: URL) {
@@ -81,12 +96,16 @@ export async function handleGivingReturnGet(
   try {
     const alias = callbackAlias(request.nextUrl)
     if (alias === false) return unavailable()
-    const completionUrl = dependencies.completionUrl?.() ?? givingCompletionUrl()
+    const completionUrl = dependencies.completionUrl?.() ?? givingCompletionUrlForRequest(request)
     const statusToken = request.cookies.get('__Host-ev_giving_checkout')?.value
     if (statusToken && isGivingCapabilityToken(statusToken)) {
       try {
         await dependencies.validateStatus(statusToken)
-        return completionRedirect(completionUrl)
+        const response = completionRedirect(completionUrl)
+        response.cookies.set(givingReturnToCookieName(), '', {
+          httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 0,
+        })
+        return response
       } catch {
         // A stale status capability can still accompany the first provider return.
       }
@@ -99,6 +118,9 @@ export async function handleGivingReturnGet(
       httpOnly: true, secure: true, sameSite: 'strict', path: '/', maxAge: 30 * 60,
     })
     response.cookies.set('__Host-ev_giving_return', '', {
+      httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 0,
+    })
+    response.cookies.set(givingReturnToCookieName(), '', {
       httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 0,
     })
     return response

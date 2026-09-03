@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createGivingCheckoutService, GivingCheckoutError, prepareGivingBankTransfer, type GivingCheckoutBlinkPayClient, type GivingCheckoutOperation, type GivingCheckoutRecord, type GivingCheckoutRepository, type GivingCheckoutStartResult } from './service'
 import type { ResolvedGivingIdentity } from './rock-identity'
@@ -93,6 +93,8 @@ function returnToken(result: GivingCheckoutStartResult) {
 }
 
 describe('giving checkout orchestration', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
   it('prepares direct-bank references through the same Rock identity resolution without calling BlinkPay', async () => {
     const repo = repository()
     const createOrReuse = vi.spyOn(repo, 'createOrReuse')
@@ -244,6 +246,22 @@ describe('giving checkout orchestration', () => {
     expect(blinkPay.createQuickPayment.mock.calls[0][0].flow.detail.redirect_uri).toBe('https://www.ev.church/give/return')
     const returned = await checkout.consumeReturn(returnToken(second))
     expect(await checkout.status(returned.statusToken)).toEqual({ state: 'verified', retryAllowed: false, kind: 'one-off' })
+  })
+
+  it('uses the configured preview callback origin for hosted BlinkPay', async () => {
+    vi.stubEnv('NODE_ENV', 'development')
+    vi.stubEnv('APP_BASE_URL', 'https://cons-catch-carlos-cape.trycloudflare.com')
+    const { checkout, blinkPay } = service()
+    await checkout.start({ ...context, submission: baseSubmission })
+    expect(blinkPay.createQuickPayment.mock.calls[0][0].flow.detail.redirect_uri).toBe('https://cons-catch-carlos-cape.trycloudflare.com/give/return')
+  })
+
+  it('uses the configured preview callback origin from a production build with sandbox credentials', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('APP_BASE_URL', 'https://cons-catch-carlos-cape.trycloudflare.com')
+    const { checkout, blinkPay } = service()
+    await checkout.start({ ...context, submission: baseSubmission })
+    expect(blinkPay.createQuickPayment.mock.calls[0][0].flow.detail.redirect_uri).toBe('https://cons-catch-carlos-cape.trycloudflare.com/give/return')
   })
 
   it('records an ambiguous create as unknown and never issues a blind second create', async () => {
