@@ -31,7 +31,7 @@ type ClaimResult = { status: 'claimed'; delivery: GivingEmailSource } | { status
 const LEASE_MS = 5 * 60 * 1000
 const MAX_ATTEMPTS = 6
 const RESEND_EMAILS_URL = 'https://api.resend.com/emails'
-const STEVE_MULLINS_AVATAR_URL = 'https://www.ev.church/api/media/file/steve-mullins-1.jpg'
+const STEVE_MULLINS_AVATAR_URL = 'https://www.ev.church/images/team/steve-mullins-email-avatar.jpg'
 const EXECUTIVE_COMMITTEE_URL = 'https://www.ev.church/give#executive-committee'
 
 function escapeHtml(value: string) {
@@ -69,7 +69,7 @@ function partnershipMessage(source: GivingEmailSource) {
 function executiveCommitteeSignOff() {
   return {
     text: ['God bless,', '', 'Steve Mullins', `On behalf of the Executive Committee of Ev Church: ${EXECUTIVE_COMMITTEE_URL}`].join('\n'),
-    html: `<p style="margin-bottom:24px">God bless,</p><table role="presentation" style="border-collapse:collapse"><tbody><tr><td style="padding:0 14px 0 0;vertical-align:middle"><div style="border-radius:999px;height:64px;overflow:hidden;width:64px"><img src="${STEVE_MULLINS_AVATAR_URL}" alt="Steve Mullins" width="107" height="160" style="display:block;height:160px;margin-left:-22px;margin-top:-8px;max-width:none;width:107px"></div></td><td style="padding:0;vertical-align:middle"><strong>Steve Mullins</strong><br>On behalf of the <a href="${EXECUTIVE_COMMITTEE_URL}" style="color:#E22A30;text-decoration:underline">Executive Committee of Ev Church</a></td></tr></tbody></table>`,
+    html: `<p style="margin-bottom:24px">God bless,</p><table role="presentation" style="border-collapse:collapse"><tbody><tr><td style="padding:0 14px 0 0;vertical-align:middle"><img src="${STEVE_MULLINS_AVATAR_URL}" alt="Steve Mullins" width="64" height="64" style="border-radius:999px;display:block;height:64px;width:64px"></td><td style="padding:0;vertical-align:middle"><strong>Steve Mullins</strong><br>On behalf of the <a href="${EXECUTIVE_COMMITTEE_URL}" style="color:#E22A30;text-decoration:underline">Executive Committee of Ev Church</a></td></tr></tbody></table>`,
   }
 }
 
