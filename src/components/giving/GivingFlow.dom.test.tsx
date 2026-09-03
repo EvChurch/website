@@ -195,6 +195,15 @@ describe('GivingFlow', () => {
     expect(monthScroller.className).toContain('[&_*]:select-none')
     monthScroller.setPointerCapture = vi.fn()
     monthScroller.hasPointerCapture = vi.fn(() => false)
+    monthScroller.scrollLeft = 0
+    await act(async () => {
+      monthScroller.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 180, clientY: 20, pointerId: 3, pointerType: 'touch' }))
+      monthScroller.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 100, clientY: 20, pointerId: 3, pointerType: 'touch' }))
+      monthScroller.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 100, clientY: 20, pointerId: 3, pointerType: 'touch' }))
+    })
+    expect(monthScroller.scrollLeft).toBe(0)
+    expect(monthScroller.setPointerCapture).not.toHaveBeenCalled()
+    expect(monthScroller.style.touchAction).toBe('pan-x pan-y')
     await act(async () => {
       monthScroller.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 180, clientY: 20, pointerId: 1, pointerType: 'mouse' }))
       monthScroller.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 174, clientY: 20, pointerId: 1, pointerType: 'mouse' }))
@@ -902,7 +911,12 @@ describe('GivingFlow', () => {
       if(String(input)==='/api/giving/checkouts/current/status'){
         statusCalls+=1
         const state=statusCalls<3?'processing':'verified'
-        return new Response(JSON.stringify({state,retryAllowed:false,kind:'recurring'}),{status:200,headers:{'content-type':'application/json'}})
+        return new Response(JSON.stringify({
+          state,
+          retryAllowed:false,
+          kind:'recurring',
+          gift:{amountMinor:2500,transactionFeeMinor:50,fundName:'General',frequency:'monthly',firstPaymentDate:'2026-09-01'},
+        }),{status:200,headers:{'content-type':'application/json'}})
       }
       return new Response(null,{status:204})
     })
@@ -915,6 +929,14 @@ describe('GivingFlow', () => {
     await act(async()=>vi.advanceTimersByTimeAsync(2_000))
     expect(statusCalls).toBe(3)
     expect(container.textContent).toContain('schedule is active')
+    expect(container.textContent).toContain('Gift')
+    expect(container.textContent).toContain('$25.00')
+    expect(container.textContent).toContain('Transaction fee')
+    expect(container.textContent).toContain('$0.50')
+    expect(container.textContent).toContain('Total charged')
+    expect(container.textContent).toContain('$25.50')
+    expect(container.textContent).toContain('General')
+    expect(container.textContent).toContain('Every month')
     expect(container.querySelector('[role="progressbar"]')).toBeNull()
     await act(async()=>vi.advanceTimersByTimeAsync(60_000))
     expect(statusCalls).toBe(3)

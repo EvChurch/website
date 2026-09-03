@@ -57,11 +57,23 @@ export function isGivingCapabilityToken(value: unknown): value is string {
 
 export const GIVING_CHECKOUT_STATUS_STATES = ['processing','cancelled','rejected','expired','unknown','verified'] as const
 export type GivingCheckoutStatusState = typeof GIVING_CHECKOUT_STATUS_STATES[number]
-export interface GivingCheckoutStatus { state:GivingCheckoutStatusState;retryAllowed:boolean;kind:'one-off'|'recurring';firstName?:string }
+export interface GivingCheckoutStatusGift {
+  amountMinor: number
+  transactionFeeMinor: number
+  fundName: string
+  frequency: 'one-off' | 'daily' | 'weekly' | 'fortnightly' | 'monthly' | 'annual'
+  firstPaymentDate: string | null
+}
+export interface GivingCheckoutStatus { state:GivingCheckoutStatusState;retryAllowed:boolean;kind:'one-off'|'recurring';firstName?:string;gift?:GivingCheckoutStatusGift }
 export function parseGivingCheckoutStatus(value:unknown):GivingCheckoutStatus {
   if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid giving checkout status')
   const item=value as Record<string,unknown>
   const keys=Object.keys(item).sort().join(',')
-  if(!['kind,retryAllowed,state','firstName,kind,retryAllowed,state'].includes(keys)||!GIVING_CHECKOUT_STATUS_STATES.includes(item.state as GivingCheckoutStatusState)||typeof item.retryAllowed!=='boolean'||!['one-off','recurring'].includes(String(item.kind))||(item.firstName!==undefined&&(typeof item.firstName!=='string'||item.firstName.length<1||item.firstName.length>80)))throw new Error('Invalid giving checkout status')
+  if(!['gift,kind,retryAllowed,state','firstName,gift,kind,retryAllowed,state','firstName,kind,retryAllowed,state','kind,retryAllowed,state'].includes(keys)||!GIVING_CHECKOUT_STATUS_STATES.includes(item.state as GivingCheckoutStatusState)||typeof item.retryAllowed!=='boolean'||!['one-off','recurring'].includes(String(item.kind))||(item.firstName!==undefined&&(typeof item.firstName!=='string'||item.firstName.length<1||item.firstName.length>80)))throw new Error('Invalid giving checkout status')
+  if(item.gift!==undefined){
+    if(!item.gift||typeof item.gift!=='object'||Array.isArray(item.gift))throw new Error('Invalid giving checkout status')
+    const gift=item.gift as Record<string,unknown>
+    if(Object.keys(gift).sort().join(',')!=='amountMinor,firstPaymentDate,frequency,fundName,transactionFeeMinor'||!Number.isSafeInteger(gift.amountMinor)||Number(gift.amountMinor)<=0||!Number.isSafeInteger(gift.transactionFeeMinor)||Number(gift.transactionFeeMinor)<0||typeof gift.fundName!=='string'||gift.fundName.length<1||gift.fundName.length>120||!['one-off','daily','weekly','fortnightly','monthly','annual'].includes(String(gift.frequency))||(gift.firstPaymentDate!==null&&typeof gift.firstPaymentDate!=='string'))throw new Error('Invalid giving checkout status')
+  }
   return item as unknown as GivingCheckoutStatus
 }

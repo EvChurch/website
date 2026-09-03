@@ -17,6 +17,7 @@ export interface GivingEmailSource {
   fundCode: string
   fundName: string
   amountMinor: number
+  transactionFeeMinor: number
   frequency: 'one-off' | 'daily' | 'weekly' | 'fortnightly' | 'monthly' | 'annual'
   firstPaymentDate: string | null
   leaseToken: string
@@ -38,10 +39,14 @@ function escapeHtml(value: string) {
 }
 
 function giftSummary(source: GivingEmailSource) {
-  const amount = new Intl.NumberFormat('en-NZ', { style:'currency', currency:'NZD' }).format(source.amountMinor / 100)
-  if (source.frequency === 'one-off') return `${amount} to ${source.fundName}, just this once`
+  const formatter = new Intl.NumberFormat('en-NZ', { style:'currency', currency:'NZD' })
+  const amount = formatter.format(source.amountMinor / 100)
+  const amountWithFee = source.transactionFeeMinor > 0
+    ? `${amount} plus a ${formatter.format(source.transactionFeeMinor / 100)} transaction fee`
+    : amount
+  if (source.frequency === 'one-off') return `${amountWithFee} to ${source.fundName}, just this once`
   const frequency = ({ daily:'each day',weekly:'each week',fortnightly:'every two weeks',monthly:'each month',annual:'each year' } as const)[source.frequency]
-  return `${amount} to ${source.fundName} ${frequency}${source.firstPaymentDate ? `, starting ${source.firstPaymentDate}` : ''}`
+  return `${amountWithFee} to ${source.fundName} ${frequency}${source.firstPaymentDate ? `, starting ${source.firstPaymentDate}` : ''}`
 }
 
 function partnershipMessage(source: GivingEmailSource) {
@@ -126,14 +131,14 @@ export function createGivingEmailStore(pool: Pool) {
           AND (delivery.kind<>'bank-transfer-thanks' OR checkout.bank_setup_acknowledged_at IS NOT NULL)
           AND (delivery.kind<>'blinkpay-thanks' OR checkout.status='completed' AND checkout.result_code='verified')
         RETURNING delivery.id,delivery.checkout_id,delivery.kind,giver.email,giver.name,giver.bank_reference,
-          checkout.bank_code,checkout.fund_code,checkout.fund_name,checkout.amount_minor,checkout.frequency,checkout.first_payment_date`,
+          checkout.bank_code,checkout.fund_code,checkout.fund_name,checkout.amount_minor,checkout.transaction_fee_minor,checkout.frequency,checkout.first_payment_date`,
       [id, leaseToken, leaseExpires, now, MAX_ATTEMPTS])
       const row = result.rows[0] as Record<string, unknown> | undefined
       if (!row) return { status:'skipped' }
       return { status:'claimed', delivery: {
         id:Number(row.id),checkoutId:Number(row.checkout_id),kind:String(row.kind) as GivingEmailKind,
         email:String(row.email),name:String(row.name),bankReference:String(row.bank_reference),bankCode:String(row.bank_code),
-        fundCode:String(row.fund_code),fundName:String(row.fund_name),amountMinor:Number(row.amount_minor),
+        fundCode:String(row.fund_code),fundName:String(row.fund_name),amountMinor:Number(row.amount_minor),transactionFeeMinor:Number(row.transaction_fee_minor),
         frequency:String(row.frequency) as GivingEmailSource['frequency'],firstPaymentDate:row.first_payment_date ? String(row.first_payment_date).slice(0,10) : null,leaseToken,
       } }
     },

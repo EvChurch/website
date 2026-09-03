@@ -483,6 +483,13 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
         retryAllowed: checkout.status === 'failed',
         kind: checkout.frequency === 'one-off' ? 'one-off' : 'recurring',
         ...(checkout.giverFirstName ? { firstName: checkout.giverFirstName } : {}),
+        gift: {
+          amountMinor: checkout.amountMinor,
+          transactionFeeMinor: checkout.transactionFeeMinor,
+          fundName: checkout.fundName,
+          frequency: checkout.frequency,
+          firstPaymentDate: checkout.firstPaymentDate,
+        },
       } satisfies GivingCheckoutStatus
     },
   }

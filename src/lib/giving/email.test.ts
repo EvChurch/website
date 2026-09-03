@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { buildGivingEmail, createResendGivingEmailTransport, deliverGivingEmail, type GivingEmailSource } from './email'
 
 function source(kind: GivingEmailSource['kind']): GivingEmailSource {
-  return {id:7,checkoutId:42,kind,email:'ada@example.com',name:'Ada Lovelace',bankReference:'EV123',bankCode:'ALOVELACE',fundCode:'GEN',fundName:'General',amountMinor:2500,frequency:'one-off',firstPaymentDate:null,leaseToken:'lease'}
+  return {id:7,checkoutId:42,kind,email:'ada@example.com',name:'Ada Lovelace',bankReference:'EV123',bankCode:'ALOVELACE',fundCode:'GEN',fundName:'General',amountMinor:2500,transactionFeeMinor:50,frequency:'one-off',firstPaymentDate:null,leaseToken:'lease'}
 }
 
 describe('giving emails',()=>{
@@ -41,11 +41,11 @@ describe('giving emails',()=>{
     const bank=buildGivingEmail(source('bank-transfer-thanks'))
     expect(bank.subject).toBe('Thank you for setting up your gift to Ev Church')
     expect(bank.text).toContain('hasn’t verified a payment yet')
-    expect(bank.text).toContain('Gift setup: $25.00 to General, just this once')
+    expect(bank.text).toContain('Gift setup: $25.00 plus a $0.50 transaction fee to General, just this once')
     const blink=buildGivingEmail(source('blinkpay-thanks'))
     expect(blink.subject).toBe('Thank you for your gift to Ev Church')
     expect(blink.text).toContain('Your gift is confirmed')
-    expect(blink.text).toContain('Confirmed gift: $25.00 to General, just this once')
+    expect(blink.text).toContain('Confirmed gift: $25.00 plus a $0.50 transaction fee to General, just this once')
     expect(blink.text).toContain('Thank you for your partnership in the gospel.')
     expect(blink.text).toContain('We thank God for you and for the generosity you’ve shown.')
     expect(blink.text).toContain('people across Auckland can hear about Jesus, grow in him, and be equipped to serve')
@@ -71,6 +71,7 @@ describe('giving emails',()=>{
 
     const recurring=buildGivingEmail({...source('blinkpay-thanks'),frequency:'monthly'})
     expect(recurring.subject).toBe('Thank you for your regular giving to Ev Church')
+    expect(recurring.text).toContain('Confirmed gift: $25.00 plus a $0.50 transaction fee to General each month')
     expect(recurring.text).toContain('Thank you for your faithful partnership in the gospel.')
     expect(recurring.text).toContain('your regular commitment to gospel ministry through Ev')
     expect(recurring.text).not.toContain('What next')
@@ -79,6 +80,12 @@ describe('giving emails',()=>{
     expect(recurringBank.subject).toBe('Thank you for setting up regular giving to Ev Church')
     expect(recurringBank.text).toContain('hasn’t verified a payment yet')
     expect(recurringBank.text).not.toContain('recurring gift is confirmed')
+  })
+
+  it('leaves zero-fee gifts with the existing amount wording',()=>{
+    const message=buildGivingEmail({...source('blinkpay-thanks'),transactionFeeMinor:0})
+    expect(message.text).toContain('Confirmed gift: $25.00 to General, just this once')
+    expect(message.text).not.toContain('transaction fee')
   })
 
   it('sends through Resend with a stable idempotency key and bounded message',async()=>{
@@ -90,7 +97,7 @@ describe('giving emails',()=>{
   })
 
   it('leases once, sends once, and records the provider id',async()=>{
-    const claimed={id:7,checkout_id:42,kind:'blinkpay-thanks',email:'ada@example.com',name:'Ada Lovelace',bank_reference:'EV123',bank_code:'ALOVELACE',fund_code:'GEN',fund_name:'General',amount_minor:2500,frequency:'one-off',first_payment_date:null}
+    const claimed={id:7,checkout_id:42,kind:'blinkpay-thanks',email:'ada@example.com',name:'Ada Lovelace',bank_reference:'EV123',bank_code:'ALOVELACE',fund_code:'GEN',fund_name:'General',amount_minor:2500,transaction_fee_minor:50,frequency:'one-off',first_payment_date:null}
     const query=vi.fn().mockResolvedValueOnce({rows:[claimed]}).mockResolvedValueOnce({rowCount:1})
     const transport={send:vi.fn().mockResolvedValue({providerId:'email-1'})}
     await expect(deliverGivingEmail({id:7,pool:{query} as never,transport,now:new Date('2026-08-22T00:00:00Z')})).resolves.toEqual({sent:true})
@@ -100,7 +107,7 @@ describe('giving emails',()=>{
   })
 
   it('releases provider failures but preserves the lease after an accepted send cannot be recorded',async()=>{
-    const claimed={id:7,checkout_id:42,kind:'blinkpay-thanks',email:'ada@example.com',name:'Ada Lovelace',bank_reference:'EV123',bank_code:'ALOVELACE',fund_code:'GEN',fund_name:'General',amount_minor:2500,frequency:'one-off',first_payment_date:null}
+    const claimed={id:7,checkout_id:42,kind:'blinkpay-thanks',email:'ada@example.com',name:'Ada Lovelace',bank_reference:'EV123',bank_code:'ALOVELACE',fund_code:'GEN',fund_name:'General',amount_minor:2500,transaction_fee_minor:50,frequency:'one-off',first_payment_date:null}
     const providerQuery=vi.fn().mockResolvedValueOnce({rows:[claimed]}).mockResolvedValueOnce({rowCount:1})
     await expect(deliverGivingEmail({id:7,pool:{query:providerQuery} as never,transport:{send:vi.fn().mockRejectedValue(new Error('provider'))}})).rejects.toThrow('Giving email delivery failed')
     expect(String(providerQuery.mock.calls[1][0])).toContain("attempt_count>=")

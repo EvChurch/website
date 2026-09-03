@@ -245,7 +245,18 @@ describe('giving checkout orchestration', () => {
     })
     expect(blinkPay.createQuickPayment.mock.calls[0][0].flow.detail.redirect_uri).toBe('https://www.ev.church/give/return')
     const returned = await checkout.consumeReturn(returnToken(second))
-    expect(await checkout.status(returned.statusToken)).toEqual({ state: 'verified', retryAllowed: false, kind: 'one-off' })
+    expect(await checkout.status(returned.statusToken)).toMatchObject({
+      state: 'verified',
+      retryAllowed: false,
+      kind: 'one-off',
+      gift: {
+        amountMinor: 2500,
+        transactionFeeMinor: 50,
+        fundName: 'General',
+        frequency: 'one-off',
+        firstPaymentDate: null,
+      },
+    })
   })
 
   it('uses the configured preview callback origin for hosted BlinkPay', async () => {
@@ -271,7 +282,7 @@ describe('giving checkout orchestration', () => {
     expect(first).toMatchObject({ outcome: 'unknown', retryAllowed: false, reused: false })
     const second = await checkout.start({ ...context, submission: baseSubmission })
     expect(second).toMatchObject({ outcome: 'unknown', retryAllowed: false, reused: true })
-    await expect(checkout.status(second.statusToken)).resolves.toEqual({ state: 'unknown', retryAllowed: false, kind: 'one-off' })
+    await expect(checkout.status(second.statusToken)).resolves.toMatchObject({ state: 'unknown', retryAllowed: false, kind: 'one-off' })
     expect(createQuickPayment).toHaveBeenCalledTimes(1)
   })
 
@@ -357,7 +368,7 @@ describe('giving checkout orchestration', () => {
     const { checkout } = service(repository(), { getQuickPayment: vi.fn(async () => { throw new Error('provider unavailable') }) })
     const started = await checkout.start({ ...context, submission: baseSubmission })
     const returned = await checkout.consumeReturn(returnToken(started))
-    expect(await checkout.status(returned.statusToken)).toEqual({ state: 'processing', retryAllowed: false, kind: 'one-off' })
+    expect(await checkout.status(returned.statusToken)).toMatchObject({ state: 'processing', retryAllowed: false, kind: 'one-off' })
   })
 
   it('returns the persisted status capability when recovery setProcessing also fails', async () => {
@@ -376,8 +387,8 @@ describe('giving checkout orchestration', () => {
     const { checkout } = service(repo, { getQuickPayment })
     const started = await checkout.start({ ...context, submission: baseSubmission })
     const returned = await checkout.consumeReturn(returnToken(started))
-    expect(await checkout.status(returned.statusToken)).toEqual({ state: 'verified', retryAllowed: false, kind: 'one-off' })
-    expect(await checkout.status(returned.statusToken)).toEqual({ state: 'verified', retryAllowed: false, kind: 'one-off' })
+    expect(await checkout.status(returned.statusToken)).toMatchObject({ state: 'verified', retryAllowed: false, kind: 'one-off' })
+    expect(await checkout.status(returned.statusToken)).toMatchObject({ state: 'verified', retryAllowed: false, kind: 'one-off' })
     expect(completeOneOff).toHaveBeenCalledTimes(1)
   })
 
@@ -405,7 +416,7 @@ describe('giving checkout orchestration', () => {
     const started = await checkout.start({ ...context, submission: baseSubmission })
     const returned = await checkout.consumeReturn(returnToken(started))
 
-    expect(await checkout.status(returned.statusToken)).toEqual({ state: 'rejected', retryAllowed: true, kind: 'one-off' })
+    expect(await checkout.status(returned.statusToken)).toMatchObject({ state: 'rejected', retryAllowed: true, kind: 'one-off' })
   })
 
   it('rejects a mismatched callback alias without consuming the return capability', async () => {
@@ -435,7 +446,7 @@ describe('giving checkout orchestration', () => {
     const { checkout } = service(repository(), { createFixedRecurringPayment })
     const started = await checkout.start({ ...context, submission: { ...baseSubmission, frequency: 'monthly', firstPaymentDate: '2026-09-01' } })
     const returned = await checkout.consumeReturn(returnToken(started))
-    expect(await checkout.status(returned.statusToken)).toEqual({ state: 'rejected', retryAllowed: true, kind: 'recurring' })
+    expect(await checkout.status(returned.statusToken)).toMatchObject({ state: 'rejected', retryAllowed: true, kind: 'recurring' })
   })
 
   it('treats a revoked recurring consent as a cancelled gift', async () => {
@@ -451,7 +462,7 @@ describe('giving checkout orchestration', () => {
     const started = await checkout.start({ ...context, submission: { ...baseSubmission, frequency: 'weekly', firstPaymentDate: '2026-09-01' } })
     const returned = await checkout.consumeReturn(returnToken(started))
 
-    expect(await checkout.status(returned.statusToken)).toEqual({ state: 'cancelled', retryAllowed: true, kind: 'recurring' })
+    expect(await checkout.status(returned.statusToken)).toMatchObject({ state: 'cancelled', retryAllowed: true, kind: 'recurring' })
   })
 
   it('marks an ambiguous schedule exception unknown and does not retry it', async () => {
@@ -459,7 +470,7 @@ describe('giving checkout orchestration', () => {
     const { checkout } = service(repository(), { createFixedRecurringPayment })
     const started = await checkout.start({ ...context, submission: { ...baseSubmission, frequency: 'monthly', firstPaymentDate: '2026-09-01' } })
     const returned = await checkout.consumeReturn(returnToken(started))
-    expect(await checkout.status(returned.statusToken)).toEqual({ state: 'unknown', retryAllowed: false, kind: 'recurring' })
+    expect(await checkout.status(returned.statusToken)).toMatchObject({ state: 'unknown', retryAllowed: false, kind: 'recurring' })
     await checkout.verify(1)
     expect(createFixedRecurringPayment).toHaveBeenCalledTimes(1)
   })

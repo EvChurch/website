@@ -634,7 +634,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     const presentation = givingCheckoutPresentation(status,delayed)
     const showFeedback = definitiveFailedGivingStates.includes(status.state)
     content = status.state === 'verified'
-      ? <GivingCompletion firstName={status.firstName} kind={status.kind} onDone={() => giving.dismissGiving()} />
+      ? <GivingCompletion firstName={status.firstName} kind={status.kind} gift={status.gift} onDone={() => giving.dismissGiving()} />
       : <div className="rounded-2xl bg-white p-5 shadow-sm"><p role="status" className="font-semibold">{presentation.message}</p>{presentation.showRetry && <button type="button" className="mt-5 font-semibold text-rich-red" onClick={() => void returnToGift()}>Return to your saved gift</button>}{showFeedback && <GivingOutcomeFeedback />}</div>
   } else switch (state.step) {
     case 'amount': content = <AmountStep value={state.answers.amountMinor} transactionFeeMinor={applicableTransactionFeeMinor} error={error} onContinue={(amountMinor) => { if (!amountMinor || amountMinor < 100) { setError('Enter an amount of at least $1.00.'); return };scrollIntent.current = 'forward';setError(undefined);saveCompletedStep([{ type: 'commitAmount', amountMinor }]) }} />; break

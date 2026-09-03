@@ -51,7 +51,7 @@ function HorizontalPickerRow({ label, children }: { label: string; children: Rea
 
   return (
     <div
-      className="-mx-5 w-[calc(100%+2.5rem)] max-w-none cursor-grab select-none overflow-x-auto py-1 [scrollbar-width:none] active:cursor-grabbing [&_*]:select-none [&::-webkit-scrollbar]:hidden"
+      className="-mx-5 w-[calc(100%+2.5rem)] max-w-none cursor-grab select-none overflow-x-auto overscroll-x-contain py-1 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] active:cursor-grabbing [&_*]:select-none [&::-webkit-scrollbar]:hidden"
       data-scroll-viewport
       onClickCapture={(event) => {
         if (!drag.current.moved) return
@@ -62,7 +62,7 @@ function HorizontalPickerRow({ label, children }: { label: string; children: Rea
       onDragStart={(event) => event.preventDefault()}
       onPointerCancel={finishDrag}
       onPointerDown={(event) => {
-        if (event.pointerType === 'mouse' && event.button !== 0) return
+        if (event.pointerType !== 'mouse' || event.button !== 0) return
         drag.current = { active: true, moved: false, startX: event.clientX, startY: event.clientY, startScroll: event.currentTarget.scrollLeft }
       }}
       onPointerMove={(event) => {
@@ -79,9 +79,9 @@ function HorizontalPickerRow({ label, children }: { label: string; children: Rea
       }}
       onPointerUp={finishDrag}
       ref={viewport}
-      style={{ touchAction: 'pan-y' }}
+      style={{ touchAction: 'pan-x pan-y' }}
     >
-      <div aria-label={label} className="flex w-max min-w-full snap-x snap-mandatory gap-2 px-5" role="listbox">
+      <div aria-label={label} className="flex w-max min-w-full snap-x snap-proximity gap-2 px-5" role="listbox">
         {children}
       </div>
     </div>
