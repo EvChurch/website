@@ -62,6 +62,14 @@ assumptions and keep moving.
 - Package manager: pnpm with `pnpm-lock.yaml`
 - Runtime: Node.js 22 or newer
 
+## BlinkPay Reference
+
+Before changing BlinkPay authentication, payments, consents, recurring
+schedules, webhooks, reconciliation, or operational handling, read
+`docs/reference/blinkpay-debit-api.md`. It is the checked-in merchant portal
+documentation capture for use when the authenticated portal is unavailable.
+Use the live portal as authoritative when access is available.
+
 ## Common Commands
 
 ```bash
