@@ -31,6 +31,7 @@ export interface MemberGivingActor {
 export interface MemberRecurringGift {
   id: number
   amountMinor: number
+  transactionFeeMinor: number
   frequency: string
   fundName: string
   nextPaymentDate: string | null
@@ -48,6 +49,7 @@ export interface MemberGivingActivity {
 export interface MemberGiftHistoryItem {
   id: number
   amountMinor: number
+  transactionFeeMinor: number
   frequency: string
   fundName: string
   giftType: 'One-off' | string
@@ -126,7 +128,7 @@ export async function getMemberGiftHistoryPage(
         AND (($3=false AND giver.rock_person_alias_id=$4) OR ($3=true AND lower(giver.email)=lower($5)))
     `, [scope.contextKey, scope.environment, scope.synthetic, actor.rockPersonAliasId, actor.email ?? '']),
     db.query(`
-      SELECT gift.id,gift.amount_minor,gift.fund_name,checkout.frequency,gift.schedule_id,
+      SELECT gift.id,gift.amount_minor,gift.transaction_fee_minor,gift.fund_name,checkout.frequency,gift.schedule_id,
              COALESCE(gift.provider_observed_at,gift.created_at) completed_at
       FROM giving_gifts gift
       JOIN giving_givers giver ON giver.id=gift.giver_id AND giver.context_key=gift.context_key
@@ -151,6 +153,7 @@ export async function getMemberGiftHistoryPage(
       return {
         id: Number(row.id),
         amountMinor: amount(row.amount_minor),
+        transactionFeeMinor: amount(row.transaction_fee_minor),
         frequency,
         fundName: text(row.fund_name),
         giftType: recurring ? frequency : 'One-off',
@@ -166,7 +169,7 @@ export async function getMemberGivingOverview(actor: MemberGivingActor, pool?: P
   const cutoff = new Date(Date.now() - RECENT_ACTIVITY_DAYS * 24 * 60 * 60 * 1_000)
   const [scheduleResult, activityResult, giftHistory] = await Promise.all([
     db.query(`
-      SELECT schedule.id,schedule.amount_minor,schedule.frequency,schedule.next_payment_date,checkout.fund_name
+      SELECT schedule.id,schedule.amount_minor,schedule.transaction_fee_minor,schedule.frequency,schedule.next_payment_date,checkout.fund_name
       FROM giving_schedules schedule
       JOIN giving_givers giver ON giver.id=schedule.giver_id AND giver.context_key=schedule.context_key
       JOIN giving_checkouts checkout ON checkout.id=schedule.checkout_id AND checkout.context_key=schedule.context_key
@@ -211,6 +214,7 @@ export async function getMemberGivingOverview(actor: MemberGivingActor, pool?: P
     recurringGifts: scheduleResult.rows.map((row) => ({
       id: Number(row.id),
       amountMinor: amount(row.amount_minor),
+      transactionFeeMinor: amount(row.transaction_fee_minor),
       frequency: text(row.frequency),
       fundName: text(row.fund_name),
       nextPaymentDate: row.next_payment_date ? iso(row.next_payment_date) : null,

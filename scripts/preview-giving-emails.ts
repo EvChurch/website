@@ -21,6 +21,7 @@ function source(
     fundCode: 'GEN',
     fundName: 'General',
     amountMinor: 5000,
+    transactionFeeMinor: kind === 'blinkpay-thanks' ? 50 : 0,
     frequency,
     firstPaymentDate: frequency === 'one-off' ? null : '2026-09-01',
     leaseToken: 'preview',

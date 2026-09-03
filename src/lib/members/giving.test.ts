@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Pool } from 'pg'
 
-import { getMemberGivingOverview, type MemberGivingActor } from './giving'
+import { getMemberGiftHistoryPage, getMemberGivingOverview, type MemberGivingActor } from './giving'
 
 const actor: MemberGivingActor = {
   auth0Subject: 'auth0|member',
@@ -21,6 +21,7 @@ function fakePool() {
             ? [{
                 id: 3,
                 amount_minor: 10000,
+                transaction_fee_minor: 50,
                 frequency: 'weekly',
                 next_payment_date: new Date('2026-09-03T00:00:00+12:00'),
                 fund_name: 'General',
@@ -28,7 +29,20 @@ function fakePool() {
             : [],
         }
       }
-      if (sql.includes('count(*)::text count')) return { rows: [{ count: '0' }] }
+      if (sql.includes('count(*)::text count')) return { rows: [{ count: '1' }] }
+      if (sql.includes('FROM giving_gifts gift')) {
+        return {
+          rows: [{
+            id: 9,
+            amount_minor: 2500,
+            transaction_fee_minor: 50,
+            fund_name: 'General',
+            frequency: 'one-off',
+            schedule_id: null,
+            completed_at: new Date('2026-09-02T13:00:00+12:00'),
+          }],
+        }
+      }
       return { rows: [] }
     },
   }
@@ -47,6 +61,7 @@ describe('member giving overview', () => {
     expect(overview.recurringGifts).toEqual([{
       id: 3,
       amountMinor: 10000,
+      transactionFeeMinor: 50,
       frequency: 'weekly',
       fundName: 'General',
       nextPaymentDate: '2026-09-02T12:00:00.000Z',
@@ -57,5 +72,22 @@ describe('member giving overview', () => {
       params[2] === true &&
       params[4] === actor.email
     ))).toBe(true)
+  })
+
+  it('includes settled gift transaction fees in member history', async () => {
+    vi.stubEnv('BLINKPAY_DEFAULT_ENVIRONMENT', 'sandbox')
+    const { pool } = fakePool()
+
+    const history = await getMemberGiftHistoryPage(actor, 1, pool)
+
+    expect(history.gifts).toEqual([{
+      id: 9,
+      amountMinor: 2500,
+      transactionFeeMinor: 50,
+      frequency: 'one-off',
+      fundName: 'General',
+      giftType: 'One-off',
+      completedAt: '2026-09-02T01:00:00.000Z',
+    }])
   })
 })

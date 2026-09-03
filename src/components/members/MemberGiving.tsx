@@ -36,6 +36,15 @@ function formatAmount(amountMinor: number) {
   return currency.format(amountMinor / 100)
 }
 
+function transactionFeeLabel(transactionFeeMinor: number) {
+  return transactionFeeMinor > 0 ? `Plus ${formatAmount(transactionFeeMinor)} transaction fee` : null
+}
+
+function TransactionFeeLine({ transactionFeeMinor, className = 'text-sm text-mid-grey' }: { transactionFeeMinor: number; className?: string }) {
+  const label = transactionFeeLabel(transactionFeeMinor)
+  return label ? <p className={className}>{label}</p> : null
+}
+
 function formatDate(value: string | null) {
   if (!value) return 'Not scheduled yet'
   return date.format(new Date(value))
@@ -87,6 +96,7 @@ function RecurringGiftCard({
         <p className="mt-1 text-sm text-mid-grey">
           {frequencyLabel(gift.frequency)} to {gift.fundName}
         </p>
+        <TransactionFeeLine transactionFeeMinor={gift.transactionFeeMinor} className="mt-1 text-sm text-mid-grey" />
         <p className="mt-3 text-sm font-semibold text-brand-black">Next gift: {formatDate(gift.nextPaymentDate)}</p>
       </div>
       <div className="absolute right-4 top-4">
@@ -366,7 +376,10 @@ export function MemberGiving({ initialOverview }: { initialOverview: MemberGivin
                         <p className="font-bold text-brand-black">{formatDate(gift.completedAt)}</p>
                         <p className="text-sm text-mid-grey">{frequencyLabel(gift.giftType)} to {gift.fundName}</p>
                       </div>
-                      <p className="text-base font-bold text-brand-black">{formatAmount(gift.amountMinor)}</p>
+                      <div className="sm:text-right">
+                        <p className="text-base font-bold text-brand-black">{formatAmount(gift.amountMinor)}</p>
+                        <TransactionFeeLine transactionFeeMinor={gift.transactionFeeMinor} />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -384,6 +397,7 @@ export function MemberGiving({ initialOverview }: { initialOverview: MemberGivin
             <h2 id="cancel-giving-title" className="text-2xl leading-tight text-brand-black">Stop recurring gift?</h2>
             <p className="mt-3 text-sm leading-relaxed text-mid-grey">
               This will stop your {frequencyLabel(confirming.frequency).toLowerCase()} gift of {formatAmount(confirming.amountMinor)} to {confirming.fundName}.
+              {confirming.transactionFeeMinor > 0 ? ` ${transactionFeeLabel(confirming.transactionFeeMinor)}.` : ''}
             </p>
             {cancelError && <p className="mt-3 text-sm font-semibold text-rich-red">Couldn&apos;t cancel this recurring gift. Try again.</p>}
             <div className="mt-6 flex flex-wrap gap-3">
