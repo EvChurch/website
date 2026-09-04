@@ -277,6 +277,20 @@ export const SiteFeedback: CollectionConfig = {
       admin: { position: 'sidebar', readOnly: true },
     },
     {
+      name: 'githubIssueNumber',
+      label: 'GitHub issue number',
+      type: 'number',
+      index: true,
+      admin: { position: 'sidebar', readOnly: true },
+    },
+    {
+      name: 'githubIssueUrl',
+      label: 'GitHub issue URL',
+      type: 'text',
+      maxLength: 2_048,
+      admin: { position: 'sidebar', readOnly: true },
+    },
+    {
       name: 'deliveryKind',
       label: 'Delivery kind',
       type: 'select',
