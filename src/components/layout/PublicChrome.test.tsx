@@ -122,7 +122,7 @@ describe('PublicChrome', () => {
   })
 
   it('enables BlinkPay only for exact signed-in Ev email domains without impersonation', async () => {
-    for (const email of ['aroha@ev.church', 'aroha@evchurch.nz']) {
+    for (const email of ['aroha@ev.church', 'aroha@evchurch.nz', 'aroha@aucklandev.co.nz', 'aroha@AUCKLANDEV.CO.NZ']) {
       vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({
         memberProfile: { name: 'Aroha Ngata', email, avatarUrl: '/member-avatar' },
         memberCampusSlug: 'north',
@@ -196,6 +196,14 @@ describe('PublicChrome', () => {
 
   it('keeps BlinkPay ineligible for subdomain email and impersonation states', async () => {
     const states = [
+      {
+        memberProfile: { name: 'Aroha Ngata', email: 'aroha@staff.aucklandev.co.nz', avatarUrl: null },
+        impersonation: null,
+      },
+      {
+        memberProfile: { name: 'Aroha Ngata', email: 'aroha@aucklandev.co.nz.example.com', avatarUrl: null },
+        impersonation: null,
+      },
       {
         memberProfile: { name: 'Aroha Ngata', email: 'aroha@staff.ev.church', avatarUrl: null },
         impersonation: null,
