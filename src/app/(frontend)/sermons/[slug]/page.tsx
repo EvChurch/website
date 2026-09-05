@@ -79,6 +79,14 @@ function formatDuration(seconds: number): string {
   return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`
 }
 
+function decodeFilename(filename: string): string {
+  try {
+    return decodeURIComponent(filename)
+  } catch {
+    return filename
+  }
+}
+
 export default async function SermonPage({
   params,
 }: {
@@ -162,6 +170,11 @@ export default async function SermonPage({
 
   // Render "More from this series" sermons from the same cached snapshot.
   const primarySeriesTitle = seriesList[0]?.title ?? null
+  const audioUrl = getSermonAudioUrl(sermon.audio)
+  const audioFilename = audioUrl.split('/').pop()
+  const audioDownloadHref = audioFilename
+    ? `/api/sermon-audio/stream?file=${encodeURIComponent(audioFilename)}&download=1`
+    : ''
 
   // Structured data
   const breadcrumbItems = [
@@ -184,11 +197,11 @@ export default async function SermonPage({
           })),
         }
       : {}),
-    ...(getSermonAudioUrl(sermon.audio)
+    ...(audioUrl
       ? {
           associatedMedia: {
             '@type': 'AudioObject',
-            contentUrl: getSermonAudioUrl(sermon.audio),
+            contentUrl: audioUrl,
             ...(sermon.duration ? { duration: `PT${Math.round(sermon.duration / 60)}M` } : {}),
           },
         }
@@ -285,13 +298,13 @@ export default async function SermonPage({
               </div>
 
               {/* Play button */}
-              {(getSermonAudioUrl(sermon.audio) || getSermonVideos(sermon).length > 0) && (
-                <div className="mt-6">
+              {(audioUrl || getSermonVideos(sermon).length > 0) && (
+                <div className="mt-6 flex flex-wrap items-center gap-3">
                   <SermonPlayButton
                     id={sermon.slug.length + (sermon.duration ?? 0)}
                     title={sermon.title}
                     slug={sermon.slug}
-                    audioUrl={getSermonAudioUrl(sermon.audio)}
+                    audioUrl={audioUrl}
                     speaker={allSpeakers.map((s) => s.name).join(', ') || undefined}
                     seriesTitle={seriesList[0]?.title}
                     artworkUrl={heroBannerMedia ? getPayloadMediaUrl(heroBannerMedia, 'medium') ?? undefined : undefined}
@@ -300,6 +313,19 @@ export default async function SermonPage({
                     videos={getSermonVideos(sermon)}
                     passageReference={sermon.passageReference ?? undefined}
                   />
+                  {audioDownloadHref && (
+                    <a
+                      href={audioDownloadHref}
+                      download={audioFilename ? decodeFilename(audioFilename) : undefined}
+                      aria-label={`Download sermon audio for ${sermon.title}`}
+                      className="inline-flex items-center gap-2 rounded-lg border border-warm-white/20 px-4 py-2.5 text-sm font-bold text-warm-white/80 transition-colors hover:border-warm-white/40 hover:text-warm-white"
+                    >
+                      <svg className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fillRule="evenodd" d="M10 2a.75.75 0 01.75.75v7.69l2.22-2.22a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 111.06-1.06l2.22 2.22V2.75A.75.75 0 0110 2zM4.25 14a.75.75 0 01.75.75V16a1 1 0 001 1h8a1 1 0 001-1v-1.25a.75.75 0 011.5 0V16A2.5 2.5 0 0114 18.5H6A2.5 2.5 0 013.5 16v-1.25a.75.75 0 01.75-.75z" clipRule="evenodd" />
+                      </svg>
+                      Download audio
+                    </a>
+                  )}
                 </div>
               )}
 
