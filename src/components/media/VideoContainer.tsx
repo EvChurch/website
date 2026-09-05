@@ -44,6 +44,10 @@ export function VideoContainer() {
     onEndedRef,
   } = useMediaPlayer()
 
+  const youtubeUrl = activeVideo?.youtubeVideoId && /^[A-Za-z0-9_-]{11}$/.test(activeVideo.youtubeVideoId)
+    ? `https://www.youtube.com/watch?v=${activeVideo.youtubeVideoId}`
+    : null
+
   const videoElRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<VjsPlayer | null>(null)
   const prevVideoIdentityRef = useRef<string | null>(null)
@@ -376,9 +380,20 @@ export function VideoContainer() {
 
       {isVideoExpanded && !isClosing && (
         <div
-          className="pointer-events-none fixed z-[62] flex justify-end animate-[minimise-control-in_300ms_ease-out_300ms_both]"
+          className="pointer-events-none fixed z-[62] flex justify-end gap-2 animate-[minimise-control-in_300ms_ease-out_300ms_both]"
           style={{ top: Math.max(12, expTop - 44), left: expLeft, width: expW }}
         >
+          {youtubeUrl && (
+            <a
+              href={youtubeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="pointer-events-auto inline-flex min-h-9 items-center rounded-lg bg-black/75 px-3 py-2 text-sm font-bold text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              Open in YouTube
+              <span className="sr-only"> (opens in a new tab)</span>
+            </a>
+          )}
           <button
             type="button"
             onClick={minimizeVideo}

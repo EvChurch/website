@@ -3,10 +3,11 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { VideoOption } from './MediaPlayerProvider'
 
 const player = vi.hoisted(() => ({
   currentSermon: null,
-  activeVideo: null,
+  activeVideo: null as VideoOption | null,
   isVideoVisible: true,
   isVideoExpanded: true,
   isPlaying: false,
@@ -25,6 +26,16 @@ const player = vi.hoisted(() => ({
 }))
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/members' }))
+vi.mock('video.js', () => ({
+  default: () => ({
+    on: vi.fn(),
+    one: vi.fn(),
+    ready: vi.fn(),
+    isDisposed: () => false,
+    dispose: vi.fn(),
+  }),
+}))
+vi.mock('videojs-youtube', () => ({}))
 vi.mock('./MediaPlayerProvider', () => ({ useMediaPlayer: () => player }))
 vi.mock('@/lib/listening-store', () => ({
   useListeningStore: (selector: (state: { markCompleted: () => void }) => unknown) => (
@@ -43,6 +54,7 @@ describe('VideoContainer expanded controls', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    player.activeVideo = null
     player.isVideoVisible = true
     player.isVideoExpanded = true
     player.isClosing = false
@@ -83,5 +95,35 @@ describe('VideoContainer expanded controls', () => {
     await act(async () => root.render(<VideoContainer />))
 
     expect(container.querySelector('button[aria-label="Minimise video"]')).toBeNull()
+  })
+
+  it('links to the active YouTube video in a new tab and updates when the video changes', async () => {
+    player.activeVideo = { campusName: 'Video', campusSlug: 'resource-video', youtubeVideoId: 'dQw4w9WgXcQ' }
+    await act(async () => root.render(<VideoContainer />))
+
+    const link = container.querySelector<HTMLAnchorElement>('a')
+    expect(link?.href).toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+    expect(link?.target).toBe('_blank')
+    expect(link?.rel).toBe('noopener noreferrer')
+    expect(link?.textContent).toBe('Open in YouTube (opens in a new tab)')
+    expect(link?.tabIndex).toBe(0)
+    link?.focus()
+    expect(document.activeElement).toBe(link)
+
+    player.activeVideo = { ...player.activeVideo, youtubeVideoId: 'abcdefgh_-1' }
+    await act(async () => root.render(<VideoContainer />))
+    expect(container.querySelector('a')?.href).toBe('https://www.youtube.com/watch?v=abcdefgh_-1')
+
+    player.isVideoExpanded = false
+    await act(async () => root.render(<VideoContainer />))
+    expect(container.querySelector('a')).toBeNull()
+  })
+
+  it.each([null, '', '123456789', 'abcdefghijkx', 'bad id here', 'https://vimeo.com/123456789', 'abc&list=12'])('omits the YouTube action for missing or invalid video data: %s', async (youtubeVideoId) => {
+    player.activeVideo = youtubeVideoId === null ? null : {
+      campusName: 'Video', campusSlug: 'resource-video', youtubeVideoId,
+    }
+    await act(async () => root.render(<VideoContainer />))
+    expect(container.querySelector('a')).toBeNull()
   })
 })
