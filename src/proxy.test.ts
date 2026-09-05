@@ -216,11 +216,39 @@ describe('admin Auth0 proxy', () => {
   })
 
   it('returns a private 503 when an Auth0 route cannot run', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     middleware.mockRejectedValue(new Error('configuration unavailable'))
     const response = await proxy(
-      new NextRequest('https://www.ev.church/auth/login?returnTo=/admin'),
+      new NextRequest('https://www.ev.church/auth/login?returnTo=/admin&token=sensitive'),
     )
     expect(response.status).toBe(503)
     expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0')
+    expect(error).toHaveBeenCalledWith({
+      event: 'auth0_middleware_failed',
+      path: '/auth/login',
+      routeKind: 'auth',
+    })
+    expect(JSON.stringify(error.mock.calls)).not.toContain('sensitive')
+    expect(JSON.stringify(error.mock.calls)).not.toContain('configuration unavailable')
+    error.mockRestore()
+  })
+
+  it('logs sanitized Auth0 middleware failures for API routes without blocking health checks', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    middleware.mockRejectedValue(new Error('provider detail'))
+
+    const response = await proxy(
+      new NextRequest('https://www.ev.church/api/health?token=sensitive'),
+    )
+
+    expect(response.status).toBe(200)
+    expect(error).toHaveBeenCalledWith({
+      event: 'auth0_middleware_failed',
+      path: '/api/health',
+      routeKind: 'api',
+    })
+    expect(JSON.stringify(error.mock.calls)).not.toContain('sensitive')
+    expect(JSON.stringify(error.mock.calls)).not.toContain('provider detail')
+    error.mockRestore()
   })
 })

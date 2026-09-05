@@ -20,6 +20,30 @@ const LEGACY_KIDS_ENROLMENT_PATHS = new Set([
   '/kids/enrollment',
 ])
 
+function auth0RouteKind(input: {
+  isAdminApiRoute: boolean
+  isAdminAuthRoute: boolean
+  isAdminRoute: boolean
+}) {
+  if (input.isAdminAuthRoute) return 'auth'
+  if (input.isAdminRoute) return 'admin'
+  if (input.isAdminApiRoute) return 'api'
+  return 'unknown'
+}
+
+function logAuth0MiddlewareFailure(input: {
+  isAdminApiRoute: boolean
+  isAdminAuthRoute: boolean
+  isAdminRoute: boolean
+  pathname: string
+}) {
+  console.error({
+    event: 'auth0_middleware_failed',
+    path: input.pathname,
+    routeKind: auth0RouteKind(input),
+  })
+}
+
 export async function proxy(request: NextRequest) {
   const isAdminAuthRoute = matchesPathPrefix(request.nextUrl.pathname, '/auth')
   const isAdminRoute = matchesPathPrefix(request.nextUrl.pathname, '/admin')
@@ -73,6 +97,12 @@ export async function proxy(request: NextRequest) {
   try {
     response = await getAuth0Client().middleware(request)
   } catch {
+    logAuth0MiddlewareFailure({
+      isAdminApiRoute,
+      isAdminAuthRoute,
+      isAdminRoute,
+      pathname: request.nextUrl.pathname,
+    })
     if (isAdminRoute || isAdminAuthRoute) {
       return new NextResponse('Authentication is temporarily unavailable.', {
         status: 503,
