@@ -22,7 +22,7 @@ import {
   ROCK_FORM_START_ACTION,
   ROCK_FORM_SUBMIT_ACTION,
 } from '@/lib/rock-forms/constants'
-import { parseJson } from '@/lib/rock-forms/schema'
+import { defaultPersonEntryValues, parseJson } from '@/lib/rock-forms/schema'
 import {
   isCompleteResponse,
   isRockFormSchema,
@@ -465,6 +465,18 @@ function withPersonDefaults(
   }
 }
 
+function initialPersonEntryState(
+  schema: RockFormSchema | null | undefined,
+  defaults?: { name: string; email: string } | null,
+) {
+  if (!schema?.personEntry) return null
+
+  return withPersonDefaults(
+    schema.initialPersonEntryValues || defaultPersonEntryValues(),
+    defaults,
+  )
+}
+
 function PersonSearchField({
   value,
   contextToken,
@@ -605,10 +617,7 @@ export function RockForm({
   )
   const [personEntryValues, setPersonEntryValues] =
     useState<RockPersonEntryValues | null>(
-      withPersonDefaults(
-        initialSchema?.initialPersonEntryValues || null,
-        personDefaults,
-      ),
+      initialPersonEntryState(initialSchema, personDefaults),
     )
   const [files, setFiles] = useState<Record<string, File>>({})
   const [turnstileToken, setTurnstileToken] = useState('')
@@ -635,9 +644,7 @@ export function RockForm({
   const applySchema = useCallback((nextSchema: RockFormSchema) => {
     setSchema(nextSchema)
     setFieldValues(nextSchema.initialFieldValues)
-    setPersonEntryValues(
-      withPersonDefaults(nextSchema.initialPersonEntryValues, personDefaults),
-    )
+    setPersonEntryValues(initialPersonEntryState(nextSchema, personDefaults))
     setFiles({})
     setTurnstileToken('')
     setTurnstileResetKey((key) => key + 1)
@@ -648,9 +655,7 @@ export function RockForm({
       setSchema(initialSchema)
       setStartupSiteKey(initialSchema.turnstileSiteKey)
       setFieldValues(initialSchema.initialFieldValues)
-      setPersonEntryValues(
-        withPersonDefaults(initialSchema.initialPersonEntryValues, personDefaults),
-      )
+      setPersonEntryValues(initialPersonEntryState(initialSchema, personDefaults))
       setFiles({})
       setError('')
       setLoading(false)

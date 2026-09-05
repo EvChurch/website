@@ -297,6 +297,22 @@ describe('RockForm', () => {
     expect(markup).toContain('value="tatai@example.com"')
   })
 
+  it('renders blank person-entry fields when Rock omits person defaults', () => {
+    const markup = renderToStaticMarkup(
+      <RockForm
+        workflowTypeGuid={workflowTypeGuid}
+        initialSchema={{
+          ...spouseSchema(),
+          initialPersonEntryValues: null,
+        }}
+      />,
+    )
+
+    expect(markup).toContain('First name')
+    expect(markup).toContain('Last name')
+    expect(markup).toContain('Email *')
+  })
+
   it('shows the retry and contact fallback when the startup security check fails', async () => {
     vi.stubGlobal(
       'fetch',
