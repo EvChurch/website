@@ -1,3 +1,4 @@
+import * as migration_20260905_120000_sermon_manager from './20260905_120000_sermon_manager';
 import * as migration_20260330_195149 from './20260330_195149';
 import * as migration_20260330_210020 from './20260330_210020';
 import * as migration_20260330_223741 from './20260330_223741';
@@ -336,4 +337,5 @@ export const migrations = [
     down: migration_20260905_060000_feedback_github_issue_links.down,
     name: '20260905_060000_feedback_github_issue_links',
   },
+  { up: migration_20260905_120000_sermon_manager.up, down: migration_20260905_120000_sermon_manager.down, name: '20260905_120000_sermon_manager' },
 ];
