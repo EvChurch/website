@@ -27,7 +27,7 @@ import type { PublicSiteFeedbackSettings } from '@/lib/site-feedback/settings'
 import { Header } from './Header'
 import { SiteHeader } from './SiteHeader'
 
-const blinkPayEligibleEmailPattern = /^[^@]+@(?:ev\.church|evchurch\.nz)$/iu
+const blinkPayEligibleEmailPattern = /^[^@]+@(?:ev\.church|evchurch\.nz|aucklandev\.co\.nz)$/iu
 
 export function PublicChrome({
   children,
