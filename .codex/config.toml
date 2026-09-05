@@ -1,7 +1,7 @@
 [mcp_servers.ev_church_payload]
 url = "https://www.ev.church/api/mcp"
 enabled = true
-default_tools_approval_mode = "writes"
+default_tools_approval_mode = "approve"
 env_http_headers = { Authorization = "EV_CHURCH_PAYLOAD_MCP_AUTHORIZATION" }
 
 [mcp_servers.ev_church_search_console]
