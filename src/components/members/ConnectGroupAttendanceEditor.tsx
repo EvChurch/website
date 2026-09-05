@@ -116,6 +116,7 @@ export function ConnectGroupAttendanceEditor({
       <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-warm-grey bg-white px-4 py-2.5 font-bold text-brand-black">
         <input
           name="didNotMeet"
+          aria-describedby="attendance-summary"
           type="checkbox"
           checked={meeting.didNotMeet}
           disabled={isPending || loadFailed}
@@ -127,7 +128,7 @@ export function ConnectGroupAttendanceEditor({
 
       <div className="overflow-hidden rounded-xl border border-warm-grey bg-white" aria-busy={isPending}>
         {people.map((person) => (
-          <fieldset key={person.rockPersonId} disabled={meeting.didNotMeet || isPending || loadFailed} className="grid grid-cols-[minmax(0,1fr)_9rem] items-center gap-3 border-t border-warm-grey px-3 py-2.5 first:border-t-0 sm:grid-cols-[1fr_10rem] sm:px-4">
+          <fieldset key={person.rockPersonId} disabled={meeting.didNotMeet || isPending || loadFailed} className="group grid grid-cols-[minmax(0,1fr)_9rem] items-center gap-3 border-t border-warm-grey px-3 py-2.5 first:border-t-0 disabled:opacity-50 sm:grid-cols-[1fr_10rem] sm:px-4">
             <legend className="sr-only">Attendance for {person.name}</legend>
             <div className="flex min-w-0 items-center gap-2.5">
               <MemberAvatar name={person.name} src={person.avatarUrl} size="small" />
@@ -141,7 +142,7 @@ export function ConnectGroupAttendanceEditor({
               {(['present', 'absent'] as const).map((state) => {
                 const checked = meeting.marks[person.rockPersonId] === state
                 return (
-                  <label key={state} className={`relative z-10 flex min-h-10 cursor-pointer items-center justify-center rounded-md px-2 text-xs font-bold transition-colors duration-200 sm:text-sm ${checked ? 'text-white' : 'text-brand-black'}`}>
+                  <label key={state} className={`relative z-10 flex min-h-10 cursor-pointer items-center justify-center rounded-md px-2 text-xs font-bold focus-within:ring-2 focus-within:ring-brand-black focus-within:ring-offset-2 group-disabled:cursor-not-allowed transition-colors duration-200 sm:text-sm ${checked ? 'text-white' : 'text-brand-black'}`}>
                     <input className="sr-only" type="radio" name={`person-${person.rockPersonId}`} value={state} checked={checked} onChange={() => setMark(person.rockPersonId, state)} />
                     {state === 'present' ? 'Present' : 'Absent'}
                   </label>
@@ -165,8 +166,8 @@ export function ConnectGroupAttendanceEditor({
       )}
 
       <div aria-live="polite" className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm font-bold text-brand-black">
-          {meeting.didNotMeet ? 'No individual attendance' : `${present} present · ${absent} absent${unrecorded ? ` · ${unrecorded} unmarked` : ''}`}
+        <p id="attendance-summary" className="text-sm font-bold text-brand-black">
+          {meeting.didNotMeet ? 'Individual attendance is disabled and will not be saved. Uncheck “Group did not meet” to restore your selections.' : `${present} present · ${absent} absent${unrecorded ? ` · ${unrecorded} unmarked` : ''}`}
         </p>
         <button type="submit" disabled={saveDisabled} className="min-h-12 rounded-lg bg-rich-red px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-black disabled:cursor-not-allowed disabled:opacity-50">
           {isPending ? 'Saving…' : 'Save attendance'}

@@ -1,4 +1,4 @@
-// @vitest-environment happy-dom
+// @vitest-environment jsdom
 
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
@@ -57,10 +57,40 @@ describe('ConnectGroupAttendanceEditor', () => {
     expect(firstGroup.querySelectorAll<HTMLLabelElement>('label')[1]?.className).toContain('text-white')
   })
 
-  it('disables marks when the group did not meet', async () => {
+  it('greys out disabled marks and restores unsaved selections when the group meets again', async () => {
+    mocks.save.mockResolvedValue({ status: 'saved', state: selected })
     await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first]} initialMeeting={selected} people={people} />))
-    await act(async () => container.querySelector<HTMLInputElement>('input[name="didNotMeet"]')?.click())
-    expect(Array.from(container.querySelectorAll<HTMLInputElement>('input[type="radio"]')).every((input) => input.closest('fieldset')?.disabled)).toBe(true)
+    const absent = container.querySelector<HTMLInputElement>('input[name="person-1"][value="absent"]')!
+    const present = container.querySelector<HTMLInputElement>('input[name="person-1"][value="present"]')!
+    const didNotMeet = container.querySelector<HTMLInputElement>('input[name="didNotMeet"]')!
+    await act(async () => absent.click())
+    await act(async () => didNotMeet.click())
+
+    const radios = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="radio"]'))
+    expect(radios.every((input) => input.matches(':disabled'))).toBe(true)
+    expect(radios.every((input) => input.closest('fieldset')?.classList.contains('disabled:opacity-50'))).toBe(true)
+    const summary = container.querySelector(`#${didNotMeet.getAttribute('aria-describedby')}`)!
+    expect(summary.textContent).toContain('disabled and will not be saved')
+    expect(summary.closest('[aria-live]')?.getAttribute('aria-live')).toBe('polite')
+    await act(async () => present.click())
+    expect(absent.checked).toBe(true)
+
+    await act(async () => didNotMeet.click())
+    expect(radios.every((input) => !input.matches(':disabled'))).toBe(true)
+    expect(absent.checked).toBe(true)
+    expect(container.textContent).toContain('1 present · 1 absent')
+    await act(async () => container.querySelector<HTMLFormElement>('form')!.requestSubmit())
+    expect(mocks.save).toHaveBeenCalledWith(10, expect.objectContaining({
+      didNotMeet: false, marks: { 1: 'absent', 2: 'present' },
+    }))
+  })
+
+  it('submits the did-not-meet flag so the save ignores locally preserved marks', async () => {
+    mocks.save.mockResolvedValue({ status: 'saved', state: { ...selected, didNotMeet: true } })
+    await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first]} initialMeeting={selected} people={people} />))
+    await act(async () => container.querySelector<HTMLInputElement>('input[name="didNotMeet"]')!.click())
+    await act(async () => container.querySelector<HTMLFormElement>('form')!.requestSubmit())
+    expect(mocks.save).toHaveBeenCalledWith(10, expect.objectContaining({ didNotMeet: true }))
   })
 
   it('defaults unrecorded roster members to present', async () => {
