@@ -84,3 +84,13 @@ export function replaceApiPersonDefaults(
     maritalStatusGuid: null,
   }
 }
+
+export function defaultPersonEntryValues(): RockPersonEntryValues {
+  return {
+    person: {},
+    spouse: null,
+    campusGuid: null,
+    maritalStatusGuid: null,
+    address: null,
+  }
+}
