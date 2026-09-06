@@ -235,7 +235,9 @@ describe('RockForm', () => {
     expect(markup).toContain('Female')
   })
 
-  it('uses the shared responsive calendar for Rock date fields', async () => {
+  it('submits a historical date unchanged through the shared Rock date picker', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: 'complete', message: 'Thanks.' })))
+    vi.stubGlobal('fetch', fetchMock)
     const dateGuid = '55555555-5555-4555-8555-555555555555'
     const container = document.createElement('div')
     document.body.appendChild(container)
@@ -272,11 +274,24 @@ describe('RockForm', () => {
 
       await act(async () => trigger?.click())
       expect(container.querySelector('[aria-label="Date calendar"]')).not.toBeNull()
+      for (const [label, value] of [['Year', '2012'], ['Month', '2']]) {
+        await act(async () => {
+          const select = container.querySelector<HTMLSelectElement>(`select[aria-label="${label}"]`)!
+          select.value = value
+          select.dispatchEvent(new Event('change', { bubbles: true }))
+        })
+      }
       await act(async () => {
-        container.querySelector<HTMLButtonElement>('[aria-label="Choose 21 August 2026"]')?.click()
+        container.querySelector<HTMLButtonElement>('[aria-label="Choose 29 February 2012"]')!.click()
       })
-      expect(trigger?.textContent).toContain('21 Aug 2026')
+      expect(trigger?.textContent).toContain('29 Feb 2012')
       expect(container.querySelector('[aria-label="Date calendar"]')).toBeNull()
+      await act(async () => turnstileMocks.onToken?.('valid-token'))
+      await act(async () => container.querySelector<HTMLButtonElement>('button[type="submit"]')!.click())
+      expect(fetchMock).toHaveBeenCalledOnce()
+      const body: FormData = fetchMock.mock.calls[0][1].body
+      const fieldValues = JSON.parse(String(body.get('fieldValues')))
+      expect(fieldValues[dateGuid]).toBe('2012-02-29')
     } finally {
       await act(async () => root.unmount())
       container.remove()
