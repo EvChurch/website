@@ -176,8 +176,14 @@ export function givingReducer(state: GivingState, action: GivingAction): GivingS
         linearNavigation: state.linearNavigation && step !== 'review',
       }
     }
-    case 'edit':
-      return { ...move(state, action.step), editReturnStep: action.returnTo ?? state.editReturnStep, linearNavigation: false }
+    case 'edit': {
+      const linearNavigation = state.linearNavigation
+      return {
+        ...move(state, action.step),
+        editReturnStep: linearNavigation ? null : action.returnTo ?? state.editReturnStep,
+        linearNavigation,
+      }
+    }
     case 'back': {
       const step = previousGivingStep(state)
       return step ? { ...move(state, step), editReturnStep: null, linearNavigation: true } : state

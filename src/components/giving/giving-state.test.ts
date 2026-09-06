@@ -130,6 +130,37 @@ describe('giving state', () => {
     expect(state.step).toBe('fund')
   })
 
+  it('continues linearly when editing a completed answer after going back', () => {
+    let state = createGivingState(funds, { firstName: 'Alex', lastName: 'Taylor', email: 'alex@example.com' })
+    state = {
+      ...state,
+      step: 'review',
+      fundConfirmed: true,
+      history: ['amount', 'frequency', 'fund', 'starting-date'],
+      answers: { ...state.answers, amountMinor: 5000, frequency: 'monthly', startDate: '2026-09-01' },
+    }
+
+    state = givingReducer(state, { type: 'back' })
+    expect(state.step).toBe('starting-date')
+    state = givingReducer(state, { type: 'back' })
+    expect(state.step).toBe('fund')
+    state = givingReducer(state, { type: 'back' })
+    expect(state.step).toBe('frequency')
+    state = givingReducer(state, { type: 'back' })
+    expect(state.step).toBe('amount')
+
+    state = givingReducer(state, { type: 'edit', step: 'fund', returnTo: 'amount' })
+    expect(state.step).toBe('fund')
+    state = givingReducer(state, { type: 'setFund', fund: funds[0] })
+    state = givingReducer(state, { type: 'next' })
+    expect(state.step).toBe('starting-date')
+
+    state = givingReducer(state, { type: 'setStartDate', startDate: '2026-09-02' })
+    state = givingReducer(state, { type: 'next' })
+    expect(state.step).toBe('review')
+    expect(state.answers).toMatchObject({ fund: funds[0], frequency: 'monthly', startDate: '2026-09-02' })
+  })
+
   it('backs from the current identity step after profile hydration fills it', () => {
     let state = createGivingState(funds)
     state = {
