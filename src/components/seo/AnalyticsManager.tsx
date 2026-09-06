@@ -62,13 +62,30 @@ function sanitizePostHogEvent(event: CaptureResult | null): CaptureResult | null
   const filtered = dropBrowserExtensionExceptions(event)
   if (!filtered) return null
 
-  const sanitized = sanitizeAnalyticsPayload(filtered)
+  const sanitized = {
+    ...sanitizeAnalyticsPayload(filtered),
+    // The SDK envelope is not application data. In particular, recursively
+    // sanitizing a Date turns it into {}, which breaks ingestion timestamps.
+    uuid: filtered.uuid,
+    timestamp: filtered.timestamp,
+  }
+  const originalProperties = filtered.properties as Record<string, unknown>
+  const sanitizedProperties = sanitized.properties as Record<string, unknown>
+  // Keep PostHog's public ingestion token and SDK identifiers. Giving tokens
+  // and arbitrary token-shaped application properties remain scrubbed.
+  for (const key of ['token', 'distinct_id', '$device_id', '$session_id', '$window_id'] as const) {
+    const value = originalProperties[key]
+    if (typeof value === 'string') sanitizedProperties[key] = value
+  }
+  // rrweb has already applied input masking and the private-element blocklist.
+  // Its encoded recording payload must not be rewritten by the event scrubber.
+  if (filtered.event === '$snapshot' && '$snapshot_data' in originalProperties) {
+    sanitizedProperties.$snapshot_data = originalProperties.$snapshot_data
+  }
   if (filtered.event !== '$identify' && filtered.event !== '$set') {
     return sanitized
   }
 
-  const originalProperties = filtered.properties as Record<string, unknown>
-  const sanitizedProperties = sanitized.properties as Record<string, unknown>
   const identityProperties = originalProperties.$set
   const safeIdentityProperties: Record<string, string> = {}
 
