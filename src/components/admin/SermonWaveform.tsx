@@ -336,6 +336,66 @@ export function SermonWaveform({
             {format(view.start + (view.span * i) / 5)}
           </text>
         ))}
+        <g
+          className="sermon-waveform__playhead"
+          aria-label="Playhead"
+          role="slider"
+          tabIndex={0}
+          aria-valuemin={0}
+          aria-valuemax={duration}
+          aria-valuenow={currentTime}
+          aria-valuetext={format(currentTime)}
+          style={{ cursor: 'ew-resize' }}
+          onPointerDown={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            event.currentTarget.focus()
+            dragging.current = 'playhead'
+            svg.current?.setPointerCapture(event.pointerId)
+            beginAutoPan(event.clientX)
+          }}
+          onKeyDown={(event) => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key))
+              return
+            event.preventDefault()
+            onSeek(
+              event.key === 'Home'
+                ? 0
+                : event.key === 'End'
+                  ? duration
+                  : Math.max(
+                      0,
+                      Math.min(
+                        duration,
+                        currentTime +
+                          (event.key === 'ArrowLeft' ? -1 : 1) *
+                            (event.shiftKey ? 0.1 : 1),
+                      ),
+                    ),
+            )
+          }}
+        >
+          <rect
+            x={x(currentTime) - 12}
+            y="17"
+            width="24"
+            height="22"
+            fill="transparent"
+          />
+          <line
+            x1={x(currentTime)}
+            x2={x(currentTime)}
+            y1="25"
+            y2="150"
+            stroke="var(--theme-text)"
+            strokeWidth="1"
+            pointerEvents="none"
+          />
+          <path
+            d={`M${x(currentTime) - 6},23h12l-6,9z`}
+            fill="var(--theme-text)"
+          />
+        </g>
         {(['start', 'end'] as const).map((marker) => {
           const time = marker === 'start' ? start : end
           return (
@@ -419,66 +479,6 @@ export function SermonWaveform({
             </g>
           )
         })}
-        <g
-          className="sermon-waveform__playhead"
-          aria-label="Playhead"
-          role="slider"
-          tabIndex={0}
-          aria-valuemin={0}
-          aria-valuemax={duration}
-          aria-valuenow={currentTime}
-          aria-valuetext={format(currentTime)}
-          style={{ cursor: 'ew-resize' }}
-          onPointerDown={(event) => {
-            event.preventDefault()
-            event.stopPropagation()
-            event.currentTarget.focus()
-            dragging.current = 'playhead'
-            svg.current?.setPointerCapture(event.pointerId)
-            beginAutoPan(event.clientX)
-          }}
-          onKeyDown={(event) => {
-            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key))
-              return
-            event.preventDefault()
-            onSeek(
-              event.key === 'Home'
-                ? 0
-                : event.key === 'End'
-                  ? duration
-                  : Math.max(
-                      0,
-                      Math.min(
-                        duration,
-                        currentTime +
-                          (event.key === 'ArrowLeft' ? -1 : 1) *
-                            (event.shiftKey ? 0.1 : 1),
-                      ),
-                    ),
-            )
-          }}
-        >
-          <rect
-            x={x(currentTime) - 12}
-            y="17"
-            width="24"
-            height="22"
-            fill="transparent"
-          />
-          <line
-            x1={x(currentTime)}
-            x2={x(currentTime)}
-            y1="25"
-            y2="150"
-            stroke="var(--theme-text)"
-            strokeWidth="1"
-            pointerEvents="none"
-          />
-          <path
-            d={`M${x(currentTime) - 6},23h12l-6,9z`}
-            fill="var(--theme-text)"
-          />
-        </g>
       </svg>
       <p>
         Start {format(start)} · End {format(end)} · Selected{' '}
