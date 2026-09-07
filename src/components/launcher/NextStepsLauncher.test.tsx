@@ -1465,6 +1465,21 @@ describe("NextStepsLauncher", () => {
     });
   });
 
+  it("opens the EC registration CTA without navigating to the event page", async () => {
+    navigation.pathname = "/explaining-christianity";
+    window.history.replaceState(null, "", "/explaining-christianity");
+    await act(async () => {
+      root.render(<>
+        <a href="?launcher=registration&registrationInstanceId=85">Register now</a>
+        <NextStepsLauncher campuses={campuses} items={items} initialPathname="/explaining-christianity" />
+      </>);
+    });
+    await act(async () => container.querySelector<HTMLAnchorElement>('a[href^="?launcher=registration"]')?.click());
+    expect(container.querySelector('[data-registration-frame]')?.getAttribute('data-src'))
+      .toBe('https://registration.ev.church/?RegistrationInstanceId=85');
+    expect(window.location.pathname).toBe('/explaining-christianity');
+  });
+
   it("accepts only positive numeric registration instance IDs", () => {
     expect(safeRegistrationInstanceId("81")).toBe(81);
     expect(safeRegistrationInstanceId("0")).toBeNull();

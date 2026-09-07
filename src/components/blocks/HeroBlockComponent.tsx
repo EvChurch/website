@@ -16,6 +16,7 @@ type MinHeight = '50vh' | '70vh' | '80vh' | '85vh'
 
 interface HeroBlockProps {
   image: MediaUpload | string
+  actionDescription?: string
   eyebrow?: string | null
   heading: string
   highlightedText?: string | null
@@ -90,6 +91,7 @@ function Overlays({ style, keyColor }: { style: OverlayStyle; keyColor?: string 
 }
 
 function HeroContent({
+  actionDescription,
   eyebrow,
   heading,
   highlightedText,
@@ -100,7 +102,7 @@ function HeroContent({
   semanticH1,
 }: Pick<
   HeroBlockProps,
-  'eyebrow' | 'heading' | 'highlightedText' | 'subtitle' | 'supportingText' | 'buttons' | 'keyColor' | 'semanticH1'
+  'eyebrow' | 'heading' | 'highlightedText' | 'subtitle' | 'supportingText' | 'buttons' | 'keyColor' | 'semanticH1' | 'actionDescription'
 >) {
   const eyebrowColorClass = keyColor ? '' : 'text-hero-eyebrow'
   const eyebrowColorStyle = keyColor ? { color: keyColor } : undefined
@@ -168,6 +170,8 @@ function HeroContent({
         </div>
       )}
 
+      {actionDescription && <p className="mt-4 max-w-lg text-sm leading-relaxed text-white/80">{actionDescription}</p>}
+
       {supportingText && (
         <p
           className="route-animate-fade-in-up mt-8 hidden max-w-lg text-sm leading-relaxed text-warm-grey/60 md:block"
@@ -181,6 +185,7 @@ function HeroContent({
 }
 
 function SplitHeroContent({
+  actionDescription,
   eyebrow,
   heading,
   highlightedText,
@@ -191,7 +196,7 @@ function SplitHeroContent({
   semanticH1,
 }: Pick<
   HeroBlockProps,
-  'eyebrow' | 'heading' | 'highlightedText' | 'subtitle' | 'supportingText' | 'buttons' | 'keyColor' | 'semanticH1'
+  'eyebrow' | 'heading' | 'highlightedText' | 'subtitle' | 'supportingText' | 'buttons' | 'keyColor' | 'semanticH1' | 'actionDescription'
 >) {
   const eyebrowStyle = keyColor ? { color: keyColor } : undefined
   const headingContent = renderHeading(heading, highlightedText, keyColor)
@@ -239,6 +244,8 @@ function SplitHeroContent({
         </div>
       )}
 
+      {actionDescription && <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/80">{actionDescription}</p>}
+
       {supportingText && (
         <p className="mt-7 hidden max-w-xl text-sm leading-relaxed text-white/60 md:block">
           {supportingText}
@@ -249,6 +256,7 @@ function SplitHeroContent({
 }
 
 export function HeroBlockComponent({
+  actionDescription,
   image,
   eyebrow,
   heading,
@@ -276,6 +284,7 @@ export function HeroBlockComponent({
         <div className="mx-auto flex max-w-[80rem] flex-col pb-12 pt-20 sm:pb-16 lg:grid lg:min-h-[37.5rem] lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-center lg:gap-14 lg:px-8 lg:py-[4.5rem]">
           <div className="min-w-0 px-5 pt-10 sm:px-8 sm:pt-12 lg:px-0 lg:pt-0">
             <SplitHeroContent
+              actionDescription={actionDescription}
               eyebrow={eyebrow}
               heading={heading}
               highlightedText={highlightedText}
@@ -328,6 +337,7 @@ export function HeroBlockComponent({
       <div className="relative mx-auto max-w-[80rem] px-5 py-20 sm:py-24 lg:px-8 lg:py-40">
         <div className="max-w-2xl">
           <HeroContent
+            actionDescription={actionDescription}
             eyebrow={eyebrow}
             heading={heading}
             highlightedText={highlightedText}

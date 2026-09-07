@@ -40,6 +40,7 @@ type Media = MediaRef | string
 
 interface HeroBlock extends BaseBlock {
   blockType: 'hero'
+  actionDescription?: string
   image: Media
   eyebrow?: string | null
   heading: string
@@ -68,6 +69,7 @@ interface ContentBlock extends BaseBlock {
 
 interface CTABlock extends BaseBlock {
   blockType: 'cta'
+  actionDescription?: string
   heading: string
   text?: string | null
   buttons?: Array<{
@@ -316,6 +318,7 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
                 highlightedText={b.highlightedText}
                 subtitle={b.subtitle}
                 supportingText={b.supportingText}
+                actionDescription={b.actionDescription}
                 buttons={b.buttons}
                 keyColor={b.keyColor}
                 overlayStyle={b.overlayStyle}
@@ -370,6 +373,7 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
                 heading={b.heading}
                 text={b.text}
                 buttons={b.buttons}
+                actionDescription={b.actionDescription}
                 colorPreset={b.colorPreset}
                 backgroundImage={b.backgroundImage}
               />

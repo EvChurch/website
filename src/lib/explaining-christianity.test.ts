@@ -55,14 +55,15 @@ describe('EC registration action', () => {
   it('refreshes the action on the events cache tag and a five-minute fallback', () => {
     expect(mocks.unstableCache).toHaveBeenCalledWith(
       expect.any(Function),
-      ['explaining-christianity-action'],
+      ['explaining-christianity-action-v2'],
       { tags: ['events'], revalidate: 300 },
     )
   })
 
   it('matches the explicit Rock marker, even when the title and slug change', async () => {
-    await expect(getExplainingChristianityAction()).resolves.toEqual({
-      label: 'Register now', href: '/events/faith-course-september',
+    await expect(getExplainingChristianityAction()).resolves.toMatchObject({
+      label: 'Register now', href: '?launcher=registration&registrationInstanceId=10',
+      eventHref: '/events/faith-course-september',
     })
     expect(mocks.rockFetchAll).toHaveBeenCalledWith(expect.objectContaining({
       endpoint: 'AttributeValues',
@@ -119,7 +120,35 @@ describe('EC registration action', () => {
       { ...event, registrationStatus: 'closed' },
       { ...event, id: 21, rockEventId: 10, slug: 'next-open', startDate: '2099-09-20T00:00:00Z', endDate: null },
     ] })
-    await expect(getExplainingChristianityAction()).resolves.toEqual({ label: 'Register now', href: '/events/next-open' })
+    await expect(getExplainingChristianityAction()).resolves.toMatchObject({
+      label: 'Register now', href: '?launcher=registration&registrationInstanceId=10', eventHref: '/events/next-open',
+    })
+  })
+
+  it('includes the Auckland date, time and event location', async () => {
+    mocks.find.mockResolvedValue({ docs: [{ ...event,
+      campus: { name: 'Central', slug: 'central' },
+      location: { name: 'Seminar Room', address: '22 Symonds St' },
+    }] })
+    const action = await getExplainingChristianityAction()
+    expect(action.description).toContain('14 September 2099')
+    expect(action.description).toContain('6:30 pm')
+    expect(action.description).toContain('Central · Seminar Room · 22 Symonds St')
+  })
+
+  it('does not invent missing location details', async () => {
+    const action = await getExplainingChristianityAction()
+    expect(action.description).not.toMatch(/undefined|null| · $/)
+  })
+
+  it.each([
+    'https://rock.ev.church/Registration?RegistrationInstanceId=10',
+    'https://registration.ev.church/course',
+    'https://registration.ev.church/?RegistrationInstanceId=0',
+    'https://registration.ev.church/?RegistrationInstanceId=9007199254740992',
+  ])('uses the validated form URL when it cannot be embedded: %s', async (registrationUrl) => {
+    mocks.find.mockResolvedValue({ docs: [{ ...event, registrationUrl }] })
+    await expect(getExplainingChristianityAction()).resolves.toMatchObject({ href: registrationUrl })
   })
 
   it.each(['EventCalendars', 'Attributes', 'EventCalendarItems', 'AttributeValues'])('uses interest when %s is empty', async (endpoint) => {
@@ -177,5 +206,22 @@ describe('EC page buttons', () => {
 
   it('retains the original interest form in fallback mode', () => {
     expect(applyExplainingChristianityAction(layout, fallback)).toEqual(layout)
+  })
+
+  it('adds More info and a description only to blocks containing an EC action', () => {
+    const action = { label: 'Register now', href: '?launcher=registration&registrationInstanceId=10',
+      eventHref: '/events/course', description: 'Monday, 6:30 pm · Seminar Room',
+    }
+    const result = applyExplainingChristianityAction(layout, action)
+    expect(result[0]).toMatchObject({ actionDescription: action.description, buttons: [
+      expect.objectContaining({ label: 'Register now', href: action.href }),
+      expect.objectContaining({ label: 'More info', href: action.eventHref, variant: 'text' }),
+    ] })
+    expect(result[1]).toMatchObject({ actionDescription: action.description, buttons: [
+      expect.objectContaining({ href: action.href }), { label: 'Contact', href: '/contact' },
+      expect.objectContaining({ label: 'More info', href: action.eventHref, variant: 'secondary' }),
+    ] })
+    expect(result[2]).toBe(layout[2])
+    expect(layout[0]).not.toHaveProperty('actionDescription')
   })
 })
