@@ -10,6 +10,7 @@ export { verifyTurnstileToken } from '@/lib/turnstile'
 import { createRockFormContextToken } from './context-token'
 import { isGuid } from './constants'
 import { resolveRockBinaryFileTypeGuid } from './file-upload'
+import { toRockPersonEntryBag } from './person-entry'
 import {
   defaultPersonEntryValues,
   parseRockInteractiveAction,
@@ -427,6 +428,7 @@ export async function submitRockForm({
   personEntryValues: RockPersonEntryValues | null
   button: string
 }): Promise<{ action: RockInteractiveAction; workflow: RockWorkflowOption }> {
+  const personEntryBag = toRockPersonEntryBag(personEntryValues)
   const workflow = await getPublicRockWorkflow(context.workflowTypeGuid)
   if (!workflow) {
     throw new Error('This Rock form is no longer available')
@@ -443,7 +445,7 @@ export async function submitRockForm({
     actionStartDateTime: context.actionStartDateTime,
     componentData: {
       fieldValues: JSON.stringify(fieldValues),
-      personEntryValues: JSON.stringify(personEntryValues),
+      personEntryValues: JSON.stringify(personEntryBag),
       button,
     },
   })
