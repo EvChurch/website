@@ -9,7 +9,13 @@ export async function getAuth0SessionFromHeaders(
   headers: Headers,
 ): Promise<Auth0Identity | null> {
   try {
-    if (!isTrustedAuthRequest(headers)) return null
+    // Auth0 redirects retain same-site/cross-site Fetch Metadata through the
+    // final admin navigation. Browser POSTs carry Origin; only allow an
+    // originless top-level document navigation to read its verified session.
+    const isDocumentNavigation = !headers.has('origin') &&
+      headers.get('sec-fetch-mode') === 'navigate' &&
+      headers.get('sec-fetch-dest') === 'document'
+    if (!isDocumentNavigation && !isTrustedAuthRequest(headers)) return null
     const config = readAuth0Config()
     const request = new NextRequest(new URL('/auth/session-check', config.appBaseUrl), {
       headers,
