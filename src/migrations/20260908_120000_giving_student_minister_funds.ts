@@ -10,7 +10,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
       ('Henry Huang', 'HENRYHUANG', 'HENRYHUANG', true, false, false, true, 7),
       ('Jaron Heng', 'JARONHENG', 'JARONHENG', true, false, false, true, 8),
       ('Michael Gao', 'MICHAELGAO', 'MICHAELGAO', true, false, false, true, 9),
-      ('Christine Knobbs', 'CHRISTINEKNOBBS', 'CHRISTINEKNOBBS', true, false, false, true, 10)
+      ('Christine Knobbs', 'CKNOBBS', 'CKNOBBS', true, false, false, true, 10)
     ON CONFLICT (code) DO NOTHING;
 
   `)
