@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
+import { SiYoutube } from 'react-icons/si'
 import { useMediaPlayer } from './MediaPlayerProvider'
 import { useListeningStore } from '@/lib/listening-store'
 
@@ -380,7 +381,7 @@ export function VideoContainer() {
 
       {isVideoExpanded && !isClosing && (
         <div
-          className="pointer-events-none fixed z-[62] flex justify-end gap-2 animate-[minimise-control-in_300ms_ease-out_300ms_both]"
+          className="pointer-events-none fixed z-[64] flex justify-end gap-2 animate-[minimise-control-in_300ms_ease-out_300ms_both]"
           style={{ top: Math.max(12, expTop - 44), left: expLeft, width: expW }}
         >
           {youtubeUrl && (
@@ -388,10 +389,11 @@ export function VideoContainer() {
               href={youtubeUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="pointer-events-auto inline-flex min-h-9 items-center rounded-lg bg-black/75 px-3 py-2 text-sm font-bold text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              aria-label="Open in YouTube (opens in a new tab)"
+              className="pointer-events-auto mr-auto inline-flex min-h-9 items-center gap-2 rounded-lg bg-black/75 px-3 py-2 text-sm font-bold text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
-              Open in YouTube
-              <span className="sr-only"> (opens in a new tab)</span>
+              <SiYoutube className="h-4 w-4 shrink-0" aria-hidden="true" />
+              Open
             </a>
           )}
           <button
