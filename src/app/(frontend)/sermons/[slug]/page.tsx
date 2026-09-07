@@ -318,12 +318,12 @@ export default async function SermonPage({
                       href={audioDownloadHref}
                       download={audioFilename ? decodeFilename(audioFilename) : undefined}
                       aria-label={`Download sermon audio for ${sermon.title}`}
-                      className="inline-flex items-center gap-2 rounded-lg border border-warm-white/20 px-4 py-2.5 text-sm font-bold text-warm-white/80 transition-colors hover:border-warm-white/40 hover:text-warm-white"
+                      title="Download audio"
+                      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-warm-white/20 text-warm-white/80 transition-colors hover:border-warm-white/40 hover:text-warm-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-white"
                     >
                       <svg className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                         <path fillRule="evenodd" d="M10 2a.75.75 0 01.75.75v7.69l2.22-2.22a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 111.06-1.06l2.22 2.22V2.75A.75.75 0 0110 2zM4.25 14a.75.75 0 01.75.75V16a1 1 0 001 1h8a1 1 0 001-1v-1.25a.75.75 0 011.5 0V16A2.5 2.5 0 0114 18.5H6A2.5 2.5 0 013.5 16v-1.25a.75.75 0 01.75-.75z" clipRule="evenodd" />
                       </svg>
-                      Download audio
                     </a>
                   )}
                 </div>
