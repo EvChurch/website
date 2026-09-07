@@ -121,10 +121,10 @@ describe('PublicChrome', () => {
     await act(async () => root.unmount())
   })
 
-  it('enables BlinkPay only for exact signed-in Ev email domains without impersonation', async () => {
-    for (const email of ['aroha@ev.church', 'aroha@evchurch.nz', 'aroha@aucklandev.co.nz', 'aroha@AUCKLANDEV.CO.NZ']) {
+  it('enables BlinkPay for signed-out visitors and every signed-in email domain', async () => {
+    for (const email of [null, 'aroha@example.com', 'aroha@ev.church', 'aroha@evchurch.nz', 'aroha@aucklandev.co.nz', 'aroha@staff.ev.church']) {
       vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({
-        memberProfile: { name: 'Aroha Ngata', email, avatarUrl: '/member-avatar' },
+        memberProfile: email ? { name: 'Aroha Ngata', email, avatarUrl: '/member-avatar' } : null,
         memberCampusSlug: 'north',
         adminHref: null,
         impersonation: null,
@@ -194,23 +194,11 @@ describe('PublicChrome', () => {
     await act(async () => root.unmount())
   })
 
-  it('keeps BlinkPay ineligible for subdomain email and impersonation states', async () => {
+  it('keeps BlinkPay ineligible while impersonating another person', async () => {
     const states = [
       {
-        memberProfile: { name: 'Aroha Ngata', email: 'aroha@staff.aucklandev.co.nz', avatarUrl: null },
-        impersonation: null,
-      },
-      {
-        memberProfile: { name: 'Aroha Ngata', email: 'aroha@aucklandev.co.nz.example.com', avatarUrl: null },
-        impersonation: null,
-      },
-      {
-        memberProfile: { name: 'Aroha Ngata', email: 'aroha@staff.ev.church', avatarUrl: null },
-        impersonation: null,
-      },
-      {
-        memberProfile: { name: 'Aroha Ngata', email: 'aroha@staff.evchurch.nz', avatarUrl: null },
-        impersonation: null,
+        memberProfile: { name: 'Aroha Ngata', email: 'aroha@example.com', avatarUrl: null },
+        impersonation: { personId: 42, name: 'Other Person', email: 'other@example.com' },
       },
       {
         memberProfile: { name: 'Aroha Ngata', email: 'aroha@ev.church', avatarUrl: null },

@@ -27,8 +27,6 @@ import type { PublicSiteFeedbackSettings } from '@/lib/site-feedback/settings'
 import { Header } from './Header'
 import { SiteHeader } from './SiteHeader'
 
-const blinkPayEligibleEmailPattern = /^[^@]+@(?:ev\.church|evchurch\.nz|aucklandev\.co\.nz)$/iu
-
 export function PublicChrome({
   children,
   feedback,
@@ -122,9 +120,7 @@ export function PublicChrome({
         gatewayOrigins={givingRuntime?.gatewayOrigins ?? []}
       />
     : <GivingUnavailable />
-  const blinkPayEligible = memberChromeResolved &&
-    memberChrome.impersonation === null &&
-    blinkPayEligibleEmailPattern.test(memberChrome.memberProfile?.email ?? '')
+  const blinkPayEligible = memberChromeResolved && memberChrome.impersonation === null
 
   return (
     <GivingExperienceProvider
