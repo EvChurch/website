@@ -121,18 +121,19 @@ export const sermonAudioTask: TaskConfig<'prepareSermonAudio'> = {
           production.end!,
           production.sourceDuration!,
         )
-        await ffmpeg([
+        const { stdout } = await ffmpeg([
           '-i',
           local('finished.mp3'),
-          '-ac',
-          '1',
-          '-ar',
-          '10',
+          '-progress',
+          'pipe:1',
           '-f',
-          'f32le',
-          local('duration.pcm'),
+          'null',
+          '-',
         ])
-        const duration = (await readFile(local('duration.pcm'))).length / 40
+        const times = [...stdout.matchAll(/out_time_us=(\d+)/g)]
+        const duration = Number(times.at(-1)?.[1]) / 1_000_000
+        if (!Number.isFinite(duration) || duration <= 0)
+          throw new Error('Unable to measure rendered audio duration.')
         const output = await payload.create({
           collection: 'sermon-work-files',
           data: {},
