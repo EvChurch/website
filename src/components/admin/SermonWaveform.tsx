@@ -25,6 +25,14 @@ export function SermonWaveform({
   const svg = useRef<SVGSVGElement>(null)
   const dragging = useRef<'start' | 'end' | 'playhead' | null>(null)
   const changed = useRef(false)
+  const pointerX = useRef(0)
+  const panFrame = useRef<number | null>(null)
+  useEffect(
+    () => () => {
+      if (panFrame.current !== null) cancelAnimationFrame(panFrame.current)
+    },
+    [],
+  )
   const selection = useRef({ start, end })
   selection.current = { start, end }
   const [view, setView] = useState({ start: 0, span: duration })
@@ -105,7 +113,8 @@ export function SermonWaveform({
       Math.min(
         duration,
         viewport.current.start +
-          ((clientX - rect.left) / rect.width) * viewport.current.span,
+          Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)) *
+            viewport.current.span,
       ),
     )
   }
@@ -123,6 +132,50 @@ export function SermonWaveform({
     changed.current = true
     onChange(next.start, next.end)
     return next
+  }
+  function beginAutoPan(clientX: number) {
+    pointerX.current = clientX
+    if (panFrame.current !== null) cancelAnimationFrame(panFrame.current)
+    let previous: number | undefined
+    const tick = (now: number) => {
+      if (!dragging.current || !svg.current) {
+        panFrame.current = null
+        return
+      }
+      const rect = svg.current.getBoundingClientRect()
+      const margin = Math.min(40, rect.width / 4)
+      const distance =
+        pointerX.current < rect.left + margin
+          ? pointerX.current - rect.left - margin
+          : pointerX.current > rect.right - margin
+            ? pointerX.current - rect.right + margin
+            : 0
+      const elapsed = previous === undefined ? 16 : Math.min(50, now - previous)
+      previous = now
+      const old = viewport.current
+      const speed = Math.max(-1, Math.min(1, distance / margin))
+      const next = {
+        ...old,
+        start: Math.max(
+          0,
+          Math.min(
+            duration - old.span,
+            old.start + (speed * old.span * elapsed) / 1500,
+          ),
+        ),
+      }
+      if (next.start !== old.start) {
+        viewport.current = next
+        setView(next)
+        const time = position(
+          Math.max(rect.left, Math.min(rect.right, pointerX.current)),
+        )
+        if (dragging.current === 'playhead') onSeek(time)
+        else move(dragging.current, Math.round(time * 100) / 100)
+      }
+      panFrame.current = requestAnimationFrame(tick)
+    }
+    panFrame.current = requestAnimationFrame(tick)
   }
   const audition = (marker: 'start' | 'end') => {
     const cut = selection.current
@@ -219,6 +272,7 @@ export function SermonWaveform({
         }}
         onPointerMove={(event) => {
           if (!dragging.current) return
+          pointerX.current = event.clientX
           if (dragging.current === 'playhead') {
             onSeek(position(event.clientX))
             return
@@ -238,6 +292,9 @@ export function SermonWaveform({
             audition(marker)
         }}
         onPointerCancel={() => {
+          dragging.current = null
+        }}
+        onLostPointerCapture={() => {
           dragging.current = null
         }}
       >
@@ -330,6 +387,7 @@ export function SermonWaveform({
                 dragging.current = marker
                 changed.current = false
                 svg.current?.setPointerCapture(event.pointerId)
+                beginAutoPan(event.clientX)
               }}
               style={{ cursor: disabled ? 'default' : 'ew-resize' }}
             >
@@ -376,6 +434,7 @@ export function SermonWaveform({
             event.currentTarget.focus()
             dragging.current = 'playhead'
             svg.current?.setPointerCapture(event.pointerId)
+            beginAutoPan(event.clientX)
           }}
           onKeyDown={(event) => {
             if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key))
