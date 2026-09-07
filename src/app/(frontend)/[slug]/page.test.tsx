@@ -119,11 +119,15 @@ describe('retired dynamic pages', () => {
       { blockType: 'hero', heading: 'Explore faith', buttons: [interest] },
       { blockType: 'cta', heading: 'Join us', buttons: [interest] },
     ] }] })
-    mocks.ecAction.mockResolvedValue({ label: 'Register now', href: '/events/renamed-ec-course' })
+    mocks.ecAction.mockResolvedValue({ label: 'Register now', href: '?launcher=registration&registrationInstanceId=10',
+      eventHref: '/events/renamed-ec-course', description: 'Monday, 6:30 pm · Seminar Room',
+    })
     const markup = renderToStaticMarkup(await DynamicPage({ params: Promise.resolve({ slug }) }))
     if (slug === 'explaining-christianity') {
       expect(mocks.ecAction).toHaveBeenCalledOnce()
       expect(markup.match(/\/events\/renamed-ec-course/g)).toHaveLength(2)
+      expect(markup.match(/launcher=registration/g)).toHaveLength(2)
+      expect(markup.match(/Monday, 6:30 pm · Seminar Room/g)).toHaveLength(2)
       expect(markup).not.toContain('?launcher=explaining-christianity')
     } else {
       expect(mocks.ecAction).not.toHaveBeenCalled()

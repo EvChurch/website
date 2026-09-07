@@ -2,12 +2,19 @@ import { unstable_cache } from 'next/cache'
 
 import type { Page } from '@/payload-types'
 import { CACHE_TAGS } from './cache-tags'
-import { getRegistrationHref, getUpcomingEvents } from './events'
+import { formatEventDate, getDisplayLocation, getEmbeddedRegistrationHref, getRegistrationHref, getUpcomingEvents } from './events'
 import { rockFetchAll } from './rock-api'
 
 const INTEREST_ACTION = {
   label: 'Register your interest',
   href: '?launcher=explaining-christianity',
+}
+
+interface ECAction {
+  label: string
+  href: string
+  eventHref?: string
+  description?: string
 }
 
 interface Calendar {
@@ -90,7 +97,7 @@ async function getMarkedEventIds(): Promise<Set<number>> {
 // Cache both the successful result and the safe fallback. A Rock outage must
 // not keep an old registration link alive indefinitely through stale-on-error.
 export const getExplainingChristianityAction = unstable_cache(
-  async (): Promise<typeof INTEREST_ACTION> => {
+  async (): Promise<ECAction> => {
     try {
       const [markedIds, events] = await Promise.all([
         getMarkedEventIds(),
@@ -101,29 +108,52 @@ export const getExplainingChristianityAction = unstable_cache(
         markedIds.has(candidate.rockEventId) &&
         getRegistrationHref(candidate) !== null,
       )
-      return event
-        ? { label: 'Register now', href: `/events/${encodeURIComponent(event.slug)}` }
-        : INTEREST_ACTION
+      if (!event) return INTEREST_ACTION
+      const registrationHref = getRegistrationHref(event)!
+      const embeddedHref = getEmbeddedRegistrationHref(event)
+      const instanceId = embeddedHref
+        ? new URL(embeddedHref).searchParams.get('RegistrationInstanceId')
+        : null
+      const canOpenLauncher = instanceId !== null && /^[1-9]\d*$/.test(instanceId) &&
+        Number.isSafeInteger(Number(instanceId))
+      return {
+        label: 'Register now',
+        href: canOpenLauncher
+          ? `?launcher=registration&registrationInstanceId=${instanceId}`
+          : registrationHref,
+        eventHref: `/events/${encodeURIComponent(event.slug)}`,
+        description: [formatEventDate(event), getDisplayLocation(event), event.location?.address?.trim()]
+          .filter(Boolean).join(' · '),
+      }
     } catch {
       console.warn('EC event lookup unavailable; using the interest form.')
       return INTEREST_ACTION
     }
   },
-  ['explaining-christianity-action'],
+  ['explaining-christianity-action-v2'],
   { tags: [CACHE_TAGS.events], revalidate: 300 },
 )
 
 export function applyExplainingChristianityAction(
   layout: NonNullable<Page['layout']>,
-  action: typeof INTEREST_ACTION,
+  action: ECAction,
 ): NonNullable<Page['layout']> {
   const updateButton = <T extends { label: string; href: string }>(button: T): T =>
-    button.href === INTEREST_ACTION.href ? { ...button, ...action } : button
+    button.href === INTEREST_ACTION.href ? { ...button, label: action.label, href: action.href } : button
 
   return layout.map((block) => {
+    if ((block.blockType !== 'hero' && block.blockType !== 'cta') ||
+      !block.buttons?.some((button) => button.href === INTEREST_ACTION.href)) return block
+    const moreInfo = action.eventHref && !block.buttons.some((button) => button.href === action.eventHref)
+      ? [{ label: 'More info', href: action.eventHref, id: `${block.id ?? block.blockType}-ec-more-info` }]
+      : []
+    const details = action.description ? { actionDescription: action.description } : {}
     // Keep each block's distinct button variants intact.
-    if (block.blockType === 'hero') return { ...block, buttons: block.buttons?.map(updateButton) }
-    if (block.blockType === 'cta') return { ...block, buttons: block.buttons?.map(updateButton) }
-    return block
+    if (block.blockType === 'hero') return { ...block, ...details, buttons: [
+      ...block.buttons.map(updateButton), ...moreInfo.map((button) => ({ ...button, variant: 'text' as const })),
+    ] }
+    return { ...block, ...details, buttons: [
+      ...block.buttons.map(updateButton), ...moreInfo.map((button) => ({ ...button, variant: 'secondary' as const })),
+    ] }
   })
 }
