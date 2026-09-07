@@ -7,6 +7,7 @@ import type {
   RockPersonEntryValues,
 } from './types'
 import { ROCK_ENTRY_FORM_COMPONENT_URL } from './constants'
+import { fromRockPersonEntryBag, type RockPersonEntryBag } from './person-entry'
 
 export function parseJson<T>(value: string | null | undefined, fallback: T): T {
   if (!value) return fallback
@@ -50,9 +51,8 @@ export function parseRockInteractiveAction(action: RockInteractiveAction) {
     ),
     buttons: parseJson<RockFormButton[]>(configuration.buttons, []),
     initialFieldValues: parseJson<Record<string, string>>(data.fieldValues, {}),
-    initialPersonEntryValues: parseJson<RockPersonEntryValues | null>(
-      data.personEntryValues,
-      null,
+    initialPersonEntryValues: fromRockPersonEntryBag(
+      parseJson<RockPersonEntryBag | null>(data.personEntryValues, null),
     ),
   }
 }
