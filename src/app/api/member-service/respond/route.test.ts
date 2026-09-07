@@ -106,6 +106,7 @@ describe('member service response route', () => {
       'accept',
       expect.any(Date),
       undefined,
+      undefined,
     )
     await expect(response.json()).resolves.toEqual({ status: 'accepted' })
   })
@@ -158,6 +159,10 @@ describe('member service response route', () => {
     [{ assignmentId, response: 'accept', declineReasonId: 728 }],
     [{ assignmentId, response: 'maybe' }],
     [{ assignmentId, response: 'accept', attendanceId: 901 }],
+    [{ assignmentId, response: 'accept', declineNote: 'A conflict' }],
+    [{ assignmentId, response: 'decline', declineReasonId: 999, declineNote: ' ' }],
+    [{ assignmentId, response: 'decline', declineReasonId: 999, declineNote: 'x'.repeat(501) }],
+    [{ assignmentId, response: 'decline', declineReasonId: 999, declineNote: 123 }],
   ])('rejects malformed or expanded mutation input', async (body) => {
     const response = await POST(request(body))
     expect(response.status).toBe(400)
@@ -180,7 +185,15 @@ describe('member service response route', () => {
       'decline',
       expect.any(Date),
       728,
+      undefined,
     )
+  })
+
+  it('passes a trimmed Other comment to the scheduling adapter', async () => {
+    mocks.respondToVolunteerSchedule.mockResolvedValue({ status: 'declined' })
+    const response = await POST(request({ assignmentId, response: 'decline', declineReasonId: 999, declineNote: '  A conflict  ' }))
+    expect(response.status).toBe(200)
+    expect(mocks.respondToVolunteerSchedule).toHaveBeenCalledWith(42, assignmentId, 'decline', expect.any(Date), 999, 'A conflict')
   })
 
   it.each([

@@ -1,3 +1,5 @@
+import { appendDeclineNote, normalizedDeclineNote, requiresDeclineNote } from './decline-notes'
+
 const PAGE_SIZE = 100
 const MAX_PAGES = 10
 // Rock v19.2 enforces a low OData node-count limit. Keep OR filters small
@@ -35,6 +37,7 @@ interface RockAttendance {
   rsvp: 'unknown' | 'yes' | 'no' | 'maybe'
   declined: boolean
   declineReasonValueId: number | null
+  note: string | null | undefined
   occurrenceStart: string
   occurrenceId: number
 }
@@ -251,6 +254,7 @@ async function schedulingPatchDecline(
   declineReasonValueId: number,
   now: Date,
   operationSignal: AbortSignal,
+  note?: string,
 ) {
   const response = await fetch(`${config.apiUrl}/Attendances/${attendanceId}`, {
     method: 'PATCH',
@@ -265,6 +269,7 @@ async function schedulingPatchDecline(
       RSVPDateTime: now.toISOString(),
       RSVP: 0,
       DeclineReasonValueId: declineReasonValueId,
+      ...(note !== undefined ? { Note: note } : {}),
     }),
     signal: AbortSignal.any([
       operationSignal,
@@ -422,6 +427,7 @@ function parseAttendance(value: unknown): RockAttendance | null {
     rsvp === null ||
     !isPositiveInteger(value.OccurrenceId) ||
     !occurrenceStart ||
+    !(value.Note === undefined || value.Note === null || typeof value.Note === 'string') ||
     !(
       value.DeclineReasonValueId === null ||
       value.DeclineReasonValueId === undefined ||
@@ -443,6 +449,7 @@ function parseAttendance(value: unknown): RockAttendance | null {
       : null,
     occurrenceStart,
     occurrenceId: value.OccurrenceId,
+    note: value.Note as string | null | undefined,
   }
 }
 
@@ -906,7 +913,7 @@ async function readOwnedAttendance(
   const rows = await readPages(config, 'Attendances', {
     $filter: `Guid eq guid'${guid}'`,
     $orderby: 'Id',
-    $select: 'Id,Guid,PersonAliasId,RequestedToAttend,ScheduledToAttend,DidAttend,RSVP,DeclineReasonValueId,OccurrenceId,StartDateTime',
+    $select: 'Id,Guid,PersonAliasId,RequestedToAttend,ScheduledToAttend,DidAttend,RSVP,DeclineReasonValueId,OccurrenceId,StartDateTime,Note',
   }, operationSignal)
   if (rows.length !== 1) return null
   const attendance = parseAttendance(rows[0])
@@ -944,12 +951,14 @@ function hasExpectedResponse(
   attendance: RockAttendance | null,
   response: VolunteerScheduleResponse,
   declineReasonValueId?: number,
+  expectedNote?: string,
 ) {
   if (!attendance) return false
   return response === 'accept'
     ? attendance.scheduledToAttend === true && attendance.rsvp === 'yes' && !attendance.declined
     : attendance.scheduledToAttend === false && attendance.rsvp === 'no' &&
-      attendance.declineReasonValueId === declineReasonValueId
+      attendance.declineReasonValueId === declineReasonValueId &&
+      (expectedNote === undefined || attendance.note === expectedNote)
 }
 
 export async function respondToVolunteerSchedule(
@@ -958,6 +967,7 @@ export async function respondToVolunteerSchedule(
   response: VolunteerScheduleResponse,
   now = new Date(),
   declineReasonValueId?: number,
+  declineNote?: string,
 ): Promise<VolunteerScheduleResponseResult> {
   if (
     !isPositiveInteger(personId) ||
@@ -965,7 +975,8 @@ export async function respondToVolunteerSchedule(
     (response !== 'accept' && response !== 'decline') ||
     !Number.isFinite(now.getTime()) ||
     (response === 'decline' && !isPositiveInteger(declineReasonValueId)) ||
-    (response === 'accept' && declineReasonValueId !== undefined)
+    (response === 'accept' && (declineReasonValueId !== undefined || declineNote !== undefined)) ||
+    (declineNote !== undefined && normalizedDeclineNote(declineNote) === null)
   ) return { status: 'invalid-request' }
 
   const guid = assignmentGuid(assignmentId)
@@ -1002,7 +1013,10 @@ export async function respondToVolunteerSchedule(
     const preflightSignal = AbortSignal.timeout(OPERATION_TIMEOUT_MS)
     if (response === 'decline') {
       const declineReasons = await loadDeclineReasons(config, preflightSignal)
-      if (!declineReasons.some(({ id }) => id === declineReasonValueId)) {
+      const reason = declineReasons.find(({ id }) => id === declineReasonValueId)
+      if (!reason || (requiresDeclineNote(reason.label)
+        ? normalizedDeclineNote(declineNote) === null
+        : declineNote !== undefined)) {
         return { status: 'invalid-request' }
       }
     }
@@ -1013,6 +1027,13 @@ export async function respondToVolunteerSchedule(
       (response === 'decline' && isConfirmedAttendance(attendance))
     )
     if (!canRespond) return { status: 'stale' }
+
+    let expectedNote: string | undefined
+    if (declineNote !== undefined) {
+      // An omitted field is not evidence that Rock has no existing note.
+      if (attendance.note === undefined) return { status: 'rock-unavailable' }
+      expectedNote = appendDeclineNote(attendance.note, normalizedDeclineNote(declineNote)!)
+    }
 
     let writeError: unknown = null
     try {
@@ -1025,6 +1046,7 @@ export async function respondToVolunteerSchedule(
           declineReasonValueId as number,
           now,
           preflightSignal,
+          expectedNote,
         )
       }
     } catch (error) {
@@ -1042,7 +1064,7 @@ export async function respondToVolunteerSchedule(
     } catch {
       return { status: 'outcome-unknown' }
     }
-    if (hasExpectedResponse(canonical, response, declineReasonValueId)) {
+    if (hasExpectedResponse(canonical, response, declineReasonValueId, expectedNote)) {
       return { status: response === 'accept' ? 'accepted' : 'declined' }
     }
     if (writeError instanceof RockSchedulingWriteError && writeError.status < 500 && writeError.status !== 429) {

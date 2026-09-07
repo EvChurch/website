@@ -292,6 +292,51 @@ describe('VolunteerSchedule', () => {
     }))
   })
 
+  it('shows and requires a comment only for Other and submits it with the decline', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
+      JSON.stringify({ status: 'declined' }), { status: 200, headers: { 'Content-Type': 'application/json' } },
+    ))
+    await act(async () => root.render(
+      <VolunteerSchedule
+        schedule={{ status: 'available', requests: [request], upcoming: [], declined: [] }}
+        declineReasons={[...declineReasons, { id: 999, label: 'Other' }]}
+        isImpersonating={false}
+      />,
+    ))
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent === 'Decline')!.click())
+    const confirm = [...container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(button => button.textContent === 'Decline')!
+    const reason = container.querySelector<HTMLSelectElement>('select')!
+    const choose = async (value: string) => act(async () => {
+      reason.value = value
+      reason.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await choose('729')
+    expect(container.querySelector('textarea')).toBeNull()
+    await choose('999')
+    expect(confirm.disabled).toBe(true)
+    let textarea = container.querySelector<HTMLTextAreaElement>('textarea')!
+    expect(textarea.required).toBe(true)
+    const fill = async (value: string) => act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(textarea, value)
+      textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    await fill('   ')
+    expect(confirm.disabled).toBe(true)
+    await fill('A conflict')
+    expect(confirm.disabled).toBe(false)
+    await choose('729')
+    expect(container.querySelector('textarea')).toBeNull()
+    await choose('999')
+    textarea = container.querySelector<HTMLTextAreaElement>('textarea')!
+    expect(textarea.value).toBe('')
+    expect(confirm.disabled).toBe(true)
+    await fill('  A conflict  ')
+    await act(async () => confirm.click())
+    expect(fetchMock).toHaveBeenCalledWith('/api/member-service/respond', expect.objectContaining({
+      body: JSON.stringify({ assignmentId: request.id, response: 'decline', declineReasonId: 999, declineNote: 'A conflict' }),
+    }))
+  })
+
   it('allows a confirmed upcoming commitment to be declined with a reason', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
       JSON.stringify({ status: 'declined' }),
