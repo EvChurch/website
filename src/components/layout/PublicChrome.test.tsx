@@ -194,6 +194,35 @@ describe('PublicChrome', () => {
     await act(async () => root.unmount())
   })
 
+  it.each(['network', 'http', 'invalid-json', 'invalid-state'])('keeps BlinkPay unavailable after a %s member chrome failure', async (failure) => {
+    if (failure === 'network') vi.mocked(fetch).mockRejectedValueOnce(new Error('Network unavailable'))
+    else vi.mocked(fetch).mockResolvedValueOnce(new Response(
+      failure === 'invalid-json' ? 'invalid' : '{}',
+      { status: failure === 'http' ? 503 : 200 },
+    ))
+    const container = document.createElement('div')
+    document.body.append(container)
+    const root = createRoot(container)
+
+    await act(async () => root.render(
+      <PublicChrome
+        {...givingProps}
+        givingFunds={publicGivingFunds}
+        givingRuntime={{ eligibility: 'production', gatewayOrigins: ['https://secure.blinkpay.co.nz'] }}
+        launcher={launcher}
+        feedback={null}
+        announcement={null}
+        footer={null}
+      >
+        <p>Page</p>
+      </PublicChrome>,
+    ))
+
+    expect(container.querySelector('[data-giving-eligibility]')?.getAttribute('data-blinkpay-eligibility-resolved')).toBe('true')
+    expect(container.querySelector('[data-giving-eligibility]')?.getAttribute('data-blinkpay-eligible')).toBe('false')
+    await act(async () => root.unmount())
+  })
+
   it('keeps BlinkPay ineligible while impersonating another person', async () => {
     const states = [
       {

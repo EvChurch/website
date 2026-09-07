@@ -125,12 +125,24 @@ describe('member chrome route', () => {
 
     const response = await GET(request())
 
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(503)
+    expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0')
     expect(mocks.isCurrentPayloadAdmin).not.toHaveBeenCalled()
     await expect(response.json()).resolves.toMatchObject({
       memberProfile: null,
       adminHref: null,
       impersonation: null,
     })
+  })
+
+  it('does not report a confirmed anonymous visitor when the admin lookup fails', async () => {
+    mocks.getSession.mockResolvedValue({ user: { sub: 'auth0|123' } })
+    mocks.isCurrentPayloadAdmin.mockRejectedValueOnce(new Error('Admin lookup unavailable'))
+
+    const response = await GET(request())
+
+    expect(response.status).toBe(503)
+    expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0')
+    await expect(response.json()).resolves.toMatchObject({ memberProfile: null, impersonation: null })
   })
 })

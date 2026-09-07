@@ -1,6 +1,6 @@
 # Giving release controls
 
-BlinkPay is available to signed-out visitors and signed-in members with any email address when the server's selected BlinkPay environment is configured. Member chrome must finish resolving before BlinkPay is offered, and admin impersonation remains excluded. Invalid server configuration and impersonation use the direct bank-transfer path. PostHog is not a giving rollout control.
+BlinkPay is available to signed-out visitors and signed-in members with any email address when the server's selected BlinkPay environment is configured. Member chrome must load successfully before BlinkPay is offered, and admin impersonation remains excluded. Invalid server configuration, unavailable member chrome, and impersonation use the direct bank-transfer path. PostHog is not a giving rollout control.
 
 `BLINKPAY_DEFAULT_ENVIRONMENT` selects the server-owned BlinkPay environment and defaults to `sandbox`. Keep Sandbox credentials in the `BLINKPAY_SANDBOX_*` variables. Change the selector to `production` only after the production evidence below is complete; never place Sandbox credentials in the production variables.
 
