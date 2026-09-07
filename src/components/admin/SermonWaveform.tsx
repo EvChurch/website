@@ -420,6 +420,7 @@ export function SermonWaveform({
           )
         })}
         <g
+          className="sermon-waveform__playhead"
           aria-label="Playhead"
           role="slider"
           tabIndex={0}
