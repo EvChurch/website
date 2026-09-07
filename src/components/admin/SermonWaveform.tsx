@@ -52,7 +52,10 @@ export function SermonWaveform({
       event.preventDefault()
       const rect = element.getBoundingClientRect()
       if (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
-        const delta = event.shiftKey ? event.deltaY : event.deltaX
+        const delta =
+          Math.abs(event.deltaX) > Math.abs(event.deltaY)
+            ? event.deltaX
+            : event.deltaY
         setView((old) => ({
           ...old,
           start: Math.max(
@@ -177,9 +180,9 @@ export function SermonWaveform({
         </button>
       </div>
       <p>
-        Click to move the playhead. Scroll to zoom; Shift-scroll to pan. Drag
-        either cut edge, or focus it and use arrow keys (Shift for finer
-        adjustments).
+        Click to move the playhead. Scroll to zoom; Shift-scroll or Left/Right
+        on the timeline to pan. Drag either cut edge, or focus it and use arrow
+        keys (Shift for finer adjustments).
       </p>
       <svg
         ref={svg}
@@ -187,9 +190,31 @@ export function SermonWaveform({
         viewBox="0 0 1000 150"
         preserveAspectRatio="none"
         role="group"
+        tabIndex={0}
         aria-label="Recording timeline"
+        onKeyDown={(event) => {
+          if (
+            event.target !== event.currentTarget ||
+            !['ArrowLeft', 'ArrowRight'].includes(event.key)
+          )
+            return
+          event.preventDefault()
+          const direction = event.key === 'ArrowLeft' ? -1 : 1
+          setView((old) => ({
+            ...old,
+            start: Math.max(
+              0,
+              Math.min(
+                duration - old.span,
+                old.start +
+                  direction * old.span * (event.shiftKey ? 0.02 : 0.1),
+              ),
+            ),
+          }))
+        }}
         onPointerDown={(event) => {
           if (dragging.current) return
+          event.currentTarget.focus()
           onSeek(position(event.clientX))
         }}
         onPointerMove={(event) => {

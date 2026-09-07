@@ -106,15 +106,13 @@ it('auditions a dragged boundary on release without moving the playhead on press
   svg.hasPointerCapture = vi.fn(() => true)
   svg.releasePointerCapture = vi.fn()
   await act(async () => {
-    container
-      .querySelector('[aria-label="start cut boundary"]')!
-      .dispatchEvent(
-        new PointerEvent('pointerdown', {
-          pointerId: 1,
-          clientX: 100,
-          bubbles: true,
-        }),
-      )
+    container.querySelector('[aria-label="start cut boundary"]')!.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        pointerId: 1,
+        clientX: 100,
+        bubbles: true,
+      }),
+    )
   })
   expect(seek).not.toHaveBeenCalled()
   await act(async () => {
@@ -134,4 +132,65 @@ it('auditions a dragged boundary on release without moving the playhead on press
     )
   })
   expect(audition).toHaveBeenCalledWith(20, 90)
+})
+it.each([
+  { deltaX: 100, deltaY: 0, shiftKey: true },
+  { deltaX: 0, deltaY: 100, shiftKey: true },
+  { deltaX: 100, deltaY: 0, shiftKey: false },
+])('pans a zoomed timeline with wheel input %j', async (input) => {
+  const svg = container.querySelector('svg')!
+  await act(async () => {
+    Array.from(container.querySelectorAll('button'))
+      .find((button) => button.textContent === 'Zoom in')!
+      .click()
+  })
+  await act(async () => {
+    const wheel = new WheelEvent('wheel', {
+      deltaMode: 0,
+      ...input,
+      bubbles: true,
+      cancelable: true,
+    })
+    // happy-dom does not preserve MouseEvent modifiers on WheelEvent.
+    Object.defineProperty(wheel, 'shiftKey', { value: input.shiftKey })
+    svg.dispatchEvent(wheel)
+  })
+  await act(async () => {
+    svg.dispatchEvent(
+      new PointerEvent('pointerdown', { clientX: 0, bubbles: true }),
+    )
+  })
+  expect(seek).toHaveBeenLastCalledWith(30)
+})
+it('pans with arrow keys on the timeline without changing cut boundaries', async () => {
+  const svg = container.querySelector('svg')!
+  await act(async () => {
+    Array.from(container.querySelectorAll('button'))
+      .find((button) => button.textContent === 'Zoom in')!
+      .click()
+  })
+  expect(svg.getAttribute('tabindex')).toBe('0')
+  await act(async () => {
+    svg.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }),
+    )
+  })
+  await act(async () => {
+    svg.dispatchEvent(
+      new PointerEvent('pointerdown', { clientX: 0, bubbles: true }),
+    )
+  })
+  expect(seek).toHaveBeenLastCalledWith(30)
+  expect(change).not.toHaveBeenCalled()
+  await act(async () => {
+    svg.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }),
+    )
+  })
+  await act(async () => {
+    svg.dispatchEvent(
+      new PointerEvent('pointerdown', { clientX: 0, bubbles: true }),
+    )
+  })
+  expect(seek).toHaveBeenLastCalledWith(25)
 })
