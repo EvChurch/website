@@ -86,7 +86,7 @@ export async function prepareListeningCopy(
 }
 
 export async function renderSermonAudio(
-  paths: { source: string; intro: string; outro: string; output: string },
+  paths: { source: string; intro?: string; outro: string; output: string },
   start: number,
   end: number,
   duration: number,
@@ -94,27 +94,24 @@ export async function renderSermonAudio(
   validateCut(start, end, duration)
   const format =
     'aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo'
+  const inputs = [paths.source, paths.outro, ...(paths.intro ? [paths.intro] : [])]
+  const filters = [
+    `[0:a:0]atrim=start=${start}:end=${end},asetpts=PTS-STARTPTS,${format}[sermon]`,
+    `[1:a:0]asetpts=PTS-STARTPTS,${format}[outro]`,
+    ...(paths.intro ? [`[2:a:0]asetpts=PTS-STARTPTS,${format}[intro]`] : []),
+    `${paths.intro ? '[intro]' : ''}[sermon][outro]concat=n=${inputs.length}:v=0:a=1[out]`,
+  ]
   await ffmpeg([
-    '-protocol_whitelist',
-    'file,pipe',
-    '-format_whitelist',
-    'aac,aiff,flac,mp3,mov,ogg,wav',
-    '-i',
-    paths.intro,
-    '-protocol_whitelist',
-    'file,pipe',
-    '-format_whitelist',
-    'aac,aiff,flac,mp3,mov,ogg,wav',
-    '-i',
-    paths.source,
-    '-protocol_whitelist',
-    'file,pipe',
-    '-format_whitelist',
-    'aac,aiff,flac,mp3,mov,ogg,wav',
-    '-i',
-    paths.outro,
+    ...inputs.flatMap((input) => [
+      '-protocol_whitelist',
+      'file,pipe',
+      '-format_whitelist',
+      'aac,aiff,flac,mp3,mov,ogg,wav',
+      '-i',
+      input,
+    ]),
     '-filter_complex',
-    `[0:a:0]asetpts=PTS-STARTPTS,${format}[intro];[1:a:0]atrim=start=${start}:end=${end},asetpts=PTS-STARTPTS,${format}[sermon];[2:a:0]asetpts=PTS-STARTPTS,${format}[outro];[intro][sermon][outro]concat=n=3:v=0:a=1[out]`,
+    filters.join(';'),
     '-map',
     '[out]',
     '-map_metadata',

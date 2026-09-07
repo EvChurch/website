@@ -366,9 +366,9 @@ export async function changeProduction(
         if (typeof start !== 'number' || typeof end !== 'number')
           throw new APIError('Enter start and end times.', 400)
         validateCut(start, end, production.sourceDuration!)
-        if (!settings.intro || !settings.outro)
+        if (!settings.outro)
           throw new APIError(
-            'An administrator must upload an intro and outro in Sermon Settings.',
+            'An administrator must upload an outro in Sermon Settings.',
             400,
           )
       } else if (!production.driveFileId)

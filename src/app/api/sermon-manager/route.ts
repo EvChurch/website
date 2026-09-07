@@ -159,10 +159,9 @@ export async function GET(request: Request) {
       scriptures: scriptures.docs,
       folders: settings.driveFolders || [],
       configured: Boolean(
-        settings.intro &&
-          settings.outro &&
-          settings.driveFolders?.length &&
-          process.env.SERMON_DRIVE_SERVICE_ACCOUNT_JSON,
+        settings.outro &&
+        settings.driveFolders?.length &&
+        process.env.SERMON_DRIVE_SERVICE_ACCOUNT_JSON,
       ),
     })
   } catch (error) {

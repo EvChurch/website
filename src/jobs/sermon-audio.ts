@@ -101,19 +101,19 @@ export const sermonAudioTask: TaskConfig<'prepareSermonAudio'> = {
         const sourceID = relationID(production.source)
         const introID = relationID(production.intro)
         const outroID = relationID(production.outro)
-        if (!sourceID || !introID || !outroID)
+        if (!sourceID || !outroID)
           throw new Error(
-            'Source, intro, or outro is missing. Ask an administrator to check Sermon Settings.',
+            'Source or outro is missing. Ask an administrator to check Sermon Settings.',
           )
         await Promise.all([
           copyWorkFile(payload, sourceID, local('source')),
-          copyWorkFile(payload, introID, local('intro')),
+          ...(introID ? [copyWorkFile(payload, introID, local('intro'))] : []),
           copyWorkFile(payload, outroID, local('outro')),
         ])
         await renderSermonAudio(
           {
             source: local('source'),
-            intro: local('intro'),
+            intro: introID ? local('intro') : undefined,
             outro: local('outro'),
             output: local('finished.mp3'),
           },

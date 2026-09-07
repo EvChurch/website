@@ -68,7 +68,7 @@ function parseTimestamp(value: string) {
 const statusLabel: Record<SermonProduction['status'], string> = {
   importing: 'Preparing recording',
   editable: 'Ready to cut',
-  rendering: 'Adding intro and outro',
+  rendering: 'Preparing finished audio',
   ready: 'Ready for review',
   failed: 'Needs attention',
   published: 'Published',
@@ -279,7 +279,7 @@ export function SermonManager() {
           {!dashboard.configured && (
             <p className="sermon-manager__notice">
               Before importing recordings, an administrator needs to connect
-              Google Drive and configure the campus folders, intro, and outro in
+              Google Drive and configure the campus folders and outro in
               Sermon Settings.
             </p>
           )}
@@ -648,7 +648,7 @@ export function SermonManager() {
                       disabled={start >= end}
                       onClick={() => void action('render')}
                     >
-                      Prepare audio with intro and outro
+                      Prepare finished audio
                     </button>
                   </fieldset>
                 </section>

@@ -13,7 +13,7 @@ export const SermonSettings: GlobalConfig = {
       relationTo: 'sermon-work-files',
       admin: {
         description:
-          'Shared intro for future renders. Existing published audio is unchanged.',
+          'Optional shared intro for future renders. Leave empty for outro-only audio. Existing published audio is unchanged.',
       },
     },
     { name: 'outro', type: 'upload', relationTo: 'sermon-work-files' },
