@@ -149,3 +149,11 @@
     padding: 1rem;
   }
 }
+
+.sermon-waveform__playhead:focus {
+  outline: none;
+}
+.sermon-waveform__playhead:focus-visible > path {
+  stroke: #e22a30;
+  stroke-width: 2;
+}
