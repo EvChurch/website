@@ -282,6 +282,37 @@ describe('GivingFlow', () => {
     expect(button(container, 'Apprentices')).toBeTruthy()
   })
 
+  it('offers student ministers separately and selects their fund through the normal giving flow', async () => {
+    const studentFunds = ['Henry Huang', 'Jaron Heng', 'Michael Gao', 'Christine Knobbs'].map((name, index) => ({
+      id: 10 + index, name, code: `STUDENT-${index}`, sortOrder: 10 + index,
+      isDefault: false, apprenticeRelated: false, studentMinisterRelated: true,
+    }))
+    await act(async () => root.render(<GivingFlow funds={[...funds, ...studentFunds]} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} />))
+    await act(async () => change(container.querySelector('input')!, '25'))
+    await act(async () => button(container, 'Continue')?.click())
+
+    await act(async () => button(container, 'Just this once')?.click())
+
+    expect(button(container, 'Henry Huang')).toBeUndefined()
+    expect(button(container, 'Student ministers')?.className).toContain('bg-warm-grey/70')
+    await act(async () => button(container, 'Student ministers')?.click())
+    for (const fund of studentFunds) expect(button(container, fund.name)).toBeTruthy()
+    expect(button(container, 'General')).toBeUndefined()
+    expect(button(container, 'Jordan Smith')).toBeUndefined()
+    expect(document.activeElement?.textContent).toBe('Back')
+    await act(async () => button(container, 'Back')?.click())
+    expect(button(container, 'General')).toBeTruthy()
+    expect(button(container, 'Henry Huang')).toBeUndefined()
+    await act(async () => button(container, 'Apprentices')?.click())
+    expect(button(container, 'Jordan Smith')).toBeTruthy()
+    expect(button(container, 'Henry Huang')).toBeUndefined()
+    await act(async () => button(container, 'Back')?.click())
+    await act(async () => button(container, 'Student ministers')?.click())
+    await act(async () => button(container, 'Henry Huang')?.click())
+    expect(container.textContent).toContain('for Henry Huang')
+    expect(container.textContent).toContain('What is your first name')
+  })
+
   it('keeps one-off plainly selectable without showing a starting-date step', async () => {
     await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} />))
     await act(async () => change(container.querySelector('input')!, '25'))

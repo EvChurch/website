@@ -1,3 +1,4 @@
+import * as migration_20260908_120000_giving_student_minister_funds from './20260908_120000_giving_student_minister_funds';
 import * as migration_20260907_120000_sermon_articles from './20260907_120000_sermon_articles';
 import * as migration_20260905_120000_sermon_manager from './20260905_120000_sermon_manager';
 import * as migration_20260330_195149 from './20260330_195149';
@@ -340,4 +341,9 @@ export const migrations = [
   },
   { up: migration_20260905_120000_sermon_manager.up, down: migration_20260905_120000_sermon_manager.down, name: '20260905_120000_sermon_manager' },
   { up: migration_20260907_120000_sermon_articles.up, down: migration_20260907_120000_sermon_articles.down, name: '20260907_120000_sermon_articles' },
+  {
+    up: migration_20260908_120000_giving_student_minister_funds.up,
+    down: migration_20260908_120000_giving_student_minister_funds.down,
+    name: '20260908_120000_giving_student_minister_funds',
+  },
 ];
