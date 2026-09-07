@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { HiCalendarDays, HiChevronLeft, HiChevronRight } from 'react-icons/hi2'
 
 function dateParts(value: string) {
@@ -33,6 +33,7 @@ function currentDate() {
 }
 
 export function CalendarDatePicker({
+  clearable = false,
   endDate = '',
   id,
   isOpen,
@@ -46,6 +47,7 @@ export function CalendarDatePicker({
   required = false,
   startDate,
 }: {
+  clearable?: boolean
   endDate?: string
   id: string
   isOpen: boolean
@@ -64,6 +66,10 @@ export function CalendarDatePicker({
     const { year, month } = dateParts(initial)
     return { year, month }
   })
+  const calendarRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (isOpen) calendarRef.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+  }, [isOpen, visibleMonth])
   const minParts = min ? dateParts(min) : null
   const firstYear = minParts?.year ?? Math.min(1900, visibleMonth.year)
   const lastYear = Math.max(dateParts(currentDate()).year + 10, visibleMonth.year, firstYear)
@@ -138,12 +144,14 @@ export function CalendarDatePicker({
         )}
         <HiCalendarDays aria-hidden="true" className="h-5 w-5 shrink-0 text-rich-red" />
       </button>
-      {required && <input className="sr-only" value={startDate} required readOnly />}
+      {required && <input className="sr-only" aria-label={label} tabIndex={-1} value={startDate} required onChange={() => {}}
+        onInvalid={(event) => { event.preventDefault(); document.getElementById(id)?.focus() }} />}
       {isOpen && (
         <div
+          ref={calendarRef}
           role="dialog"
           aria-label={mode === 'range' ? 'Date range calendar' : `${label} calendar`}
-          className="absolute left-0 top-full z-20 mt-2 w-[min(20rem,calc(100vw-4rem))] max-w-full rounded-xl border border-warm-grey bg-white p-4 shadow-xl"
+          className="mt-2 w-80 max-w-full rounded-xl border border-warm-grey bg-white p-4 shadow-xl"
         >
           <div className="flex items-center justify-between">
             <button
@@ -233,7 +241,7 @@ export function CalendarDatePicker({
                     inRange && column === 0 ? 'rounded-l-full' : inRange && column === 6 ? 'rounded-r-full' : ''
                   }`}
                 >
-                  <span className={`flex h-9 w-9 items-center justify-center rounded-full transition ${
+                  <span className={`flex aspect-square w-full max-w-9 items-center justify-center rounded-full transition ${
                     rangeStart || rangeEnd
                       ? 'bg-rich-red font-bold text-white shadow-sm'
                       : inRange
@@ -246,6 +254,10 @@ export function CalendarDatePicker({
               )
             })}
           </div>
+          {clearable && startDate && (
+            <button type="button" className="mt-2 min-h-11 w-full rounded-lg text-sm font-semibold text-rich-red hover:bg-warm-white focus-visible:outline-2 focus-visible:outline-rich-red"
+              onClick={() => { onChange('', ''); onComplete() }}>Clear date</button>
+          )}
         </div>
       )}
     </div>
