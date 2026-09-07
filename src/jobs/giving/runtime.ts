@@ -4,6 +4,7 @@ import { cleanupGivingDrafts } from '@/lib/giving/drafts'
 import { requireGivingPostgresPool } from '@/lib/giving/postgres'
 import { createGivingLifecycleProcessor, createPostgresGivingLifecycleStore, createUnknownCancellationReconciler, runGivingReconciliation } from '@/lib/giving/reconciliation'
 import { createGivingCheckoutService, createPostgresGivingCheckoutRepository } from '@/lib/giving/service'
+import { reconcileRecurringGiving } from '@/lib/giving/recurring-reconciliation'
 
 function runtime(payload: Payload) {
   const pool = requireGivingPostgresPool(payload)
@@ -33,5 +34,6 @@ export async function reconcileGivingLifecycle(payload: Payload) {
     reconcileCancellation: dependencies.reconcileCancellation,
   })
   const draftsDeleted = await cleanupGivingDrafts(dependencies.pool)
-  return { ...reconciliation, draftsDeleted }
+  const recurring = await reconcileRecurringGiving({ pool: dependencies.pool, provider: getBlinkPayRuntimeClient })
+  return { ...reconciliation, ...recurring, draftsDeleted }
 }

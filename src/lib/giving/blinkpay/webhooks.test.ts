@@ -17,6 +17,18 @@ const signature = (key: string, timestamp = Math.floor(now.getTime() / 1000), ra
   `t=${timestamp},v1=${createHmac('sha256', key).update(`${timestamp}.`).update(raw).digest('hex')}`
 
 describe('BlinkPay webhook verifier', () => {
+  it('accepts Base64 signing secrets as literal UTF-8 keys without weakening signature checks', () => {
+    const base64Secret = 'whsec_aB+/cdEF0123456789=='
+    const input = { rawBody: body, signature: signature(base64Secret), now, secrets: [base64Secret], contractVersion: 'tenant-verified-v1', signatureFormat: 'timestamp-sha256-v1' }
+    expect(verifyBlinkPayWebhook(input)).toEqual({ timestamp: Math.floor(now.getTime() / 1000) })
+    expect(() => verifyBlinkPayWebhook({ ...input, signature: signature(secret) })).toThrow('invalid')
+    expect(() => verifyBlinkPayWebhook({ ...input, rawBody: Buffer.from('tampered') })).toThrow('invalid')
+    expect(() => verifyBlinkPayWebhook({ ...input, signature: signature(base64Secret, Math.floor(now.getTime() / 1000) - 301) })).toThrow('outside')
+    for (const invalid of ['whsec_bad\nsecret', 'whsec_bad secret', 'whsec_', 'missing_prefix']) {
+      expect(() => verifyBlinkPayWebhook({ ...input, secrets: [invalid] })).toThrow('keyring')
+    }
+  })
+
   it('accepts current and previous keys only with an explicit configured contract', () => {
     for (const key of [secret, previous]) {
       expect(verifyBlinkPayWebhook({ rawBody: body, signature: signature(key), now, secrets: [secret, previous], contractVersion: 'tenant-verified-v1', signatureFormat: 'timestamp-sha256-v1' })).toEqual({ timestamp: Math.floor(now.getTime() / 1000) })

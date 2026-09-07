@@ -21,6 +21,17 @@ function request(overrides: { body?: string; contentType?: string; signature?: s
 describe('BlinkPay webhook route', () => {
   const contract = { contractVersion: 'blinkpay-debit-1.0.49', signatureHeader: 'x-signature', signatureFormat: 'timestamp-sha256-v1', eventFormat: 'fixed-recurring-payment-event-v1', secrets: [secret], acknowledgementStatus: 204 as const }
 
+  it('requests a provider retry when durable storage fails', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      const queue = vi.fn()
+      const handler = createBlinkPayWebhookHandler({ now: () => new Date('2026-08-15T12:00:00Z'), contract: () => contract, record: vi.fn().mockRejectedValue(new Error('database unavailable')), queue })
+      expect((await handler(request(), {environment:'production'})).status).toBe(503)
+      expect(queue).not.toHaveBeenCalled()
+      expect(log).toHaveBeenCalledWith({category:'blinkpay-webhook-storage-failed',environment:'production'})
+    } finally { log.mockRestore() }
+  })
+
   it('durably inserts before best-effort queue and acknowledges a queue failure', async () => {
     const order: string[] = []
     const handler = createBlinkPayWebhookHandler({ now: () => new Date('2026-08-15T12:00:00Z'), contract: vi.fn().mockReturnValue(contract), record: vi.fn(async () => { order.push('record'); return { outcome: 'inserted' as const, eventId: 7 } }), queue: vi.fn(async () => { order.push('queue'); throw new Error('queue unavailable') }) })

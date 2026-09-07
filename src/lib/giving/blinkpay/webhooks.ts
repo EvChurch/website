@@ -30,7 +30,7 @@ export function verifyBlinkPayWebhook(input: VerifyBlinkPayWebhookInput): { time
   if (
     input.secrets.length < 1 ||
     input.secrets.length > 2 ||
-    input.secrets.some((secret) => !/^whsec_[A-Za-z0-9._:-]{6,}$/u.test(secret))
+    input.secrets.some((secret) => !/^whsec_[A-Za-z0-9._:+/=-]{6,}$/u.test(secret))
   ) fail('Webhook keyring is not configured')
   const match = SIGNATURE.exec(input.signature)
   if (!match) fail('Webhook signature is malformed')
