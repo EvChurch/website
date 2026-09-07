@@ -42,14 +42,25 @@ export function createBlinkPayWebhookHandler(dependencies: Dependencies) {
     if (request.headers.get('content-type')?.split(';',1)[0]?.trim().toLowerCase() !== 'application/json') return new Response(null, { status: 415, headers: PRIVATE_HEADERS })
     let contract: WebhookContract
     try { contract = dependencies.contract(environment) } catch { return new Response(null, { status: 503, headers: PRIVATE_HEADERS }) }
+    let rawBody: Buffer
+    let event: ReturnType<typeof parseWebhookEvent>
     try {
-      const rawBody = await readBoundedRawBody(request)
+      rawBody = await readBoundedRawBody(request)
       verifyBlinkPayWebhook({ rawBody, signature: request.headers.get(contract.signatureHeader), now: (dependencies.now ?? (() => new Date()))(), secrets: contract.secrets, contractVersion: contract.contractVersion, signatureFormat: contract.signatureFormat })
-      const event = parseWebhookEvent(rawBody, contract.eventFormat)
+      event = parseWebhookEvent(rawBody, contract.eventFormat)
+    } catch {
+      console.warn({ category: 'blinkpay-webhook-validation-failed', environment })
+      return new Response(null, { status: 400, headers: PRIVATE_HEADERS })
+    }
+    try {
       const recorded = await dependencies.record({ environment, ...event, payloadDigest: webhookPayloadDigest(rawBody), now: (dependencies.now ?? (() => new Date()))() })
       if (recorded.outcome === 'inserted') await dependencies.queue(recorded.eventId).catch(() => undefined)
       return new Response(null, { status: contract.acknowledgementStatus, headers: PRIVATE_HEADERS })
-    } catch { return new Response(null, { status: 400, headers: PRIVATE_HEADERS }) }
+    } catch {
+      // A storage failure is retryable, not an invalid provider delivery. Never log its raw body.
+      console.error({ category: 'blinkpay-webhook-storage-failed', environment })
+      return new Response(null, { status: 503, headers: PRIVATE_HEADERS })
+    }
   }
 }
 
