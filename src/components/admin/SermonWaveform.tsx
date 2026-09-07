@@ -23,7 +23,7 @@ export function SermonWaveform({
   onAudition: (time: number, end: number) => void
 }) {
   const svg = useRef<SVGSVGElement>(null)
-  const dragging = useRef<'start' | 'end' | null>(null)
+  const dragging = useRef<'start' | 'end' | 'playhead' | null>(null)
   const changed = useRef(false)
   const selection = useRef({ start, end })
   selection.current = { start, end }
@@ -218,7 +218,12 @@ export function SermonWaveform({
           onSeek(position(event.clientX))
         }}
         onPointerMove={(event) => {
-          if (!dragging.current || disabled) return
+          if (!dragging.current) return
+          if (dragging.current === 'playhead') {
+            onSeek(position(event.clientX))
+            return
+          }
+          if (disabled) return
           move(
             dragging.current,
             Math.round(position(event.clientX) * 100) / 100,
@@ -229,7 +234,8 @@ export function SermonWaveform({
           dragging.current = null
           if (svg.current?.hasPointerCapture(event.pointerId))
             svg.current.releasePointerCapture(event.pointerId)
-          if (marker && changed.current) audition(marker)
+          if (marker && marker !== 'playhead' && changed.current)
+            audition(marker)
         }}
         onPointerCancel={() => {
           dragging.current = null
@@ -355,7 +361,50 @@ export function SermonWaveform({
             </g>
           )
         })}
-        <g pointerEvents="none" aria-label="Playhead">
+        <g
+          aria-label="Playhead"
+          role="slider"
+          tabIndex={0}
+          aria-valuemin={0}
+          aria-valuemax={duration}
+          aria-valuenow={currentTime}
+          aria-valuetext={format(currentTime)}
+          style={{ cursor: 'ew-resize' }}
+          onPointerDown={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            event.currentTarget.focus()
+            dragging.current = 'playhead'
+            svg.current?.setPointerCapture(event.pointerId)
+          }}
+          onKeyDown={(event) => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key))
+              return
+            event.preventDefault()
+            onSeek(
+              event.key === 'Home'
+                ? 0
+                : event.key === 'End'
+                  ? duration
+                  : Math.max(
+                      0,
+                      Math.min(
+                        duration,
+                        currentTime +
+                          (event.key === 'ArrowLeft' ? -1 : 1) *
+                            (event.shiftKey ? 0.1 : 1),
+                      ),
+                    ),
+            )
+          }}
+        >
+          <rect
+            x={x(currentTime) - 12}
+            y="17"
+            width="24"
+            height="22"
+            fill="transparent"
+          />
           <line
             x1={x(currentTime)}
             x2={x(currentTime)}
@@ -363,6 +412,7 @@ export function SermonWaveform({
             y2="150"
             stroke="var(--theme-text)"
             strokeWidth="1"
+            pointerEvents="none"
           />
           <path
             d={`M${x(currentTime) - 6},23h12l-6,9z`}

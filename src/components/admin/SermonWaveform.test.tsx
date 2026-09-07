@@ -194,3 +194,42 @@ it('pans with arrow keys on the timeline without changing cut boundaries', async
   })
   expect(seek).toHaveBeenLastCalledWith(25)
 })
+it('drags the playhead within a zoomed view without editing or auditioning the cut', async () => {
+  const svg = container.querySelector('svg')!
+  svg.setPointerCapture = vi.fn()
+  svg.hasPointerCapture = vi.fn(() => true)
+  svg.releasePointerCapture = vi.fn()
+  await act(async () => {
+    Array.from(container.querySelectorAll('button'))
+      .find((button) => button.textContent === 'Zoom in')!
+      .click()
+  })
+  await act(async () => {
+    container
+      .querySelector('[aria-label="Playhead"]')!
+      .dispatchEvent(
+        new PointerEvent('pointerdown', {
+          pointerId: 1,
+          clientX: 100,
+          bubbles: true,
+        }),
+      )
+  })
+  await act(async () => {
+    svg.dispatchEvent(
+      new PointerEvent('pointermove', {
+        pointerId: 1,
+        clientX: 600,
+        bubbles: true,
+      }),
+    )
+  })
+  expect(seek).toHaveBeenLastCalledWith(55)
+  await act(async () => {
+    svg.dispatchEvent(
+      new PointerEvent('pointerup', { pointerId: 1, bubbles: true }),
+    )
+  })
+  expect(change).not.toHaveBeenCalled()
+  expect(audition).not.toHaveBeenCalled()
+})
