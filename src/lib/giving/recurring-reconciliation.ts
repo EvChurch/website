@@ -50,6 +50,7 @@ export async function recordRecurringObservation(pool: Pool, candidate: Recurrin
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
+    await client.query("SET LOCAL lock_timeout='5s'; SET LOCAL statement_timeout='10s'")
     const row = (await client.query<RecurringProvenance>(`
       SELECT s.id,s.environment,s.provider_schedule_id,c.provider_consent_id,s.context_key,s.synthetic,
              s.checkout_id,s.giver_id,s.consent_id,s.amount_minor,s.transaction_fee_minor,
@@ -59,7 +60,7 @@ export async function recordRecurringObservation(pool: Pool, candidate: Recurrin
         AND c.environment=s.environment AND c.synthetic=s.synthetic AND c.context_key=s.context_key AND c.giver_id=s.giver_id
       JOIN giving_checkouts co ON co.id=s.checkout_id AND co.environment=s.environment
         AND co.synthetic=s.synthetic AND co.context_key=s.context_key AND co.giver_id=s.giver_id
-        AND co.amount_minor=s.amount_minor AND co.transaction_fee_minor=s.transaction_fee_minor
+        AND co.amount_minor=s.amount_minor AND co.transaction_fee_minor=s.transaction_fee_minor AND co.frequency=s.frequency
       JOIN giving_givers g ON g.id=s.giver_id AND g.environment=s.environment
         AND g.synthetic=s.synthetic AND g.context_key=s.context_key
       WHERE s.id=$1 AND s.environment=$2
@@ -90,11 +91,12 @@ export async function recordRecurringObservation(pool: Pool, candidate: Recurrin
       ])
       // Lock and verify an existing gift too: a duplicate ID must never move between donors or schedules.
       const gift = (await client.query(`SELECT id,status,provider_status,provider_status_updated_at,
-          context_key,synthetic,checkout_id,giver_id,consent_id,schedule_id,amount_minor,transaction_fee_minor
+          context_key,synthetic,checkout_id,giver_id,consent_id,schedule_id,fund_id,amount_minor,transaction_fee_minor
         FROM giving_gifts WHERE environment=$1 AND provider_payment_id=$2 FOR UPDATE`, [row.environment,payment.payment_id])).rows[0]
       if (!gift || gift.context_key !== row.context_key || gift.synthetic !== row.synthetic ||
         Number(gift.checkout_id) !== row.checkout_id || Number(gift.giver_id) !== row.giver_id ||
         Number(gift.consent_id) !== row.consent_id || Number(gift.schedule_id) !== row.id ||
+        Number(gift.fund_id) !== row.fund_id ||
         Number(gift.amount_minor) !== Number(row.amount_minor) || Number(gift.transaction_fee_minor) !== Number(row.transaction_fee_minor)) {
         throw new Error('Recurring gift provenance mismatch')
       }
