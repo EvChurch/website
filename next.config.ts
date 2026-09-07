@@ -10,9 +10,14 @@ const allowedDevOrigins = process.env.NEXT_ALLOWED_DEV_ORIGINS
   .filter(Boolean)
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ['ffmpeg-static'],
   ...(allowedDevOrigins?.length ? { allowedDevOrigins } : {}),
   async headers() {
     return [
+      { source: '/api/sermon-work-files/file/:path*', headers: [
+        { key: 'Cache-Control', value: 'private, no-store' },
+        { key: 'Cloudflare-CDN-Cache-Control', value: 'no-store' },
+      ] },
       ...[
         '/api/sermon-audio/file/:path*',
         '/api/media/file/:path*',

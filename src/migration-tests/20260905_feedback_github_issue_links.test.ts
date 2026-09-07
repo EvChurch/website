@@ -17,7 +17,10 @@ function migrationArgs(execute = vi.fn().mockResolvedValue(undefined)) {
 
 describe('feedback GitHub issue links migration', () => {
   it('registers after the existing migrations', () => {
-    expect(migrations.at(-1)?.name).toBe('20260905_060000_feedback_github_issue_links')
+    const names = migrations.map(({ name }) => name)
+    expect(names.indexOf('20260905_060000_feedback_github_issue_links')).toBe(
+      names.indexOf('20260903_010000_member_giving_self_service') + 1,
+    )
   })
 
   it('adds nullable GitHub issue tracking fields', () => {

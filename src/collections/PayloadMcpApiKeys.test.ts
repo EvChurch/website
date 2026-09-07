@@ -53,6 +53,7 @@ describe('Payload MCP API key access', () => {
       'blinkpay-webhook-events', 'connect-group-comments', 'giving-cancellation-feedback', 'giving-checkouts', 'giving-consents', 'giving-drafts',
       'giving-funds', 'giving-gifts', 'giving-givers',
       'giving-provider-operations', 'giving-schedules', 'leader-resource-shares',
+      'sermon-articles', 'sermon-productions', 'sermon-work-files',
     ])
     for (const slug of mcpExcludedCollectionSlugs) {
       expect(mcpCollections).not.toHaveProperty(slug)
@@ -60,7 +61,7 @@ describe('Payload MCP API key access', () => {
     expect(Object.keys(mcpGlobals).sort()).toEqual(
       applicationGlobals.map(({ slug }) => slug).filter((slug) => !mcpExcludedGlobalSlugs.has(slug)).sort(),
     )
-    expect([...mcpExcludedGlobalSlugs]).toEqual(['giving-settings'])
+    expect([...mcpExcludedGlobalSlugs]).toEqual(['giving-settings', 'sermon-settings'])
     expect(Object.values(mcpCollections).every(({ enabled }) => enabled === true)).toBe(true)
     expect(Object.values(mcpGlobals).every(({ enabled }) => enabled === true)).toBe(true)
   })

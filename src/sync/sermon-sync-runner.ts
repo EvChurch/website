@@ -756,7 +756,13 @@ async function syncSermons(limit?: number): Promise<SyncResult> {
  *
  * @param limit - If set, only sync the first N sermons (for development). Taxonomy entities always sync fully.
  */
-export async function runSermonSync(limit?: number): Promise<SyncResult[]> {
+export async function runSermonSync(_limit?: number): Promise<SyncResult[]> {
+  // Payload owns sermon metadata after the authoring cutover. Queued legacy jobs are harmless.
+  return []
+}
+
+/** Retained import implementation for archive reference; not scheduled or exposed. */
+async function _legacySermonImport(limit?: number): Promise<SyncResult[]> {
   const results: SyncResult[] = []
 
   // Phase 1: Independent entities (no relationships)

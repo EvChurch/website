@@ -1,3 +1,9 @@
+import { SermonArticles } from '@/collections/SermonArticles'
+import { sermonArticleTasks } from '@/jobs/sermon-articles'
+import { SermonProductions } from '@/collections/SermonProductions'
+import { SermonWorkFiles } from '@/collections/SermonWorkFiles'
+import { SermonSettings } from '@/globals/SermonSettings'
+import { sermonAudioTask } from '@/jobs/sermon-audio'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildConfig, type CollectionConfig, type GlobalConfig } from 'payload'
@@ -103,6 +109,9 @@ export const applicationCollections: CollectionConfig[] = [
   Categories,
   Scriptures,
   SermonAudio,
+  SermonProductions,
+  SermonArticles,
+  SermonWorkFiles,
   GivingFunds,
   GivingGivers,
   GivingCheckouts,
@@ -120,9 +129,13 @@ export const applicationGlobals: GlobalConfig[] = [
   SiteSettings,
   ServiceGuideSyncState,
   GivingSettings,
+  SermonSettings,
 ]
 
 export const mcpExcludedCollectionSlugs = new Set([
+  'sermon-articles',
+  'sermon-productions',
+  'sermon-work-files',
   'leader-resource-shares',
   'connect-group-comments',
   'giving-funds',
@@ -137,7 +150,7 @@ export const mcpExcludedCollectionSlugs = new Set([
   'giving-cancellation-feedback',
 ])
 
-export const mcpExcludedGlobalSlugs = new Set(['giving-settings'])
+export const mcpExcludedGlobalSlugs = new Set(['giving-settings', 'sermon-settings'])
 
 function enableMcpEntities<T extends { slug: string }>(entities: T[]) {
   return Object.fromEntries(
@@ -175,11 +188,13 @@ export default buildConfig({
     },
     components: {
       beforeLogin: ['@/components/admin/Auth0BeforeLogin'],
-      afterNavLinks: ['@/components/admin/MemberImpersonationNavLink'],
+      afterNavLinks: ['@/components/admin/MemberImpersonationNavLink', '@/components/admin/SermonManagerNavLink'],
+      beforeDashboard: ['@/components/admin/SermonManagerNavLink'],
       logout: {
         Button: '@/components/admin/Auth0LogoutButton',
       },
       views: {
+        sermonManager: { Component: '@/components/admin/SermonManagerView#SermonManagerView', exact: true, path: '/sermon-manager' },
         memberImpersonation: {
           Component: '@/components/admin/MemberImpersonationView#MemberImpersonationView',
           exact: true,
@@ -217,6 +232,7 @@ export default buildConfig({
             collections: {
               media: true,
               'sermon-audio': true,
+              'sermon-work-files': { prefix: 'sermon-work' },
             },
             bucket: process.env.S3_BUCKET,
             config: {
@@ -236,6 +252,8 @@ export default buildConfig({
 
   jobs: {
     tasks: [
+      sermonAudioTask,
+      ...sermonArticleTasks,
       ...notificationJobConfigs,
       ...givingJobConfigs,
       ...givingEmailJobConfigs,
@@ -298,6 +316,8 @@ export default buildConfig({
       },
     ],
     autoRun: [
+      { cron: '* * * * *', queue: 'sermon-audio', limit: 1 },
+      { cron: '* * * * *', queue: 'sermon-articles', limit: 1 },
       SITE_FEEDBACK_NOTIFICATION_AUTO_RUN,
       GIVING_LIFECYCLE_AUTO_RUN,
       { cron: '*/15 * * * *', queue: 'default', limit: 10 },

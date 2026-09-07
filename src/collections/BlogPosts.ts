@@ -25,6 +25,7 @@ export const BlogPosts: CollectionConfig = {
     afterDelete: [() => revalidateTag(CACHE_TAGS.blogPosts, 'default')],
   },
   fields: [
+    { name: 'apiBibleFumsToken', type: 'textarea', admin: { hidden: true } },
     {
       name: 'title',
       type: 'text',
@@ -109,6 +110,7 @@ export const BlogPosts: CollectionConfig = {
       name: 'seo',
       type: 'group',
       fields: [
+
         {
           name: 'metaTitle',
           type: 'text',

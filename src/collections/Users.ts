@@ -88,6 +88,7 @@ export const Users: CollectionConfig = {
         { label: 'Admin', value: 'admin' },
         { label: 'Content Lead', value: 'content-lead' },
         { label: 'Editor', value: 'editor' },
+        { label: 'Sermon Manager', value: 'sermon-manager' },
       ],
       required: false,
       access: {

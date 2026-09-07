@@ -49,3 +49,5 @@ next-env.d.ts
 # Uploaded media (synced from external APIs)
 /sermon-audio/
 .worktrees
+
+/sermon-work-files/
