@@ -8,6 +8,10 @@ import { trackNotFound } from '@/lib/tracked-not-found'
 
 const SIGNED_URL_EXPIRES_IN = 43200 // 12 hours
 
+function attachmentDisposition(filename: string): string {
+  return `attachment; filename="${filename.replace(/["\\\r\n]/g, '_')}"`
+}
+
 function getS3Client() {
   return new S3Client({
     credentials: {
@@ -95,6 +99,7 @@ export async function HEAD(request: Request) {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const filename = searchParams.get('file')
+  const shouldDownload = searchParams.get('download') === '1'
 
   if (!filename) {
     return missingFilenameResponse()
@@ -109,6 +114,9 @@ export async function GET(request: Request) {
     const command = new GetObjectCommand({
       Bucket: process.env.S3_BUCKET,
       Key: getStorageKey(doc),
+      ...(shouldDownload
+        ? { ResponseContentDisposition: attachmentDisposition(doc.filename!) }
+        : {}),
     })
 
     const signedUrl = await getSignedUrl(getS3Client(), command, {
@@ -145,6 +153,9 @@ export async function GET(request: Request) {
             'Content-Length': length.toString(),
             'Content-Range': `bytes ${start}-${end}/${size}`,
             'Accept-Ranges': 'bytes',
+            ...(shouldDownload
+              ? { 'Content-Disposition': attachmentDisposition(doc.filename!) }
+              : {}),
           },
         })
       }
@@ -160,6 +171,9 @@ export async function GET(request: Request) {
         'Content-Type': contentType,
         'Content-Length': size.toString(),
         'Accept-Ranges': 'bytes',
+        ...(shouldDownload
+          ? { 'Content-Disposition': attachmentDisposition(doc.filename!) }
+          : {}),
       },
     })
   } catch {

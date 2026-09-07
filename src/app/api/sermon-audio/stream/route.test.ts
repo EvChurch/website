@@ -76,4 +76,38 @@ describe('sermon audio stream route', () => {
     const command = mocks.getSignedUrl.mock.calls[0][1]
     expect(command.constructor.name).toBe('GetObjectCommand')
   })
+  it('requests attachment disposition only for explicit downloads', async () => {
+    const response = await GET(request('GET', 'a-sermon.m4a&download=1'))
+
+    expect(response.status).toBe(302)
+    const command = mocks.getSignedUrl.mock.calls[0][1]
+    expect(command.constructor.name).toBe('GetObjectCommand')
+    expect(command.input).toEqual({
+      Bucket: 'sermon-audio',
+      Key: 'a-sermon.m4a',
+      ResponseContentDisposition: 'attachment; filename="a-sermon.m4a"',
+    })
+  })
+
+  it('keeps normal stream requests inline', async () => {
+    await GET(request('GET'))
+    expect(mocks.getSignedUrl.mock.calls[0][1].input.ResponseContentDisposition).toBeUndefined()
+  })
+
+  it('looks up encoded filenames once and signs the original storage key', async () => {
+    mocks.find.mockResolvedValue({
+      docs: [{ filename: 'a sermon.m4a', prefix: 'uploads', mimeType: 'audio/x-m4a' }],
+    })
+
+    await GET(request('GET', 'a%20sermon.m4a&download=1'))
+
+    expect(mocks.find).toHaveBeenCalledWith(expect.objectContaining({
+      where: { filename: { equals: 'a sermon.m4a' } },
+    }))
+    expect(mocks.getSignedUrl.mock.calls[0][1].input).toEqual({
+      Bucket: 'sermon-audio',
+      Key: 'uploads/a sermon.m4a',
+      ResponseContentDisposition: 'attachment; filename="a sermon.m4a"',
+    })
+  })
 })
