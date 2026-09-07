@@ -92,6 +92,47 @@ describe('AnalyticsManager', () => {
     expect(container.querySelector('[data-ga-path="/sermons"]')).not.toBeNull()
   })
 
+  it('preserves the SDK ingestion envelope while removing private properties', async () => {
+    await act(async () => root.render(<AnalyticsManager />))
+    const { before_send: beforeSend } = posthog.init.mock.calls[0][1] as {
+      before_send: (event: unknown) => unknown
+    }
+    const timestamp = new Date('2026-09-07T00:00:00Z')
+    const transport = {
+      token: `phc_${'a'.repeat(40)}`,
+      distinct_id: 'b'.repeat(43),
+      $device_id: 'c'.repeat(43),
+      $session_id: '123e4567-e89b-42d3-a456-426614174000',
+      $window_id: '123e4567-e89b-42d3-a456-426614174001',
+    }
+    expect(beforeSend({
+      event: '$pageview', timestamp,
+      properties: { ...transport, amount: 100, paymentToken: 'private', $pathname: '/sermons' },
+    })).toEqual({
+      event: '$pageview', timestamp,
+      properties: { ...transport, $pathname: '/sermons' },
+    })
+  })
+
+  it('preserves SDK-masked replay data without exempting ordinary event properties', async () => {
+    await act(async () => root.render(<AnalyticsManager />))
+    const { before_send: beforeSend } = posthog.init.mock.calls[0][1] as {
+      before_send: (event: unknown) => unknown
+    }
+    const snapshot = [{ type: 3, data: 'a'.repeat(100), timestamp: 1788739200000 }]
+    expect(beforeSend({
+      event: '$snapshot',
+      properties: { token: 'test-token', $snapshot_data: snapshot, paymentToken: 'private' },
+    })).toEqual({
+      event: '$snapshot',
+      properties: { token: 'test-token', $snapshot_data: snapshot },
+    })
+    expect(beforeSend({
+      event: 'giving_flow_started',
+      properties: { token: 'test-token', detail: 'a'.repeat(100), amount: 100 },
+    })).toEqual({ event: 'giving_flow_started', properties: { token: 'test-token' } })
+  })
+
   it('drops browser-extension rejection noise from exception autocapture', async () => {
     await act(async () => root.render(<AnalyticsManager />))
 

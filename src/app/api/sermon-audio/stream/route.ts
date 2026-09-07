@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { getPayloadClient } from '@/lib/payload'
 import type { SermonAudio } from '@/payload-types'
@@ -7,6 +7,10 @@ import path from 'node:path'
 import { trackNotFound } from '@/lib/tracked-not-found'
 
 const SIGNED_URL_EXPIRES_IN = 43200 // 12 hours
+
+function attachmentDisposition(filename: string): string {
+  return `attachment; filename="${filename.replace(/["\\\r\n]/g, '_')}"`
+}
 
 function getS3Client() {
   return new S3Client({
@@ -21,15 +25,7 @@ function getS3Client() {
   })
 }
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const filename = searchParams.get('file')
-
-  if (!filename) {
-    return new Response('Missing file parameter', { status: 400 })
-  }
-
-  // Verify the file exists in Payload
+async function findSermonAudio(filename: string): Promise<SermonAudio | null> {
   const payload = await getPayloadClient()
   const result = await payload.find({
     collection: 'sermon-audio',
@@ -38,21 +34,89 @@ export async function GET(request: Request) {
     depth: 0,
   })
 
-  if (result.docs.length === 0) {
-    trackNotFound('api', 'sermon-audio', 'stream')
-    return new Response('Not found', { status: 404 })
+  return (result.docs[0] as SermonAudio | undefined) ?? null
+}
+
+function getStorageKey(doc: SermonAudio): string {
+  const prefix = (doc as SermonAudio & { prefix?: string }).prefix
+  return prefix ? `${prefix}/${doc.filename!}` : doc.filename!
+}
+
+function getContentType(doc: SermonAudio): string {
+  return doc.mimeType || 'audio/mpeg'
+}
+
+function missingFilenameResponse() {
+  return new Response('Missing file parameter', { status: 400 })
+}
+
+function notFoundResponse() {
+  trackNotFound('api', 'sermon-audio', 'stream')
+  return new Response('Not found', { status: 404 })
+}
+
+export async function HEAD(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const filename = searchParams.get('file')
+
+  if (!filename) {
+    return missingFilenameResponse()
   }
 
-  const doc = result.docs[0] as SermonAudio
+  const doc = await findSermonAudio(filename)
+
+  if (!doc) return notFoundResponse()
+
+  if (process.env.S3_BUCKET) {
+    const command = new HeadObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: getStorageKey(doc),
+    })
+
+    const signedUrl = await getSignedUrl(getS3Client(), command, {
+      expiresIn: SIGNED_URL_EXPIRES_IN,
+    })
+
+    return Response.redirect(signedUrl, 302)
+  }
+
+  try {
+    const fileStat = await stat(path.resolve('sermon-audio', doc.filename!))
+
+    return new Response(null, {
+      headers: {
+        'Content-Type': getContentType(doc),
+        'Content-Length': fileStat.size.toString(),
+        'Accept-Ranges': 'bytes',
+      },
+    })
+  } catch {
+    trackNotFound('api', 'sermon-audio', 'stream')
+    return new Response(null, { status: 404 })
+  }
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const filename = searchParams.get('file')
+  const shouldDownload = searchParams.get('download') === '1'
+
+  if (!filename) {
+    return missingFilenameResponse()
+  }
+
+  const doc = await findSermonAudio(filename)
+
+  if (!doc) return notFoundResponse()
 
   // S3 mode: redirect to signed URL
   if (process.env.S3_BUCKET) {
-    const prefix = (doc as SermonAudio & { prefix?: string }).prefix
-    const key = prefix ? `${prefix}/${doc.filename!}` : doc.filename!
-
     const command = new GetObjectCommand({
       Bucket: process.env.S3_BUCKET,
-      Key: key,
+      Key: getStorageKey(doc),
+      ...(shouldDownload
+        ? { ResponseContentDisposition: attachmentDisposition(doc.filename!) }
+        : {}),
     })
 
     const signedUrl = await getSignedUrl(getS3Client(), command, {
@@ -67,7 +131,7 @@ export async function GET(request: Request) {
   try {
     const fileStat = await stat(filePath)
     const size = fileStat.size
-    const contentType = doc.mimeType || 'audio/mpeg'
+    const contentType = getContentType(doc)
     const rangeHeader = request.headers.get('range')
 
     if (rangeHeader) {
@@ -89,6 +153,9 @@ export async function GET(request: Request) {
             'Content-Length': length.toString(),
             'Content-Range': `bytes ${start}-${end}/${size}`,
             'Accept-Ranges': 'bytes',
+            ...(shouldDownload
+              ? { 'Content-Disposition': attachmentDisposition(doc.filename!) }
+              : {}),
           },
         })
       }
@@ -104,6 +171,9 @@ export async function GET(request: Request) {
         'Content-Type': contentType,
         'Content-Length': size.toString(),
         'Accept-Ranges': 'bytes',
+        ...(shouldDownload
+          ? { 'Content-Disposition': attachmentDisposition(doc.filename!) }
+          : {}),
       },
     })
   } catch {
