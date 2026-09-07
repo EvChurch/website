@@ -25,28 +25,82 @@ export function validateCut(start: number, end: number, duration: number) {
   }
 }
 
+/** Measure before applying gain, preserving dynamics when the peak ceiling allows it. */
+async function normalizedMP3(
+  inputs: string[],
+  graph: string,
+  output: string,
+  target: number,
+  bitrate: string,
+) {
+  const settings = `I=${target}:TP=-1.5:LRA=11`
+  const { stderr } = await ffmpeg([
+    ...inputs,
+    '-loglevel',
+    'info',
+    '-nostats',
+    '-filter_complex',
+    `${graph};[mix]loudnorm=${settings}:print_format=json[normalized]`,
+    '-map',
+    '[normalized]',
+    '-f',
+    'null',
+    '-',
+  ])
+  const json = stderr.match(/\{\s*"input_i"[\s\S]*?\}/)?.[0]
+  if (!json) throw new Error('Unable to measure audio loudness.')
+  const measurements: Record<string, unknown> = JSON.parse(json)
+  const keys = [
+    'input_i',
+    'input_tp',
+    'input_lra',
+    'input_thresh',
+    'target_offset',
+  ] as const
+  const values = keys.map((key) => Number(measurements[key]))
+  // Silence (and very short clips) can have no measurable integrated loudness.
+  // Never turn -inf measurements into invalid FFmpeg filter parameters.
+  const filter = values.every(Number.isFinite)
+    ? `loudnorm=${settings}:measured_I=${values[0]}:measured_TP=${values[1]}:measured_LRA=${values[2]}:measured_thresh=${values[3]}:offset=${values[4]}:linear=true`
+    : 'anull'
+  await ffmpeg([
+    ...inputs,
+    '-filter_complex',
+    `${graph};[mix]${filter}[normalized]`,
+    '-map',
+    '[normalized]',
+    '-map_metadata',
+    '-1',
+    '-ar',
+    '44100',
+    '-c:a',
+    'libmp3lame',
+    '-b:a',
+    bitrate,
+    output,
+  ])
+}
+
 /** Measure one peak per second without decoding an entire recording into browser memory. */
 export async function prepareListeningCopy(
   source: string,
   preview: string,
   samples: string,
 ) {
-  await ffmpeg([
-    '-protocol_whitelist',
-    'file,pipe',
-    '-format_whitelist',
-    'aac,aiff,flac,mp3,mov,ogg,wav',
-    '-i',
-    source,
-    '-vn',
-    '-ac',
-    '1',
-    '-ar',
-    '44100',
-    '-b:a',
-    '96k',
+  await normalizedMP3(
+    [
+      '-protocol_whitelist',
+      'file,pipe',
+      '-format_whitelist',
+      'aac,aiff,flac,mp3,mov,ogg,wav',
+      '-i',
+      source,
+    ],
+    '[0:a:0]aformat=channel_layouts=mono[mix]',
     preview,
-  ])
+    -19,
+    '96k',
+  )
   const { stdout } = await ffmpeg([
     '-protocol_whitelist',
     'file,pipe',
@@ -94,15 +148,19 @@ export async function renderSermonAudio(
   validateCut(start, end, duration)
   const format =
     'aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo'
-  const inputs = [paths.source, paths.outro, ...(paths.intro ? [paths.intro] : [])]
+  const inputs = [
+    paths.source,
+    paths.outro,
+    ...(paths.intro ? [paths.intro] : []),
+  ]
   const filters = [
     `[0:a:0]atrim=start=${start}:end=${end},asetpts=PTS-STARTPTS,${format}[sermon]`,
     `[1:a:0]asetpts=PTS-STARTPTS,${format}[outro]`,
     ...(paths.intro ? [`[2:a:0]asetpts=PTS-STARTPTS,${format}[intro]`] : []),
-    `${paths.intro ? '[intro]' : ''}[sermon][outro]concat=n=${inputs.length}:v=0:a=1[out]`,
+    `${paths.intro ? '[intro]' : ''}[sermon][outro]concat=n=${inputs.length}:v=0:a=1[mix]`,
   ]
-  await ffmpeg([
-    ...inputs.flatMap((input) => [
+  await normalizedMP3(
+    inputs.flatMap((input) => [
       '-protocol_whitelist',
       'file,pipe',
       '-format_whitelist',
@@ -110,16 +168,9 @@ export async function renderSermonAudio(
       '-i',
       input,
     ]),
-    '-filter_complex',
     filters.join(';'),
-    '-map',
-    '[out]',
-    '-map_metadata',
-    '-1',
-    '-c:a',
-    'libmp3lame',
-    '-b:a',
-    '192k',
     paths.output,
-  ])
+    -16,
+    '192k',
+  )
 }
