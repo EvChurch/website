@@ -25,7 +25,7 @@ describe('CalendarDatePicker navigation', () => {
     container.remove()
   })
 
-  async function render(props: { min?: string; mode?: 'single' | 'range'; startDate?: string } = {}) {
+  async function render(props: { min?: string; mode?: 'single' | 'range'; startDate?: string; clearable?: boolean } = {}) {
     function Picker() {
       const [startDate, setStart] = useState(props.startDate ?? '')
       const [endDate, setEnd] = useState('')
@@ -91,6 +91,34 @@ describe('CalendarDatePicker navigation', () => {
     expect(onChange).not.toHaveBeenCalled()
     await click('Choose 18 August 2026')
     expect(onChange).toHaveBeenLastCalledWith('2026-08-18', '')
+  })
+
+  it('keeps the calendar in the scroll flow and brings it into view when opened', async () => {
+    const scrollIntoView = vi.fn()
+    const original = HTMLElement.prototype.scrollIntoView
+    HTMLElement.prototype.scrollIntoView = scrollIntoView
+    try {
+      await render()
+      expect(container.querySelector('[role="dialog"]')?.className).not.toContain('absolute')
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' })
+    } finally {
+      HTMLElement.prototype.scrollIntoView = original
+    }
+  })
+
+  it('keeps required dates subject to native form validation', async () => {
+    await render()
+    expect(container.querySelector('input')?.checkValidity()).toBe(false)
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label^="Choose "]')!.click())
+    expect(container.querySelector('input')?.checkValidity()).toBe(true)
+  })
+
+  it('can clear an existing birth date', async () => {
+    await render({ startDate: '1988-02-29', clearable: true })
+    await act(async () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Clear date')!.click())
+    expect(onChange).toHaveBeenLastCalledWith('', '')
+    expect(container.querySelector('input')?.value).toBe('')
+    expect(container.querySelector('[role="dialog"]')).toBeNull()
   })
 
   it('preserves range restart, cross-year completion, and month arrow rollover', async () => {

@@ -81,6 +81,8 @@ function PersonFields({
   const visible = (option: number) => option !== 0
   const required = (option: number) => option === 2
   const fieldPrefix = prefix ? `${prefix} ` : ''
+  const birthDateId = useId()
+  const [isBirthDateOpen, setIsBirthDateOpen] = useState(false)
 
   return (
     <div className="grid gap-5 @md/rock-form:grid-cols-2">
@@ -152,17 +154,25 @@ function PersonFields({
         </label>
       )}
       {visible(configuration.birthDateOption) && (
-        <label className={labelClass}>
-          {fieldPrefix}Date of birth
-          {required(configuration.birthDateOption) && ' *'}
-          <input
-            className={inputClass}
-            type="date"
-            value={String(values.personBirthDate || '').slice(0, 10)}
-            onChange={(event) => set('personBirthDate', event.target.value)}
-            required={required(configuration.birthDateOption)}
-          />
-        </label>
+        <div className="min-w-0">
+          <label htmlFor={birthDateId} className={labelClass}>
+            {fieldPrefix}Date of birth
+            {required(configuration.birthDateOption) && ' *'}
+          </label>
+          <div className="mt-2">
+            <CalendarDatePicker
+              id={birthDateId}
+              clearable
+              label={`${fieldPrefix}Date of birth`}
+              startDate={String(values.personBirthDate || '').slice(0, 10)}
+              isOpen={isBirthDateOpen}
+              onOpen={() => setIsBirthDateOpen((open) => !open)}
+              onComplete={() => setIsBirthDateOpen(false)}
+              onChange={(date) => set('personBirthDate', date)}
+              required={required(configuration.birthDateOption)}
+            />
+          </div>
+        </div>
       )}
       {configuration.isSmsVisible && (
         <label className="flex items-start gap-3 text-sm text-dark-grey @md/rock-form:col-span-2">
