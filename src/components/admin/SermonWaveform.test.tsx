@@ -205,15 +205,13 @@ it('drags the playhead within a zoomed view without editing or auditioning the c
       .click()
   })
   await act(async () => {
-    container
-      .querySelector('[aria-label="Playhead"]')!
-      .dispatchEvent(
-        new PointerEvent('pointerdown', {
-          pointerId: 1,
-          clientX: 100,
-          bubbles: true,
-        }),
-      )
+    container.querySelector('[aria-label="Playhead"]')!.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        pointerId: 1,
+        clientX: 100,
+        bubbles: true,
+      }),
+    )
   })
   await act(async () => {
     svg.dispatchEvent(
@@ -233,3 +231,68 @@ it('drags the playhead within a zoomed view without editing or auditioning the c
   expect(change).not.toHaveBeenCalled()
   expect(audition).not.toHaveBeenCalled()
 })
+it.each(
+  ['start cut boundary', 'end cut boundary', 'Playhead'].flatMap((label) =>
+    [10, -50, 990, 1050].map((clientX) => ({ label, clientX })),
+  ),
+)(
+  'auto-pans $label at $clientX and stops on release',
+  async ({ label, clientX }) => {
+    let frame: FrameRequestCallback | undefined
+    const raf = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback) => {
+        frame = callback
+        return 1
+      })
+    const cancel = vi
+      .spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => {})
+    const svg = container.querySelector('svg')!
+    svg.setPointerCapture = vi.fn()
+    svg.hasPointerCapture = vi.fn(() => true)
+    svg.releasePointerCapture = vi.fn()
+    await act(async () => {
+      Array.from(container.querySelectorAll('button'))
+        .find((button) => button.textContent === 'Zoom in')!
+        .click()
+    })
+    await act(async () => {
+      container.querySelector(`[aria-label="${label}"]`)!.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          pointerId: 1,
+          clientX,
+          bubbles: true,
+        }),
+      )
+    })
+    await act(async () => {
+      frame!(16)
+    })
+    const first =
+      label === 'Playhead'
+        ? seek.mock.lastCall![0]
+        : change.mock.lastCall![label.startsWith('start') ? 0 : 1]
+    await act(async () => {
+      frame!(32)
+    })
+    const second =
+      label === 'Playhead'
+        ? seek.mock.lastCall![0]
+        : change.mock.lastCall![label.startsWith('start') ? 0 : 1]
+    if (clientX < 500) expect(second).toBeLessThan(first)
+    else expect(second).toBeGreaterThan(first)
+    await act(async () => {
+      svg.dispatchEvent(
+        new PointerEvent('pointerup', { pointerId: 1, bubbles: true }),
+      )
+    })
+    const calls = seek.mock.calls.length + change.mock.calls.length
+    await act(async () => {
+      frame!(48)
+    })
+    expect(seek.mock.calls.length + change.mock.calls.length).toBe(calls)
+    raf.mockRestore()
+    cancel.mockRestore()
+  },
+)
