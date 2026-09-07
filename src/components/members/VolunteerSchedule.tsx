@@ -6,6 +6,7 @@ import { HiCheck, HiXMark } from 'react-icons/hi2'
 
 import { formInputClass } from '@/components/forms/form-styles'
 import { MEMBER_NOTIFICATIONS_REFRESH_EVENT } from '@/lib/member-notification-contract'
+import { MAX_DECLINE_NOTE_LENGTH, normalizedDeclineNote, requiresDeclineNote } from '@/lib/members/decline-notes'
 import type {
   VolunteerScheduleAssignment,
   VolunteerScheduleDeclineReason,
@@ -269,6 +270,8 @@ export function VolunteerSchedule({
   const [confirmDeclineId, setConfirmDeclineId] = useState<string | null>(null)
   const [isDeclineDialogVisible, setIsDeclineDialogVisible] = useState(false)
   const [declineReasonId, setDeclineReasonId] = useState<number | null>(null)
+  const [declineNote, setDeclineNote] = useState('')
+  const declineNoteRequired = requiresDeclineNote(declineReasons.find(({ id }) => id === declineReasonId)?.label ?? '')
   const [responseError, setResponseError] = useState<ScheduleResponseError | null>(null)
   const [assignmentStateOverrides, setAssignmentStateOverrides] = useState<Map<string, AssignmentState>>(
     () => new Map(),
@@ -283,6 +286,7 @@ export function VolunteerSchedule({
     declineCloseTimeoutRef.current = window.setTimeout(() => {
       setConfirmDeclineId(null)
       setDeclineReasonId(null)
+      setDeclineNote('')
       declineCloseTimeoutRef.current = null
       trigger?.focus()
     }, DIALOG_TRANSITION_MS)
@@ -456,6 +460,7 @@ export function VolunteerSchedule({
     assignment: VolunteerScheduleAssignment,
     response: 'accept' | 'decline',
     selectedDeclineReasonId?: number,
+    selectedDeclineNote?: string,
   ) => {
     if (respondingRef.current) return
     respondingRef.current = true
@@ -490,6 +495,7 @@ export function VolunteerSchedule({
           assignmentId: assignment.id,
           response,
           ...(response === 'decline' ? { declineReasonId: selectedDeclineReasonId } : {}),
+          ...(response === 'decline' && selectedDeclineNote !== undefined ? { declineNote: selectedDeclineNote } : {}),
         }),
         signal: AbortSignal.any([controller.signal, AbortSignal.timeout(RESPONSE_TIMEOUT_MS)]),
       })
@@ -668,6 +674,7 @@ export function VolunteerSchedule({
                     }
                     setIsDeclineDialogVisible(false)
                     setDeclineReasonId(null)
+                    setDeclineNote('')
                     setConfirmDeclineId(assignment.id)
                   }}
                 />
@@ -719,7 +726,10 @@ export function VolunteerSchedule({
               <select
                 id={`${declineDialogTitleId}-reason`}
                 value={declineReasonId ?? ''}
-                onChange={(event) => setDeclineReasonId(Number(event.target.value) || null)}
+                onChange={(event) => {
+                  setDeclineReasonId(Number(event.target.value) || null)
+                  setDeclineNote('')
+                }}
                 className={`${formInputClass} min-h-11 appearance-none pr-11 text-sm`}
               >
                 <option value="">Select a reason</option>
@@ -736,6 +746,26 @@ export function VolunteerSchedule({
                 <path d="m5.5 7.5 4.5 4.5 4.5-4.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
+            {declineNoteRequired && (
+              <div className="mt-5">
+                <label className="block text-sm font-bold text-brand-black" htmlFor={`${declineDialogTitleId}-note`}>
+                  Please tell us why (required)
+                </label>
+                <textarea
+                  id={`${declineDialogTitleId}-note`}
+                  value={declineNote}
+                  onChange={(event) => setDeclineNote(event.target.value)}
+                  required
+                  maxLength={MAX_DECLINE_NOTE_LENGTH}
+                  rows={3}
+                  aria-describedby={`${declineDialogTitleId}-note-help`}
+                  className={`${formInputClass} text-sm`}
+                />
+                <p id={`${declineDialogTitleId}-note-help`} className="mt-2 text-sm text-dark-grey">
+                  Your comment will be saved with your decline in Rock. Please avoid sensitive personal details.
+                </p>
+              </div>
+            )}
             {declineReasons.length === 0 && (
               <p role="alert" className="mt-2 text-sm text-rich-red">
                 Decline reasons are temporarily unavailable. Refresh the page and try again.
@@ -753,11 +783,12 @@ export function VolunteerSchedule({
               </button>
               <button
                 type="button"
-                disabled={respondingId !== null || declineReasonId === null}
-                onClick={() => declineReasonId !== null && void respond(
+                disabled={respondingId !== null || declineReasonId === null || (declineNoteRequired && normalizedDeclineNote(declineNote) === null)}
+                onClick={() => declineReasonId !== null && (!declineNoteRequired || normalizedDeclineNote(declineNote) !== null) && void respond(
                   declineAssignment,
                   'decline',
                   declineReasonId,
+                  declineNoteRequired ? normalizedDeclineNote(declineNote)! : undefined,
                 )}
                 className="min-h-11 rounded-full bg-rich-red px-5 py-2 text-sm font-bold text-white transition-colors hover:bg-brand-black disabled:cursor-not-allowed disabled:opacity-60"
               >
