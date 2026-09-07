@@ -8,6 +8,7 @@ export type RegistrationStatus = 'open' | 'full' | 'closed' | 'coming-soon' | nu
 
 export interface PublicEvent {
   id: number | string
+  rockEventId?: number
   title: string
   slug: string
   summary: unknown
