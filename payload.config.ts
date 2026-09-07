@@ -1,3 +1,5 @@
+import { SermonArticles } from '@/collections/SermonArticles'
+import { sermonArticleTasks } from '@/jobs/sermon-articles'
 import { SermonProductions } from '@/collections/SermonProductions'
 import { SermonWorkFiles } from '@/collections/SermonWorkFiles'
 import { SermonSettings } from '@/globals/SermonSettings'
@@ -108,6 +110,7 @@ export const applicationCollections: CollectionConfig[] = [
   Scriptures,
   SermonAudio,
   SermonProductions,
+  SermonArticles,
   SermonWorkFiles,
   GivingFunds,
   GivingGivers,
@@ -130,6 +133,7 @@ export const applicationGlobals: GlobalConfig[] = [
 ]
 
 export const mcpExcludedCollectionSlugs = new Set([
+  'sermon-articles',
   'sermon-productions',
   'sermon-work-files',
   'leader-resource-shares',
@@ -249,6 +253,7 @@ export default buildConfig({
   jobs: {
     tasks: [
       sermonAudioTask,
+      ...sermonArticleTasks,
       ...notificationJobConfigs,
       ...givingJobConfigs,
       ...givingEmailJobConfigs,
@@ -312,6 +317,7 @@ export default buildConfig({
     ],
     autoRun: [
       { cron: '* * * * *', queue: 'sermon-audio', limit: 1 },
+      { cron: '* * * * *', queue: 'sermon-articles', limit: 1 },
       SITE_FEEDBACK_NOTIFICATION_AUTO_RUN,
       GIVING_LIFECYCLE_AUTO_RUN,
       { cron: '*/15 * * * *', queue: 'default', limit: 10 },

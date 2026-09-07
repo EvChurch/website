@@ -3,7 +3,7 @@ import { authorSermonMetadata } from '@/hooks/authorSermonMetadata'
 import { createCacheInvalidationHook } from '@/hooks/revalidateCacheTags'
 import type { CollectionConfig } from 'payload'
 
-import { isSermonManager, isAdmin } from '@/access/roles'
+import { isSermonManager, isAdmin, hasSermonManagerRole } from '@/access/roles'
 
 export const Speakers: CollectionConfig = {
   slug: 'speakers',
@@ -23,6 +23,7 @@ export const Speakers: CollectionConfig = {
     afterDelete: [createCacheInvalidationHook('speakers')],
   },
   fields: [
+    { name: 'rockPersonId', type: 'number', min: 1, access: { read: ({ req }) => hasSermonManagerRole(req.user?.collection === 'users' ? req.user : null) }, admin: { description: 'Rock person ID for preacher review. Email is read directly from Rock.' }, validate: (value: unknown) => value == null || (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) || 'Enter a positive Rock person ID.' },
     {
       name: 'name',
       type: 'text',

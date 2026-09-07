@@ -457,12 +457,12 @@ export async function publishProduction(
           isPublished: true,
         },
       })
-      return payload.update({
-        collection: 'sermon-productions',
-        id,
-        req,
+      const published = await payload.update({
+        collection: 'sermon-productions', id, req,
         data: { publishedAudio: audioId, status: 'published' },
       })
+      await payload.jobs.queue({ task: 'prepareSermonArticle', queue: 'sermon-articles', input: { productionId: id }, req })
+      return published
     })
   } finally {
     await rm(directory, { recursive: true, force: true })
