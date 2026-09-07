@@ -59,12 +59,6 @@ function timestamp(seconds: number) {
   const mins = Math.floor((seconds % 3600) / 60)
   return `${hours}:${String(mins).padStart(2, '0')}:${(seconds % 60).toFixed(1).padStart(4, '0')}`
 }
-function parseTimestamp(value: string) {
-  const parts = value.split(':').map(Number)
-  return parts.every(Number.isFinite) && parts.length <= 3
-    ? parts.reduce((total, part) => total * 60 + part, 0)
-    : NaN
-}
 const statusLabel: Record<SermonProduction['status'], string> = {
   importing: 'Preparing recording',
   editable: 'Ready to cut',
@@ -96,7 +90,32 @@ export function SermonManager() {
     name: string
   }>()
   const audio = useRef<HTMLAudioElement>(null)
-  const [playingCut, setPlayingCut] = useState(false)
+  const [playing, setPlaying] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [volume, setVolume] = useState(1)
+  const stopAt = useRef<number | null>(null)
+  useEffect(() => {
+    if (!playing) return
+    let frame: number
+    const tick = () => {
+      const player = audio.current
+      if (!player) {
+        setPlaying(false)
+        return
+      }
+      if (player) {
+        if (stopAt.current !== null && player.currentTime >= stopAt.current) {
+          player.pause()
+          player.currentTime = stopAt.current
+          stopAt.current = null
+        }
+        setCurrentTime(player.currentTime)
+      }
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [playing])
 
   const loadDashboard = useCallback(async (query = '', page = 1) => {
     const result = await request<Dashboard>(
@@ -215,14 +234,16 @@ export function SermonManager() {
     setConfirmed(false)
   }
   function seek(time: number) {
+    stopAt.current = null
     if (audio.current) audio.current.currentTime = Math.max(0, time)
+    setCurrentTime(Math.max(0, time))
   }
-  function listen(time: number, cut = false) {
+  function listen(time: number, until: number) {
     seek(time)
-    setPlayingCut(cut)
+    stopAt.current = until
     void audio.current
       ?.play()
-      .catch(() => setError('Use the audio player to start playback.'))
+      .catch(() => setError('Press Play to start playback.'))
   }
   const processing = Boolean(
     production && ['importing', 'rendering'].includes(production.status),
@@ -234,7 +255,7 @@ export function SermonManager() {
     production?.status === 'discarded'
   const cutsChanged = Boolean(
     production?.source &&
-      (start !== production.start || end !== production.end),
+    (start !== production.start || end !== production.end),
   )
   const finishedUrl = production
     ? fileUrl(production.output) ||
@@ -279,8 +300,8 @@ export function SermonManager() {
           {!dashboard.configured && (
             <p className="sermon-manager__notice">
               Before importing recordings, an administrator needs to connect
-              Google Drive and configure the campus folders and outro in
-              Sermon Settings.
+              Google Drive and configure the campus folders and outro in Sermon
+              Settings.
             </p>
           )}
           {!production && !picker && (
@@ -526,23 +547,76 @@ export function SermonManager() {
                   <h2>1. Cut the recording</h2>
                   <audio
                     ref={audio}
-                    controls
                     preload="metadata"
                     src={fileUrl(production.listeningCopy)}
-                    onTimeUpdate={() => {
-                      if (
-                        playingCut &&
-                        audio.current &&
-                        audio.current.currentTime >= end
-                      ) {
-                        audio.current.pause()
-                        setPlayingCut(false)
-                      }
+                    onLoadedMetadata={() => {
+                      if (audio.current) audio.current.volume = volume
+                      setCurrentTime(audio.current?.currentTime || 0)
                     }}
+                    onPlay={() => setPlaying(true)}
+                    onPause={() => setPlaying(false)}
+                    onEnded={() => setPlaying(false)}
+                    onEmptied={() => {
+                      setPlaying(false)
+                      setCurrentTime(0)
+                      stopAt.current = null
+                    }}
+                    onSeeked={() =>
+                      setCurrentTime(audio.current?.currentTime || 0)
+                    }
                   />
+                  <div className="sermon-manager__row">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (playing) audio.current?.pause()
+                        else
+                          void audio.current
+                            ?.play()
+                            .catch(() =>
+                              setError(
+                                'Unable to play the recording. Try again.',
+                              ),
+                            )
+                      }}
+                    >
+                      {playing ? 'Pause' : 'Play'}
+                    </button>
+                    <output aria-label="Playback position">
+                      {timestamp(currentTime)}
+                    </output>
+                    <button
+                      type="button"
+                      aria-label={volume === 0 ? 'Unmute' : 'Mute'}
+                      onClick={() => {
+                        const next = volume === 0 ? 1 : 0
+                        setVolume(next)
+                        if (audio.current) audio.current.volume = next
+                      }}
+                    >
+                      {volume === 0 ? '🔇' : '🔊'}
+                    </button>
+                    <input
+                      aria-label="Volume"
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={volume}
+                      onChange={(event) => {
+                        const next = Number(event.target.value)
+                        setVolume(next)
+                        if (audio.current) audio.current.volume = next
+                      }}
+                    />
+                  </div>
                   <fieldset disabled={locked}>
                     <legend>Select one continuous section</legend>
                     <SermonWaveform
+                      key={production.id}
+                      currentTime={currentTime}
+                      disabled={locked}
+                      onAudition={listen}
                       peaks={
                         Array.isArray(production.peaks)
                           ? production.peaks.filter(
@@ -559,90 +633,6 @@ export function SermonManager() {
                       }}
                       onSeek={seek}
                     />
-                    <div className="sermon-manager__grid">
-                      {(['start', 'end'] as const).map((marker) => (
-                        <label key={`${marker}-${production.jobToken}`}>
-                          {marker === 'start' ? 'Start' : 'End'}{' '}
-                          (hours:minutes:seconds)
-                          <input
-                            key={timestamp(marker === 'start' ? start : end)}
-                            defaultValue={timestamp(
-                              marker === 'start' ? start : end,
-                            )}
-                            onBlur={(event) => {
-                              const value = parseTimestamp(event.target.value)
-                              if (
-                                Number.isFinite(value) &&
-                                value >= 0 &&
-                                value <= (production.sourceDuration || 0)
-                              )
-                                changeCut(
-                                  marker === 'start' ? value : start,
-                                  marker === 'end' ? value : end,
-                                )
-                              else
-                                setError(
-                                  'Enter a timestamp within the recording.',
-                                )
-                            }}
-                          />
-                          <input
-                            type="range"
-                            aria-label={`${marker} marker`}
-                            min={0}
-                            max={production.sourceDuration || 0}
-                            step="0.1"
-                            value={marker === 'start' ? start : end}
-                            onChange={(event) =>
-                              changeCut(
-                                marker === 'start'
-                                  ? Number(event.target.value)
-                                  : start,
-                                marker === 'end'
-                                  ? Number(event.target.value)
-                                  : end,
-                              )
-                            }
-                          />
-                        </label>
-                      ))}
-                    </div>
-                    <div className="sermon-manager__row">
-                      <button
-                        type="button"
-                        onClick={() => listen(Math.max(0, start - 3))}
-                      >
-                        Listen around start
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => listen(Math.max(start, end - 5))}
-                      >
-                        Listen around end
-                      </button>
-                      <button type="button" onClick={() => listen(start, true)}>
-                        Play selected section
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          changeCut(audio.current?.currentTime || 0, end)
-                        }
-                      >
-                        Set start here
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          changeCut(start, audio.current?.currentTime || 0)
-                        }
-                      >
-                        Set end here
-                      </button>
-                    </div>
-                    <p>
-                      Selected duration: {timestamp(Math.max(0, end - start))}
-                    </p>
                     <button
                       className="sermon-manager__primary"
                       disabled={start >= end}
