@@ -1,6 +1,6 @@
 # Giving release controls
 
-BlinkPay acquisition is controlled by the website's authenticated giving eligibility. During the initial production test period, the website offers BlinkPay only after member chrome resolves a real signed-in profile whose email is an exact `@ev.church` or `@evchurch.nz` address. Signed-out visitors and non-matching signed-in profiles remain on the direct bank-transfer path.
+BlinkPay is available to signed-out visitors and signed-in members with any email address when the server's selected BlinkPay environment is configured. Member chrome must load successfully before BlinkPay is offered, and admin impersonation remains excluded. Invalid server configuration, unavailable member chrome, and impersonation use the direct bank-transfer path. PostHog is not a giving rollout control.
 
 `BLINKPAY_DEFAULT_ENVIRONMENT` selects the server-owned BlinkPay environment and defaults to `sandbox`. Keep Sandbox credentials in the `BLINKPAY_SANDBOX_*` variables. Change the selector to `production` only after the production evidence below is complete; never place Sandbox credentials in the production variables.
 
@@ -25,7 +25,7 @@ These checks are operational guidance rather than runtime blockers:
 - Verified Ev reconciliation, alerting and operator response evidence.
 - Acquisition shutdown and lifecycle-sustainment rehearsal.
 
-The server accepts BlinkPay checkouts when the selected environment configuration is valid. The authenticated `@ev.church` and `@evchurch.nz` cohort is a short production test frontend gate, not an API authorization boundary.
+The server accepts BlinkPay checkouts when the selected environment configuration is valid. Public access does not change same-origin request controls, Turnstile, rate limits, identity resolution, or payment idempotency.
 
 ## Required evidence sequence
 
@@ -36,7 +36,7 @@ The server accepts BlinkPay checkouts when the selected environment configuratio
 5. Register the production Fixed Recurring Payment webhook subscription through BlinkPay's API for `https://www.ev.church/api/webhooks/blinkpay/production`, and retain the returned subscription ID. Store the returned `whsec_...` signing secret immediately; BlinkPay returns it only when the subscription is created.
 6. Configure monitoring for settlement, consent state, schedule state, webhook exceptions, unknown age and flow completion.
 7. Execute approved low-value real-money one-off and recurring setup/cancellation tests, reconcile all records, and confirm operator ownership.
-8. Expand the authenticated giving eligibility as evidence and operator confidence increase.
+8. Enable public giving eligibility only after verifying the production evidence above.
 
 ## Credential rotation
 
@@ -46,11 +46,11 @@ BlinkPay OAuth credentials, BlinkPay webhook secrets and the shared Rock credent
 
 Rollback has two independent planes:
 
-- **Website acquisition shutdown:** disable the authenticated BlinkPay eligibility to send new gifts through the direct bank-transfer path instead of BlinkPay. Existing same-origin request controls, Turnstile and rate limits remain the public API protections.
+- **Website acquisition shutdown:** set `blinkPayEligible` to `false` in `PublicChrome` and deploy through a PR to send new gifts through the direct bank-transfer path instead of BlinkPay. Do not disable production provider credentials or change `BLINKPAY_DEFAULT_ENVIRONMENT`; existing obligations still need production lifecycle handling. Existing same-origin request controls, Turnstile and rate limits remain the public API protections.
 - **Lifecycle sustainment:** keep compatible webhook ingestion, scheduled reconciliation, Payload financial administration and schedule cancellation deployed while any real recurring obligation exists.
 
 Do not roll back the giving schema after financial or audit writes. Unknown provider mutations remain blocked from retry until authoritative reconciliation. Use [giving operations](./giving-operations.md) for everyday tracing and exceptions.
 
 ## Release record
 
-Before expanding the authenticated BlinkPay audience, record owner, timestamp, commit and deployment, target cohort, monitoring owner, acquisition-disable action and lifecycle-sustainment version.
+Before expanding the BlinkPay audience, record owner, timestamp, commit and deployment, target cohort, monitoring owner, acquisition-disable action and lifecycle-sustainment version.

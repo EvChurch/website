@@ -34,12 +34,12 @@ function givingResumeRequested(request: NextRequest) {
   )
 }
 
-async function anonymousResponse(request: NextRequest) {
+async function anonymousResponse(request: NextRequest, status = 200) {
   return NextResponse.json({
     ...ANONYMOUS_MEMBER_CHROME,
     givingResumeRequested: givingResumeRequested(request),
     givingTurnstileSiteKey: turnstileSiteKey(),
-  }, { headers: PRIVATE_HEADERS })
+  }, { status, headers: PRIVATE_HEADERS })
 }
 
 function turnstileSiteKey() {
@@ -94,6 +94,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(state, { headers: PRIVATE_HEADERS })
   } catch {
-    return anonymousResponse(request)
+    return anonymousResponse(request, 503)
   }
 }

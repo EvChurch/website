@@ -27,8 +27,6 @@ import type { PublicSiteFeedbackSettings } from '@/lib/site-feedback/settings'
 import { Header } from './Header'
 import { SiteHeader } from './SiteHeader'
 
-const blinkPayEligibleEmailPattern = /^[^@]+@(?:ev\.church|evchurch\.nz|aucklandev\.co\.nz)$/iu
-
 export function PublicChrome({
   children,
   feedback,
@@ -55,6 +53,7 @@ export function PublicChrome({
   const [givingResumeRequested, setGivingResumeRequested] = useState(false)
   const [givingTurnstileSiteKey, setGivingTurnstileSiteKey] = useState('')
   const [memberChromeResolved, setMemberChromeResolved] = useState(false)
+  const [memberChromeAvailable, setMemberChromeAvailable] = useState(false)
 
   useLayoutEffect(() => {
     if (initialRoute.current) {
@@ -85,6 +84,7 @@ export function PublicChrome({
       .then(async (response) => response.ok ? parseMemberChromeState(await response.json()) : null)
       .then((state) => {
         if (!cancelled && state) {
+          setMemberChromeAvailable(true)
           setMemberChrome((current) =>
             isAnonymousMemberChrome(current) && isAnonymousMemberChrome(state)
               ? current
@@ -122,9 +122,7 @@ export function PublicChrome({
         gatewayOrigins={givingRuntime?.gatewayOrigins ?? []}
       />
     : <GivingUnavailable />
-  const blinkPayEligible = memberChromeResolved &&
-    memberChrome.impersonation === null &&
-    blinkPayEligibleEmailPattern.test(memberChrome.memberProfile?.email ?? '')
+  const blinkPayEligible = memberChromeResolved && memberChromeAvailable && memberChrome.impersonation === null
 
   return (
     <GivingExperienceProvider
