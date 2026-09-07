@@ -74,8 +74,14 @@ async function driveFetch(
   params: Record<string, string> = {},
   range?: string,
 ) {
+  const url = new URL('https://www.googleapis.com')
+  url.pathname = `/drive/v3/${path}`
+  url.search = new URLSearchParams({
+    supportsAllDrives: 'true',
+    ...params,
+  }).toString()
   return fetch(
-    `https://www.googleapis.com/drive/v3/${path}?${new URLSearchParams({ supportsAllDrives: 'true', ...params })}`,
+    url,
     {
       headers: {
         Authorization: `Bearer ${await token()}`,
