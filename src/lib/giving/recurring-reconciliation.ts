@@ -115,9 +115,11 @@ export async function recordRecurringObservation(pool: Pool, candidate: Recurrin
     await client.query(`UPDATE giving_schedules SET
         status=CASE WHEN status IN ('cancelled','failed','cancel_pending') THEN status ELSE $2 END,
         provider_status=$2,provider_status_updated_at=COALESCE($3,provider_status_updated_at),
-        next_payment_date=$4,provider_verified_at=$5,provider_observed_at=$5,
+        next_payment_date=GREATEST(next_payment_date,$4::timestamptz),provider_verified_at=$5,provider_observed_at=$5,
         provider_source='reconciliation',provider_request_id=$6,updated_at=$5
-      WHERE id=$1 AND (provider_verified_at IS NULL OR provider_verified_at<=$5)`,
+      WHERE id=$1 AND (provider_verified_at IS NULL OR provider_verified_at<=$5)
+        AND ($3::timestamptz IS NULL OR provider_status_updated_at IS NULL OR provider_status_updated_at<=$3)
+        AND NOT (status IN ('cancelled','failed') AND status<>$2)`,
     [row.id,schedule.status,schedule.status_updated_timestamp ?? null,`${schedule.next_payment_date}T00:00:00.000Z`,observedAt,schedule.provider_correlation_id ?? null])
     await client.query('COMMIT')
   } catch (error) {
@@ -150,14 +152,17 @@ export async function reconcileRecurringGiving(input: { pool: Pool; provider(env
           const known = new Set((await pool.query<{ provider_payment_id: string }>(`SELECT provider_payment_id FROM giving_gifts
             WHERE environment=$1 AND schedule_id=$2 AND status IN ('settled','failed','cancelled')
               AND provider_verified_at IS NOT NULL`, [candidate.environment,candidate.id])).rows.map(row => row.provider_payment_id))
-          const payments: BlinkPayPayment[] = []
+          await recordRecurringObservation(pool,candidate,schedule,[],observedAt)
+          let paymentFailures = 0
           for (const payment of consent.payments) {
             if (known.has(payment.payment_id)) continue
-            const verified = await provider.getPayment(payment.payment_id)
-            if (verified.payment_id !== payment.payment_id) throw new Error('Recurring payment response mismatch')
-            payments.push(verified)
+            try {
+              const verified = await provider.getPayment(payment.payment_id)
+              if (verified.payment_id !== payment.payment_id) throw new Error('Recurring payment response mismatch')
+              await recordRecurringObservation(pool,candidate,schedule,[verified],observedAt)
+            } catch { paymentFailures++ }
           }
-          await recordRecurringObservation(pool,candidate,schedule,payments,observedAt)
+          if (paymentFailures) throw new Error('Recurring payments require further reconciliation')
         } catch {
           result.recurringFailures++
           // Never log payment bodies, donor details, credentials, or provider error responses.

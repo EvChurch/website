@@ -125,6 +125,22 @@ describe.skipIf(!databaseUrl)('giving webhook PostgreSQL leases and failure reco
     await recordRecurringObservation(pool,candidate,{...withFee,next_payment_date:'2026-09-06'},[{...paid,status:'Pending',status_updated_timestamp:'2026-09-06T09:00:02+12:00'}],new Date('2026-09-07T00:00:00Z'))
     expect((await pool.query('SELECT amount_minor,transaction_fee_minor,status FROM giving_gifts')).rows).toEqual([{amount_minor:'4200',transaction_fee_minor:'50',status:'settled'}])
     expect((await pool.query('SELECT next_payment_date FROM giving_schedules')).rows[0].next_payment_date).toEqual(new Date('2026-10-06'))
+    await recordRecurringObservation(pool,candidate,{...withFee,next_payment_date:'2026-09-06',status_updated_timestamp:'2026-09-04T10:00:00Z'},[],new Date('2026-09-09T00:00:00Z'))
+    expect((await pool.query('SELECT next_payment_date,provider_status_updated_at FROM giving_schedules')).rows[0]).toEqual({next_payment_date:new Date('2026-10-06'),provider_status_updated_at:new Date(schedule.status_updated_timestamp!)})
+  })
+
+  it('isolates a failed payment read so another payment and the schedule can still recover', async () => {
+    await seedRecurring()
+    const {provider,consent,payment}=recurringProvider()
+    const badPayment={...payment,payment_id:'55555555-5555-4555-8555-555555555555'}
+    provider.getEnduringConsent.mockResolvedValue({...consent,payments:[badPayment,payment]})
+    provider.getPayment.mockRejectedValueOnce(new Error('provider unavailable'))
+    const log=vi.spyOn(console,'error').mockImplementation(()=>undefined)
+    try {
+      expect(await reconcileRecurringGiving({pool,provider:()=>provider})).toEqual({recurringSchedules:1,recurringFailures:1})
+      expect((await pool.query('SELECT status,provider_payment_id FROM giving_gifts')).rows).toEqual([{status:'settled',provider_payment_id:payment.payment_id}])
+      expect((await pool.query('SELECT next_payment_date FROM giving_schedules')).rows[0].next_payment_date).toEqual(new Date('2026-10-06'))
+    } finally { log.mockRestore() }
   })
 
   it('authoritatively correlates concurrent recurring payment events and creates one immutable schedule gift', async () => {
