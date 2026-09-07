@@ -29,6 +29,7 @@ Both application flows use the same Auth0 settings:
 |---|---|
 | `APP_BASE_URL` | Exact website origin, with no path or trailing credentials |
 | `AUTH0_DOMAIN` | Existing Auth0 tenant/custom domain without a path |
+| `AUTH0_IDENTITY_ISSUER` | Optional stable HTTPS issuer for Payload account keys; defaults to the login domain |
 | `AUTH0_SECRET` | Existing 32-byte website session secret encoded as 64 hex characters |
 | `AUTH0_CLIENT_ID` | Client ID of the single Rock-connected website application |
 | `AUTH0_CLIENT_SECRET` | Client secret of the single Rock-connected website application |
@@ -36,6 +37,17 @@ Both application flows use the same Auth0 settings:
 | `ROCK_API_KEY` | Existing website Rock API credential |
 
 Store secrets in the deployment secret store, restrict operator access, and never print their values. Public-member and Payload-admin sign-in use the existing `/auth/*` routes and encrypted Auth0 session. Payload roles remain the sole admin authorization gate; a member session without a recognized Payload role cannot access `/admin`.
+
+When moving the same Auth0 tenant to a verified custom domain, preserve the issuer
+used by existing Payload users in `AUTH0_IDENTITY_ISSUER`. Deploy support for this
+setting before changing `AUTH0_DOMAIN`. For this production tenant, set
+`AUTH0_IDENTITY_ISSUER=https://dev-xc16stsw52lzt8sa.us.auth0.com/` and
+`AUTH0_DOMAIN=auth.ev.church` together. The SDK continues validating tokens against
+the custom login domain; the stable issuer is only the local account namespace.
+Never use this setting to combine identities from different Auth0 tenants. Verify
+member login, existing admin permissions, and logout after deployment. To roll back
+the login hostname, restore the previous `AUTH0_DOMAIN` and keep the identity issuer
+unchanged. No user-data migration is needed.
 
 ## Rock access
 

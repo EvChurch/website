@@ -3,6 +3,7 @@ export interface Auth0RuntimeConfig {
   clientId: string
   clientSecret: string
   domain: string
+  // Stable namespace for Payload identities; the SDK validates tokens using domain.
   issuer: string
   secret: string
 }
@@ -20,6 +21,16 @@ export function readAuth0Config(): Auth0RuntimeConfig {
   const domain = rawDomain.replace(/^https?:\/\//, '').replace(/\/$/, '')
   if (!domain || domain.includes('/') || !domain.includes('.')) {
     throw new Error('Invalid AUTH0_DOMAIN')
+  }
+
+  const identityIssuer = process.env.AUTH0_IDENTITY_ISSUER?.trim() || `https://${domain}/`
+  if (!URL.canParse(identityIssuer)) throw new Error('Invalid AUTH0_IDENTITY_ISSUER')
+  const issuer = new URL(identityIssuer)
+  if (
+    issuer.protocol !== 'https:' || issuer.pathname !== '/' ||
+    issuer.search || issuer.hash || issuer.username || issuer.password
+  ) {
+    throw new Error('Invalid AUTH0_IDENTITY_ISSUER')
   }
 
   const appBaseUrl = new URL(required('APP_BASE_URL'))
@@ -40,7 +51,7 @@ export function readAuth0Config(): Auth0RuntimeConfig {
     clientId: required('AUTH0_CLIENT_ID'),
     clientSecret: required('AUTH0_CLIENT_SECRET'),
     domain,
-    issuer: `https://${domain}/`,
+    issuer: `${issuer.origin}/`,
     secret,
   }
 }
