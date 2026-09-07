@@ -79,14 +79,6 @@ function formatDuration(seconds: number): string {
   return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`
 }
 
-function decodeFilename(filename: string): string {
-  try {
-    return decodeURIComponent(filename)
-  } catch {
-    return filename
-  }
-}
-
 export default async function SermonPage({
   params,
 }: {
@@ -171,7 +163,7 @@ export default async function SermonPage({
   // Render "More from this series" sermons from the same cached snapshot.
   const primarySeriesTitle = seriesList[0]?.title ?? null
   const audioUrl = getSermonAudioUrl(sermon.audio)
-  const audioFilename = audioUrl.split('/').pop()
+  const audioFilename = typeof sermon.audio === 'object' ? sermon.audio?.filename : undefined
   const audioDownloadHref = audioFilename
     ? `/api/sermon-audio/stream?file=${encodeURIComponent(audioFilename)}&download=1`
     : ''
@@ -316,7 +308,7 @@ export default async function SermonPage({
                   {audioDownloadHref && (
                     <a
                       href={audioDownloadHref}
-                      download={audioFilename ? decodeFilename(audioFilename) : undefined}
+                      download={audioFilename || undefined}
                       aria-label={`Download sermon audio for ${sermon.title}`}
                       title="Download audio"
                       className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-warm-white/20 text-warm-white/80 transition-colors hover:border-warm-white/40 hover:text-warm-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-white"

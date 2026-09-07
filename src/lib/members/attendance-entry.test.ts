@@ -261,7 +261,8 @@ describe('Connect Group attendance entry', () => {
     await expect(saveConnectGroupAttendanceMeeting({
       groupId: 10, meeting, roster: [{ rockPersonId: 42, state: 'present' }], notes: '', didNotMeet: true,
     })).resolves.toMatchObject({ status: 'saved', state: { didNotMeet: true } })
-    expect(mocks.rockFetch).toHaveBeenCalledWith(expect.objectContaining({ endpoint: 'Attendances/1', method: 'PUT' }))
+    expect(mocks.rockFetch).toHaveBeenCalledWith(expect.objectContaining({ endpoint: 'Attendances/1', method: 'PUT', body: expect.objectContaining({ DidAttend: null }) }))
+    expect(mocks.rockFetch).not.toHaveBeenCalledWith(expect.objectContaining({ endpoint: 'Attendances', method: 'POST' }))
     expect(mocks.rockFetch).not.toHaveBeenCalledWith(expect.objectContaining({ endpoint: 'Attendances/9', method: 'PUT' }))
   })
 

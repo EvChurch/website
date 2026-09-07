@@ -10,7 +10,11 @@ export { verifyTurnstileToken } from '@/lib/turnstile'
 import { createRockFormContextToken } from './context-token'
 import { isGuid } from './constants'
 import { resolveRockBinaryFileTypeGuid } from './file-upload'
-import { parseRockInteractiveAction, replaceApiPersonDefaults } from './schema'
+import {
+  defaultPersonEntryValues,
+  parseRockInteractiveAction,
+  replaceApiPersonDefaults,
+} from './schema'
 import type {
   RockFormContext,
   RockFormSchema,
@@ -307,6 +311,10 @@ export async function buildRockFormSchema({
   const hidePersonEntryWhenKnown = Boolean(
     personId && personEntryBehavior?.hideIfCurrentPersonKnown,
   )
+  const visiblePersonEntryValues =
+    parsed.personEntry && !hidePersonEntryWhenKnown
+      ? initialPersonEntryValues || defaultPersonEntryValues()
+      : null
   const allowedFields = parsed.fields.map((field) => {
     return {
       attributeGuid: field.attribute.attributeGuid.toLowerCase(),
@@ -355,8 +363,7 @@ export async function buildRockFormSchema({
     fields: publicFields,
     personEntry: hidePersonEntryWhenKnown ? null : parsed.personEntry,
     initialFieldValues: parsed.initialFieldValues,
-    initialPersonEntryValues:
-      hidePersonEntryWhenKnown ? null : initialPersonEntryValues,
+    initialPersonEntryValues: visiblePersonEntryValues,
     buttons: parsed.buttons,
     contextToken: createRockFormContextToken(context),
     turnstileSiteKey: getTurnstileSiteKey(),
