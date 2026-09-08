@@ -11,10 +11,10 @@ let container: HTMLDivElement
 const metadata = { title: 'The Confidence to Continue', publishedAt: '2026-09-06', audioSpeaker: 5, audioCampus: 3, passageReference: 'Hebrews 10:19-39', scriptures: [1], series: [1], topics: [] }
 const production = { id: 4, status: 'ready', sourceName: 'service.mp3', metadata, start: 10, end: 90, source: 1, sourceDuration: 100, listeningCopy: { url: '/source.mp3' }, output: { url: '/finished.mp3' }, peaks: [0.2, 0.5] }
 const dashboard = { configured: true, productions: [production], sermons: { docs: [], page: 1, totalPages: 1 }, folders: [], speakers: [{ id: 5, name: 'Ming Yong' }], campuses: [{ id: 3, name: 'Unichurch' }], series: [{ id: 1, title: 'Hebrews' }], scriptures: [{ id: 1, name: 'Hebrews' }], topics: [], topicReviews: [] }
-async function setup(incomplete = false) {
-  const row = { ...production, metadata: { ...metadata, ...(incomplete ? { audioSpeaker: undefined } : {}) } }
+async function setup(incomplete = false, empty = false) {
+  const row = { ...production, ...(empty ? { source: null, output: null, listeningCopy: null, publishedAudio: null } : {}), metadata: { ...metadata, ...(incomplete ? { audioSpeaker: undefined } : {}) } }
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
-  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => ({ ok: init?.method !== 'POST', json: async () => init?.method === 'POST' ? { error: 'Save failed' } : url.includes('?production=') ? { production: row } : dashboard })))
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => ({ ok: init?.method !== 'POST', json: async () => init?.method === 'POST' ? { error: 'Save failed' } : url.includes('?production=') ? { production: row } : url.includes('?folder=') ? { files: [] } : dashboard })))
   vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
   container = document.createElement('div'); document.body.append(container); root = createRoot(container)
   await act(async () => root.render(<SermonManager />))
@@ -47,4 +47,13 @@ it('opens incomplete ready drafts at details and stays there if saving fails', a
   await click('Continue to review →')
   expect(stage().textContent).toContain('Check the details')
   expect(container.textContent).toContain('Save failed')
+})
+
+it('routes drafts without audio to the recording picker instead of calendar review', async () => {
+ await setup(false,true)
+ expect(container.textContent).toContain('This draft has no recording attached')
+ expect(container.textContent).toContain('Choose the best campus recording')
+ expect(container.querySelector('.sermon-manager__stage')).toBeNull()
+ await click('Cancel')
+ expect(container.textContent).toContain('New sermon')
 })
