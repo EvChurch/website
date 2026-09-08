@@ -61,6 +61,9 @@ function timestamp(seconds: number) {
   const mins = Math.floor((seconds % 3600) / 60)
   return `${hours}:${String(mins).padStart(2, '0')}:${(seconds % 60).toFixed(1).padStart(4, '0')}`
 }
+function needsRecording(row: Pick<SermonProduction, 'status' | 'source' | 'output' | 'publishedAudio'>) {
+  return row.status === 'ready' && !row.source && !row.output && !row.publishedAudio
+}
 const statusLabel: Record<SermonProduction['status'], string> = {
   importing: 'Preparing recording',
   editable: 'Ready to cut',
@@ -197,6 +200,13 @@ export function SermonManager() {
       setNextPage(result.nextPageToken)
     })
   }
+  async function openProduction(productionId: number) {
+    const row = await loadProduction(productionId)
+    if (needsRecording(row)) {
+      setPicker(true)
+      await browse(folder)
+    } else setPicker(false)
+  }
   async function begin(sermonId?: number, fileId?: string) {
     await perform(async () => {
       const result = await request<{ id: number }>(api, {
@@ -211,9 +221,8 @@ export function SermonManager() {
             }
           : {}),
       })
-      await loadProduction(result.id)
+      await openProduction(result.id)
       await loadDashboard()
-      setPicker(false)
     })
   }
   async function action(actionName: string) {
@@ -356,13 +365,13 @@ export function SermonManager() {
                           disabled={busy}
                           onClick={() =>
                             void perform(async () => {
-                              await loadProduction(row.id)
+                              await openProduction(row.id)
                             })
                           }
                         >
                           {row.sourceName}
                         </button>
-                        <span>{statusLabel[row.status]}</span>
+                        <span>{needsRecording(row) ? 'Recording needed' : statusLabel[row.status]}</span>
                       </li>
                     ))}
                   </ul>
@@ -447,6 +456,7 @@ export function SermonManager() {
           {picker && (
             <section>
               <h2>Choose the best campus recording</h2>
+              {production && needsRecording(production) && <p>This draft has no recording attached. Choose a recording to load its calendar details and prepare the audio.</p>}
               <p>
                 The original stays in Drive. Import a recording to listen and
                 choose the cut.
@@ -469,7 +479,14 @@ export function SermonManager() {
                     </option>
                   ))}
                 </select>
-                <button disabled={busy} onClick={() => setPicker(false)}>
+                <button disabled={busy} onClick={() => {
+                  setPicker(false)
+                  if (production && needsRecording(production)) {
+                    setProduction(undefined)
+                    setMetadata(undefined)
+                    openedProduction.current = undefined
+                  }
+                }}>
                   Cancel
                 </button>
               </div>

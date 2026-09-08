@@ -12,7 +12,7 @@ import {
 import type { Sermon, SermonProduction, User } from '@/payload-types'
 import { relationID, getRecording } from './drive'
 import { validateCut } from './audio'
-import { calendarDefaults } from './calendar'
+import { calendarDefaults, recordingDate } from './calendar'
 import { copyWorkFile } from './storage'
 
 export interface SermonMetadata {
@@ -252,20 +252,23 @@ async function createProduction(
     ? readMetadata(draftMetadata)
     : metadataFromSermon(sermon)
   if (recording) metadata.audioCampus = recording.campus
-  const defaults = recording && !sermonId && !draftMetadata
+  const defaults = recording && !sermon.isPublished
     ? await calendarDefaults(payload, settings, recording.file.name, recording.campus, req)
     : undefined
+  const initialMetadata = defaults
+    ? fillMissingCalendarMetadata(metadata, defaults.metadata, sermon.title)
+    : metadata
   const production = await payload.create({
     collection: 'sermon-productions',
     req,
     data: {
       sermon: sermon.id,
       baseSermonRevision: sermonRevision(sermon),
-      sourceName: recording?.file.name || 'Existing published audio',
+      sourceName: recording?.file.name || (sermon.audio ? 'Existing published audio' : 'Choose a recording'),
       driveFileId: recording?.file.id,
       driveModifiedTime: recording?.file.modifiedTime,
       campus: recording?.campus || metadata.audioCampus,
-      metadata: { ...metadata, ...defaults?.metadata },
+      metadata: { ...initialMetadata },
       calendarNotice: defaults?.notice,
       status: recording ? 'importing' : 'ready',
       jobToken: randomUUID(),
@@ -275,6 +278,29 @@ async function createProduction(
   })
   if (recording) await queueProduction(payload, production, req)
   return production.id
+}
+
+/** Reattaching audio fills gaps without replacing a manager's authored details. */
+export function fillMissingCalendarMetadata(
+  metadata: SermonMetadata,
+  defaults: Partial<SermonMetadata>,
+  originalTitle: string,
+): SermonMetadata {
+  return {
+    ...metadata,
+    title:
+      !metadata.title.trim() ||
+      (metadata.title === originalTitle &&
+        (recordingDate(originalTitle) || originalTitle === 'Untitled sermon'))
+        ? defaults.title || metadata.title
+        : metadata.title,
+    publishedAt: metadata.publishedAt || defaults.publishedAt || '',
+    audioSpeaker: metadata.audioSpeaker || defaults.audioSpeaker,
+    audioCampus: metadata.audioCampus || defaults.audioCampus,
+    passageReference: metadata.passageReference || defaults.passageReference || '',
+    series: metadata.series.length ? metadata.series : defaults.series || [],
+    scriptures: metadata.scriptures.length ? metadata.scriptures : defaults.scriptures || [],
+  }
 }
 
 async function queueProduction(

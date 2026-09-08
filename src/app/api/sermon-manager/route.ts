@@ -102,7 +102,7 @@ export async function GET(request: Request) {
         limit: 50,
         sort: '-updatedAt',
         where: { status: { not_in: ['published', 'discarded'] } },
-        select: { sourceName: true, status: true },
+        select: { sourceName: true, status: true, source: true, output: true, publishedAudio: true },
         overrideAccess: false,
         user,
       }),
