@@ -15,6 +15,7 @@ export type SiteFeedbackNotificationSource = {
 }
 
 export type SiteFeedbackNotificationMessage = {
+  from?: string
   to: string
   replyTo?: string
   subject: string
@@ -126,7 +127,7 @@ export function createResendSiteFeedbackTransport(
           'Idempotency-Key': idempotencyKey,
         },
         body: JSON.stringify({
-          from,
+          from: message.from ?? from,
           to: [message.to],
           ...(message.replyTo ? { reply_to: message.replyTo } : {}),
           subject: message.subject,
