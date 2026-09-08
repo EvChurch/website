@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useNav } from '@payloadcms/ui'
 import type { SermonProduction, Sermon, SermonWorkFile } from '@/payload-types'
@@ -80,6 +80,7 @@ export function SermonManager() {
   const { setNavOpen } = useNav()
   const editing = Boolean(production)
   useEffect(() => { if (editing) setNavOpen(false) }, [editing, setNavOpen])
+  const waveformPeaks = useMemo(() => Array.isArray(production?.peaks) ? production.peaks.filter((peak): peak is number => typeof peak === 'number' && Number.isFinite(peak)) : [], [production?.peaks])
   const [metadata, setMetadata] = useState<SermonMetadata>()
   const [dirty, setDirty] = useState(false)
   const [start, setStart] = useState(0)
@@ -655,14 +656,7 @@ export function SermonManager() {
                       currentTime={currentTime}
                       disabled={locked}
                       onAudition={listen}
-                      peaks={
-                        Array.isArray(production.peaks)
-                          ? production.peaks.filter(
-                              (peak): peak is number =>
-                                typeof peak === 'number',
-                            )
-                          : []
-                      }
+                      peaks={waveformPeaks}
                       duration={production.sourceDuration || 1}
                       start={start}
                       end={end}
