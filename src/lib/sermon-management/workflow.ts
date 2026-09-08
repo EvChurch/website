@@ -12,6 +12,7 @@ import {
 import type { Sermon, SermonProduction, User } from '@/payload-types'
 import { relationID, getRecording } from './drive'
 import { validateCut } from './audio'
+import { calendarDefaults } from './calendar'
 import { copyWorkFile } from './storage'
 
 export interface SermonMetadata {
@@ -115,6 +116,7 @@ async function checkPublishedRevision(
       409,
     )
   }
+  return current
 }
 
 /** All workflow changes serialize on the production row; queued jobs carry its revision token. */
@@ -250,6 +252,9 @@ async function createProduction(
     ? readMetadata(draftMetadata)
     : metadataFromSermon(sermon)
   if (recording) metadata.audioCampus = recording.campus
+  const defaults = recording && !sermonId && !draftMetadata
+    ? await calendarDefaults(payload, settings, recording.file.name, recording.campus, req)
+    : undefined
   const production = await payload.create({
     collection: 'sermon-productions',
     req,
@@ -260,7 +265,8 @@ async function createProduction(
       driveFileId: recording?.file.id,
       driveModifiedTime: recording?.file.modifiedTime,
       campus: recording?.campus || metadata.audioCampus,
-      metadata: { ...metadata },
+      metadata: { ...metadata, ...defaults?.metadata },
+      calendarNotice: defaults?.notice,
       status: recording ? 'importing' : 'ready',
       jobToken: randomUUID(),
       publishedAudio: relationID(sermon.audio),
@@ -330,6 +336,14 @@ export async function changeProduction(
       )
     if (busy && !(body.action === 'retry' && stalled))
       throw new APIError('Audio preparation is still running.', 409)
+    if (body.action === 'refresh-calendar') {
+      const settings = await payload.findGlobal({ slug: 'sermon-settings', depth: 0, req })
+      const defaults = await calendarDefaults(payload, settings, production.sourceName, relationID(production.campus)!, req)
+      return payload.update({ collection: 'sermon-productions', id, req, data: {
+        metadata: { ...readMetadata(body.metadata || production.metadata), ...defaults.metadata },
+        calendarNotice: defaults.notice, jobToken: randomUUID(),
+      } })
+    }
     if (body.action === 'save') {
       const metadata = readMetadata(body.metadata)
       const cut =
@@ -421,11 +435,11 @@ export async function publishProduction(
       if (production.status === 'published') return production
       if (production.status !== 'ready')
         throw new APIError('Prepare and preview the finished audio first.', 400)
-      await checkPublishedRevision(payload, production, req)
+      const currentSermon = await checkPublishedRevision(payload, production, req)
       const metadata = readMetadata(production.metadata)
       for (const [key, value] of Object.entries(metadata)) {
         if (
-          key !== 'scriptures' &&
+          !['scriptures', 'topics'].includes(key) &&
           (value == null ||
             value === '' ||
             (Array.isArray(value) && !value.length))
@@ -433,6 +447,7 @@ export async function publishProduction(
           throw new APIError(`Complete ${key} before publishing.`, 400)
       }
       let audioId = relationID(production.publishedAudio)
+      const newRecording = Boolean(production.output && production.source)
       if (production.output) {
         const destination = path.join(directory, `${randomUUID()}.mp3`)
         await copyWorkFile(payload, relationID(production.output)!, destination)
@@ -445,6 +460,8 @@ export async function publishProduction(
         audioId = audio.id
       }
       if (!audioId) throw new APIError('Prepare audio before publishing.', 400)
+      const generatedTopics = currentSermon.generatedTopics
+      if (newRecording && Array.isArray(generatedTopics)) metadata.topics = metadata.topics.filter(topic => !generatedTopics.includes(topic))
       req.context.sermonPublication = true
       await payload.update({
         collection: 'sermons',
@@ -455,13 +472,19 @@ export async function publishProduction(
           audio: audioId,
           duration: production.outputDuration,
           isPublished: true,
+          ...(newRecording ? { audioTranscript: null, topicSuggestions: null, generatedTopics: null } : {}),
         },
       })
       const published = await payload.update({
         collection: 'sermon-productions', id, req,
         data: { publishedAudio: audioId, status: 'published' },
       })
-      await payload.jobs.queue({ task: 'prepareSermonArticle', queue: 'sermon-articles', input: { productionId: id }, req })
+      if (newRecording) {
+        await payload.create({ collection: 'sermon-transcripts', req, data: {
+          sermon: relationID(production.sermon)!, production: id, publishedAudio: audioId,
+          title: metadata.title, status: 'transcribing',
+        } })
+      }
       return published
     })
   } finally {

@@ -51,6 +51,7 @@ export const SermonProductions: CollectionConfig = {
     { name: 'start', type: 'number', min: 0 },
     { name: 'end', type: 'number', min: 0 },
     { name: 'metadata', type: 'json' },
+    { name: 'calendarNotice', type: 'text' },
     { name: 'error', type: 'text' },
     {
       name: 'publishedAudio',

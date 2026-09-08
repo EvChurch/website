@@ -18,19 +18,19 @@ async function call(body, binary = false) {
 const [action, jobPath, input] = process.argv.slice(2)
 try {
   if (action === 'claim') {
-    const result = await call({ action })
+    const result = await call({ action, supportsTopics: true })
     if (!result.article) { console.log('No articles are waiting for drafting.'); process.exit(0) }
-    const directory = path.join(setup, 'articles', String(result.article.id))
+    const directory = path.join(setup, result.article.kind === 'topics' ? 'topics' : 'articles', String(result.article.id))
     await mkdir(directory, { recursive: true, mode: 0o700 })
     await writeFile(path.join(directory, 'job.json'), JSON.stringify(result, null, 2), { mode: 0o600 })
-    console.log(`Claim saved to ${path.join(directory, 'job.json')}. Read its instructions and transcript, then save draft.json beside it. Submit with: node scripts/sermon-article-worker.mjs submit <job.json> <draft.json>`)
+    console.log(`Claim saved to ${path.join(directory, 'job.json')}. Read its instructions and transcript, then save draft.json beside it. Submit with: node /home/tataihono/.codex/sermon-setup/sermon-article-worker.mjs submit <job.json> <draft.json>`)
   } else if (['submit', 'scripture', 'audio'].includes(action)) {
     const { article } = JSON.parse(await readFile(jobPath, 'utf8'))
-    const body = { action, id: article.id, leaseToken: article.leaseToken }
+    const body = { action, kind: article.kind || 'article', id: article.id, leaseToken: article.leaseToken }
     if (action === 'submit') {
       const draft = JSON.parse(await readFile(input, 'utf8'))
-      const result = await call({ ...body, blocks: draft.blocks, questions: draft.questions })
-      console.log(`Article ${article.id}: ${result.status}. Payload will email the preacher automatically.`)
+      const result = await call({ ...body, blocks: draft.blocks, questions: draft.questions, topicIds: draft.topicIds, topicSuggestions: draft.topicSuggestions })
+      console.log(article.kind === 'topics' ? `Sermon topic job ${article.id}: ${result.status}.` : `Article ${article.id}: ${result.status}. Payload will email the preacher automatically.`)
     } else if (action === 'scripture') console.log(JSON.stringify(await call({ ...body, reference: input }), null, 2))
     else {
       const destination = path.join(path.dirname(jobPath), 'sermon.mp3')

@@ -1,3 +1,4 @@
+import { resolveTopicSuggestion } from '@/lib/sermon-transcripts/workflow'
 import type { NextRequest } from 'next/server'
 import { isSameOriginRequest } from '@/lib/request-origin'
 import { APIError } from 'payload'
@@ -158,6 +159,7 @@ export async function GET(request: Request) {
       campuses: campuses.docs,
       scriptures: scriptures.docs,
       folders: settings.driveFolders || [],
+      topicReviews: (await payload.find({ collection: 'sermons', depth: 0, limit: 50, where: { topicSuggestions: { exists: true } }, select: { title: true, topicSuggestions: true }, overrideAccess: false, user })).docs.filter(sermon => Array.isArray(sermon.topicSuggestions) && sermon.topicSuggestions.length),
       configured: Boolean(
         settings.outro &&
         settings.driveFolders?.length &&
@@ -178,6 +180,10 @@ export async function POST(request: NextRequest) {
       )
     const { payload, user } = await authorize(request)
     const body = (await request.json()) as Record<string, unknown>
+    if (body.action === 'approve-topic' || body.action === 'dismiss-topic') {
+      if (typeof body.sermonId !== 'number' || !Number.isSafeInteger(body.sermonId) || body.sermonId < 1) throw new APIError('Choose a sermon.', 400)
+      return Response.json(await resolveTopicSuggestion(payload, body.sermonId, body.name, body.action === 'approve-topic'))
+    }
     if (body.action === 'begin') {
       const sermonId =
         typeof body.sermonId === 'number' &&

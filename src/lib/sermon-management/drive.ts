@@ -31,7 +31,7 @@ export function relationID(
   return typeof value === 'number' ? value : value?.id
 }
 
-async function token(): Promise<string> {
+export async function driveToken(): Promise<string> {
   if (cachedToken && cachedToken.expires > Date.now()) return cachedToken.value
   const raw = process.env.SERMON_DRIVE_SERVICE_ACCOUNT_JSON
   if (!raw)
@@ -84,7 +84,7 @@ async function driveFetch(
     url,
     {
       headers: {
-        Authorization: `Bearer ${await token()}`,
+        Authorization: `Bearer ${await driveToken()}`,
         ...(range ? { Range: range } : {}),
       },
       signal: AbortSignal.timeout(15 * 60_000),

@@ -50,7 +50,6 @@ export const authorSermonMetadata: CollectionBeforeValidateHook = async ({
         'audioCampus',
         'passageReference',
         'series',
-        'topics',
         'audio',
       ]) {
         const value: unknown = merged[key]

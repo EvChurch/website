@@ -22,6 +22,9 @@ export const Sermons: CollectionConfig = {
     afterDelete: [createCacheInvalidationHook('sermons')],
   },
   fields: [
+    { name: 'audioTranscript', type: 'json', access: { create: () => false, update: () => false }, admin: { readOnly: true, description: 'Timestamped transcript of the currently published audio.' } },
+    { name: 'generatedTopics', type: 'json', access: { create: () => false, update: () => false }, admin: { hidden: true } },
+    { name: 'topicSuggestions', type: 'json', access: { read: ({ req }) => hasSermonManagerRole(req.user && 'roles' in req.user ? req.user : null), create: () => false, update: () => false }, admin: { readOnly: true, description: 'New topics awaiting approval in Sermon Manager.' } },
     {
       name: 'title',
       type: 'text',
