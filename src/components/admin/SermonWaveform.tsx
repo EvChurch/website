@@ -187,8 +187,8 @@ export function SermonWaveform({
   const format = (time: number) =>
     new Date(Math.max(0, time) * 1000).toISOString().slice(11, 22)
   return (
-    <div>
-      <div className="sermon-manager__row">
+    <div className="sermon-waveform__editor">
+      <div className="sermon-manager__row sermon-waveform__tools">
         <button type="button" onClick={() => zoom(0.5, 0.5)}>
           Zoom in
         </button>
@@ -232,11 +232,11 @@ export function SermonWaveform({
           →
         </button>
       </div>
-      <p>
+      <details className="sermon-waveform__help"><summary>Timeline controls</summary><p>
         Click to move the playhead. Scroll to zoom; Shift-scroll or Left/Right
         on the timeline to pan. Drag either cut edge, or focus it and use arrow
         keys (Shift for finer adjustments).
-      </p>
+      </p></details>
       <svg
         ref={svg}
         className="sermon-waveform"
@@ -303,7 +303,8 @@ export function SermonWaveform({
           y="25"
           width={((end - start) / view.span) * 1000}
           height="125"
-          fill="var(--theme-success-100)"
+          fill="#e22a30"
+          fillOpacity="0.06"
           pointerEvents="none"
         />
         <path

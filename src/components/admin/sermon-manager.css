@@ -157,3 +157,54 @@
   stroke: #e22a30;
   stroke-width: 2;
 }
+
+/* A focused workspace, using Payload's theme for light and dark modes. */
+.sermon-manager { max-width: 1040px; padding: 0 1rem; }
+.sermon-manager__header { align-items: center; padding-bottom: 1.5rem; border-bottom: 1px solid var(--theme-elevation-150); }
+.sermon-manager__header h1 { font-size: 1.5rem; font-weight: 500; }
+.sermon-manager__eyebrow { font-size: .7rem; margin-bottom: .5rem; }
+.sermon-manager section { border: 0; padding: 1.5rem 0; }
+.sermon-manager section[hidden] { display: none; }
+.sermon-manager h2 { font-size: 1.5rem; font-weight: 500; }
+.sermon-manager__stage h2 { font-size: 2.2rem; letter-spacing: -.04em; margin-bottom: .75rem; }
+.sermon-manager__subtitle { opacity: .65; margin-bottom: 2.5rem; }
+.sermon-manager button.sermon-manager__primary { background: var(--theme-text); border-color: var(--theme-text); color: var(--theme-bg); }
+.sermon-manager__steps { margin: 2.5rem 0 1.5rem; gap: 1.5rem !important; }
+.sermon-manager__steps button { border: 0; background: transparent; padding: .5rem 0; opacity: .55; }
+.sermon-manager__steps button[aria-current] { opacity: 1; }
+.sermon-manager__steps button span { display: inline-grid; place-items: center; border: 1px solid var(--theme-elevation-250); border-radius: 50%; width: 1.8rem; height: 1.8rem; margin-right: .6rem; font-size: .8rem; }
+.sermon-manager__steps button[aria-current] span { background: var(--theme-text); color: var(--theme-bg); }
+.sermon-manager__menu { position: relative; }
+.sermon-manager summary { cursor: pointer; font-size: .85rem; opacity: .75; }
+.sermon-manager__menu nav { position: absolute; z-index: 10; right: 0; top: 2rem; width: 180px; padding: 1rem; background: var(--theme-bg); border: 1px solid var(--theme-elevation-150); border-radius: .5rem; flex-direction: column; align-items: stretch; }
+.sermon-manager__options { margin: 1rem 0; }
+.sermon-manager__options button { margin: .5rem .5rem 0 0; }
+.sermon-manager__list button { border: 0; background: transparent; padding-left: 0; text-align: left; }
+.sermon-manager__stage > fieldset > button { margin: 1.5rem .75rem 0 0; }
+.sermon-manager__stage > fieldset > .sermon-manager__primary { float: right; }
+.sermon-manager__stage::after { content: ''; display: block; clear: both; }
+.sermon-manager__trim .sermon-waveform { height: 230px; margin-top: 1.5rem; }
+.sermon-manager__trim input[aria-label='Volume'] { max-width: 90px; }
+.sermon-manager__review-summary { border-block: 1px solid var(--theme-elevation-150); padding: 1rem 0 1.5rem; margin-bottom: 2rem; }
+.sermon-manager__review-summary h3 { font-size: 1.6rem; font-weight: 500; }
+.sermon-manager__review-summary p { opacity: .7; }
+.sermon-manager__chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .5rem; }
+.sermon-manager__chips button { border-radius: 1rem; padding: .35rem .65rem; font-size: .85rem; }
+.sermon-manager__grid label > button { align-self: flex-start; border: 0; background: transparent; padding: 0; font-size: .8rem; text-decoration: underline; }
+.sermon-manager__sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 650px) { .sermon-manager__steps { gap: .8rem !important; } .sermon-manager__steps button { font-size: .8rem; } .sermon-manager__stage h2 { font-size: 1.8rem; } }
+.sermon-waveform__editor { display: flex; flex-direction: column; }
+.sermon-waveform__editor > svg { order: -1; }
+.sermon-waveform__tools { justify-content: flex-end; }
+.sermon-waveform__tools button { font-size: .8rem; padding: .5rem .7rem; }
+.sermon-waveform__help { margin: 1rem 0; }
+.sermon-waveform__help p { max-width: 650px; line-height: 1.6; opacity: .7; }
+.sermon-manager__transport { margin: 1.5rem 0; }
+.sermon-manager--editing { margin-top: 1rem; }
+.sermon-manager--editing .sermon-manager__header { padding-bottom: .75rem; margin-bottom: 1rem; }
+.sermon-manager--editing .sermon-manager__header h1 { font-size: 1.15rem; }
+.sermon-manager--editing .sermon-manager__eyebrow { display: none; }
+.sermon-manager--editing .sermon-manager__steps { margin: 1.5rem 0 1rem; }
+.sermon-manager--editing .sermon-manager__stage { padding-top: .5rem; margin-top: .5rem; }
+.sermon-manager--editing .sermon-manager__subtitle { margin-bottom: 1.5rem; }
+.sermon-manager__steps button:focus:not(:focus-visible) { outline: none; }

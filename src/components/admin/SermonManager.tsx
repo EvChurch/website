@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useNav } from '@payloadcms/ui'
 import type { SermonProduction, Sermon, SermonWorkFile } from '@/payload-types'
 import type { SermonMetadata } from '@/lib/sermon-management/workflow'
 import type { DriveRecording } from '@/lib/sermon-management/drive'
@@ -71,8 +72,14 @@ const statusLabel: Record<SermonProduction['status'], string> = {
 }
 
 export function SermonManager() {
+  const [step, setStep] = useState<'trim' | 'details' | 'review'>('trim')
+  const openedProduction = useRef<number | undefined>(undefined)
+  const previewAudio = useRef<HTMLAudioElement>(null)
   const [dashboard, setDashboard] = useState<Dashboard>()
   const [production, setProduction] = useState<SermonProduction>()
+  const { setNavOpen } = useNav()
+  const editing = Boolean(production)
+  useEffect(() => { if (editing) setNavOpen(false) }, [editing, setNavOpen])
   const [metadata, setMetadata] = useState<SermonMetadata>()
   const [dirty, setDirty] = useState(false)
   const [start, setStart] = useState(0)
@@ -129,6 +136,11 @@ export function SermonManager() {
     const { production: row } = await request<{ production: SermonProduction }>(
       `${api}?production=${productionId}`,
     )
+    if (openedProduction.current !== row.id) {
+      const details = row.metadata as unknown as SermonMetadata
+      setStep(row.status === 'published' ? 'review' : row.status === 'ready' ? (details?.audioSpeaker && details?.series?.length && details?.publishedAt && details?.passageReference ? 'review' : 'details') : 'trim')
+      openedProduction.current = row.id
+    }
     setProduction(row)
     setMetadata(row.metadata as unknown as SermonMetadata)
     setStart(row.start || 0)
@@ -157,12 +169,14 @@ export function SermonManager() {
     setNotice('')
     try {
       await work()
+      return true
     } catch (failure) {
       setError(
         failure instanceof Error
           ? failure.message
           : 'Unable to complete this action.',
       )
+      return false
     } finally {
       setBusy(false)
     }
@@ -203,7 +217,7 @@ export function SermonManager() {
   }
   async function action(actionName: string) {
     if (!production) return
-    await perform(async () => {
+    return perform(async () => {
       await request(api, {
         action: actionName,
         id: production.id,
@@ -266,26 +280,26 @@ export function SermonManager() {
         ? production.publishedAudio?.url || ''
         : '')
     : ''
-  const selectedOptions = (event: React.ChangeEvent<HTMLSelectElement>) =>
-    Array.from(event.target.selectedOptions, (option) => Number(option.value))
+  function goToStep(next: typeof step) {
+    audio.current?.pause()
+    previewAudio.current?.pause()
+    setStep(next)
+  }
 
   return (
-    <div className="sermon-manager">
+    <div className={`sermon-manager ${production ? 'sermon-manager--editing' : ''}`}>
       <header className="sermon-manager__header">
         <div>
-          <p className="sermon-manager__eyebrow">
-            Ev Church · Audio publishing
-          </p>
-          <h1>Sermon Manager</h1>
-          <p>Prepare a recording, review the finished sermon, and publish.</p>
+          <p className="sermon-manager__eyebrow">Ev Church</p>
+          <h1>{production ? 'Sermons' : 'Sermon Manager'}</h1>
         </div>
-        <nav aria-label="Sermon administration">
+        <details className="sermon-manager__menu"><summary>Manage</summary><nav aria-label="Sermon administration">
           <Link href="/admin/collections/speakers">Speakers</Link>
           <Link href="/admin/collections/sermon-series">Series</Link>
           <Link href="/admin/collections/topics">Topics</Link>
           <Link href="/admin/collections/sermon-transcripts">Transcripts</Link>
           <Link href="/admin/globals/sermon-settings">Settings</Link>
-        </nav>
+        </nav></details>
       </header>
       {error && (
         <p className="sermon-manager__error" role="alert">
@@ -329,10 +343,10 @@ export function SermonManager() {
                   if (folder) void browse(folder)
                 }}
               >
-                Choose a Drive recording
+                New sermon
               </button>
               <section>
-                <h2>Needs attention</h2>
+                <h2>In progress</h2>
                 {dashboard.productions.length ? (
                   <ul className="sermon-manager__list">
                     {dashboard.productions.map((row) => (
@@ -505,16 +519,23 @@ export function SermonManager() {
                 <button
                   disabled={busy || dirty || cutsChanged}
                   onClick={() => {
+                    audio.current?.pause()
+                    previewAudio.current?.pause()
+                    openedProduction.current = undefined
                     setProduction(undefined)
                     setMetadata(undefined)
                     void perform(() => loadDashboard())
                   }}
                 >
-                  Back to dashboard
+                  ← All sermons
                 </button>
-                <strong role="status">{statusLabel[production.status]}</strong>
+                <span role="status">{statusLabel[production.status]}</span>
               </div>
-              <h2>{production.sourceName}</h2>
+              <nav className="sermon-manager__steps" aria-label="Sermon preparation">
+                {(['trim', 'details', 'review'] as const).map((item, index) => <button key={item} aria-current={step === item ? 'step' : undefined} disabled={busy || (item === 'trim' && !fileUrl(production.listeningCopy)) || (item === 'details' && !metadata)} onClick={() => goToStep(item)}><span>{index + 1}</span>{item === 'trim' ? 'Trim audio' : item === 'details' ? 'Details' : 'Review & publish'}</button>)}
+              </nav>
+              <details className="sermon-manager__options"><summary>Recording options</summary>
+              <p>{production.sourceName}</p>
               {production.status !== 'published' && (
                 <button
                   disabled={busy}
@@ -530,6 +551,17 @@ export function SermonManager() {
                   Discard draft
                 </button>
               )}
+              {!locked && (
+                <button
+                  onClick={() => {
+                    setPicker(true)
+                    if (folder) void browse(folder)
+                  }}
+                >
+                  Choose another campus recording
+                </button>
+              )}
+              </details>
               {processing && (
                 <p role="status">
                   Audio preparation is running in the background. You can leave
@@ -547,19 +579,10 @@ export function SermonManager() {
                   Retry audio preparation
                 </button>
               )}
-              {!locked && (
-                <button
-                  onClick={() => {
-                    setPicker(true)
-                    if (folder) void browse(folder)
-                  }}
-                >
-                  Choose another campus recording
-                </button>
-              )}
               {fileUrl(production.listeningCopy) && (
-                <section>
-                  <h2>1. Cut the recording</h2>
+                <section hidden={step !== 'trim'} className="sermon-manager__stage sermon-manager__trim">
+                  <h2>Trim the recording</h2>
+                  <p className="sermon-manager__subtitle">Drag the edges to keep the sermon.</p>
                   <audio
                     ref={audio}
                     preload="metadata"
@@ -580,7 +603,7 @@ export function SermonManager() {
                       setCurrentTime(audio.current?.currentTime || 0)
                     }
                   />
-                  <div className="sermon-manager__row">
+                  <div className="sermon-manager__row sermon-manager__transport">
                     <button
                       type="button"
                       onClick={() => {
@@ -626,7 +649,7 @@ export function SermonManager() {
                     />
                   </div>
                   <fieldset disabled={locked}>
-                    <legend>Select one continuous section</legend>
+                    <legend className="sermon-manager__sr-only">Select one continuous section</legend>
                     <SermonWaveform
                       key={production.id}
                       currentTime={currentTime}
@@ -651,20 +674,21 @@ export function SermonManager() {
                     <button
                       className="sermon-manager__primary"
                       disabled={start >= end}
-                      onClick={() => void action('render')}
+                      onClick={() => { audio.current?.pause(); void (async () => { if (!finishedUrl || cutsChanged) { if (!await action('render')) return } goToStep('details') })() }}
                     >
-                      Prepare finished audio
+                      Continue to details →
                     </button>
                   </fieldset>
                 </section>
               )}
               {metadata && (
-                <section>
-                  <h2>2. Sermon details</h2>
+                <section hidden={step !== 'details'} className="sermon-manager__stage">
+                  <h2>Check the details</h2>
+                  <p className="sermon-manager__subtitle">Confirm the calendar details before publishing.</p>
                   {production.calendarNotice && <p role="status">{production.calendarNotice}</p>}
                   <button disabled={locked} onClick={() => void action('refresh-calendar')}>Refresh from calendar</button>
                   <fieldset disabled={locked}>
-                    <legend>Required before publishing</legend>
+                    <legend className="sermon-manager__sr-only">Required before publishing</legend>
                     <div className="sermon-manager__grid">
                       <label>
                         Title *
@@ -745,42 +769,14 @@ export function SermonManager() {
                       </label>
                       <label>
                         Bible books
-                        <select
-                          multiple
-                          value={metadata.scriptures.map(String)}
-                          onChange={(event) =>
-                            updateMetadata({
-                              scriptures: selectedOptions(event),
-                            })
-                          }
-                        >
-                          {dashboard.scriptures.map((option) => (
-                            <option key={option.id} value={option.id}>
-                              {option.name}
-                            </option>
-                          ))}
-                        </select>
+                        <CompactSelection label="Bible books" options={dashboard.scriptures} value={metadata.scriptures} onChange={(scriptures) => updateMetadata({ scriptures })} />
                       </label>
                       {(['series', 'topics'] as const).map((field) => (
                         <label key={field}>
                           {field === 'series' ? 'Series *' : 'Topics'}
-                          <select
-                            multiple
-                            value={metadata[field].map(String)}
-                            onChange={(event) =>
-                              updateMetadata({
-                                [field]: selectedOptions(event),
-                              })
-                            }
-                          >
-                            {dashboard[field].map((option) => (
-                              <option key={option.id} value={option.id}>
-                                {option.title || option.name}
-                              </option>
-                            ))}
-                          </select>
+                          <CompactSelection label={field === 'series' ? 'Series' : 'Topics'} options={dashboard[field]} value={metadata[field]} onChange={(value) => updateMetadata({ [field]: value })} />
                           <small>
-                            {field === 'series' ? 'Select at least one.' : 'Generated from the transcript after publication.'} Use Ctrl or Command to select more.
+                            {field === 'series' ? 'Select at least one.' : 'Generated from the transcript after publication.'}
                           </small>
                           <button
                             type="button"
@@ -797,6 +793,7 @@ export function SermonManager() {
                     >
                       Save draft
                     </button>
+                    <button className="sermon-manager__primary" onClick={() => { void (async () => { if (dirty && !await action('save')) return; goToStep('review') })() }}>Continue to review →</button>
                   </fieldset>
                   {newTag && (
                     <form
@@ -850,22 +847,31 @@ export function SermonManager() {
                   )}
                 </section>
               )}
-              {finishedUrl && (
-                <section>
-                  <h2>3. Review and publish</h2>
-                  <audio
+              {step === 'review' && (
+                <section className="sermon-manager__stage">
+                  <h2>{production.status === 'published' ? 'Sermon published' : 'Ready to publish?'}</h2>
+                  <p className="sermon-manager__subtitle">Listen to the finished audio and check the details below.</p>
+                  <div className="sermon-manager__review-summary">
+                    <h3>{metadata?.title}</h3>
+                    <p>{metadata?.publishedAt?.slice(0, 10)} · {dashboard.speakers.find(option => option.id === metadata?.audioSpeaker)?.name || 'Choose a speaker'} · {dashboard.campuses.find(option => option.id === metadata?.audioCampus)?.name}</p>
+                    <p>{metadata?.passageReference} · {dashboard.series.filter(option => metadata?.series.includes(option.id)).map(option => option.title).join(', ')}</p>
+                    <button disabled={busy} onClick={() => goToStep('details')}>Edit details</button>
+                  </div>
+                  {!finishedUrl && <p role="status">{processing ? 'Your finished audio is being prepared.' : 'Return to Trim audio to prepare the finished recording.'}</p>}
+                  {finishedUrl && <audio
+                    ref={previewAudio}
                     key={finishedUrl}
                     controls
                     preload="metadata"
                     src={finishedUrl}
-                  />
+                  />}
                   {production.status !== 'published' && (
                     <>
                       <label className="sermon-manager__confirm">
                         <input
                           type="checkbox"
                           checked={confirmed}
-                          disabled={locked || dirty || cutsChanged}
+                          disabled={locked || dirty || cutsChanged || !finishedUrl || production.status !== 'ready'}
                           onChange={(event) =>
                             setConfirmed(event.target.checked)
                           }
@@ -876,11 +882,7 @@ export function SermonManager() {
                       {dirty && (
                         <p>Save your draft details before publishing.</p>
                       )}
-                      {cutsChanged && (
-                        <p>
-                          Prepare the audio again to preview your updated cut.
-                        </p>
-                      )}
+                      {cutsChanged && <p>Audio changes need preparing. <button onClick={() => goToStep('trim')}>Return to trim</button></p>}
                       <button
                         className="sermon-manager__primary"
                         disabled={
@@ -904,4 +906,11 @@ export function SermonManager() {
       )}
     </div>
   )
+}
+
+function CompactSelection({ label, options, value, onChange }: { label: string; options: Option[]; value: number[]; onChange: (value: number[]) => void }) {
+  return <div className="sermon-manager__selection">
+    <div className="sermon-manager__chips">{value.map(selected => <button type="button" key={selected} aria-label={`Remove ${options.find(option => option.id === selected)?.title || options.find(option => option.id === selected)?.name || selected}`} onClick={() => onChange(value.filter(item => item !== selected))}>{options.find(option => option.id === selected)?.title || options.find(option => option.id === selected)?.name || selected} ×</button>)}</div>
+    <select aria-label={`Add ${label.toLowerCase()}`} value="" onChange={event => { if (event.target.value) onChange([...value, Number(event.target.value)]) }}><option value="">Choose {label.toLowerCase()}…</option>{options.filter(option => !value.includes(option.id)).map(option => <option key={option.id} value={option.id}>{option.title || option.name}</option>)}</select>
+  </div>
 }
