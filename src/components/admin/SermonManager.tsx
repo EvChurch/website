@@ -25,6 +25,7 @@ interface Dashboard {
   campuses: Option[]
   scriptures: Option[]
   folders: { folderId: string; campus: number | Option }[]
+  topicReviews: { id: number; title: string; topicSuggestions?: unknown }[]
   configured: boolean
 }
 const api = '/api/sermon-manager'
@@ -216,6 +217,7 @@ export function SermonManager() {
         setProduction(undefined)
         await loadDashboard()
       }
+      if (actionName === 'refresh-calendar') await loadDashboard()
       if (actionName === 'save') setNotice('Draft saved.')
       if (actionName === 'publish') {
         setNotice('Published to the website and podcast.')
@@ -280,6 +282,7 @@ export function SermonManager() {
           <Link href="/admin/collections/speakers">Speakers</Link>
           <Link href="/admin/collections/sermon-series">Series</Link>
           <Link href="/admin/collections/topics">Topics</Link>
+          <Link href="/admin/collections/sermon-transcripts">Transcripts</Link>
           <Link href="/admin/globals/sermon-settings">Settings</Link>
         </nav>
       </header>
@@ -304,6 +307,17 @@ export function SermonManager() {
               Settings.
             </p>
           )}
+          {!production && dashboard.topicReviews?.length > 0 && <section>
+            <h2>Suggested topics</h2>
+            {dashboard.topicReviews.map(sermon => <div key={sermon.id}>
+              <h3>{sermon.title}</h3>
+              {Array.isArray(sermon.topicSuggestions) && sermon.topicSuggestions.filter((name): name is string => typeof name === 'string').map(name => <p key={name}>
+                {name}{' '}
+                <button disabled={busy} onClick={() => void perform(async () => { await request(api, { action: 'approve-topic', sermonId: sermon.id, name }); await loadDashboard() })}>Approve topic</button>{' '}
+                <button disabled={busy} onClick={() => void perform(async () => { await request(api, { action: 'dismiss-topic', sermonId: sermon.id, name }); await loadDashboard() })}>Dismiss</button>
+              </p>)}
+            </div>)}
+          </section>}
           {!production && !picker && (
             <>
               <button
@@ -646,6 +660,8 @@ export function SermonManager() {
               {metadata && (
                 <section>
                   <h2>2. Sermon details</h2>
+                  {production.calendarNotice && <p role="status">{production.calendarNotice}</p>}
+                  <button disabled={locked} onClick={() => void action('refresh-calendar')}>Refresh from calendar</button>
                   <fieldset disabled={locked}>
                     <legend>Required before publishing</legend>
                     <div className="sermon-manager__grid">
@@ -746,7 +762,7 @@ export function SermonManager() {
                       </label>
                       {(['series', 'topics'] as const).map((field) => (
                         <label key={field}>
-                          {field === 'series' ? 'Series' : 'Topics'} *
+                          {field === 'series' ? 'Series *' : 'Topics'}
                           <select
                             multiple
                             value={metadata[field].map(String)}
@@ -763,8 +779,7 @@ export function SermonManager() {
                             ))}
                           </select>
                           <small>
-                            Select at least one. Use Ctrl or Command to select
-                            more.
+                            {field === 'series' ? 'Select at least one.' : 'Generated from the transcript after publication.'} Use Ctrl or Command to select more.
                           </small>
                           <button
                             type="button"

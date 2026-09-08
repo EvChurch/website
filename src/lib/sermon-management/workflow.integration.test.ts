@@ -65,6 +65,7 @@ describe.skipIf(process.env.RUN_SERMON_AUDIO_INTEGRATION !== 'true')('sermon aud
       const production = await payload.findByID({ collection: 'sermon-productions', id: productionId, depth: 0 })
       for (const value of [production.source, production.listeningCopy, production.output]) { const id = relation(value); if (id) files.add(id) }
       await payload.delete({ collection: 'payload-jobs', where: { 'input.productionId': { equals: productionId } } })
+      await payload.delete({ collection: 'sermon-transcripts', where: { production: { equals: productionId } } })
       await payload.delete({ collection: 'sermon-productions', id: productionId })
     }
     if (sermonId) await payload.delete({ collection: 'sermons', id: sermonId })
@@ -85,7 +86,7 @@ describe.skipIf(process.env.RUN_SERMON_AUDIO_INTEGRATION !== 'true')('sermon aud
     production = await payload.findByID({ collection: 'sermon-productions', id: productionId, depth: 0 })
     expect(production.status, production.error || '').toBe('editable')
     expect(production.sourceDuration).toBeCloseTo(4, 1)
-    const metadata = { title: 'Audio integration sermon', publishedAt: '2026-09-01T00:00:00Z', audioSpeaker: speakerId, audioCampus: drive.campus, passageReference: 'John 1:1', series: [seriesId], topics: [topicId], scriptures: [] }
+    const metadata = { title: 'Audio integration sermon', publishedAt: '2026-09-01T00:00:00Z', audioSpeaker: speakerId, audioCampus: drive.campus, passageReference: 'John 1:1', series: [seriesId], topics: [], scriptures: [] }
     const oldToken = production.jobToken
     production = await changeProduction(payload, productionId, user, { action: 'render', token: oldToken, start: 1, end: 3, metadata })
     await payload.jobs.run({ queue: 'sermon-audio', limit: 1 })
@@ -102,7 +103,7 @@ describe.skipIf(process.env.RUN_SERMON_AUDIO_INTEGRATION !== 'true')('sermon aud
     const sermon = await payload.findByID({ collection: 'sermons', id: sermonId!, depth: 0 })
     expect(sermon).toMatchObject({ isPublished: true, title: metadata.title, audio: audioId })
     expect(sermon.duration).toBeCloseTo(3, 1)
-    const jobs = await payload.find({ collection: 'payload-jobs', where: { and: [{ taskSlug: { equals: 'prepareSermonArticle' } }, { 'input.productionId': { equals: productionId } }] } })
+    const jobs = await payload.find({ collection: 'sermon-transcripts', where: { production: { equals: productionId } } })
     expect(jobs.totalDocs).toBe(1)
   }, 60_000)
 })

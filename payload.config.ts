@@ -1,3 +1,5 @@
+import { SermonTranscripts } from '@/collections/SermonTranscripts'
+import { sermonTranscriptTasks } from '@/jobs/sermon-transcripts'
 import { SermonArticles } from '@/collections/SermonArticles'
 import { sermonArticleTasks } from '@/jobs/sermon-articles'
 import { SermonProductions } from '@/collections/SermonProductions'
@@ -125,6 +127,7 @@ export const applicationCollections: CollectionConfig[] = [
   SermonAudio,
   SermonProductions,
   SermonArticles,
+  SermonTranscripts,
   SermonWorkFiles,
   GivingFunds,
   GivingGivers,
@@ -148,6 +151,7 @@ export const applicationGlobals: GlobalConfig[] = [
 
 export const mcpExcludedCollectionSlugs = new Set([
   'sermon-articles',
+  'sermon-transcripts',
   'sermon-productions',
   'sermon-work-files',
   'leader-resource-shares',
@@ -270,6 +274,7 @@ export default buildConfig({
     tasks: [
       sermonAudioTask,
       ...sermonArticleTasks,
+      ...sermonTranscriptTasks,
       ...notificationJobConfigs,
       feedbackCommunicationsTask,
       ...givingJobConfigs,

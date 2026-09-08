@@ -62,7 +62,7 @@ interface MediaPlayerState {
   isVideoVisible: boolean
   isClosing: boolean
   setIsClosing: (v: boolean) => void
-  play: (sermon: SermonMedia, mediaType?: 'audio' | 'video', campusSlug?: string) => void
+  play: (sermon: SermonMedia, mediaType?: 'audio' | 'video', campusSlug?: string, startTime?: number) => void
   pause: () => void
   resume: () => void
   seek: (time: number) => void
@@ -115,6 +115,8 @@ const SKIP_SECONDS = 15
 
 export function MediaPlayerProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const pendingAudioStart = useRef<number | null>(null)
+  const clearAudioStart = useRef<(() => void) | null>(null)
   const videoPlayerRef = useRef<Player | null>(null)
   const videoContainerRef = useRef<HTMLDivElement | null>(null)
   const videoThumbnailRef = useRef<HTMLElement | null>(null)
@@ -384,6 +386,8 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
 
   // Stop audio playback
   const stopAudio = useCallback(() => {
+    clearAudioStart.current?.()
+    pendingAudioStart.current = null
     const audio = audioRef.current
     if (audio) {
       audio.pause()
@@ -402,16 +406,21 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
     setIsVideoExpanded(false)
   }, [stopVideoPolling])
 
-  const playAudio = useCallback((sermon: SermonMedia) => {
+  const playAudio = useCallback((sermon: SermonMedia, startTime?: number) => {
     const audio = audioRef.current
     if (!audio) return
 
     // If already playing this sermon as audio, just resume
-    if (currentSlugRef.current === sermon.slug && currentMediaTypeRef.current === 'audio') {
+    if (currentSlugRef.current === sermon.slug && currentMediaTypeRef.current === 'audio' && audio.src.endsWith(encodeURIComponent(sermon.audioUrl.split('/').pop() || ''))) {
+      if (startTime !== undefined) {
+        if (clearAudioStart.current) pendingAudioStart.current = Math.max(0, startTime)
+        else audio.currentTime = Math.max(0, startTime)
+      }
       audio.play().catch(() => {})
       return
     }
 
+    clearAudioStart.current?.()
     // Stop video if active
     stopVideo()
     currentMediaTypeRef.current = 'audio'
@@ -427,7 +436,7 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
     // Resume from saved position if available
     const saved = useListeningStore.getState().history[sermon.slug]
     const isAudioProgress = saved?.playedAs === undefined || saved.playedAs === 'audio'
-    const resumeTime = saved && isAudioProgress && !saved.completed && saved.progress > 10
+    const resumeTime = startTime !== undefined ? Math.max(0, startTime) : saved && isAudioProgress && !saved.completed && saved.progress > 10
       ? saved.progress
       : 0
     setProgress(resumeTime)
@@ -439,22 +448,19 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
 
     audio.playbackRate = useListeningStore.getState().playbackSpeed
 
-    if (resumeTime > 0) {
-      const onCanSeek = () => {
-        audio.currentTime = resumeTime
-        audio.play().catch(() => {})
-        audio.removeEventListener('canplay', onCanSeek)
-      }
-      audio.addEventListener('canplay', onCanSeek)
-    } else {
-      audio.play().catch(() => {
-        const handler = () => {
-          audio.play().catch(() => {})
-          audio.removeEventListener('canplay', handler)
-        }
-        audio.addEventListener('canplay', handler)
-      })
+    pendingAudioStart.current = resumeTime
+    const onCanSeek = () => {
+      audio.currentTime = pendingAudioStart.current ?? 0
+      pendingAudioStart.current = null
+      clearAudioStart.current?.()
+      audio.play().catch(() => {})
     }
+    clearAudioStart.current = () => {
+      audio.removeEventListener('canplay', onCanSeek)
+      clearAudioStart.current = null
+    }
+    audio.addEventListener('canplay', onCanSeek)
+    audio.play().catch(() => {})
   }, [stopVideo])
 
   const playVideo = useCallback((sermon: SermonMedia, video: VideoOption) => {
@@ -496,7 +502,7 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
     setDuration(0)
   }, [stopAudio])
 
-  const play = useCallback((sermon: SermonMedia, type?: 'audio' | 'video', campusSlug?: string) => {
+  const play = useCallback((sermon: SermonMedia, type?: 'audio' | 'video', campusSlug?: string, startTime?: number) => {
     setIsClosing(false)
     // Resolve media type from preference if not explicitly specified
     let resolvedType = type
@@ -531,7 +537,7 @@ export function MediaPlayerProvider({ children }: { children: ReactNode }) {
 
     // Fallback to audio (silent, no preference change per R2)
     if (sermon.audioUrl) {
-      playAudio(sermon)
+      playAudio(sermon, startTime)
     }
   }, [playAudio, playVideo])
 

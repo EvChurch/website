@@ -1,3 +1,5 @@
+import { SermonTranscript } from '@/components/sermons/SermonTranscript'
+import { readTranscriptSegments } from '@/lib/sermon-transcripts/segments'
 import type { Metadata } from 'next'
 import { trackedNotFound } from '@/lib/tracked-not-found'
 import Link from 'next/link'
@@ -354,6 +356,12 @@ export default async function SermonPage({
         </div>
       </section>
 
+      {audioUrl && readTranscriptSegments(sermon.audioTranscript).length > 0 && <SermonTranscript
+        segments={readTranscriptSegments(sermon.audioTranscript)}
+        sermon={{ id: sermon.id, title: sermon.title, slug: sermon.slug, audioUrl, duration: sermon.duration ?? undefined,
+          speaker: audioSpeaker?.name, series: seriesList[0]?.title,
+          artworkUrl: heroBannerMedia ? getPayloadMediaUrl(heroBannerMedia, 'medium') ?? undefined : undefined }}
+      />}
       {/* Blog post cross-link */}
       {blogPostLink && (
         <section className="border-t border-warm-white/10 py-6">

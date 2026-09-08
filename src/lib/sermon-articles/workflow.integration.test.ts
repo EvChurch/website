@@ -22,6 +22,8 @@ describe.skipIf(process.env.RUN_SERMON_ARTICLE_INTEGRATION !== 'true')('article 
   let speakerId: number
   let fileId: number
   let articleId: number
+  let transcriptId: number
+  let audioId: number
   let blogId: number | undefined
   beforeAll(async () => {
     const env = parse(await readFile('.env.local'))
@@ -36,14 +38,19 @@ describe.skipIf(process.env.RUN_SERMON_ARTICLE_INTEGRATION !== 'true')('article 
     directory = await mkdtemp(path.join(tmpdir(), 'article-integration-'))
     await ffmpeg(['-f', 'lavfi', '-i', 'sine=frequency=440:duration=1', path.join(directory, 'sample.mp3')])
     fileId = (await payload.create({ collection: 'sermon-work-files', data: {}, filePath: path.join(directory, 'sample.mp3') })).id
+    audioId = (await payload.create({ collection: 'sermon-audio', data: {}, filePath: path.join(directory, 'sample.mp3') })).id
     speakerId = (await payload.create({ collection: 'speakers', data: { name: 'Article test preacher', slug: `test-${randomUUID()}` } })).id
     sermonId = (await payload.create({ collection: 'sermons', data: { title: 'Article integration test', slug: `test-${randomUUID()}`, isPublished: false } })).id
     productionId = (await payload.create({ collection: 'sermon-productions', data: { sermon: sermonId, baseSermonRevision: 'test', sourceName: 'test', status: 'published', jobToken: randomUUID(), source: fileId, start: 0, end: 1, sourceDuration: 1, metadata: { title: 'Original title', audioSpeaker: speakerId } } })).id
+    await payload.update({ collection: 'sermons', id: sermonId, data: { audio: audioId } })
+    transcriptId = (await payload.create({ collection: 'sermon-transcripts', data: { sermon: sermonId, production: productionId, publishedAudio: audioId, title: 'Test', status: 'tagging', transcript: 'Timestamped sermon', audio: fileId } })).id
   }, 60_000)
   afterAll(async () => {
     if (!payload) return
     if (articleId) await payload.delete({ collection: 'sermon-articles', id: articleId })
     if (blogId) await payload.delete({ collection: 'blog-posts', id: blogId })
+    if (transcriptId) await payload.delete({ collection: 'sermon-transcripts', id: transcriptId })
+    if (audioId) await payload.delete({ collection: 'sermon-audio', id: audioId })
     if (productionId) await payload.delete({ collection: 'sermon-productions', id: productionId })
     if (sermonId) await payload.delete({ collection: 'sermons', id: sermonId })
     if (speakerId) await payload.delete({ collection: 'speakers', id: speakerId })
@@ -64,7 +71,7 @@ describe.skipIf(process.env.RUN_SERMON_ARTICLE_INTEGRATION !== 'true')('article 
     await createArticleForProduction(payload, productionId)
     const articles = await payload.find({ collection: 'sermon-articles', depth: 0, where: { sermon: { equals: sermonId } } })
     articleId = articles.docs[0].id
-    expect(articles.docs[0]).toMatchObject({ title: 'Original title', author: 'Article test preacher', status: 'transcribing' })
+    expect(articles.docs[0]).toMatchObject({ title: 'Original title', author: 'Article test preacher', status: 'drafting', transcript: 'Timestamped sermon' })
     await payload.update({ collection: 'sermons', id: sermonId, data: { title: 'Changed recording and title' } })
     await createArticleForProduction(payload, productionId)
     expect((await count()).totalDocs).toBe(1)

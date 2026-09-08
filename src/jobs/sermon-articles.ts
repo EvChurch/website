@@ -1,3 +1,4 @@
+import { sql } from '@payloadcms/db-postgres'
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -18,10 +19,15 @@ export async function createArticleForProduction(payload: Payload, productionId:
   return withProduction(payload, productionId, undefined, async (production, req) => {
     if (production.status !== 'published' || !production.source) return
     const sermonId = relationID(production.sermon)!
+    const session = payload.db.sessions?.[await req.transactionID!] as { db: { execute(query: ReturnType<typeof sql>): Promise<unknown> } }
+    await session.db.execute(sql`SELECT id FROM sermons WHERE id = ${sermonId} FOR UPDATE`)
     const sermon = await payload.findByID({ collection: 'sermons', id: sermonId, depth: 0, req })
     if (sermon.blogPost) return
     const existing = await payload.find({ collection: 'sermon-articles', req, depth: 0, limit: 1, where: { sermon: { equals: sermonId } } })
     if (existing.docs.length) return
+    const transcripts = await payload.find({ collection: 'sermon-transcripts', req, depth: 0, limit: 1, where: { and: [{ production: { equals: production.id } }, { status: { in: ['tagging', 'complete'] } }] } })
+    const transcriptJob = transcripts.docs[0]
+    if (!transcriptJob || relationID(sermon.audio) !== relationID(transcriptJob.publishedAudio)) return
     const metadata = production.metadata as { audioSpeaker?: number; title?: string; passageReference?: string; series?: number[] } | null
     if (!metadata?.audioSpeaker) return
     const speaker = await payload.findByID({ collection: 'speakers', id: metadata.audioSpeaker, req, depth: 0 })
@@ -39,7 +45,7 @@ export async function createArticleForProduction(payload: Payload, productionId:
       sermon: sermonId, production: production.id, title: metadata.title || sermon.title,
       author: speaker.name, reviewEmail: email, rockPersonId: speaker.rockPersonId,
       series: metadata.series?.[0], passageReference: metadata.passageReference,
-      status: 'transcribing', revision: randomUUID(),
+      status: 'drafting', transcript: transcriptJob.transcript, audio: relationID(transcriptJob.audio), revision: randomUUID(),
     } })
   })
 }
@@ -103,7 +109,7 @@ async function prepareTranscript(payload: Payload, id: number) {
         return
       }
       const bytes = await readFile(audioPath)
-      const response = await fetch(validateKrispUploadURL(uploadUrl), { method: 'PUT', body: bytes, signal: AbortSignal.timeout(120_000), redirect: 'error' })
+      const response = await fetch(validateKrispUploadURL(uploadUrl), { method: 'PUT', headers: { 'Content-Type': 'audio/mpeg' }, body: bytes, signal: AbortSignal.timeout(120_000), redirect: 'error' })
       if (!response.ok) throw new Error('Krisp upload failed.')
       await update({ krispUploaded: true })
     }
