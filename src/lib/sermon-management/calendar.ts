@@ -60,18 +60,25 @@ export async function calendarDefaults(payload: Payload, settings: SermonSetting
     metadata.passageReference = /[a-z]\s+\d/i.test(passage) ? passage : ''
     const mappings = config.speakers?.filter(row => key(row.label) === key(preacher)) || []
     metadata.audioSpeaker = mappings.length === 1 ? relationID(mappings[0].speaker) : undefined
+    let seriesNotice = ''
     if (seriesTitle) {
-      metadata.series = [await resolveCalendarSeries(payload, seriesTitle, req)]
+      try {
+        metadata.series = [await resolveCalendarSeries(payload, seriesTitle, req, date)]
+      } catch (error) {
+        if (!(error instanceof AmbiguousCalendarSeries)) throw error
+        metadata.series = []
+        seriesNotice = ' Choose a series: the calendar label and sermon date do not identify a single series.'
+      }
     } else metadata.series = []
     const books = await payload.find({ collection: 'scriptures', depth: 0, limit: 100, req, select: { name: true } })
     metadata.scriptures = books.docs.filter(book => new RegExp(`(?:^|[;\\n])\\s*${book.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+\\d`, 'i').test(passage)).map(book => book.id)
-    return { metadata, notice: `Calendar defaults loaded for ${date}.${metadata.audioSpeaker ? '' : ` Map preacher “${preacher || '(blank)'}” in Sermon Settings or choose a speaker.`}${metadata.passageReference ? '' : ' Check the Bible passage.'}` }
+    return { metadata, notice: `Calendar defaults loaded for ${date}.${seriesNotice}${metadata.audioSpeaker ? '' : ` Map preacher “${preacher || '(blank)'}” in Sermon Settings or choose a speaker.`}${metadata.passageReference ? '' : ' Check the Bible passage.'}` }
   } catch {
     return { metadata: { audioCampus: campus, publishedAt: date }, notice: 'Calendar entry is missing, ambiguous or its columns have changed. Check Sermon Settings or enter details manually.' }
   }
 }
 
-export async function resolveCalendarSeries(payload: Payload, title: string, parentReq?: PayloadRequest) {
+export async function resolveCalendarSeries(payload: Payload, title: string, parentReq?: PayloadRequest, sermonDate?: string) {
   const existingTransaction = parentReq && await parentReq.transactionID
   const transactionID = existingTransaction ?? await payload.db.beginTransaction()
   if (transactionID == null) throw new Error('Series resolution requires transactions.')
@@ -81,13 +88,39 @@ export async function resolveCalendarSeries(payload: Payload, title: string, par
     if (!session) throw new Error('Database transaction unavailable.')
     await session.db.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`sermon-series:${key(title)}`}))`)
     const series = await payload.find({ collection: 'sermon-series', depth: 0, pagination: false, limit: 2000, req, select: { title: true } })
-    const matches = series.docs.filter(row => key(row.title) === key(title))
-    if (matches.length > 1) throw new Error('Multiple series match the calendar label.')
-    const selected = matches[0] || await payload.create({ collection: 'sermon-series', req, data: { title: clean(title), slug: '' } })
+    const matches = series.docs.filter(row => calendarSeriesNameMatches(row.title, title))
+    const dated = await Promise.all(matches.map(async row => {
+      const sermons = await payload.find({ collection: 'sermons', depth: 0, limit: 1, sort: 'publishedAt', req,
+        where: { and: [{ series: { contains: row.id } }, { isPublished: { equals: true } }, { publishedAt: { exists: true } }] },
+        select: { publishedAt: true },
+      })
+      return { ...row, startDate: sermons.docs[0]?.publishedAt?.slice(0, 10) }
+    }))
+    const matched = chooseCalendarSeries(dated, sermonDate)
+    const selected = matched || await payload.create({ collection: 'sermon-series', req, data: { title: clean(title), slug: '' } })
     if (!existingTransaction) await payload.db.commitTransaction(transactionID)
     return selected.id
   } catch (error) {
     if (!existingTransaction) await payload.db.rollbackTransaction(transactionID)
     throw error
   }
+}
+
+class AmbiguousCalendarSeries extends Error {}
+
+export function calendarSeriesNameMatches(seriesTitle: string, calendarLabel: string) {
+  return key(seriesTitle) === key(calendarLabel) || key(seriesTitle.split(/[:–—]/)[0]) === key(calendarLabel)
+}
+
+/** A short calendar label selects the most recently begun matching series, never a future run. */
+export function chooseCalendarSeries<T extends { id: number; startDate?: string | null }>(matches: T[], sermonDate?: string): T | undefined {
+  if (!matches.length) return undefined
+  if (!sermonDate) {
+    if (matches.length === 1) return matches[0]
+    throw new AmbiguousCalendarSeries('Multiple series match the calendar label.')
+  }
+  const dated = matches.filter(row => row.startDate && row.startDate <= sermonDate).sort((a, b) => b.startDate!.localeCompare(a.startDate!))
+  if (dated.length && (dated.length === 1 || dated[0].startDate !== dated[1].startDate)) return dated[0]
+  if (!dated.length && matches.length === 1 && !matches[0].startDate) return matches[0]
+  throw new AmbiguousCalendarSeries('No unique series start matches the sermon date.')
 }

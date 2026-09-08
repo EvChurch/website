@@ -35,6 +35,7 @@ it('opens finished drafts at review, keeps publishing gated, and pauses audio wh
   expect(stage().textContent).toContain('Trim the recording')
   await click('Continue to details →')
   expect(stage().textContent).toContain('Check the details')
+  expect(container.querySelector('[aria-label="Add topics"]')).toBeNull()
   expect(HTMLMediaElement.prototype.pause).toHaveBeenCalled()
   expect(closeNav).toHaveBeenCalledWith(false)
 })
