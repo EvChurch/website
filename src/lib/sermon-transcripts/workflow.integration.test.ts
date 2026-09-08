@@ -1,3 +1,4 @@
+import { revalidateTag } from 'next/cache'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { readFile, mkdtemp, rm } from 'node:fs/promises'
 import path from 'node:path'
@@ -65,7 +66,9 @@ describe.skipIf(process.env.RUN_SERMON_ARTICLE_INTEGRATION !== 'true')('independ
     if (directory) await rm(directory, { recursive: true, force: true })
   })
   it('attaches an intro-offset transcript without any preacher or email', async () => {
+    vi.mocked(revalidateTag).mockClear()
     await prepareSermonTranscript(payload, jobId)
+    expect(revalidateTag).not.toHaveBeenCalled()
     const job = await payload.findByID({ collection: 'sermon-transcripts', id: jobId, depth: 0 })
     expect(job.status, job.error || '').toBe('tagging')
     const sermon = await payload.findByID({ collection: 'sermons', id: sermonId, depth: 0 })

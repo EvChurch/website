@@ -1,3 +1,4 @@
+import { revalidateTag } from 'next/cache'
 import { claimTopics, submitTopics, checkTagLease, TOPIC_INSTRUCTIONS } from '@/lib/sermon-transcripts/workflow'
 import { APIError } from 'payload'
 import { getPayloadClient } from '@/lib/payload'
@@ -17,12 +18,18 @@ export async function POST(request: Request) {
     const payload = await getPayloadClient()
     if (body.action === 'claim') {
       const topics = body.supportsTopics === true ? await claimTopics(payload) : null
+      // Background transcription has no Next request context. Invalidate after its committed write is claimed here.
+      if (topics) revalidateTag('sermons', { expire: 0 })
       return Response.json({ article: topics || await claimArticle(payload), instructions: topics ? TOPIC_INSTRUCTIONS : ARTICLE_INSTRUCTIONS }, { headers: { 'Cache-Control': 'no-store' } })
     }
     const id = Number(body.id)
     if (!Number.isSafeInteger(id) || id < 1) throw new APIError('Invalid article.', 400)
     if (body.kind === 'topics') {
-      if (body.action === 'submit') return Response.json(await submitTopics(payload, id, body.leaseToken, body.topicIds, body.topicSuggestions))
+      if (body.action === 'submit') {
+        const result = await submitTopics(payload, id, body.leaseToken, body.topicIds, body.topicSuggestions)
+        revalidateTag('sermons', { expire: 0 })
+        return Response.json(result)
+      }
       const job = await payload.findByID({ collection: 'sermon-transcripts', id, depth: 0 })
       checkTagLease(job, body.leaseToken)
       if (body.action === 'audio' && job.audio) return streamWorkFile(payload, relationID(job.audio)!, null)

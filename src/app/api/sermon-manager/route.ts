@@ -182,7 +182,10 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as Record<string, unknown>
     if (body.action === 'approve-topic' || body.action === 'dismiss-topic') {
       if (typeof body.sermonId !== 'number' || !Number.isSafeInteger(body.sermonId) || body.sermonId < 1) throw new APIError('Choose a sermon.', 400)
-      return Response.json(await resolveTopicSuggestion(payload, body.sermonId, body.name, body.action === 'approve-topic'))
+      const result = await resolveTopicSuggestion(payload, body.sermonId, body.name, body.action === 'approve-topic')
+      revalidateTag('sermons', { expire: 0 })
+      revalidateTag('topics', { expire: 0 })
+      return Response.json(result)
     }
     if (body.action === 'begin') {
       const sermonId =

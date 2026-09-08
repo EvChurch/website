@@ -7,7 +7,7 @@ import { relationID } from '@/lib/sermon-management/drive'
 export async function withTranscript<T>(payload: Payload, id: number, fn: (job: SermonTranscript, req: PayloadRequest) => Promise<T>) {
   const transactionID = await payload.db.beginTransaction()
   if (transactionID == null) throw new Error('Transcript processing requires transactions.')
-  const req = await createLocalReq({ req: { transactionID } }, payload)
+  const req = await createLocalReq({ req: { transactionID, context: { skipCacheInvalidation: true } } }, payload)
   try {
     const session = payload.db.sessions?.[transactionID] as { db: { execute(query: ReturnType<typeof sql>): Promise<unknown> } } | undefined
     if (!session) throw new Error('Database transaction unavailable.')
@@ -85,7 +85,7 @@ export async function resolveTopicSuggestion(payload: Payload, sermonId: number,
   if (typeof name !== 'string' || !name.trim() || name.length > 80) throw new APIError('Choose a suggested topic.', 400)
   const transactionID = await payload.db.beginTransaction()
   if (transactionID == null) throw new Error('Topic approval requires transactions.')
-  const req = await createLocalReq({ req: { transactionID } }, payload)
+  const req = await createLocalReq({ req: { transactionID, context: { skipCacheInvalidation: true } } }, payload)
   try {
     const session = payload.db.sessions?.[transactionID] as { db: { execute(query: ReturnType<typeof sql>): Promise<unknown> } } | undefined
     if (!session) throw new Error('Database transaction unavailable.')
