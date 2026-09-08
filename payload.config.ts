@@ -6,7 +6,7 @@ import { SermonSettings } from '@/globals/SermonSettings'
 import { sermonAudioTask } from '@/jobs/sermon-audio'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildConfig, type CollectionConfig, type GlobalConfig } from 'payload'
+import { buildConfig, type CollectionConfig, type Field, type GlobalConfig } from 'payload'
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { mcpPlugin, type MCPPluginConfig } from '@payloadcms/plugin-mcp'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
@@ -64,6 +64,8 @@ import {
 } from '@/jobs/site-feedback-notification'
 import { givingJobConfigs, GIVING_LIFECYCLE_AUTO_RUN } from '@/jobs/giving'
 import { givingEmailJobConfigs } from '@/jobs/giving-emails'
+import { feedbackCommunicationsTask } from '@/jobs/feedback-communications'
+import { feedbackCommunicationAuth, feedbackCommunicationTools } from '@/lib/site-feedback/communication-mcp'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -73,6 +75,7 @@ export function restrictMcpApiKeyCollection(
 ): CollectionConfig {
   return {
     ...collection,
+    fields: defaultFeedbackToolPermissions(collection.fields),
     access: {
       create: isAdmin,
       read: isAdmin,
@@ -80,6 +83,17 @@ export function restrictMcpApiKeyCollection(
       delete: isAdmin,
     },
   }
+}
+
+function defaultFeedbackToolPermissions(fields: Field[]): Field[] {
+  return fields.map(field => {
+    if ('name' in field && field.name === 'payload-mcp-tool' && field.type === 'group') {
+      return { ...field, fields: field.fields.map(child => child.type === 'checkbox'
+        ? { ...child, defaultValue: false } : child) }
+    }
+    if ('fields' in field) return { ...field, fields: defaultFeedbackToolPermissions(field.fields) }
+    return field
+  })
 }
 
 export const applicationCollections: CollectionConfig[] = [
@@ -225,6 +239,8 @@ export default buildConfig({
       collections: mcpCollections,
       globals: mcpGlobals,
       overrideApiKeyCollection: restrictMcpApiKeyCollection,
+      overrideAuth: feedbackCommunicationAuth,
+      mcp: { tools: feedbackCommunicationTools },
     }),
     ...(process.env.S3_BUCKET
       ? [
@@ -255,6 +271,7 @@ export default buildConfig({
       sermonAudioTask,
       ...sermonArticleTasks,
       ...notificationJobConfigs,
+      feedbackCommunicationsTask,
       ...givingJobConfigs,
       ...givingEmailJobConfigs,
       {
