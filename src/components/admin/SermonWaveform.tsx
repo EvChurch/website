@@ -1,5 +1,6 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { visibleWaveform } from './waveform-detail'
 
 export function SermonWaveform({
   peaks,
@@ -36,6 +37,7 @@ export function SermonWaveform({
   const selection = useRef({ start, end })
   selection.current = { start, end }
   const [view, setView] = useState({ start: 0, span: duration })
+  const visiblePeaks = useMemo(() => visibleWaveform(peaks, duration, view.start, view.span), [peaks, duration, view.start, view.span])
   const viewport = useRef(view)
   viewport.current = view
   const zoom = (factor: number, anchor: number) => {
@@ -308,18 +310,7 @@ export function SermonWaveform({
           pointerEvents="none"
         />
         <path
-          d={peaks
-            .map((peak, i) => ({ peak, time: (i / peaks.length) * duration }))
-            .filter(
-              (p) =>
-                p.time + duration / peaks.length >= view.start &&
-                p.time <= view.start + view.span,
-            )
-            .map(
-              (p) =>
-                `M${x(p.time)},${87 - p.peak * 55}h${(duration / peaks.length / view.span) * 1000}v${p.peak * 110}h${(-duration / peaks.length / view.span) * 1000}z`,
-            )
-            .join(' ')}
+          d={visiblePeaks.map(p => `M${x(p.from)},${87 - p.peak * 55}h${((p.to - p.from) / view.span) * 1000}v${p.peak * 110}h${-((p.to - p.from) / view.span) * 1000}z`).join(' ')}
           fill="currentColor"
           opacity="0.65"
           pointerEvents="none"

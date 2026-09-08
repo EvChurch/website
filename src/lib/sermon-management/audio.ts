@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { readFile } from 'node:fs/promises'
+import { createReadStream } from 'node:fs'
 import ffmpegPath from 'ffmpeg-static'
 
 const exec = promisify(execFile)
@@ -101,41 +101,43 @@ export async function prepareListeningCopy(
     -19,
     '96k',
   )
-  const { stdout } = await ffmpeg([
-    '-protocol_whitelist',
-    'file,pipe',
-    '-format_whitelist',
-    'aac,aiff,flac,mp3,mov,ogg,wav',
-    '-i',
-    source,
-    '-vn',
-    '-af',
-    `aresample=8000,aformat=channel_layouts=mono,asetnsamples=n=8000:p=0,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.Peak_level:file=${samples}`,
-    '-progress',
-    'pipe:1',
-    '-f',
-    'null',
-    '-',
+  return prepareWaveform(source, samples)
+}
+
+/** Keep 10 ms peaks; the editor aggregates only the visible interval when zooming. */
+export async function prepareWaveform(source: string, samples: string) {
+  await ffmpeg([
+    '-protocol_whitelist', 'file,pipe',
+    '-format_whitelist', 'aac,aiff,flac,mp3,mov,ogg,wav',
+    '-i', source, '-vn', '-ac', '1', '-ar', '8000',
+    '-f', 's16le', samples,
   ])
-  const times = [...stdout.matchAll(/out_time_us=(\d+)/g)]
-  const duration = Number(times.at(-1)?.[1]) / 1_000_000
-  if (!duration || duration > 6 * 60 * 60)
-    throw new Error('Choose a recording with audio, up to six hours long.')
-  const measurements = await readFile(samples, 'utf8')
-  const levels = [
-    ...measurements.matchAll(/lavfi\.astats\.Overall\.Peak_level=([^\r\n]+)/g),
-  ].map((match) => {
-    const level = Number(match[1])
-    return Number.isFinite(level) ? Math.pow(10, level / 20) : 0
-  })
-  const step = Math.max(1, Math.ceil(levels.length / 1200))
   const peaks: number[] = []
-  for (let i = 0; i < levels.length; i += step)
-    peaks.push(Math.max(...levels.slice(i, i + step)))
-  const max = Math.max(...peaks, 0.001)
+  let count = 0
+  let peak = 0
+  let max = 1
+  // File chunks and the final PCM length are multiples of the two-byte sample size.
+  for await (const chunk of createReadStream(samples, { highWaterMark: 65536 })) {
+    for (let offset = 0; offset < chunk.length; offset += 2) {
+      peak = Math.max(peak, Math.abs(chunk.readInt16LE(offset)))
+      count++
+      if (count % 80 === 0) {
+        peaks.push(peak)
+        max = Math.max(max, peak)
+        peak = 0
+      }
+    }
+    if (count > 8000 * 6 * 60 * 60)
+      throw new Error('Choose a recording with audio, up to six hours long.')
+  }
+  if (!count) throw new Error('Choose a recording with audio.')
+  if (count % 80) {
+    peaks.push(peak)
+    max = Math.max(max, peak)
+  }
   return {
-    duration,
-    peaks: peaks.map((peak) => Math.round((peak / max) * 1000) / 1000),
+    duration: count / 8000,
+    peaks: peaks.map(value => Math.round(value / max * 1000) / 1000),
   }
 }
 

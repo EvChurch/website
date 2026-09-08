@@ -164,3 +164,14 @@ it('imports silence without amplifying noise or failing on infinite measurements
   expect(result.duration).toBeCloseTo(4, 1)
   expect(result.peaks.every((peak) => peak === 0)).toBe(true)
 }, 20_000)
+
+it('retains short pauses within a second for detailed waveform zoom', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'sermon-detail-test-'))
+  directories.push(directory)
+  const local = (name: string) => path.join(directory, name)
+  await ffmpeg(['-f', 'lavfi', '-i', 'aevalsrc=if(between(t\\,0.2\\,0.3)\\,0.5*sin(2*PI*440*t)\\,0):s=8000:d=1', local('source.wav')])
+  const result = await prepareListeningCopy(local('source.wav'), local('preview.mp3'), local('peaks.pcm'))
+  expect(result.peaks.length).toBe(100)
+  expect(Math.max(...result.peaks.slice(21, 29))).toBeGreaterThan(0.9)
+  expect(Math.max(...result.peaks.slice(40, 50))).toBe(0)
+}, 20_000)
