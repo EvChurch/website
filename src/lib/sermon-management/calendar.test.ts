@@ -29,3 +29,24 @@ describe('teaching calendar matching', () => {
     expect(() => spreadsheetID('https://example.org/private')).toThrow()
   })
 })
+
+import { calendarSeriesNameMatches, chooseCalendarSeries } from './calendar'
+it('matches calendar shorthand to titled series without matching unrelated books', () => {
+  expect(calendarSeriesNameMatches('Hebrews: Jesus is Better', ' Hebrews ')).toBe(true)
+  expect(calendarSeriesNameMatches('Hebrews: Faithful Endurance', 'Hebrews')).toBe(true)
+  expect(calendarSeriesNameMatches('Hebrews: Jesus is Better', 'Hebrews: Jesus is Better')).toBe(true)
+  expect(calendarSeriesNameMatches('1 John: Light', 'John')).toBe(false)
+})
+it('uses the latest series start before the sermon rather than an undated shorthand entry', () => {
+  const matches = [{id:83}, {id:66,startDate:'2016-05-15'}, {id:80,startDate:'2026-07-19'}, {id:90,startDate:'2027-01-01'}]
+  expect(chooseCalendarSeries(matches, '2026-09-06')?.id).toBe(80)
+  expect(chooseCalendarSeries(matches, '2016-06-05')?.id).toBe(66)
+  expect(chooseCalendarSeries(matches, '2026-07-19')?.id).toBe(80)
+})
+it('does not guess between tied, undated, or future series', () => {
+  expect(() => chooseCalendarSeries([{id:1,startDate:'2026-07-19'}, {id:2,startDate:'2026-07-19'}], '2026-09-06')).toThrow()
+  expect(() => chooseCalendarSeries([{id:1}, {id:2}], '2026-09-06')).toThrow()
+  expect(() => chooseCalendarSeries([{id:1,startDate:'2027-01-01'}], '2026-09-06')).toThrow()
+  expect(chooseCalendarSeries([{id:1}], '2026-09-06')?.id).toBe(1)
+  expect(chooseCalendarSeries([], '2026-09-06')).toBeUndefined()
+})

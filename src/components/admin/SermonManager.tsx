@@ -765,21 +765,11 @@ export function SermonManager() {
                         Bible books
                         <CompactSelection label="Bible books" options={dashboard.scriptures} value={metadata.scriptures} onChange={(scriptures) => updateMetadata({ scriptures })} />
                       </label>
-                      {(['series', 'topics'] as const).map((field) => (
-                        <label key={field}>
-                          {field === 'series' ? 'Series *' : 'Topics'}
-                          <CompactSelection label={field === 'series' ? 'Series' : 'Topics'} options={dashboard[field]} value={metadata[field]} onChange={(value) => updateMetadata({ [field]: value })} />
-                          <small>
-                            {field === 'series' ? 'Select at least one.' : 'Generated from the transcript after publication.'}
-                          </small>
-                          <button
-                            type="button"
-                            onClick={() => setNewTag({ field, name: '' })}
-                          >
-                            Create {field === 'series' ? 'series' : 'topic'}
-                          </button>
-                        </label>
-                      ))}
+                      <label>
+                        Series *
+                        <CompactSelection label="Series" options={dashboard.series} value={metadata.series} onChange={(series) => updateMetadata({ series })} />
+                        <button type="button" onClick={() => setNewTag({ field: 'series', name: '' })}>Create series</button>
+                      </label>
                     </div>
                     <button
                       disabled={!dirty && !cutsChanged}
@@ -904,7 +894,7 @@ export function SermonManager() {
 
 function CompactSelection({ label, options, value, onChange }: { label: string; options: Option[]; value: number[]; onChange: (value: number[]) => void }) {
   return <div className="sermon-manager__selection">
-    <div className="sermon-manager__chips">{value.map(selected => <button type="button" key={selected} aria-label={`Remove ${options.find(option => option.id === selected)?.title || options.find(option => option.id === selected)?.name || selected}`} onClick={() => onChange(value.filter(item => item !== selected))}>{options.find(option => option.id === selected)?.title || options.find(option => option.id === selected)?.name || selected} ×</button>)}</div>
+    <div className="sermon-manager__chips">{value.map(selected => <button type="button" key={selected} aria-label={`Remove ${options.find(option => option.id === selected)?.title || options.find(option => option.id === selected)?.name || 'Unavailable selection'}`} onClick={() => onChange(value.filter(item => item !== selected))}>{options.find(option => option.id === selected)?.title || options.find(option => option.id === selected)?.name || 'Unavailable selection'} ×</button>)}</div>
     <select aria-label={`Add ${label.toLowerCase()}`} value="" onChange={event => { if (event.target.value) onChange([...value, Number(event.target.value)]) }}><option value="">Choose {label.toLowerCase()}…</option>{options.filter(option => !value.includes(option.id)).map(option => <option key={option.id} value={option.id}>{option.title || option.name}</option>)}</select>
   </div>
 }
