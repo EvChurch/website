@@ -197,6 +197,7 @@ export function SermonManager() {
           : {}),
       })
       await loadProduction(result.id)
+      await loadDashboard()
       setPicker(false)
     })
   }
