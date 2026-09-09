@@ -129,6 +129,7 @@ describe('Connect Group context binding', () => {
         action: {
           actionTypeGuid: 'action', actionStartDateTime: '2026-09-10T00:00:00Z',
           actionData: {
+            componentUrl: '/Obsidian/Blocks/Workflow/WorkflowEntry/Actions/entryForm.obs',
             componentConfiguration: {
               fields: JSON.stringify([{ attribute: { attributeGuid: CONNECT_GROUP_FIELD_GUID, fieldTypeGuid: 'type', name: 'Group', key: 'Group', configurationValues: { options: 'Private fixture group' } } }]),
               buttons: '[{"action":"Submit","title":"Submit"}]',
