@@ -1,3 +1,4 @@
+import { CONNECT_GROUP_WORKFLOW_GUID, CONNECT_GROUP_FIELD_GUID } from '@/lib/connect-groups/constants'
 import { randomUUID } from 'node:crypto'
 import { rockFetch } from '@/lib/rock-api'
 import {
@@ -256,6 +257,13 @@ export async function startRockForm(
   personId: number | null = null,
   pageParameters: Record<string, string> = {},
 ): Promise<RockFormSchema> {
+  if (workflowTypeGuid.toLowerCase() === CONNECT_GROUP_WORKFLOW_GUID) {
+    // Collection configuration imports this module; load Payload only at runtime.
+    const { isPublicConnectGroupGuid } = await import('@/lib/connect-groups/server')
+    if (!(await isPublicConnectGroupGuid(pageParameters.GroupGuid || ''))) {
+      throw new Error('Choose a public Connect Group')
+    }
+  }
   const workflow = await getPublicRockWorkflow(workflowTypeGuid)
 
   if (!workflow) {
@@ -276,6 +284,7 @@ export async function startRockForm(
     sessionGuid,
     interactionGuid,
     personId,
+    connectGroupGuid: pageParameters.GroupGuid,
   })
 }
 
@@ -286,6 +295,7 @@ export async function buildRockFormSchema({
   interactionGuid,
   personId = null,
   clearPersonDefaults = true,
+  connectGroupGuid,
 }: {
   workflow: RockWorkflowOption
   action: RockInteractiveAction
@@ -293,6 +303,7 @@ export async function buildRockFormSchema({
   interactionGuid: string
   personId?: number | null
   clearPersonDefaults?: boolean
+  connectGroupGuid?: string
 }): Promise<RockFormSchema> {
   const parsed = parseRockInteractiveAction(action)
   if (parsed.buttons.length === 0) {
@@ -331,6 +342,7 @@ export async function buildRockFormSchema({
     }
   })
   const context: RockFormContext = {
+    ...(connectGroupGuid ? { connectGroupGuid } : {}),
     version: 1,
     workflowTypeGuid: workflow.guid,
     personId,
@@ -346,7 +358,9 @@ export async function buildRockFormSchema({
     buttonTitles: parsed.buttons.map((button) => button.title),
     expiresAt: Date.now() + ROCK_FORM_CONTEXT_TTL_SECONDS * 1000,
   }
-  const publicFields = parsed.fields.map((field) => ({
+  const publicFields = parsed.fields
+    .filter((field) => !connectGroupGuid || field.attribute.attributeGuid.toLowerCase() !== CONNECT_GROUP_FIELD_GUID)
+    .map((field) => ({
     ...field,
     securityGrantToken: undefined,
     attribute: {

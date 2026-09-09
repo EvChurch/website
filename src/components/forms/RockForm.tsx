@@ -9,6 +9,7 @@ import {
   useState,
   type RefObject,
 } from 'react'
+import { CONNECT_GROUP_WORKFLOW_GUID } from '@/lib/connect-groups/constants'
 import { SafeRockHtml } from './SafeRockHtml'
 import { FormSelect } from './FormSelect'
 import { CalendarDatePicker } from './CalendarDatePicker'
@@ -603,7 +604,25 @@ function PersonSearchField({
   )
 }
 
-export function RockForm({
+export function RockForm(props: Parameters<typeof WorkflowForm>[0]) {
+  const [confirmedGroup, setConfirmedGroup] = useState<string | null>(null)
+  if (props.workflowTypeGuid.toLowerCase() === CONNECT_GROUP_WORKFLOW_GUID &&
+    confirmedGroup !== (props.groupGuid || 'unselected')) {
+    return (
+      <div className="mx-auto max-w-xl space-y-6 px-4 py-6 text-center">
+        <h2 className="font-serif text-3xl">Start with Newish</h2>
+        <p className="text-dark-grey">Newish is a great way to get to know Ev Church and take your next step into community. If you have already completed Newish, you can continue to register for this Connect Group.</p>
+        <div className="flex flex-col items-center gap-4">
+          <Button href="/newish">Explore Newish</Button>
+          <Button type="button" variant="text" onClick={() => setConfirmedGroup(props.groupGuid || 'unselected')}>I’ve completed Newish</Button>
+        </div>
+      </div>
+    )
+  }
+  return <WorkflowForm {...props} />
+}
+
+function WorkflowForm({
   workflowTypeGuid,
   groupGuid,
   initialSchema = null,

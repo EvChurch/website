@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { denyExternalMutation } from '@/access/roles'
+import { denyExternalMutation, isAdmin } from '@/access/roles'
 
 export const ConnectGroups: CollectionConfig = {
   slug: 'connect-groups',
@@ -9,12 +9,22 @@ export const ConnectGroups: CollectionConfig = {
     defaultColumns: ['name', 'campus', 'isActive', 'capacity'],
   },
   access: {
-    read: () => true,
+    read: isAdmin,
     create: denyExternalMutation,
     update: denyExternalMutation,
     delete: denyExternalMutation,
   },
   fields: [
+    {
+      name: 'isPublic',
+      type: 'checkbox',
+      defaultValue: false,
+      index: true,
+      admin: {
+        readOnly: true,
+        description: 'Only groups explicitly marked Public in Rock appear on the website.',
+      },
+    },
     {
       name: 'name',
       type: 'text',

@@ -629,3 +629,25 @@ describe('RockForm', () => {
     }
   })
 })
+
+
+describe('Connect Group Newish pathway', () => {
+  it('offers positive choices before starting the signup form', async () => {
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    const container = document.createElement('div')
+    const root = createRoot(container)
+    try {
+      await act(async () => root.render(<RockForm workflowTypeGuid="a448e93f-dd25-4f55-b89d-8ed2043df747" groupGuid="11111111-1111-4111-8111-111111111111" initialSchema={schema()} />))
+      expect(container.querySelector('a')?.getAttribute('href')).toBe('/newish')
+      expect(container.textContent).toContain('Explore Newish')
+      expect(container.querySelector('form')).toBeNull()
+      expect(fetcher).not.toHaveBeenCalled()
+      await act(async () => container.querySelector('button')?.click())
+      expect(container.querySelector('form')).not.toBeNull()
+    } finally {
+      await act(async () => root.unmount())
+      vi.unstubAllGlobals()
+    }
+  })
+})

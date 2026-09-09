@@ -61,6 +61,8 @@ import * as migration_20260903_010000_giving_transaction_fees from './20260903_0
 import * as migration_20260903_010000_member_giving_self_service from './20260903_010000_member_giving_self_service';
 import * as migration_20260905_060000_feedback_github_issue_links from './20260905_060000_feedback_github_issue_links';
 
+import * as migration_20260910_010000_connect_group_visibility from './20260910_010000_connect_group_visibility';
+
 export const migrations = [
   {
     up: migration_20260330_195149.up,
@@ -355,5 +357,10 @@ export const migrations = [
     name: '20260908_150000_feedback_communications',
   },
   { up: migration_20260908_180000_sermon_transcripts_calendar.up, down: migration_20260908_180000_sermon_transcripts_calendar.down, name: '20260908_180000_sermon_transcripts_calendar' },
+  {
+    up: migration_20260910_010000_connect_group_visibility.up,
+    down: migration_20260910_010000_connect_group_visibility.down,
+    name: '20260910_010000_connect_group_visibility',
+  },
   { up: migration_20260910_070000_event_website_summary.up, down: migration_20260910_070000_event_website_summary.down, name: '20260910_070000_event_website_summary' },
 ];

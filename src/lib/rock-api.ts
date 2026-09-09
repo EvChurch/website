@@ -336,6 +336,7 @@ export async function fetchDailyBibleReadingCommunications(): Promise<RockCommun
 }
 
 export type RockGroup = {
+  IsPublic?: boolean | null
   Id: number
   Guid: string
   Name: string
