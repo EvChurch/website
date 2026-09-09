@@ -13,6 +13,7 @@ vi.mock('@/lib/payload', () => ({
 }))
 
 import {
+  formatEventDate,
   filterUpcomingEvents,
   filterEventsByCampus,
   getCampusSlug,
@@ -219,5 +220,17 @@ describe('event helpers', () => {
         },
       }),
     ).toBe('Come and join us for dinner.')
+  })
+})
+
+
+describe('multi-day event dates', () => {
+  it('shows both dates and Auckland daylight-saving times', () => {
+    expect(formatEventDate({ ...baseEvent, startDate: '2026-11-06T06:00:00.000Z', endDate: '2026-11-08T02:00:00.000Z' }))
+      .toBe('Friday, 6 November 2026, 7:00 pm – Sunday, 8 November 2026, 3:00 pm')
+  })
+  it('preserves same-day and unknown-date formatting', () => {
+    expect(formatEventDate(baseEvent)).toBe('Monday, 10 August 2026, 6:00 pm–8:00 pm')
+    expect(formatEventDate({ ...baseEvent, startDate: null })).toBe('Date to be confirmed')
   })
 })
