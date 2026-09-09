@@ -1,11 +1,12 @@
 'use server'
 
+import { orderedAttendanceSave, type AttendanceEdits } from '@/lib/members/attendance-save-order'
+
 import {
   getConnectGroupAttendanceEntry,
   getLiveAttendanceWriteContext,
   loadConnectGroupAttendanceMeeting,
   saveConnectGroupAttendanceMeeting,
-  type AttendanceMarkState,
   type AttendanceMeetingIdentity,
   type AttendanceSaveResult,
 } from '@/lib/members/attendance-entry'
@@ -13,9 +14,10 @@ import { authorizeConnectGroupAttendanceLeader } from '@/lib/members/data'
 
 interface AttendanceEditorSaveInput {
   meeting: AttendanceMeetingIdentity
-  marks: Record<number, AttendanceMarkState>
-  notes: string
-  didNotMeet: boolean
+  requestId: string
+  recoveryOnly?: boolean
+  rosterIds: number[]
+  edits: AttendanceEdits
 }
 
 function isMeetingIdentity(value: unknown): value is AttendanceMeetingIdentity {
@@ -31,9 +33,15 @@ function isMeetingIdentity(value: unknown): value is AttendanceMeetingIdentity {
 function isSaveInput(value: unknown): value is AttendanceEditorSaveInput {
   if (!value || typeof value !== 'object') return false
   const input = value as Partial<AttendanceEditorSaveInput>
-  if (!isMeetingIdentity(input.meeting) || typeof input.notes !== 'string' || typeof input.didNotMeet !== 'boolean') return false
-  if (!input.marks || typeof input.marks !== 'object' || Array.isArray(input.marks)) return false
-  return Object.values(input.marks).every((mark) => mark === 'present' || mark === 'absent' || mark === 'unrecorded')
+  if (!isMeetingIdentity(input.meeting) || typeof input.requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(input.requestId)) return false
+  if (!Array.isArray(input.rosterIds) || !input.rosterIds.every(id => Number.isSafeInteger(id) && id > 0)) return false
+  if (input.recoveryOnly !== undefined && typeof input.recoveryOnly !== 'boolean') return false
+  const edits = input.edits
+  if (!edits || typeof edits !== 'object' || !edits.marks || typeof edits.marks !== 'object' || Array.isArray(edits.marks)) return false
+  if (edits.notes !== undefined && typeof edits.notes !== 'string') return false
+  if (edits.didNotMeet !== undefined && typeof edits.didNotMeet !== 'boolean') return false
+  if (edits.confirmClear !== undefined && typeof edits.confirmClear !== 'boolean') return false
+  return Object.entries(edits.marks).every(([id, mark]) => Number.isSafeInteger(Number(id)) && Number(id) > 0 && (mark === 'present' || mark === 'absent'))
 }
 
 function sameScheduledMeeting(left: AttendanceMeetingIdentity, right: AttendanceMeetingIdentity) {
@@ -85,7 +93,7 @@ export async function saveAttendanceAction(
   const canonical = await canonicalMeeting(rockGroupId, liveContext.rosterRockPersonIds, input.meeting)
   if (!canonical) return rejected('That meeting is no longer available. Reload before trying again.')
 
-  const submittedRosterIds = Object.keys(input.marks).map(Number).filter(Number.isSafeInteger).sort((a, b) => a - b)
+  const submittedRosterIds = [...input.rosterIds].sort((a, b) => a - b)
   if (
     submittedRosterIds.length !== liveContext.rosterRockPersonIds.length ||
     submittedRosterIds.some((personId, index) => personId !== liveContext.rosterRockPersonIds[index])
@@ -93,22 +101,40 @@ export async function saveAttendanceAction(
     return rejected('The group roster has changed. Reload before recording attendance.')
   }
 
-  const roster = liveContext.rosterRockPersonIds.map((rockPersonId) => ({
-    rockPersonId,
-    state: input.marks[rockPersonId],
-  }))
-  if (roster.some((person) => person.state !== 'present' && person.state !== 'absent')) {
-    return rejected('Mark every person present or absent before saving.')
+  if (Object.keys(input.edits.marks).some(id => !liveContext.rosterRockPersonIds.includes(Number(id)))) {
+    return rejected('The attendance save was invalid.')
   }
-
-  return saveConnectGroupAttendanceMeeting({
-    groupId: rockGroupId,
-    meeting: canonical,
-    roster: roster.map((person) => ({
-      rockPersonId: person.rockPersonId,
-      state: person.state as 'present' | 'absent',
-    })),
-    notes: input.notes,
-    didNotMeet: input.didNotMeet,
+  if (input.edits.notes !== undefined && input.edits.notes.trim().length > 2000) return rejected('Notes must be 2000 characters or fewer.')
+  return orderedAttendanceSave({
+    key: `attendance:${rockGroupId}:${canonical.date}:${canonical.scheduleId}:${canonical.locationId ?? ''}`,
+    requestId: input.requestId,
+    edits: input.edits,
+    recoveryOnly: input.recoveryOnly,
+    load: () => loadConnectGroupAttendanceMeeting(rockGroupId, canonical, liveContext.rosterRockPersonIds),
+    write: async (current, edits) => {
+      try {
+        const actor = await authorizeConnectGroupAttendanceLeader(rockGroupId)
+        if (!actor || actor.access !== 'granted') return rejected('You no longer have permission to record attendance for this group.')
+        const live = await getLiveAttendanceWriteContext(rockGroupId, actor.actorRockPersonId)
+        if (!live || live.rosterRockPersonIds.join(',') !== liveContext.rosterRockPersonIds.join(',') || Object.keys(edits.marks).some(id => !live.rosterRockPersonIds.includes(Number(id)))) {
+          return rejected('Your leadership or the group roster has changed. Reload before recording attendance.')
+        }
+      } catch {
+        return rejected('Your current leadership could not be verified. Retry when the connection is available.')
+      }
+      return saveConnectGroupAttendanceMeeting({
+      groupId: rockGroupId,
+      meeting: canonical,
+      roster: liveContext.rosterRockPersonIds.map(rockPersonId => ({
+        rockPersonId,
+        state: edits.marks[rockPersonId] ?? current.marks[rockPersonId] ?? 'unrecorded',
+      })),
+      notes: edits.notes ?? current.notes,
+      didNotMeet: edits.didNotMeet ?? current.didNotMeet,
+      changedPersonIds: Object.keys(edits.marks).map(Number),
+      writeNotes: edits.notes !== undefined,
+      writeDidNotMeet: edits.didNotMeet !== undefined,
+      })
+    },
   })
 }

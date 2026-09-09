@@ -1,0 +1,112 @@
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { AttendanceAutosave } from './attendance-autosave'
+import type { AttendanceSaveResult, ConnectGroupAttendanceMeeting } from '@/lib/members/attendance-entry'
+const initial: ConnectGroupAttendanceMeeting = {
+  identity: { date: '2026-08-12', startDateTime: '2026-08-12T19:00:00', scheduleId: 1, locationId: null, occurrenceId: null },
+  marks: { 1: 'unrecorded', 2: 'unrecorded' }, notes: '', didNotMeet: false,
+}
+const saved = (state = initial): AttendanceSaveResult => ({ status: 'saved', state })
+afterEach(() => vi.useRealTimers())
+
+describe('attendance autosave queue', () => {
+  it('does not write untouched defaults on open or navigation flush', async () => {
+    const send = vi.fn()
+    const engine = new AttendanceAutosave(initial, send, () => {})
+    expect(await engine.flush()).toBe(true)
+    expect(engine.dirty).toBe(false)
+    expect(send).not.toHaveBeenCalled()
+  })
+  it('serializes rapid edits and keeps newer marks and notes during read-back', async () => {
+    let finish!: (value: AttendanceSaveResult) => void
+    const send = vi.fn().mockImplementationOnce(() => new Promise(resolve => { finish = resolve })).mockResolvedValueOnce(saved({ ...initial, marks: { 1: 'present', 2: 'unrecorded' }, notes: 'latest' }))
+    const engine = new AttendanceAutosave(initial, send, () => {})
+    engine.edit({ marks: { 1: 'absent' } })
+    const flush = engine.flush()
+    engine.edit({ marks: { 1: 'present' }, notes: 'latest' })
+    expect(send).toHaveBeenCalledTimes(1)
+    finish(saved({ ...initial, marks: { 1: 'absent', 2: 'unrecorded' } }))
+    expect(await flush).toBe(true)
+    expect(send).toHaveBeenCalledTimes(2)
+    expect(send.mock.calls[1][0].edits).toEqual({ marks: { 1: 'present' }, notes: 'latest' })
+    expect(engine.meeting.notes).toBe('latest')
+  })
+  it('debounces notes for one second and flushes before navigation', async () => {
+    vi.useFakeTimers()
+    const send = vi.fn().mockResolvedValue(saved({ ...initial, notes: 'AB' }))
+    const engine = new AttendanceAutosave(initial, send, () => {})
+    engine.edit({ marks: {}, notes: 'A' }, 1000)
+    await vi.advanceTimersByTimeAsync(500)
+    engine.edit({ marks: {}, notes: 'AB' }, 1000)
+    await vi.advanceTimersByTimeAsync(999)
+    expect(send).not.toHaveBeenCalled()
+    await engine.flush()
+    expect(send.mock.calls[0][0].edits).toEqual({ marks: {}, notes: 'AB' })
+  })
+  it('reuses the same request for three uncertain recoveries, then stops', async () => {
+    vi.useFakeTimers()
+    const send = vi.fn().mockResolvedValue({ status: 'outcome-unknown', message: 'Unknown' })
+    const engine = new AttendanceAutosave(initial, send, () => {})
+    engine.edit({ marks: { 1: 'absent' } })
+    await engine.flush()
+    await vi.advanceTimersByTimeAsync(30000)
+    expect(send).toHaveBeenCalledTimes(4)
+    expect(new Set(send.mock.calls.map(call => call[0].requestId)).size).toBe(1)
+    expect(engine.dirty).toBe(true)
+    expect(await engine.flush()).toBe(false)
+    engine.dispose()
+  })
+  it('stops on rejection and manual retry coalesces newer edits', async () => {
+    vi.useFakeTimers()
+    const send = vi.fn().mockResolvedValueOnce({ status: 'rejected', message: 'Rejected' }).mockResolvedValueOnce(saved())
+    const engine = new AttendanceAutosave(initial, send, () => {})
+    engine.edit({ marks: { 1: 'absent' } })
+    await engine.flush()
+    engine.edit({ marks: { 1: 'present' } })
+    await vi.advanceTimersByTimeAsync(30000)
+    expect(send).toHaveBeenCalledTimes(1)
+    await engine.retry()
+    expect(send.mock.calls[1][0].edits.marks).toEqual({ 1: 'present' })
+  })
+  it('cancellation drops unsent individual edits and reversal leaves defaults unrecorded', async () => {
+    const send = vi.fn().mockResolvedValue(saved({ ...initial, didNotMeet: true }))
+    const engine = new AttendanceAutosave(initial, send, () => {})
+    engine.edit({ marks: { 1: 'absent' } })
+    engine.edit({ marks: {}, didNotMeet: true, confirmClear: true })
+    await engine.flush()
+    expect(send.mock.calls[0][0].edits.marks).toEqual({})
+    expect(engine.meeting.marks[1]).toBe('unrecorded')
+    engine.dispose()
+  })
+  it('keeps notes debounced while an attendance request is in flight', async () => {
+    vi.useFakeTimers()
+    let finish!: (value: AttendanceSaveResult) => void
+    const send = vi.fn().mockImplementationOnce(() => new Promise(resolve => { finish = resolve })).mockResolvedValueOnce(saved({ ...initial, notes: 'Draft' }))
+    const engine = new AttendanceAutosave(initial, send, () => {})
+    engine.edit({ marks: { 1: 'absent' } })
+    const first = engine.flush(false)
+    engine.edit({ marks: {}, notes: 'Draft' }, 1000)
+    finish(saved({ ...initial, marks: { 1: 'absent', 2: 'unrecorded' } }))
+    await first
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(engine.meeting.notes).toBe('Draft')
+    await vi.advanceTimersByTimeAsync(999)
+    expect(send).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(send).toHaveBeenCalledTimes(2)
+    engine.dispose()
+  })
+  it('flushes a newly typed note when retrying before navigation', async () => {
+    const send = vi.fn().mockResolvedValueOnce({ status: 'outcome-unknown', message: 'Unknown' }).mockResolvedValueOnce(saved()).mockResolvedValueOnce(saved({ ...initial, notes: 'Keep this' }))
+    const engine = new AttendanceAutosave(initial, send, () => {})
+    engine.edit({ marks: { 1: 'absent' } })
+    await engine.flush()
+    engine.edit({ marks: {}, notes: 'Keep this' }, 1000)
+    expect(await engine.retry()).toBe(true)
+    expect(send).toHaveBeenCalledTimes(3)
+    expect(send.mock.calls[1][0].recoveryOnly).toBe(true)
+    expect(send.mock.calls[2][0].edits.notes).toBe('Keep this')
+    expect(engine.dirty).toBe(false)
+    engine.dispose()
+  })
+
+})

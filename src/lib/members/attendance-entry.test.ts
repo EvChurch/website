@@ -87,14 +87,14 @@ describe('Connect Group attendance entry', () => {
     expect(meetings.map((item) => item.date)).toEqual(['2026-08-12', '2026-08-05', '2026-07-29'])
   })
 
-  it('defaults every roster person present only after a complete no-occurrence read', async () => {
+  it('leaves new attendance unrecorded after a complete no-occurrence read', async () => {
     mocks.rockFetchAll.mockResolvedValueOnce([])
 
     await expect(loadConnectGroupAttendanceMeeting(10, meeting, [42, 84])).resolves.toEqual({
       identity: meeting,
       notes: '',
       didNotMeet: false,
-      marks: { 42: 'present', 84: 'present' },
+      marks: { 42: 'unrecorded', 84: 'unrecorded' },
     })
   })
 
@@ -142,7 +142,7 @@ describe('Connect Group attendance entry', () => {
     expect(entry.meetings).toHaveLength(4)
     expect(entry.meetings[0]).toMatchObject({ date: '2026-08-12' })
     expect(entry.meetings[1]).toMatchObject({ date: '2026-08-05' })
-    expect(entry.selectedMeeting).toMatchObject({ marks: { 42: 'present' } })
+    expect(entry.selectedMeeting).toMatchObject({ marks: { 42: 'unrecorded' } })
     expect(mocks.rockFetchAll).toHaveBeenCalledWith(expect.objectContaining({
       endpoint: 'Groups',
       params: expect.objectContaining({

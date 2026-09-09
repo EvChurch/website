@@ -12,7 +12,6 @@ vi.mock('@/app/(frontend)/members/connect-groups/[rockGroupId]/attendance/action
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
 
 import { ConnectGroupAttendanceEditor } from './ConnectGroupAttendanceEditor'
-import type { ConnectGroupAttendanceMeeting } from '@/lib/members/attendance-entry'
 
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -29,7 +28,10 @@ describe('ConnectGroupAttendanceEditor', () => {
   let root: Root
   beforeEach(() => {
     container = document.createElement('div'); document.body.appendChild(container); root = createRoot(container)
-    vi.clearAllMocks()
+    vi.resetAllMocks()
+    HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }
+    HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') }
+    mocks.save.mockImplementation(async (_group, input) => ({ status: 'saved', state: { ...selected, ...input.edits, marks: input.edits.didNotMeet ? { 1: 'unrecorded', 2: 'unrecorded' } : { ...selected.marks, ...input.edits.marks } } }))
   })
   afterEach(async () => { await act(async () => root.unmount()); container.remove() })
 
@@ -41,7 +43,7 @@ describe('ConnectGroupAttendanceEditor', () => {
     expect(container.querySelector('[role="radiogroup"]')?.getAttribute('aria-label')).toContain('Aroha')
     expect(container.textContent).toContain('2 present')
     expect(container.querySelector('textarea')?.labels?.[0]?.textContent).toContain('Meeting notes')
-    expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent).toContain('Save attendance')
+    expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent).toBe('Save')
     expect(container.querySelector('textarea')?.getAttribute('rows')).toBe('3')
   })
 
@@ -57,58 +59,29 @@ describe('ConnectGroupAttendanceEditor', () => {
     expect(firstGroup.querySelectorAll<HTMLLabelElement>('label')[1]?.className).toContain('text-white')
   })
 
-  it('greys out disabled marks and restores unsaved selections when the group meets again', async () => {
-    mocks.save.mockResolvedValue({ status: 'saved', state: selected })
+  it('greys out marks and describes the disabled attendance after cancellation saves', async () => {
     await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first]} initialMeeting={selected} people={people} />))
-    const absent = container.querySelector<HTMLInputElement>('input[name="person-1"][value="absent"]')!
-    const present = container.querySelector<HTMLInputElement>('input[name="person-1"][value="present"]')!
-    const didNotMeet = container.querySelector<HTMLInputElement>('input[name="didNotMeet"]')!
-    await act(async () => absent.click())
-    await act(async () => didNotMeet.click())
-
-    const radios = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="radio"]'))
-    expect(radios.every((input) => input.matches(':disabled'))).toBe(true)
-    expect(radios.every((input) => input.closest('fieldset')?.classList.contains('disabled:opacity-50'))).toBe(true)
-    const summary = container.querySelector(`#${didNotMeet.getAttribute('aria-describedby')}`)!
-    expect(summary.textContent).toContain('disabled and will not be saved')
-    expect(summary.closest('[aria-live]')?.getAttribute('aria-live')).toBe('polite')
-    await act(async () => present.click())
-    expect(absent.checked).toBe(true)
-
-    await act(async () => didNotMeet.click())
-    expect(radios.every((input) => !input.matches(':disabled'))).toBe(true)
-    expect(absent.checked).toBe(true)
-    expect(container.textContent).toContain('1 present · 1 absent')
-    await act(async () => container.querySelector<HTMLFormElement>('form')!.requestSubmit())
-    expect(mocks.save).toHaveBeenCalledWith(10, expect.objectContaining({
-      didNotMeet: false, marks: { 1: 'absent', 2: 'present' },
-    }))
-  })
-
-  it('submits the did-not-meet flag so the save ignores locally preserved marks', async () => {
-    mocks.save.mockResolvedValue({ status: 'saved', state: { ...selected, didNotMeet: true } })
-    await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first]} initialMeeting={selected} people={people} />))
-    await act(async () => container.querySelector<HTMLInputElement>('input[name="didNotMeet"]')!.click())
-    await act(async () => container.querySelector<HTMLFormElement>('form')!.requestSubmit())
-    expect(mocks.save).toHaveBeenCalledWith(10, expect.objectContaining({ didNotMeet: true }))
+    await act(async () => container.querySelector<HTMLInputElement>('input[name="didNotMeet"]')?.click())
+    await act(async () => Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Clear attendance')?.click())
+    expect(Array.from(container.querySelectorAll<HTMLInputElement>('input[type="radio"]')).every((input) => input.closest('fieldset')?.disabled && input.closest('fieldset')?.classList.contains('disabled:opacity-50'))).toBe(true)
+    expect(container.querySelector('#attendance-summary')?.textContent).toBe('No individual attendance')
   })
 
   it('defaults unrecorded roster members to present', async () => {
     await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first]} initialMeeting={{ ...selected, marks: { 1: 'present', 2: 'unrecorded' } }} people={people} />))
     expect(container.querySelector<HTMLInputElement>('input[name="person-2"][value="present"]')?.checked).toBe(true)
     expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false)
-    expect(container.textContent).toContain('2 present')
+    expect(container.textContent).toContain('1 present')
+    expect(container.textContent).toContain('Not saved')
+    expect(mocks.save).not.toHaveBeenCalled()
   })
 
-  it('ignores stale meeting responses and keeps save disabled while loading', async () => {
-    let resolveOlder!: (value: ConnectGroupAttendanceMeeting) => void
-    mocks.load.mockReturnValue(new Promise((resolve) => { resolveOlder = resolve }))
+  it('loads another meeting without persisting untouched defaults', async () => {
+    mocks.load.mockResolvedValue({ ...selected, identity: second, marks: { 1: 'unrecorded', 2: 'unrecorded' } })
     await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first, second]} initialMeeting={selected} people={people} />))
     await act(async () => { container.querySelector<HTMLSelectElement>('select')!.value = '1'; container.querySelector('select')!.dispatchEvent(new Event('change', { bubbles: true })) })
-    expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true)
-    await act(async () => { container.querySelector<HTMLSelectElement>('select')!.value = '0'; container.querySelector('select')!.dispatchEvent(new Event('change', { bubbles: true })) })
-    await act(async () => resolveOlder({ ...selected, identity: second, notes: 'stale' }))
-    expect(container.querySelector<HTMLTextAreaElement>('textarea')?.value).not.toBe('stale')
+    expect(container.textContent).toContain('2 not saved')
+    expect(mocks.save).not.toHaveBeenCalled()
   })
 
   it('fails closed when changing meetings cannot load canonical state', async () => {
@@ -116,8 +89,8 @@ describe('ConnectGroupAttendanceEditor', () => {
     await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first, second]} initialMeeting={selected} people={people} />))
     await act(async () => { container.querySelector<HTMLSelectElement>('select')!.value = '1'; container.querySelector('select')!.dispatchEvent(new Event('change', { bubbles: true })) })
     await vi.waitFor(() => expect(container.querySelector('[role="alert"]')?.textContent).toContain('could not be loaded'))
-    expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true)
-    expect(container.querySelector<HTMLTextAreaElement>('textarea')?.disabled).toBe(true)
+    expect(container.querySelector<HTMLSelectElement>('select')?.value).toBe('0')
+    expect(mocks.save).not.toHaveBeenCalled()
   })
 
   it('routes to the group overview after Rock confirms the save', async () => {
@@ -125,6 +98,32 @@ describe('ConnectGroupAttendanceEditor', () => {
     await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first]} initialMeeting={selected} people={people} />))
     await act(async () => container.querySelector<HTMLFormElement>('form')!.requestSubmit())
     expect(mocks.save).toHaveBeenCalledTimes(1)
-    expect(mocks.push).toHaveBeenCalledWith('/members/connect-groups/10?attendance=saved')
+    await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/members/connect-groups/10?attendance=saved'))
   })
+  it('waits for a pending edit before switching meetings', async () => {
+    let finish!: (result: unknown) => void
+    mocks.save.mockReturnValue(new Promise(resolve => { finish = resolve }))
+    mocks.load.mockResolvedValue({ ...selected, identity: second })
+    await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first, second]} initialMeeting={selected} people={people} />))
+    await act(async () => container.querySelector<HTMLInputElement>('input[value="absent"]')!.click())
+    await act(async () => { container.querySelector<HTMLSelectElement>('select')!.value = '1'; container.querySelector('select')!.dispatchEvent(new Event('change', { bubbles: true })) })
+    expect(mocks.load).not.toHaveBeenCalled()
+    await act(async () => finish({ status: 'saved', state: { ...selected, marks: { 1: 'absent', 2: 'present' } } }))
+    await vi.waitFor(() => expect(mocks.load).toHaveBeenCalledWith(10, second))
+  })
+
+  it('can retry after leaving unsaved edits when the next meeting fails to load', async () => {
+    mocks.save.mockResolvedValue({ status: 'rejected', message: 'Try again' })
+    mocks.load.mockResolvedValue(null)
+    await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first, second]} initialMeeting={selected} people={people} />))
+    await act(async () => container.querySelector<HTMLInputElement>('input[value="absent"]')!.click())
+    await vi.waitFor(() => expect(mocks.save).toHaveBeenCalled())
+    await act(async () => { container.querySelector<HTMLSelectElement>('select')!.value = '1'; container.querySelector('select')!.dispatchEvent(new Event('change', { bubbles: true })) })
+    await act(async () => Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Leave anyway')!.click())
+    await vi.waitFor(() => expect(mocks.load).toHaveBeenCalled())
+    mocks.save.mockResolvedValue({ status: 'saved', state: selected })
+    await act(async () => Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Retry')!.click())
+    await vi.waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(2))
+  })
+
 })
