@@ -363,10 +363,10 @@ export const migrations = [
     down: migration_20260910_010000_connect_group_visibility.down,
     name: '20260910_010000_connect_group_visibility',
   },
-  { up: migration_20260910_070000_event_website_summary.up, down: migration_20260910_070000_event_website_summary.down, name: '20260910_070000_event_website_summary' },
   {
     up: migration_20260910_020000_connect_group_member_count.up,
     down: migration_20260910_020000_connect_group_member_count.down,
     name: '20260910_020000_connect_group_member_count',
   },
+  { up: migration_20260910_070000_event_website_summary.up, down: migration_20260910_070000_event_website_summary.down, name: '20260910_070000_event_website_summary' },
 ];
