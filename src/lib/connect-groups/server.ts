@@ -1,7 +1,7 @@
 import { getPayloadClient } from '@/lib/payload'
 import { isGuid } from '@/lib/rock-forms/constants'
 
-export async function isActiveConnectGroupGuid(value: string): Promise<boolean> {
+export async function isPublicConnectGroupGuid(value: string): Promise<boolean> {
   if (!isGuid(value)) return false
 
   const payload = await getPayloadClient()
@@ -16,6 +16,7 @@ export async function isActiveConnectGroupGuid(value: string): Promise<boolean> 
       and: [
         { rockGroupGuid: { equals: value.toLowerCase() } },
         { isActive: { equals: true } },
+        { isPublic: { equals: true } },
       ],
     },
   })

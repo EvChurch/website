@@ -5,28 +5,29 @@ vi.mock('@/lib/payload', () => ({
   getPayloadClient: vi.fn(async () => ({ find })),
 }))
 
-import { isActiveConnectGroupGuid } from './server'
+import { isPublicConnectGroupGuid } from './server'
 
-describe('isActiveConnectGroupGuid', () => {
+describe('isPublicConnectGroupGuid', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('requires an active mirrored Connect Group', async () => {
     find.mockResolvedValue({ docs: [{ rockGroupId: 29038 }] })
     await expect(
-      isActiveConnectGroupGuid('9756A8FD-A865-4070-ADD3-03B3396C4B9A'),
+      isPublicConnectGroupGuid('9756A8FD-A865-4070-ADD3-03B3396C4B9A'),
     ).resolves.toBe(true)
     expect(find).toHaveBeenCalledWith(expect.objectContaining({
       where: {
         and: [
           { rockGroupGuid: { equals: '9756a8fd-a865-4070-add3-03b3396c4b9a' } },
           { isActive: { equals: true } },
+          { isPublic: { equals: true } },
         ],
       },
     }))
   })
 
   it('rejects malformed identifiers before Payload access', async () => {
-    await expect(isActiveConnectGroupGuid('not-a-guid')).resolves.toBe(false)
+    await expect(isPublicConnectGroupGuid('not-a-guid')).resolves.toBe(false)
     expect(find).not.toHaveBeenCalled()
   })
 })

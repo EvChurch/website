@@ -102,14 +102,14 @@ export async function runRockSyncWorker({
     }
   }
 
+  await notifyWebsite(lockResult.value)
+
   const errors = lockResult.value.flatMap((result) =>
     result.errors.map((error) => `${result.entity}: ${error}`),
   )
   if (errors.length > 0) {
     throw new Error(`Sync completed with errors: ${errors.join('; ')}`)
   }
-
-  await notifyWebsite(lockResult.value)
 
   return { status: 'completed', results: lockResult.value }
 }

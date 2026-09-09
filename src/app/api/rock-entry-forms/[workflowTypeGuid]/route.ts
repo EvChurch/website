@@ -24,8 +24,9 @@ import { safeRockWorkflowRedirect } from '@/lib/rock-forms/redirect'
 import { TurnstileVerificationError } from '@/lib/turnstile'
 import {
   CONNECT_GROUP_WORKFLOW_GUID,
+  CONNECT_GROUP_FIELD_GUID,
 } from '@/lib/connect-groups/constants'
-import { isActiveConnectGroupGuid } from '@/lib/connect-groups/server'
+import { isPublicConnectGroupGuid } from '@/lib/connect-groups/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -215,12 +216,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const body = await boundedFormData(request)
     const isStart = body.get('intent') === 'start'
     const requestedGroupGuid = String(body.get('groupGuid') || '').toLowerCase()
+    const isConnectGroup = workflowTypeGuid.toLowerCase() === CONNECT_GROUP_WORKFLOW_GUID
+    if (isStart && isConnectGroup && !requestedGroupGuid) {
+      return jsonError('Choose a public Connect Group', 400)
+    }
     if (
       requestedGroupGuid &&
       (!isStart ||
         workflowTypeGuid.toLowerCase() !== CONNECT_GROUP_WORKFLOW_GUID ||
         !isGuid(requestedGroupGuid) ||
-        !(await isActiveConnectGroupGuid(requestedGroupGuid)))
+        !(await isPublicConnectGroupGuid(requestedGroupGuid)))
     ) {
       return jsonError('Invalid Connect Group identifier', 400)
     }
@@ -266,6 +271,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
     ) {
       return jsonError('The signed-in person does not match this form', 403)
     }
+    if (isConnectGroup && (!formContext.connectGroupGuid ||
+      !(await isPublicConnectGroupGuid(formContext.connectGroupGuid)))) {
+      return jsonError('This Connect Group is no longer available for public signup', 400)
+    }
     const knownFields = new Map(
       formContext.allowedFields.map((field) => [field.attributeGuid, field]),
     )
@@ -280,6 +289,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       if (knownFields.has(normalizedGuid) && typeof value === 'string') {
         fieldValues[normalizedGuid] = value.slice(0, 100_000)
       }
+    }
+
+    if (isConnectGroup) {
+      // Keep the selected group immutable, including crafted field submissions.
+      fieldValues[CONNECT_GROUP_FIELD_GUID] = formContext.connectGroupGuid!
     }
 
     const pendingFiles = [...knownFields].flatMap(([attributeGuid, field]) => {
@@ -349,6 +363,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           interactionGuid: formContext.interactionGuid,
           personId: formContext.personId,
           clearPersonDefaults: false,
+          connectGroupGuid: formContext.connectGroupGuid,
         }),
       })
     }

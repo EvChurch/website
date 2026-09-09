@@ -48,6 +48,7 @@ export function mapRockConnectGroup(
         ? schedule.FriendlyScheduleText?.trim() || schedule.Description.trim() || null
         : null,
     isActive: rock.IsActive,
+    isPublic: rock.IsPublic === true,
     _campusRockId: rock.CampusId,
   }
 }
