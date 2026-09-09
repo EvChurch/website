@@ -35,6 +35,7 @@ export function mapRockConnectGroup(
       address: location?.City || '',
     },
     capacity: rock.GroupCapacity,
+    memberCount: rock.Members.length,
     meetingDay:
       schedule?.IsActive && Number.isInteger(schedule.WeeklyDayOfWeek)
         ? schedule.WeeklyDayOfWeek
