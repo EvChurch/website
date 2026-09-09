@@ -3,6 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { mapRockConnectGroup } from './connect-group'
 
 describe('mapRockConnectGroup', () => {
+  it.each([true, false, null, undefined])('fails closed unless IsPublic is explicitly true (%s)', (IsPublic) => {
+    const group = { Id: 1, Guid: '11111111-1111-4111-8111-111111111111', Name: 'Safe fixture', Description: '', IsActive: true, IsPublic, ParentGroupId: null, GroupCapacity: 10, CampusId: null, ScheduleId: null, Members: [], GroupLocations: [] }
+    expect(mapRockConnectGroup(group)).toMatchObject({ isPublic: IsPublic === true, capacity: 10 })
+  })
+
   it('uses Rock role leadership and familiar-name fallback for public leaders', () => {
     const mapped = mapRockConnectGroup({
       Id: 10,

@@ -60,7 +60,7 @@ describe('public Connect Groups', () => {
     ])
     expect(mocks.find).toHaveBeenCalledWith(expect.objectContaining({
       collection: 'connect-groups',
-      where: { isActive: { equals: true } },
+      where: { and: [{ isActive: { equals: true } }, { isPublic: { equals: true } }] },
     }))
   })
 })

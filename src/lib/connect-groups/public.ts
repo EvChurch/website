@@ -111,7 +111,8 @@ async function fetchPublicConnectGroups(): Promise<PublicConnectGroup[]> {
       meetingTime: true,
       scheduleText: true,
     },
-    where: { isActive: { equals: true } },
+    overrideAccess: true,
+    where: { and: [{ isActive: { equals: true } }, { isPublic: { equals: true } }] },
   })
 
   return result.docs
@@ -127,6 +128,6 @@ async function fetchPublicConnectGroups(): Promise<PublicConnectGroup[]> {
 
 export const getPublicConnectGroups = unstable_cache(
   fetchPublicConnectGroups,
-  ['public-connect-groups-v2'],
+  ['public-connect-groups-v3'],
   { tags: [CACHE_TAGS.connectGroups], revalidate: 300 },
 )
