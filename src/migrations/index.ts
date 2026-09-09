@@ -62,6 +62,7 @@ import * as migration_20260903_010000_member_giving_self_service from './2026090
 import * as migration_20260905_060000_feedback_github_issue_links from './20260905_060000_feedback_github_issue_links';
 
 import * as migration_20260910_010000_connect_group_visibility from './20260910_010000_connect_group_visibility';
+import * as migration_20260910_020000_connect_group_member_count from './20260910_020000_connect_group_member_count';
 
 export const migrations = [
   {
@@ -361,6 +362,11 @@ export const migrations = [
     up: migration_20260910_010000_connect_group_visibility.up,
     down: migration_20260910_010000_connect_group_visibility.down,
     name: '20260910_010000_connect_group_visibility',
+  },
+  {
+    up: migration_20260910_020000_connect_group_member_count.up,
+    down: migration_20260910_020000_connect_group_member_count.down,
+    name: '20260910_020000_connect_group_member_count',
   },
   { up: migration_20260910_070000_event_website_summary.up, down: migration_20260910_070000_event_website_summary.down, name: '20260910_070000_event_website_summary' },
 ];
