@@ -115,3 +115,33 @@ describe('Rock entry form schema', () => {
     ).toThrow('Already complete')
   })
 })
+
+describe('Connect Group context binding', () => {
+  it('keeps the selected group in the encrypted context and omits group choices from the response', async () => {
+    process.env.ROCK_FORM_SIGNING_SECRET = 'test-only-secret'
+    const { verifyRockFormContextToken } = await import('./context-token')
+    const { CONNECT_GROUP_FIELD_GUID, CONNECT_GROUP_WORKFLOW_GUID } = await import('@/lib/connect-groups/constants')
+    const connectGroupGuid = '11111111-1111-4111-8111-111111111111'
+    try {
+      const form = await buildRockFormSchema({
+        workflow: { guid: CONNECT_GROUP_WORKFLOW_GUID, name: 'Join a Connect Group' },
+        sessionGuid: 'session', interactionGuid: 'interaction', connectGroupGuid,
+        action: {
+          actionTypeGuid: 'action', actionStartDateTime: '2026-09-10T00:00:00Z',
+          actionData: {
+            componentConfiguration: {
+              fields: JSON.stringify([{ attribute: { attributeGuid: CONNECT_GROUP_FIELD_GUID, fieldTypeGuid: 'type', name: 'Group', key: 'Group', configurationValues: { options: 'Private fixture group' } } }]),
+              buttons: '[{"action":"Submit","title":"Submit"}]',
+            },
+            componentData: { fieldValues: JSON.stringify({ [CONNECT_GROUP_FIELD_GUID]: connectGroupGuid }) },
+          },
+        },
+      })
+      expect(form.fields).toEqual([])
+      expect(JSON.stringify(form)).not.toContain('Private fixture group')
+      expect(verifyRockFormContextToken(form.contextToken).connectGroupGuid).toBe(connectGroupGuid)
+    } finally {
+      delete process.env.ROCK_FORM_SIGNING_SECRET
+    }
+  })
+})
