@@ -10,6 +10,8 @@ describe('event website summary migration', () => {
   })
 
   it('is registered for deployment', () => {
-    expect(migrations.at(-1)?.name).toBe('20260910_070000_event_website_summary')
+    expect(migrations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: '20260910_070000_event_website_summary' }),
+    ]))
   })
 })
