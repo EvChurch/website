@@ -1,4 +1,3 @@
-import { applyWeekendTogether2026 } from '@/content/weekend-together-2026'
 import { getPayloadClient } from '@/lib/payload'
 import { rockFetch } from '@/lib/rock-api'
 import { convertHTMLToLexical, editorConfigFactory } from '@payloadcms/richtext-lexical'
@@ -281,7 +280,7 @@ async function syncEvents(): Promise<SyncResult> {
       const image = _imageUrl
         ? await syncRockImage({ payload, photoUrl: _imageUrl, alt: `${eventData.title} event` })
         : null
-      const data = applyWeekendTogether2026({
+      const data = {
         ...eventData,
         summary: _descriptionHtml
           ? convertHTMLToLexical({
@@ -292,7 +291,7 @@ async function syncEvents(): Promise<SyncResult> {
           : null,
         ...(campus !== undefined ? { campus } : {}),
         ...(image !== null ? { image } : {}),
-      })
+      }
 
       if (existing.docs.length > 0) {
         await payload.update({

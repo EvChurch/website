@@ -12,6 +12,7 @@ export interface PublicEvent {
   title: string
   slug: string
   summary: unknown
+  websiteSummary?: unknown
   image: unknown
   startDate: string | null
   endDate: string | null
@@ -42,8 +43,17 @@ export type PublicMedia = PayloadMediaImage
 
 const AUCKLAND_TIME_ZONE = 'Pacific/Auckland'
 
+export function resolveEventContent(event: PublicEvent): PublicEvent {
+  if (event.websiteSummary == null) return event
+
+  return {
+    ...event,
+    summary: event.websiteSummary,
+  }
+}
+
 function asPublicEvent(value: unknown): PublicEvent {
-  return value as PublicEvent
+  return resolveEventContent(value as PublicEvent)
 }
 
 async function fetchAllEvents(): Promise<PublicEvent[]> {

@@ -41,6 +41,18 @@ export const Events: CollectionConfig = {
     {
       name: 'summary',
       type: 'richText',
+      admin: {
+        readOnly: true,
+        description: 'Synced from Rock. Use Website summary below for website-owned content.',
+      },
+    },
+    {
+      name: 'websiteSummary',
+      label: 'Website summary',
+      type: 'richText',
+      admin: {
+        description: 'Optional website-owned content. When set, this replaces the Rock summary and survives future syncs.',
+      },
     },
     {
       name: 'image',
@@ -62,10 +74,18 @@ export const Events: CollectionConfig = {
     {
       name: 'startDate',
       type: 'date',
+      admin: {
+        readOnly: true,
+        description: 'Synced from the next Rock occurrence.',
+      },
     },
     {
       name: 'endDate',
       type: 'date',
+      admin: {
+        readOnly: true,
+        description: 'Synced from Rock when an occurrence end time is available.',
+      },
     },
     {
       name: 'campus',

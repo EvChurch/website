@@ -64,6 +64,44 @@ export function normalizeRockDateTime(value: string | null): string | null {
   return new Date(instant).toISOString()
 }
 
+function normalizeICalendarDateTime(value: string): string | null {
+  const match = value.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z)?$/)
+  if (!match) return null
+
+  return normalizeRockDateTime(
+    `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}${match[7] ?? ''}`,
+  )
+}
+
+function iCalendarValue(content: string, property: 'DTSTART' | 'DTEND'): string | null {
+  const unfolded = content.replace(/\r?\n[ \t]/g, '')
+  const line = unfolded
+    .split(/\r?\n/)
+    .find((candidate) => candidate.startsWith(`${property}:`) || candidate.startsWith(`${property};`))
+  return line?.slice(line.indexOf(':') + 1).trim() || null
+}
+
+export function getRockOccurrenceEndDate(
+  nextStartDateTime: string | null,
+  iCalendarContent?: string,
+): string | null {
+  const nextStart = normalizeRockDateTime(nextStartDateTime)
+  if (!nextStart || !iCalendarContent) return null
+
+  const scheduleStartValue = iCalendarValue(iCalendarContent, 'DTSTART')
+  const scheduleEndValue = iCalendarValue(iCalendarContent, 'DTEND')
+  if (!scheduleStartValue || !scheduleEndValue) return null
+
+  const scheduleStart = normalizeICalendarDateTime(scheduleStartValue)
+  const scheduleEnd = normalizeICalendarDateTime(scheduleEndValue)
+  if (!scheduleStart || !scheduleEnd) return null
+
+  const duration = new Date(scheduleEnd).getTime() - new Date(scheduleStart).getTime()
+  if (!Number.isFinite(duration) || duration <= 0) return null
+
+  return new Date(new Date(nextStart).getTime() + duration).toISOString()
+}
+
 export function selectNextEventOccurrences(
   occurrences: RockEventItemOccurrence[],
   now = new Date(),
@@ -207,13 +245,19 @@ export function mapRockEvent(
   const contactEmail = rock.ContactEmail || contactPerson?.Email || ''
   const contactPhone = rock.ContactPhone || ''
 
+  const startDate = normalizeRockDateTime(rock.NextStartDateTime || null)
+
   return {
     title: eventItem.Name,
     slug: slugify(eventItem.Name),
     rockEventId: eventItem.Id,
-    startDate: normalizeRockDateTime(rock.NextStartDateTime || null),
-    // EffectiveEndDate is the recurrence boundary, not this occurrence's end time.
-    endDate: null,
+    startDate,
+    // EffectiveEndDate is the recurrence boundary. The iCalendar DTSTART/DTEND
+    // pair provides this occurrence's duration, applied to its next start.
+    endDate: getRockOccurrenceEndDate(
+      rock.NextStartDateTime,
+      rock.Schedule?.iCalendarContent,
+    ),
     // Campus relationship resolved by matching rockId in the sync runner
     _campusRockId: rock.CampusId,
     location: {

@@ -21,6 +21,35 @@ describe('normalizeRockDateTime', () => {
 })
 
 describe('mapRockEvent', () => {
+  it('derives the occurrence end time from the Rock iCalendar schedule', () => {
+    const mapped = mapRockEvent(
+      {
+        EventItemId: 40,
+        NextStartDateTime: '2026-11-06T19:00:00',
+        CampusId: null,
+        Schedule: {
+          EffectiveEndDate: '2026-11-08T15:00:00',
+          iCalendarContent: [
+            'BEGIN:VEVENT',
+            'DTSTART;TZID=Pacific/Auckland:20251107T190000',
+            'DTEND;TZID=Pacific/Auckland:20251109T150000',
+            'END:VEVENT',
+          ].join('\r\n'),
+        },
+      },
+      {
+        Id: 40,
+        Name: 'Weekend Together',
+        Summary: '',
+        Description: '',
+        IsActive: true,
+      },
+    )
+
+    expect(mapped.startDate).toBe('2026-11-06T06:00:00.000Z')
+    expect(mapped.endDate).toBe('2026-11-08T02:00:00.000Z')
+  })
+
   it('carries occurrence notes and contact details into the synced event', () => {
     const mapped = mapRockEvent(
       {
