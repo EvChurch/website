@@ -116,7 +116,7 @@ export default async function EventDetailPage({ params }: Props) {
               </div>
             )}
             {event.summary ? (
-              <div className="prose-events text-lg leading-relaxed text-dark-grey">
+              <div className="prose-events text-lg leading-relaxed text-dark-grey [&_h2]:mb-5 [&_h2]:mt-10 [&_h2]:text-2xl [&_h3]:mb-4 [&_h3]:mt-8 [&_h3]:text-xl [&_h3]:font-bold">
                 <RichText data={event.summary} />
               </div>
             ) : (

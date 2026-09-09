@@ -45,7 +45,7 @@ export const WEEKEND_TOGETHER_PROGRAMME = [
 
 type EventContent = Pick<Event, 'rockEventId' | 'slug' | 'startDate' | 'endDate' | 'summary'>
 
-export function applyWeekendTogether2026<T extends EventContent>(event: T): T {
+export function applyWeekendTogether2026<T extends EventContent>(event: T): Omit<T, 'startDate' | 'endDate' | 'summary'> & EventContent {
   // Do not carry the 2026 programme into a future recurrence of this event.
   if (event.rockEventId !== 40 || event.slug !== 'weekend-together'
     || !event.startDate || new Date(event.startDate).toISOString() !== WEEKEND_TOGETHER_START) return event
