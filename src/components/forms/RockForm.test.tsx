@@ -641,10 +641,12 @@ describe('Connect Group Newish pathway', () => {
       await act(async () => root.render(<RockForm workflowTypeGuid="a448e93f-dd25-4f55-b89d-8ed2043df747" groupGuid="11111111-1111-4111-8111-111111111111" initialSchema={schema()} />))
       expect(container.querySelector('a')?.getAttribute('href')).toBe('/newish')
       expect(container.textContent).toContain('Explore Newish')
+      expect(container.querySelector('img')?.getAttribute('alt')).toBe('Newish Connect')
       expect(container.querySelector('form')).toBeNull()
       expect(fetcher).not.toHaveBeenCalled()
       await act(async () => container.querySelector('button')?.click())
       expect(container.querySelector('form')).not.toBeNull()
+      expect(container.querySelector('img')?.getAttribute('alt')).toBe('Connect Groups')
     } finally {
       await act(async () => root.unmount())
       vi.unstubAllGlobals()
