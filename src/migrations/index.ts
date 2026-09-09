@@ -1,3 +1,4 @@
+import * as migration_20260910_070000_event_website_summary from './20260910_070000_event_website_summary';
 import * as migration_20260908_180000_sermon_transcripts_calendar from './20260908_180000_sermon_transcripts_calendar';
 import * as migration_20260908_150000_feedback_communications from './20260908_150000_feedback_communications';
 import * as migration_20260908_120000_giving_student_minister_funds from './20260908_120000_giving_student_minister_funds';
@@ -361,4 +362,5 @@ export const migrations = [
     down: migration_20260910_010000_connect_group_visibility.down,
     name: '20260910_010000_connect_group_visibility',
   },
+  { up: migration_20260910_070000_event_website_summary.up, down: migration_20260910_070000_event_website_summary.down, name: '20260910_070000_event_website_summary' },
 ];

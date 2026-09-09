@@ -12,6 +12,7 @@ export interface PublicEvent {
   title: string
   slug: string
   summary: unknown
+  websiteSummary?: unknown
   image: unknown
   startDate: string | null
   endDate: string | null
@@ -42,8 +43,17 @@ export type PublicMedia = PayloadMediaImage
 
 const AUCKLAND_TIME_ZONE = 'Pacific/Auckland'
 
+export function resolveEventContent(event: PublicEvent): PublicEvent {
+  if (event.websiteSummary == null) return event
+
+  return {
+    ...event,
+    summary: event.websiteSummary,
+  }
+}
+
 function asPublicEvent(value: unknown): PublicEvent {
-  return value as PublicEvent
+  return resolveEventContent(value as PublicEvent)
 }
 
 async function fetchAllEvents(): Promise<PublicEvent[]> {
@@ -230,7 +240,16 @@ export function formatEventDate(event: PublicEvent): string {
 
   const sameDay = new Intl.DateTimeFormat('en-CA', { timeZone: AUCKLAND_TIME_ZONE }).format(start)
     === new Intl.DateTimeFormat('en-CA', { timeZone: AUCKLAND_TIME_ZONE }).format(end)
-  if (!sameDay) return date
+  if (!sameDay) {
+    const endDate = new Intl.DateTimeFormat('en-NZ', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+      timeZone: AUCKLAND_TIME_ZONE,
+    }).format(end)
+    const endTime = new Intl.DateTimeFormat('en-NZ', {
+      hour: 'numeric', minute: '2-digit', timeZone: AUCKLAND_TIME_ZONE,
+    }).format(end)
+    return `${date}, ${startTime} – ${endDate}, ${endTime}`
+  }
 
   const endTime = new Intl.DateTimeFormat('en-NZ', {
     hour: 'numeric',
