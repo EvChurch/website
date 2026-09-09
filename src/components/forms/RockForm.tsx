@@ -1,5 +1,7 @@
 'use client'
 
+import Image from 'next/image'
+
 import {
   useCallback,
   useEffect,
@@ -606,20 +608,35 @@ function PersonSearchField({
 
 export function RockForm(props: Parameters<typeof WorkflowForm>[0]) {
   const [confirmedGroup, setConfirmedGroup] = useState<string | null>(null)
-  if (props.workflowTypeGuid.toLowerCase() === CONNECT_GROUP_WORKFLOW_GUID &&
-    confirmedGroup !== (props.groupGuid || 'unselected')) {
-    return (
-      <div className="mx-auto max-w-xl space-y-6 px-4 py-6 text-center">
-        <h2 className="font-serif text-3xl">Start with Newish</h2>
-        <p className="text-dark-grey">Newish is a great way to get to know Ev Church and take your next step into community. If you have already completed Newish, you can continue to register for this Connect Group.</p>
-        <div className="flex flex-col items-center gap-4">
-          <Button href="/newish">Explore Newish</Button>
-          <Button type="button" variant="text" onClick={() => setConfirmedGroup(props.groupGuid || 'unselected')}>I’ve completed Newish</Button>
-        </div>
-      </div>
-    )
+  if (props.workflowTypeGuid.toLowerCase() !== CONNECT_GROUP_WORKFLOW_GUID) {
+    return <WorkflowForm {...props} />
   }
-  return <WorkflowForm {...props} />
+  const showNewish = confirmedGroup !== (props.groupGuid || 'unselected')
+  return (
+    <>
+      <Image
+        src={showNewish
+          ? '/images/newish/newish-connect-banner.jpg'
+          : '/images/connect-groups/connect-groups-banner.jpg'}
+        alt={showNewish ? 'Newish Connect' : 'Connect Groups'}
+        width={1920}
+        height={1080}
+        sizes="(max-width: 640px) 100vw, 768px"
+        loading="eager"
+        className="mb-6 h-auto w-full"
+      />
+      {showNewish ? (
+        <div className="mx-auto max-w-xl space-y-6 px-4 py-6 text-center">
+          <h2 className="font-serif text-3xl">Start with Newish</h2>
+          <p className="text-dark-grey">Newish is a great way to get to know Ev Church and take your next step into community. If you have already completed Newish, you can continue to register for this Connect Group.</p>
+          <div className="flex flex-col items-center gap-4">
+            <Button href="/newish">Explore Newish</Button>
+            <Button type="button" variant="text" onClick={() => setConfirmedGroup(props.groupGuid || 'unselected')}>I’ve completed Newish</Button>
+          </div>
+        </div>
+      ) : <WorkflowForm {...props} />}
+    </>
+  )
 }
 
 function WorkflowForm({
