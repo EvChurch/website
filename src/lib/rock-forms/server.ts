@@ -1,5 +1,4 @@
 import { CONNECT_GROUP_WORKFLOW_GUID, CONNECT_GROUP_FIELD_GUID } from '@/lib/connect-groups/constants'
-import { isPublicConnectGroupGuid } from '@/lib/connect-groups/server'
 import { randomUUID } from 'node:crypto'
 import { rockFetch } from '@/lib/rock-api'
 import {
@@ -258,9 +257,12 @@ export async function startRockForm(
   personId: number | null = null,
   pageParameters: Record<string, string> = {},
 ): Promise<RockFormSchema> {
-  if (workflowTypeGuid.toLowerCase() === CONNECT_GROUP_WORKFLOW_GUID &&
-    !(await isPublicConnectGroupGuid(pageParameters.GroupGuid || ''))) {
-    throw new Error('Choose a public Connect Group')
+  if (workflowTypeGuid.toLowerCase() === CONNECT_GROUP_WORKFLOW_GUID) {
+    // Collection configuration imports this module; load Payload only at runtime.
+    const { isPublicConnectGroupGuid } = await import('@/lib/connect-groups/server')
+    if (!(await isPublicConnectGroupGuid(pageParameters.GroupGuid || ''))) {
+      throw new Error('Choose a public Connect Group')
+    }
   }
   const workflow = await getPublicRockWorkflow(workflowTypeGuid)
 
