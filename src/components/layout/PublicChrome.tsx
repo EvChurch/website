@@ -2,11 +2,11 @@
 
 import { Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
+import dynamic from 'next/dynamic'
 
 import { AudioPlayerBar } from '@/components/audio/AudioPlayerBar'
 import { AudioPlayerSpacer } from '@/components/audio/AudioPlayerSpacer'
 import { GivingExperienceProvider } from '@/components/giving/GivingExperienceProvider'
-import { GivingFlow } from '@/components/giving/GivingFlow'
 import { GivingUnavailable } from '@/components/giving/GivingUnavailable'
 import { NextStepsLauncher } from '@/components/launcher/NextStepsLauncher'
 import { MediaPlayerProvider } from '@/components/media/MediaPlayerProvider'
@@ -26,6 +26,12 @@ import { matchesPathPrefix } from '@/lib/public-paths'
 import type { PublicSiteFeedbackSettings } from '@/lib/site-feedback/settings'
 import { Header } from './Header'
 import { SiteHeader } from './SiteHeader'
+
+// The launcher renders this only when giving is opened, including payment returns.
+const GivingFlow = dynamic(
+  () => import('@/components/giving/GivingFlow').then((module) => module.GivingFlow),
+  { loading: () => <p role="status" className="p-6 text-dark-grey">Loading giving…</p> },
+)
 
 export function PublicChrome({
   children,
