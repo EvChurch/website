@@ -54,7 +54,7 @@ async function fetchSitemapSections(): Promise<SitemapSection[]> {
     payload.find({
     collection: 'campuses',
     depth: 0,
-    select: { name: true, slug: true },
+    select: { name: true, slug: true, updatedAt: true },
     limit: 100,
     }),
     payload.find({
@@ -99,7 +99,7 @@ async function fetchSitemapSections(): Promise<SitemapSection[]> {
     payload.find({
     collection: 'scriptures',
     depth: 0,
-    select: { name: true, slug: true, updatedAt: true },
+    select: { name: true, slug: true },
     limit: 200,
     }),
   ])
