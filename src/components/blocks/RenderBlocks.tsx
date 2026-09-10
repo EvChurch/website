@@ -508,7 +508,7 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
                 cardStyle={b.cardStyle}
                 columns={b.columns}
                 cards={b.cards}
-                priority={aboveFold}
+                priority={aboveFold && !blocks.slice(0, index).some((preceding) => preceding.blockType === 'hero')}
               />
             )
           }
