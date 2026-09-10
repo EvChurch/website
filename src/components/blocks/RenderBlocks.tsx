@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { HeroBlockComponent } from './HeroBlockComponent'
 import { ContentBlockComponent } from './ContentBlockComponent'
 import { CTABlockComponent } from './CTABlockComponent'
@@ -471,18 +472,27 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
           case 'formEmbed': {
             const b = block as FormEmbedBlock
             return (
-              <FormEmbedBlockComponent
-                key={key}
-                eyebrow={b.eyebrow}
-                heading={b.heading}
-                description={b.description}
-                fallbackContactLabel={b.fallbackContactLabel}
-                fallbackContactHref={b.fallbackContactHref}
-                sourceType={b.sourceType}
-                rockWorkflowGuid={b.rockWorkflowGuid}
-                rockConnectionBlockGuid={b.rockConnectionBlockGuid}
-                layout={b.layout}
-              />
+              <Suspense key={key} fallback={
+                <section id={b.id ?? undefined} className="scroll-mt-20 bg-warm-white px-5 py-16 lg:px-8 lg:py-24">
+                  <div className="mx-auto max-w-2xl">
+                    {b.heading && <h2 className="text-h2 text-brand-black">{b.heading}</h2>}
+                    <p role="status" className="mt-4 text-dark-grey">Loading form…</p>
+                  </div>
+                </section>
+              }>
+                <FormEmbedBlockComponent
+                  id={b.id}
+                  eyebrow={b.eyebrow}
+                  heading={b.heading}
+                  description={b.description}
+                  fallbackContactLabel={b.fallbackContactLabel}
+                  fallbackContactHref={b.fallbackContactHref}
+                  sourceType={b.sourceType}
+                  rockWorkflowGuid={b.rockWorkflowGuid}
+                  rockConnectionBlockGuid={b.rockConnectionBlockGuid}
+                  layout={b.layout}
+                />
+              </Suspense>
             )
           }
 
@@ -491,6 +501,7 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
             return (
               <ManualCardGridBlockComponent
                 key={key}
+                id={b.id}
                 eyebrow={b.eyebrow}
                 heading={b.heading}
                 description={b.description}

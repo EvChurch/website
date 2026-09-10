@@ -70,4 +70,11 @@ describe('sitemap', () => {
     expect(source).toContain('export const revalidate = 300')
     expect(source).not.toContain("export const dynamic = 'force-dynamic'")
   })
+
+  it('uses real modification dates and omits dates for entries without one', async () => {
+    const routes = await sitemap()
+    expect(routes.find(({ url }) => url === 'https://www.ev.church/about')?.lastModified).toEqual(new Date('2026-08-03T00:00:00.000Z'))
+    expect(routes.find(({ url }) => url === 'https://www.ev.church/events')?.lastModified).toBeUndefined()
+    expect(routes.find(({ url }) => url === 'https://www.ev.church/sitemap')?.lastModified).toBeUndefined()
+  })
 })

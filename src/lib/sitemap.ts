@@ -10,7 +10,7 @@ export const SITE_URL = 'https://www.ev.church'
 export interface SitemapLink {
   label: string
   url: string
-  lastModified: Date
+  lastModified?: Date
   changeFrequency: NonNullable<MetadataRoute.Sitemap[number]['changeFrequency']>
   priority: number
 }
@@ -20,8 +20,10 @@ export interface SitemapSection {
   links: SitemapLink[]
 }
 
-function updatedAt(value?: string | null): Date {
-  return value ? new Date(value) : new Date()
+function updatedAt(value?: string | null): Date | undefined {
+  if (!value) return undefined
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? undefined : date
 }
 
 function link(
@@ -85,19 +87,19 @@ async function fetchSitemapSections(): Promise<SitemapSection[]> {
     payload.find({
     collection: 'speakers',
     depth: 0,
-    select: { name: true, slug: true },
+    select: { name: true, slug: true, updatedAt: true },
     limit: 200,
     }),
     payload.find({
     collection: 'topics',
     depth: 0,
-    select: { name: true, slug: true },
+    select: { name: true, slug: true, updatedAt: true },
     limit: 200,
     }),
     payload.find({
     collection: 'scriptures',
     depth: 0,
-    select: { name: true, slug: true },
+    select: { name: true, slug: true, updatedAt: true },
     limit: 200,
     }),
   ])
@@ -167,6 +169,7 @@ async function fetchSitemapSections(): Promise<SitemapSection[]> {
     {
       title: 'Sermon speakers',
       links: speakers.docs.map((speaker) => link(speaker.name, `/sermons/speakers/${speaker.slug}`, {
+        lastModified: speaker.updatedAt,
         changeFrequency: 'monthly',
         priority: 0.5,
       })),
@@ -174,6 +177,7 @@ async function fetchSitemapSections(): Promise<SitemapSection[]> {
     {
       title: 'Sermon topics',
       links: topics.docs.map((topic) => link(topic.name, `/sermons/topics/${topic.slug}`, {
+        lastModified: topic.updatedAt,
         changeFrequency: 'monthly',
         priority: 0.5,
       })),
@@ -181,6 +185,7 @@ async function fetchSitemapSections(): Promise<SitemapSection[]> {
     {
       title: 'Scripture',
       links: scriptures.docs.map((scripture) => link(scripture.name, `/sermons/scriptures/${scripture.slug}`, {
+        lastModified: scripture.updatedAt,
         changeFrequency: 'monthly',
         priority: 0.5,
       })),
