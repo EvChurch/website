@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 import type { Campus } from '@/payload-types'
 
+vi.mock('./HeroBlockComponent', () => ({ HeroBlockComponent: () => <div>Hero</div> }))
+
 vi.mock('./ManualCardGridBlockComponent', () => ({
   ManualCardGridBlockComponent: ({ priority }: { priority?: boolean }) => (
     <div data-priority={String(priority)} />
@@ -72,6 +74,14 @@ const centralCampus: Campus = {
 }
 
 describe('RenderBlocks', () => {
+  it('does not preload campus cards below a full hero', () => {
+    const markup = renderToStaticMarkup(<RenderBlocks blocks={[
+      { blockType: 'hero', heading: 'Welcome', image: '/hero.jpg' },
+      { blockType: 'manualCardGrid', cards: [] },
+    ]} />)
+    expect(markup).toContain('data-priority="false"')
+  })
+
   it('passes editor-managed fallback actions to form blocks', () => {
     const markup = renderToStaticMarkup(
       <RenderBlocks

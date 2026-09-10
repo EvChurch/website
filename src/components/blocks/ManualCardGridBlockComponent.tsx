@@ -26,6 +26,7 @@ interface ManualCard {
 }
 
 interface ManualCardGridBlockProps {
+  id?: string | null
   eyebrow?: string | null
   heading?: string | null
   description?: string | null
@@ -416,6 +417,7 @@ function AlternatingRowCard({ card, index }: { card: ManualCard; index: number }
 }
 
 export function ManualCardGridBlockComponent({
+  id,
   eyebrow,
   heading,
   description,
@@ -431,7 +433,7 @@ export function ManualCardGridBlockComponent({
   const isContinuation = !!description && !heading && !eyebrow
 
   return (
-    <section className={`bg-warm-white px-5 py-24 lg:px-8 lg:py-32 ${isContinuation ? 'border-t-2 border-warm-grey' : ''}`}>
+    <section id={id ?? undefined} className={`scroll-mt-20 bg-warm-white px-5 py-24 lg:px-8 lg:py-32 ${isContinuation ? 'border-t-2 border-warm-grey' : ''}`}>
       <div className="mx-auto max-w-[80rem]">
         {/* Section header — left aligned */}
         {(eyebrow || heading || description) && (

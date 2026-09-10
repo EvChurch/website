@@ -10,7 +10,7 @@ export const SITE_URL = 'https://www.ev.church'
 export interface SitemapLink {
   label: string
   url: string
-  lastModified: Date
+  lastModified?: Date
   changeFrequency: NonNullable<MetadataRoute.Sitemap[number]['changeFrequency']>
   priority: number
 }
@@ -20,8 +20,10 @@ export interface SitemapSection {
   links: SitemapLink[]
 }
 
-function updatedAt(value?: string | null): Date {
-  return value ? new Date(value) : new Date()
+function updatedAt(value?: string | null): Date | undefined {
+  if (!value) return undefined
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? undefined : date
 }
 
 function link(

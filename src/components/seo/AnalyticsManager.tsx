@@ -196,7 +196,7 @@ export function AnalyticsManager({
 
   useEffect(() => {
     if (GA_ID) {
-      ;(window as unknown as Record<string, unknown>)[`ga-disable-${GA_ID}`] = !mayTrack
+      ;(window as unknown as Record<string, unknown>)[`ga-disable-${GA_ID}`] = !mayTrack || givingViewActive
     }
 
     if (pausePrivateCapture) {
@@ -211,7 +211,7 @@ export function AnalyticsManager({
       $current_url: `${window.location.origin}${pathname}`,
       $pathname: pathname,
     })
-  }, [mayTrack, pathname, pausePrivateCapture])
+  }, [mayTrack, pathname, pausePrivateCapture, givingViewActive])
 
   return mayTrack && !givingViewActive
     ? <GoogleAnalytics pagePath={pathname} />
