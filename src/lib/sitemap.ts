@@ -54,7 +54,7 @@ async function fetchSitemapSections(): Promise<SitemapSection[]> {
     payload.find({
     collection: 'campuses',
     depth: 0,
-    select: { name: true, slug: true, updatedAt: true },
+    select: { name: true, slug: true },
     limit: 100,
     }),
     payload.find({
@@ -87,13 +87,13 @@ async function fetchSitemapSections(): Promise<SitemapSection[]> {
     payload.find({
     collection: 'speakers',
     depth: 0,
-    select: { name: true, slug: true, updatedAt: true },
+    select: { name: true, slug: true },
     limit: 200,
     }),
     payload.find({
     collection: 'topics',
     depth: 0,
-    select: { name: true, slug: true, updatedAt: true },
+    select: { name: true, slug: true },
     limit: 200,
     }),
     payload.find({
@@ -169,7 +169,6 @@ async function fetchSitemapSections(): Promise<SitemapSection[]> {
     {
       title: 'Sermon speakers',
       links: speakers.docs.map((speaker) => link(speaker.name, `/sermons/speakers/${speaker.slug}`, {
-        lastModified: speaker.updatedAt,
         changeFrequency: 'monthly',
         priority: 0.5,
       })),
@@ -177,7 +176,6 @@ async function fetchSitemapSections(): Promise<SitemapSection[]> {
     {
       title: 'Sermon topics',
       links: topics.docs.map((topic) => link(topic.name, `/sermons/topics/${topic.slug}`, {
-        lastModified: topic.updatedAt,
         changeFrequency: 'monthly',
         priority: 0.5,
       })),
@@ -185,7 +183,6 @@ async function fetchSitemapSections(): Promise<SitemapSection[]> {
     {
       title: 'Scripture',
       links: scriptures.docs.map((scripture) => link(scripture.name, `/sermons/scriptures/${scripture.slug}`, {
-        lastModified: scripture.updatedAt,
         changeFrequency: 'monthly',
         priority: 0.5,
       })),
