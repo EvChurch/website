@@ -85,8 +85,13 @@ export function normalizePublicPath(input: string): string | null {
 
 export function isEligiblePublicPath(input: string): boolean {
   const pathname = normalizePublicPath(input)
+  return pathname !== null && !FILE_LIKE_SEGMENT.test(pathname) && isEligibleRedirectPath(pathname)
+}
+
+export function isEligibleRedirectPath(input: string): boolean {
+  const pathname = normalizePublicPath(input)
   if (!pathname) return false
-  if (METADATA_PATHS.has(pathname) || FILE_LIKE_SEGMENT.test(pathname)) return false
+  if (METADATA_PATHS.has(pathname)) return false
 
   return !matchesPathPrefix(pathname, '/_next') && !isAnalyticsSensitivePath(pathname)
 }
