@@ -1184,6 +1184,7 @@ export function NextStepsLauncher({
           <RegistrationFrame
             src={state.view.href}
             title={`Register for ${state.view.title}`}
+            scrollContainerRef={scrollRef}
           />
         );
       case "registrationPage":
@@ -1198,7 +1199,7 @@ export function NextStepsLauncher({
                 <RichText data={state.view.body} />
               </div>
             )}
-            <RegistrationFrame src={state.view.href} title={state.view.title} />
+            <RegistrationFrame src={state.view.href} title={state.view.title} scrollContainerRef={scrollRef} />
           </div>
         );
       case "content":
