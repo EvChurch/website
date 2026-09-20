@@ -137,6 +137,25 @@ describe('admin Auth0 proxy', () => {
     )
   })
 
+  it.each(['/content/EvChurch/Ev-long-white.png', '/downloads/old.pdf'])(
+    'uses database redirects for file URL %s', async (source) => {
+      findRedirect.mockResolvedValue('/images/global/ev-church-logo.png')
+      const response = await proxy(new NextRequest(`https://www.ev.church${source}`))
+      expect(findRedirect).toHaveBeenCalledWith(source)
+      expect(response.status).toBe(307)
+      expect(response.headers.get('location')).toBe('https://www.ev.church/images/global/ev-church-logo.png')
+    },
+  )
+
+  it('passes unresolved files through without a public tracking header', async () => {
+    const response = await proxy(new NextRequest('https://www.ev.church/images/logo.svg', {
+      headers: { 'x-ev-public-path': '/spoofed' },
+    }))
+    expect(findRedirect).toHaveBeenCalledWith('/images/logo.svg')
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-middleware-request-x-ev-public-path')).toBeNull()
+  })
+
   it('uses configured missing-path data for a legacy attendance link', async () => {
     findRedirect.mockResolvedValueOnce('/members/connect-groups/attendance')
 
@@ -154,7 +173,6 @@ describe('admin Auth0 proxy', () => {
     '/_next/static/chunk.js',
     '/robots.txt',
     '/favicon.ico',
-    '/images/logo.svg',
   ])('does not query or attach a public path for excluded request %s', async (pathname) => {
     const request = new NextRequest(`https://www.ev.church${pathname}`, {
       headers: { 'x-ev-public-path': '/spoofed' },

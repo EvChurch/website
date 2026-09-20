@@ -10,6 +10,7 @@ import { findMissingPathRedirect } from '@/lib/missing-paths'
 import {
   encodePublicPathHeader,
   isEligiblePublicPath,
+  isEligibleRedirectPath,
   matchesPathPrefix,
   normalizePublicPath,
   PUBLIC_PATH_HEADER,
@@ -25,7 +26,7 @@ export async function proxy(request: NextRequest) {
   const isAdminRoute = matchesPathPrefix(request.nextUrl.pathname, '/admin')
   const isAdminApiRoute = matchesPathPrefix(request.nextUrl.pathname, '/api')
   const normalizedPath = normalizePublicPath(request.nextUrl.pathname)
-  const isEligiblePath = normalizedPath !== null && isEligiblePublicPath(normalizedPath)
+  const isEligiblePath = normalizedPath !== null && isEligibleRedirectPath(normalizedPath)
 
   if (
     !isAdminAuthRoute &&
@@ -64,6 +65,10 @@ export async function proxy(request: NextRequest) {
     if (destination) return NextResponse.redirect(new URL(destination, request.url))
 
     const requestHeaders = new Headers(request.headers)
+    requestHeaders.delete(PUBLIC_PATH_HEADER)
+    if (!isEligiblePublicPath(normalizedPath)) {
+      return NextResponse.next({ request: { headers: requestHeaders } })
+    }
     const encodedPath = encodePublicPathHeader(normalizedPath)
     if (encodedPath) requestHeaders.set(PUBLIC_PATH_HEADER, encodedPath)
     return NextResponse.next({ request: { headers: requestHeaders } })
