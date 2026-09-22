@@ -63,4 +63,40 @@ describe('public Connect Groups', () => {
       where: { and: [{ isActive: { equals: true } }, { isPublic: { equals: true } }] },
     }))
   })
+
+  it('drops groups that have reached capacity', async () => {
+    mocks.find.mockResolvedValue({
+      docs: [
+        {
+          id: 1,
+          name: 'Open group',
+          publicName: 'Open',
+          rockGroupGuid: 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA',
+          campus: { name: 'Central', slug: 'central' },
+          leaders: [],
+          meetingDay: 3,
+          meetingTime: '19:00:00',
+          scheduleText: null,
+          capacity: 12,
+          memberCount: 11,
+        },
+        {
+          id: 2,
+          name: 'Full group',
+          publicName: 'Full',
+          rockGroupGuid: 'BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB',
+          campus: { name: 'North', slug: 'north' },
+          leaders: [],
+          meetingDay: 2,
+          meetingTime: '19:00:00',
+          scheduleText: null,
+          capacity: 10,
+          memberCount: 10,
+        },
+      ],
+    })
+
+    const groups = await getPublicConnectGroups()
+    expect(groups.map((group) => group.publicName)).toEqual(['Open'])
+  })
 })

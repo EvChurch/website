@@ -117,6 +117,14 @@ export const ConnectGroups: CollectionConfig = {
       type: 'number',
     },
     {
+      name: 'memberCount',
+      type: 'number',
+      admin: {
+        readOnly: true,
+        description: 'Active Rock members, used to hide groups at capacity.',
+      },
+    },
+    {
       name: 'meetingDay',
       type: 'number',
       min: 0,

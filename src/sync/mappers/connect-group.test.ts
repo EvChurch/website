@@ -47,6 +47,7 @@ describe('mapRockConnectGroup', () => {
       meetingDay: null,
       meetingTime: null,
       scheduleText: null,
+      memberCount: 2,
     })
   })
 

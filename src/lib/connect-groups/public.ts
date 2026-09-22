@@ -94,6 +94,19 @@ function asPublicConnectGroup(value: unknown): PublicConnectGroup | null {
   }
 }
 
+/** Keeps groups with an open spot; a null or non-positive capacity means no limit. */
+function hasOpenCapacity(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return true
+  const group = value as Record<string, unknown>
+  const capacity = group.capacity
+  if (typeof capacity !== 'number' || !Number.isFinite(capacity) || capacity <= 0) return true
+  const memberCount =
+    typeof group.memberCount === 'number' && Number.isFinite(group.memberCount)
+      ? group.memberCount
+      : 0
+  return memberCount < capacity
+}
+
 async function fetchPublicConnectGroups(): Promise<PublicConnectGroup[]> {
   const payload = await getPayloadClient()
   const result = await payload.find({
@@ -110,12 +123,15 @@ async function fetchPublicConnectGroups(): Promise<PublicConnectGroup[]> {
       meetingDay: true,
       meetingTime: true,
       scheduleText: true,
+      capacity: true,
+      memberCount: true,
     },
     overrideAccess: true,
     where: { and: [{ isActive: { equals: true } }, { isPublic: { equals: true } }] },
   })
 
   return result.docs
+    .filter(hasOpenCapacity)
     .map(asPublicConnectGroup)
     .filter((group): group is PublicConnectGroup => group !== null)
     .sort((a, b) =>
@@ -128,6 +144,6 @@ async function fetchPublicConnectGroups(): Promise<PublicConnectGroup[]> {
 
 export const getPublicConnectGroups = unstable_cache(
   fetchPublicConnectGroups,
-  ['public-connect-groups-v3'],
+  ['public-connect-groups-v4'],
   { tags: [CACHE_TAGS.connectGroups], revalidate: 300 },
 )
