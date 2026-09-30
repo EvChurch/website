@@ -103,11 +103,8 @@ const items: LauncherItem[] = [
 ];
 
 const feedback: PublicSiteFeedbackSettings = {
-  bannerCopy: "Help us improve the new ev.church.",
-  ctaLabel: "Share feedback.",
   modalTitle: "Share your feedback",
   modalIntro: "Tell us what is working well or what we could improve.",
-  dismissalVersion: "v1",
   turnstileSiteKey: "site-key",
 };
 
@@ -1042,7 +1039,7 @@ describe("NextStepsLauncher", () => {
       );
     });
     await act(async () => button(container, "Open next steps")?.click());
-    await act(async () => button(container, "New website feedback")?.click());
+    await act(async () => button(container, "Website feedback")?.click());
 
     expect(container.textContent).toContain("Share your feedback");
     expect(container.textContent).toContain(feedback.modalIntro);
@@ -1050,7 +1047,7 @@ describe("NextStepsLauncher", () => {
     expect(container.querySelector('input[name="email"]')).toBeNull();
 
     await act(async () => button(container, "Back")?.click());
-    expect(button(container, "New website feedback")).toBeTruthy();
+    expect(button(container, "Website feedback")).toBeTruthy();
   });
 
   it("preserves an active form through full screen and clears it on close", async () => {

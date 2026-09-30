@@ -57,11 +57,8 @@ describe('FrontendLayout public rendering boundary', () => {
   it('passes public giving configuration through the client chrome', async () => {
     const launcher = { available: true, campuses: [{ slug: 'north', name: 'North' }], items: [] }
     const feedback = {
-      bannerCopy: 'Help us improve the new ev.church.',
-      ctaLabel: 'Share feedback.',
       modalTitle: 'Share your feedback',
       modalIntro: 'Tell us what is working well or what we could improve.',
-      dismissalVersion: 'v2',
       turnstileSiteKey: 'site-key',
     }
     const givingRuntime = {
