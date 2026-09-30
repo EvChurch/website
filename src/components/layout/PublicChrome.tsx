@@ -142,7 +142,6 @@ export function PublicChrome({
         <AnalyticsManager postHogIdentity={memberChromeResolved ? memberChrome.postHogIdentity : undefined} />
         {announcement}
         <SiteHeader
-          feedback={feedback}
           memberProfile={memberChrome.memberProfile}
           adminHref={memberChrome.adminHref ?? undefined}
           impersonation={memberChrome.impersonation}

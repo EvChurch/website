@@ -34,25 +34,11 @@ describe('SiteSettings global', () => {
       throw new Error('Site Settings feedback group is not configured')
     }
 
+    expect(feedback.fields.map((field) => 'name' in field ? field.name : null)).toEqual([
+      'modalTitle', 'modalIntro', 'notificationRecipient',
+    ])
     expect(feedback.fields).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          name: 'enabled',
-          type: 'checkbox',
-          defaultValue: false,
-        }),
-        expect.objectContaining({
-          name: 'bannerCopy',
-          type: 'text',
-          defaultValue: 'Help us improve the new ev.church.',
-          maxLength: 160,
-        }),
-        expect.objectContaining({
-          name: 'ctaLabel',
-          type: 'text',
-          defaultValue: 'Share feedback.',
-          maxLength: 80,
-        }),
         expect.objectContaining({
           name: 'modalTitle',
           type: 'text',
@@ -65,13 +51,6 @@ describe('SiteSettings global', () => {
           defaultValue: 'Tell us what is working well or what we could improve.',
           maxLength: 500,
         }),
-        expect.objectContaining({
-          name: 'dismissalVersion',
-          type: 'text',
-          defaultValue: 'v1',
-          maxLength: 100,
-        }),
-        expect.objectContaining({ name: 'endDate', type: 'date' }),
         expect.objectContaining({
           name: 'notificationRecipient',
           type: 'email',

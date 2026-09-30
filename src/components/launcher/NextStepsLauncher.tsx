@@ -27,7 +27,7 @@ import { RockConnectionOpportunitySignup } from "@/components/forms/RockConnecti
 import { RockForm } from "@/components/forms/RockForm";
 import { SafeRockHtml } from "@/components/forms/SafeRockHtml";
 import RichText from "@/components/blocks/RichTextRenderer";
-import { FeedbackStrip } from "@/components/layout/FeedbackStrip";
+import { FeedbackForm } from "@/components/layout/FeedbackForm";
 import {
   OPEN_EVENT_REGISTRATION,
   type OpenEventRegistrationDetail,
@@ -1120,7 +1120,7 @@ export function NextStepsLauncher({
             />
             {feedback && (
               <LauncherActionButton
-                title="New website feedback"
+                title="Website feedback"
                 animationDelay={415}
                 onClick={() =>
                   pushView({ type: "feedback", title: feedback.modalTitle })
@@ -1137,11 +1137,10 @@ export function NextStepsLauncher({
         ) : null;
       case "feedback":
         return feedback ? (
-          <FeedbackStrip
-            embedded
+          <FeedbackForm
             settings={feedback}
             signedInEmail={signedInEmail}
-            onEmbeddedClose={back}
+            onClose={back}
           />
         ) : null;
       case "workflow":
