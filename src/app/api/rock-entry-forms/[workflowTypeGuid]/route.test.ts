@@ -35,6 +35,8 @@ vi.mock('@/lib/connect-groups/server', () => ({
 
 vi.mock('@/lib/rock-forms/config', () => ({
   getTurnstileSiteKey: mocks.getSiteKey,
+  getTurnstileSecretKey: () => 'production-secret-fixture',
+  TURNSTILE_TEST_SECRET_KEY: '1x0000000000000000000000000000000AA',
 }))
 
 vi.mock('@/lib/rock-forms/server', () => ({
@@ -188,6 +190,42 @@ describe('Rock form route', () => {
     expect(mocks.verifyTurnstile).toHaveBeenCalledWith(
       expect.objectContaining({ expectedHostname: 'www.ev.church' }),
     )
+  })
+
+  it.each([
+    ['www.ev.church', 200],
+    ['other.example', 400],
+    ['new.ev.church', 400],
+  ])('checks the token hostname %s against the configured canonical website', async (hostname, status) => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'new.ev.church')
+    vi.stubEnv('APP_BASE_URL', 'https://www.ev.church')
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://www.ev.church')
+    const { verifyTurnstileToken } = await import('@/lib/turnstile')
+    mocks.verifyTurnstile.mockImplementationOnce(verifyTurnstileToken)
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
+      success: true,
+      hostname,
+      action: 'rock_form_start',
+    })))
+    mocks.startForm.mockResolvedValue({ workflowName: 'Reimbursement' })
+    const body = new FormData()
+    body.set('intent', 'start')
+    body.set('turnstileToken', 'verified-token')
+
+    const response = await POST(postRequest(
+      body,
+      'https://www.ev.church',
+      `http://0.0.0.0:3000/api/rock-entry-forms/${workflowTypeGuid}`,
+    ), routeContext)
+
+    const result = await response.json()
+    expect(result).toEqual(status === 200
+      ? { workflowName: 'Reimbursement' }
+      : { error: 'The bot check was issued for a different website' })
+    expect(response.status).toBe(status)
+    expect(mocks.startForm).toHaveBeenCalledTimes(status === 200 ? 1 : 0)
   })
 
   it.each([
@@ -357,6 +395,26 @@ describe('Rock form route', () => {
     )
     expect(response.status).toBe(403)
     expect(mocks.verifyTurnstile).not.toHaveBeenCalled()
+  })
+
+  it.each(['https://attacker.example', 'https://www.ev.church.attacker.example', 'http://www.ev.church', 'https://www.ev.church:444', ''])('rejects unapproved production origin %s before token verification', async (origin) => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'new.ev.church')
+    vi.stubEnv('APP_BASE_URL', 'https://www.ev.church')
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://www.ev.church')
+    const body = new FormData()
+    body.set('intent', 'start')
+    body.set('turnstileToken', 'verified-token')
+
+    const response = await POST(postRequest(
+      body,
+      origin,
+      `http://0.0.0.0:3000/api/rock-entry-forms/${workflowTypeGuid}`,
+    ), routeContext)
+
+    expect(response.status).toBe(403)
+    expect(mocks.verifyTurnstile).not.toHaveBeenCalled()
+    expect(mocks.startForm).not.toHaveBeenCalled()
   })
 
   it('rejects oversized multipart requests before parsing or verification', async () => {

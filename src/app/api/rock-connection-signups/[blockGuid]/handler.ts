@@ -38,7 +38,7 @@ import {
   sanitizeRockResponseMessage,
   validateRockConnectionSubmission,
 } from '@/lib/rock-connection-signups/validation'
-import { isSameOriginRequest } from '@/lib/request-origin'
+import { expectedTurnstileHostname, isSameOriginRequest } from '@/lib/request-origin'
 import {
   TurnstileVerificationError,
   verifyTurnstileToken,
@@ -97,12 +97,6 @@ function schemasMatchContext(schema: RockConnectionSignupSchema, context: RockCo
   )
 }
 
-function expectedHostname(): string | null {
-  return process.env.NODE_ENV === 'production'
-    ? process.env.RAILWAY_PUBLIC_DOMAIN || null
-    : null
-}
-
 function logFailure(correlationId: string, operation: string, failure: string, startedAt: number) {
   console.error('rock_connection_signup_failure', {
     correlationId,
@@ -123,7 +117,7 @@ async function protectRequest(
   await verifyTurnstileToken({
     token: typeof body.turnstileToken === 'string' ? body.turnstileToken : '',
     remoteIp: address,
-    expectedHostname: expectedHostname(),
+    expectedHostname: expectedTurnstileHostname(),
     expectedAction: routeClass === 'start' ? ROCK_CONNECTION_START_ACTION : ROCK_CONNECTION_SUBMIT_ACTION,
   })
 }

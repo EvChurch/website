@@ -19,7 +19,7 @@ import {
 } from '@/lib/rock-forms/server'
 import { getTurnstileSiteKey } from '@/lib/rock-forms/config'
 import type { RockPersonBasicValues, RockPersonEntryValues } from '@/lib/rock-forms/types'
-import { isSameOriginRequest } from '@/lib/request-origin'
+import { expectedTurnstileHostname, isSameOriginRequest } from '@/lib/request-origin'
 import { safeRockWorkflowRedirect } from '@/lib/rock-forms/redirect'
 import { TurnstileVerificationError } from '@/lib/turnstile'
 import {
@@ -237,10 +237,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     await verifyTurnstileToken({
       token: String(body.get('turnstileToken') || ''),
       remoteIp: request.headers.get('cf-connecting-ip'),
-      expectedHostname:
-        process.env.NODE_ENV === 'production'
-          ? process.env.RAILWAY_PUBLIC_DOMAIN || null
-          : null,
+      expectedHostname: expectedTurnstileHostname(),
       expectedAction:
         process.env.NODE_ENV === 'production'
           ? isStart

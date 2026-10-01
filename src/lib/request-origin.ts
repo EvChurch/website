@@ -52,3 +52,15 @@ export function isSameOriginRequest(request: OriginRequest): boolean {
     return false
   }
 }
+
+export function expectedTurnstileHostname(): string | null {
+  if (process.env.NODE_ENV !== 'production') return null
+  // Railway's domain may be a retired redirect host, not the canonical website.
+  const url = new URL(
+    process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://www.ev.church',
+  )
+  if (!['http:', 'https:'].includes(url.protocol) || !url.hostname) {
+    throw new Error('A valid public website URL is required for bot verification')
+  }
+  return url.hostname
+}
