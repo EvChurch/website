@@ -8,6 +8,17 @@ import { trackNotFound } from '@/lib/tracked-not-found'
 
 const SIGNED_URL_EXPIRES_IN = 43200 // 12 hours
 
+function signedRedirect(url: string) {
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: url,
+      'Cache-Control': 'private, no-store',
+      'Cloudflare-CDN-Cache-Control': 'no-store',
+    },
+  })
+}
+
 function attachmentDisposition(filename: string): string {
   return `attachment; filename="${filename.replace(/["\\\r\n]/g, '_')}"`
 }
@@ -77,7 +88,7 @@ export async function HEAD(request: Request) {
       expiresIn: SIGNED_URL_EXPIRES_IN,
     })
 
-    return Response.redirect(signedUrl, 302)
+    return signedRedirect(signedUrl)
   }
 
   try {
@@ -123,7 +134,7 @@ export async function GET(request: Request) {
       expiresIn: SIGNED_URL_EXPIRES_IN,
     })
 
-    return Response.redirect(signedUrl, 302)
+    return signedRedirect(signedUrl)
   }
 
   // Local mode: serve from Payload's upload directory with Range support
