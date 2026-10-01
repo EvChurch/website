@@ -100,7 +100,8 @@ function dependencies() {
 describe('site feedback route', () => {
   beforeEach(() => {
     vi.stubEnv('NODE_ENV', 'production')
-    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'www.ev.church')
+    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'new.ev.church')
+    vi.stubEnv('APP_BASE_URL', 'https://www.ev.church')
     vi.stubEnv('SITE_FEEDBACK_RATE_LIMIT_SECRET', 'a'.repeat(32))
     vi.stubEnv('SITE_FEEDBACK_TRUST_CF_CONNECTING_IP', 'true')
     vi.stubEnv('NEXT_PUBLIC_POSTHOG_UI_HOST', 'https://us.posthog.com')

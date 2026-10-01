@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { isSameOriginRequest } from './request-origin'
+import { expectedTurnstileHostname, isSameOriginRequest } from './request-origin'
 
 function request(origin: string | null, url: string) {
   return {
@@ -78,5 +78,29 @@ describe('same-origin request validation', () => {
     vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'not a valid hostname')
 
     expect(isSameOriginRequest(request('https://www.ev.church', 'https://www.ev.church/path'))).toBe(false)
+  })
+})
+
+
+describe('canonical Turnstile hostname', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it.each([
+    ['https://www.ev.church', 'https://other.example', 'www.ev.church'],
+    ['', 'https://www.ev.church', 'www.ev.church'],
+    ['', '', 'www.ev.church'],
+    ['https://preview.example', '', 'preview.example'],
+  ])('uses the configured canonical URL (%s, %s)', (appUrl, siteUrl, hostname) => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('APP_BASE_URL', appUrl)
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', siteUrl)
+    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'new.ev.church')
+    expect(expectedTurnstileHostname()).toBe(hostname)
+  })
+
+  it.each(['invalid URL', 'file:///website', 'mailto:team@example.com'])('rejects invalid canonical configuration %s', (url) => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('APP_BASE_URL', url)
+    expect(() => expectedTurnstileHostname()).toThrow()
   })
 })
