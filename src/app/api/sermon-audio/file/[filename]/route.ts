@@ -1,21 +1,23 @@
-import { GET as streamGET, HEAD as streamHEAD } from '../../stream/route'
-
 interface Context {
   params: Promise<{ filename: string }>
 }
 
-async function streamRequest(request: Request, { params }: Context) {
+export async function GET(request: Request, { params }: Context) {
   const { filename } = await params
   const url = new URL(request.url)
-  // Keep published podcast URLs stable; only the storage destination expires.
+  // Cloudflare can convert HEAD to GET for cacheable file extensions, even when
+  // our response is no-store. Redirect through the non-cacheable stream path so
+  // it receives the client's real method before creating a method-bound signature.
+  url.pathname = '/api/sermon-audio/stream'
   url.searchParams.set('file', filename)
-  return new Request(url, { method: request.method, headers: request.headers })
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: `${url.pathname}${url.search}`,
+      'Cache-Control': 'private, no-store',
+      'Cloudflare-CDN-Cache-Control': 'no-store',
+    },
+  })
 }
 
-export async function GET(request: Request, context: Context) {
-  return streamGET(await streamRequest(request, context))
-}
-
-export async function HEAD(request: Request, context: Context) {
-  return streamHEAD(await streamRequest(request, context))
-}
+export const HEAD = GET

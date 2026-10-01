@@ -53,7 +53,14 @@ describe.each(['stream', 'file'] as const)('sermon audio %s route', (route) => {
     url.searchParams.set('file', 'different-file.m4a')
     const fileRequest = new Request(url, request)
     const context = { params: Promise.resolve({ filename }) }
-    return request.method === 'HEAD' ? fileHEAD(fileRequest, context) : fileGET(fileRequest, context)
+    const redirect = await (request.method === 'HEAD' ? fileHEAD(fileRequest, context) : fileGET(fileRequest, context))
+    expect(redirect.status).toBe(302)
+    expect(redirect.headers.get('Cache-Control')).toBe('private, no-store')
+    expect(redirect.headers.get('Cloudflare-CDN-Cache-Control')).toBe('no-store')
+    const destination = new URL(redirect.headers.get('Location')!, url)
+    expect(destination.pathname).toBe('/api/sermon-audio/stream')
+    const redirectedRequest = new Request(destination, request)
+    return request.method === 'HEAD' ? HEAD(redirectedRequest) : GET(redirectedRequest)
   }
   beforeEach(() => {
     vi.clearAllMocks()
@@ -166,4 +173,23 @@ describe.each(['stream', 'file'] as const)('sermon audio %s route', (route) => {
     expect(await response.text()).toBe('')
     expect(mocks.open).not.toHaveBeenCalled()
   })
+})
+
+it('preserves HEAD signing when Cloudflare converts the file request to GET', async () => {
+  vi.stubEnv('S3_BUCKET', 'sermon-audio')
+  try {
+    mocks.find.mockResolvedValue({ docs: [{ filename: 'a-sermon.m4a' }] })
+    mocks.getSignedUrl.mockClear()
+    mocks.getSignedUrl.mockResolvedValue('https://storage.example/a-sermon.m4a?signed=1')
+    const redirect = await fileGET(new Request('https://www.ev.church/api/sermon-audio/file/a-sermon.m4a'), {
+      params: Promise.resolve({ filename: 'a-sermon.m4a' }),
+    })
+    expect(mocks.getSignedUrl).not.toHaveBeenCalled()
+    const destination = new URL(redirect.headers.get('Location')!, 'https://www.ev.church')
+    // The client follows the redirect using its original HEAD method.
+    await HEAD(new Request(destination, { method: 'HEAD' }))
+    expect(mocks.getSignedUrl.mock.calls[0][1].constructor.name).toBe('HeadObjectCommand')
+  } finally {
+    vi.unstubAllEnvs()
+  }
 })
