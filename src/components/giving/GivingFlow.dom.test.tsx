@@ -104,10 +104,18 @@ describe('GivingFlow', () => {
     const label=container.querySelector('[data-giving-directed-fund]')!
     const heading=container.querySelector('#giving-step-heading')!
     expect(label.textContent).toBe('Giving to Missions')
+    expect(label.className).toContain('rounded-full')
+    expect(label.className).toContain('bg-white')
+    expect(label.closest('[data-giving-step]')).toBeNull()
+    expect(heading.textContent).toBe('How much would you like to give?')
     expect(label.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     await act(async()=>change(container.querySelector('input')!,'25'))
     await act(async()=>button(container,'Continue')?.click())
     expect(container.querySelector('[data-giving-step-preview="fund"]')).toBeNull()
+    expect(container.querySelector('[data-giving-directed-fund]')).toBe(label)
+    expect(container.querySelector('#giving-step-heading')?.textContent).toBe('How often?')
+    const previousChoices=container.querySelector('[aria-label="Previous giving choices"]')!
+    expect(label.compareDocumentPosition(previousChoices) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     await act(async()=>button(container,'Just this once')?.click())
     expect(container.textContent).toContain('Continue with BlinkPay')
     expect(container.textContent).toContain('to Missions just this once')

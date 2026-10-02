@@ -12,6 +12,12 @@ const frequencyLabels: Record<Exclude<GivingAnswers['frequency'], null>, string>
 
 const answerSurface = 'relative flex min-h-14 w-full items-center rounded-full px-5 text-left font-semibold'
 
+export function GivingFundBubble({ name }: { name: string }) {
+  return <div data-giving-directed-fund className={`mb-5 ${answerSurface} bg-white text-dark-grey shadow-sm`}>
+    <span>Giving to {name}</span>
+  </div>
+}
+
 export function GivingStepPreview({ step, label }: { step: GivingStep; label: string }) {
   return (
     <div aria-hidden="true" data-giving-step-preview={step} className="pointer-events-none mt-4">
