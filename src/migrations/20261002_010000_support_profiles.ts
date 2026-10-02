@@ -27,10 +27,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS giving_funds_support_profile_idx ON giving_fun
 ALTER TABLE payload_locked_documents_rels ADD COLUMN IF NOT EXISTS support_profiles_id integer REFERENCES support_profiles(id) ON DELETE CASCADE;
 CREATE INDEX IF NOT EXISTS payload_locked_documents_rels_support_profiles_id_idx ON payload_locked_documents_rels(support_profiles_id);
 ALTER TABLE payload_mcp_api_keys
-  ADD COLUMN IF NOT EXISTS support_profiles_find boolean DEFAULT false,
-  ADD COLUMN IF NOT EXISTS support_profiles_create boolean DEFAULT false,
-  ADD COLUMN IF NOT EXISTS support_profiles_update boolean DEFAULT false,
-  ADD COLUMN IF NOT EXISTS support_profiles_delete boolean DEFAULT false;
+  ADD COLUMN IF NOT EXISTS "support_profiles_find" boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS "support_profiles_create" boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS "support_profiles_update" boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS "support_profiles_delete" boolean DEFAULT false;
 
 DO $$ BEGIN
   CREATE TYPE enum_pages_blocks_manual_card_grid_data_source AS ENUM ('manual','support-profiles');
