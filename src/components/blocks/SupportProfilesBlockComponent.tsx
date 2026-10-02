@@ -1,5 +1,4 @@
 import { MediaImage } from '@/components/media/MediaImage'
-import { Button } from '@/components/ui/Button'
 import { getCachedPublicSupportProfiles } from '@/lib/giving/support-profiles'
 
 export async function SupportProfilesBlockComponent({ id, group, heading, description }: { id?: string; group?: 'apprentices' | 'student-ministers' | null; heading?: string | null; description?: string | null }) {
@@ -15,8 +14,8 @@ export async function SupportProfilesBlockComponent({ id, group, heading, descri
             <h3 className="text-h4 text-brand-black">{profile.name}</h3>
             <p className="mt-2 text-sm font-semibold text-rich-red">{profile.group === 'student-ministers' ? 'Student minister' : 'Apprentice'}</p>
             <p className="mt-4 text-[0.9375rem] leading-relaxed text-dark-grey">{profile.blurb}</p>
-            <a href={`mailto:${profile.email}`} className="mt-5 text-xs text-rich-red">{profile.email}</a>
-            {profile.fundId !== null && <div className="mt-auto pt-6"><Button href={`?launcher=give&fund=${encodeURIComponent(profile.slug)}`} variant="primary">Give</Button></div>}
+            <a href={`mailto:${profile.email}`} className="mt-5 text-xs text-rich-red hover:underline">{profile.email}</a>
+            {profile.fundId !== null && <a href={`?launcher=give&fund=${encodeURIComponent(profile.slug)}`} className="mt-2 self-start text-xs text-rich-red hover:underline">Give</a>}
           </div>
         </article>)}
       </div>

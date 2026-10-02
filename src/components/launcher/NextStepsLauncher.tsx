@@ -1170,7 +1170,7 @@ export function NextStepsLauncher({
             <h2 className="mt-6 text-2xl font-semibold text-brand-black">{profile.name}</h2>
             <p className="mt-2 text-sm font-semibold text-rich-red">{profile.group === 'student-ministers' ? 'Student minister' : 'Apprentice'}</p>
             <p className="mt-4 whitespace-pre-line leading-relaxed text-dark-grey">{profile.blurb}</p>
-            <button type="button" className="mt-6 min-h-14 w-full rounded-full bg-rich-red px-5 font-semibold text-white hover:bg-deep-red" onClick={() => { giving.selectGivingFund(profile.fundId); dispatch({ type: "push", view: { type: "giving" } }); }}>Give Now</button>
+            <div className="mt-6"><LauncherActionButton title="Give Now" animationDelay={0} onClick={() => { giving.selectGivingFund(profile.fundId); dispatch({ type: "push", view: { type: "giving" } }); }} /></div>
           </div>
         </article>;
       }
