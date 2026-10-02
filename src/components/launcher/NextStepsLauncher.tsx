@@ -1164,12 +1164,14 @@ export function NextStepsLauncher({
       case "supportProfile": {
         const profile = giving.supportProfiles.find((candidate) => candidate.slug === (state.view.type === "supportProfile" ? state.view.slug : null));
         if (!profile) return null;
-        return <article className="mx-auto max-w-lg pb-6">
-          {profile.photo && <div className="relative mx-auto aspect-[4/5] w-full max-w-xs overflow-hidden rounded-2xl"><MediaImage media={profile.photo} mediaSize="medium" preferOriginalWhenRequestedSizeMissing fill sizes="320px" className="object-cover" /></div>}
-          <h2 className="mt-6 text-2xl font-semibold text-brand-black">{profile.name}</h2>
-          <p className="mt-2 text-sm font-semibold text-rich-red">{profile.group === 'student-ministers' ? 'Student minister' : 'Apprentice'}</p>
-          <p className="mt-4 whitespace-pre-line leading-relaxed text-dark-grey">{profile.blurb}</p>
-          <button type="button" className="mt-6 min-h-14 w-full rounded-full bg-rich-red px-5 font-semibold text-white hover:bg-deep-red" onClick={() => { giving.selectGivingFund(profile.fundId); dispatch({ type: "push", view: { type: "giving" } }); }}>Give Now</button>
+        return <article className="w-full pb-6">
+          {profile.photo && <div className="relative aspect-video w-full overflow-hidden"><MediaImage media={profile.photo} mediaSize="large" preferOriginalWhenRequestedSizeMissing fill sizes={state.presentation === "fullscreen" ? "(max-width: 1024px) 100vw, 1024px" : "(max-width: 640px) 100vw, 416px"} className="object-cover" /></div>}
+          <div className="mx-auto max-w-lg px-4 sm:px-6">
+            <h2 className="mt-6 text-2xl font-semibold text-brand-black">{profile.name}</h2>
+            <p className="mt-2 text-sm font-semibold text-rich-red">{profile.group === 'student-ministers' ? 'Student minister' : 'Apprentice'}</p>
+            <p className="mt-4 whitespace-pre-line leading-relaxed text-dark-grey">{profile.blurb}</p>
+            <button type="button" className="mt-6 min-h-14 w-full rounded-full bg-rich-red px-5 font-semibold text-white hover:bg-deep-red" onClick={() => { giving.selectGivingFund(profile.fundId); dispatch({ type: "push", view: { type: "giving" } }); }}>Give Now</button>
+          </div>
         </article>;
       }
       case "feedback":
@@ -1378,7 +1380,7 @@ export function NextStepsLauncher({
             <div
               ref={scrollRef}
               className={
-                state.view.type === "content"
+                (state.view.type === "content" || state.view.type === "supportProfile")
                   ? "min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pb-6"
                   : state.view.type === "giving"
                     ? `min-h-0 flex-1 overflow-hidden ${
@@ -1391,7 +1393,7 @@ export function NextStepsLauncher({
             >
               <div
                 className={
-                  state.view.type === "content"
+                  (state.view.type === "content" || state.view.type === "supportProfile")
                     ? "w-full"
                     : `mx-auto w-full ${state.view.type === "registration" || state.view.type === "registrationPage" ? "max-w-4xl" : "max-w-2xl"} ${state.view.type === "giving" ? "h-full" : ""}`
                 }
