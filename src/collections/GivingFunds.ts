@@ -43,6 +43,7 @@ export const GivingFunds: CollectionConfig = {
   hooks: { afterChange: [() => revalidateTag(CACHE_TAGS.givingFunds, 'default')], afterDelete: [() => revalidateTag(CACHE_TAGS.givingFunds, 'default')], beforeChange: [protectSoleDefaultGivingFund, swapDefaultGivingFund], beforeDelete: [protectReferencedFund] },
   fields: [
     { name: 'name', type: 'text', required: true }, { name: 'code', type: 'text', required: true, unique: true, index: true },
+    { name: 'supportProfile', type: 'relationship', relationTo: 'support-profiles', unique: true, admin: { description: 'Person supported by this fund. Their profile supplies About content and the notification email address.' } },
     { name: 'accountingKey', type: 'text', required: true, access: { read: adminField }, admin: { readOnly: false } },
     { name: 'description', type: 'textarea' }, { name: 'active', type: 'checkbox', required: true, defaultValue: true, index: true },
     { name: 'isDefault', type: 'checkbox', required: true, defaultValue: false, index: true },

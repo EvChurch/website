@@ -11,6 +11,7 @@ vi.mock('@/components/forms/TurnstileWidget', () => ({ TurnstileWidget: ({ onTok
 const trackGivingEvent=vi.hoisted(()=>vi.fn())
 vi.mock('@/lib/giving/analytics',()=>({trackGivingEvent}))
 const givingContext=vi.hoisted(()=>({
+  directedFundId:null as number|null,
   active:true,
   flagState:'enabled' as 'unresolved'|'enabled'|'disabled'|'failed',
   blinkPayEnabled:true,
@@ -19,6 +20,7 @@ const givingContext=vi.hoisted(()=>({
   dismiss:vi.fn(()=>true),
 }))
 vi.mock('./GivingExperienceProvider',()=>({useGivingExperience:()=>({
+  directedFundId:givingContext.directedFundId,
   givingViewActive:givingContext.active,
   flagState:givingContext.flagState,
   blinkPayEnabled:givingContext.blinkPayEnabled,
@@ -85,6 +87,7 @@ describe('GivingFlow', () => {
     root = createRoot(container)
     vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 204 })))
     givingContext.active=true
+    givingContext.directedFundId=null
     givingContext.flagState='enabled'
     givingContext.blinkPayEnabled=true
     givingContext.back=null
@@ -93,6 +96,89 @@ describe('GivingFlow', () => {
     window.history.replaceState(null, '', '/')
     trackGivingEvent.mockClear()
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn(async () => undefined) } })
+  })
+
+  it('labels the locked fund above amount and never offers fund selection or editing', async () => {
+    givingContext.directedFundId=1
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
+    const label=container.querySelector('[data-giving-directed-fund]')!
+    const heading=container.querySelector('#giving-step-heading')!
+    expect(label.textContent).toBe('Giving to Missions')
+    expect(label.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    await act(async()=>change(container.querySelector('input')!,'25'))
+    await act(async()=>button(container,'Continue')?.click())
+    expect(container.querySelector('[data-giving-step-preview="fund"]')).toBeNull()
+    await act(async()=>button(container,'Just this once')?.click())
+    expect(container.textContent).toContain('Continue with BlinkPay')
+    expect(container.textContent).toContain('to Missions just this once')
+    expect(container.textContent).not.toContain('What fund should this be for?')
+    expect(container.querySelector('[aria-label="Change fund"]')).toBeNull()
+    await act(async()=>{expect(givingContext.back?.()).toBe(true)})
+    expect(container.querySelector('#giving-step-heading')?.textContent).toBe('How often?')
+    expect(container.querySelector('[data-giving-step-preview="fund"]')).toBeNull()
+    await act(async()=>{expect(givingContext.back?.()).toBe(true)})
+    expect(container.querySelector('#giving-step-heading')?.textContent).toBe('How much would you like to give?')
+    await act(async()=>container.querySelector<HTMLButtonElement>('[aria-label="Change frequency"]')!.click())
+    expect(container.querySelector('#giving-step-heading')?.textContent).toBe('How often?')
+    expect(container.querySelector('[aria-label="Change fund"]')).toBeNull()
+    await act(async()=>button(container,'Just this once')?.click())
+    await act(async()=>button(container,'Continue')?.click())
+    expect(container.textContent).toContain('Continue with BlinkPay')
+    const saved=vi.mocked(fetch).mock.calls.filter(([,init])=>init?.method==='PUT').at(-1)?.[1]?.body
+    expect(JSON.parse(String(saved))).toMatchObject({fundId:1,fundConfirmed:true})
+  })
+
+  it('starts fresh without loading an unfinished draft, including after close resets the flow', async () => {
+    givingContext.directedFundId=1
+    vi.mocked(fetch).mockImplementation(async(input,init)=>String(input)==='/api/giving/drafts'&&!init?.method
+      ? new Response(JSON.stringify({answers:{amountMinor:9900,fundId:2,fundConfirmed:true,frequency:'one-off',startDate:null,firstName:'Saved',lastName:'Giver',email:'saved@example.com'}}),{status:200})
+      : new Response(null,{status:204}))
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested/>))
+    expect(vi.mocked(fetch).mock.calls.filter(([input,init])=>String(input)==='/api/giving/drafts'&&!init?.method)).toHaveLength(0)
+    expect(container.querySelector<HTMLInputElement>('input')?.value).toBe('')
+    expect(container.textContent).toContain('Giving to Missions')
+    await act(async()=>change(container.querySelector('input')!,'25'))
+    await act(async()=>button(container,'Continue')?.click())
+    await act(async()=>{expect(givingContext.close?.()).toBe(true)})
+    expect(container.querySelector('#giving-step-heading')?.textContent).toBe('How much would you like to give?')
+    expect(container.querySelector<HTMLInputElement>('input')?.value).toBe('')
+    expect(container.textContent).toContain('Giving to Missions')
+  })
+
+  it('still verifies authoritative payment returns without restoring a directed draft', async () => {
+    givingContext.directedFundId=1
+    window.history.replaceState(null,'','/?giving=return')
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({state:'verified',retryAllowed:false,kind:'one-off',gift:{amountMinor:9900,transactionFeeMinor:0,fundName:'General',frequency:'one-off',firstPaymentDate:null}}),{status:200}))
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested/>))
+    expect(vi.mocked(fetch).mock.calls[0]?.[0]).toBe('/api/giving/checkouts/current/status')
+    expect(container.textContent).toContain('Giving complete')
+    expect(container.textContent).toContain('General')
+    expect(container.querySelector('[data-giving-directed-fund]')).toBeNull()
+    expect(vi.mocked(fetch).mock.calls.filter(([input,init])=>String(input)==='/api/giving/drafts'&&!init?.method)).toHaveLength(0)
+  })
+
+  it.each([200,404])('keeps a fresh directed gift after an unsuccessful payment return (%s)', async (status) => {
+    givingContext.directedFundId=1
+    window.history.replaceState(null,'','/?giving=return')
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(status===200 ? JSON.stringify({state:'cancelled',retryAllowed:true,kind:'one-off'}) : null,{status}))
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested/>))
+    if(status===200){
+      expect(button(container,'Return to your saved gift')).toBeUndefined()
+      await act(async()=>button(container,'Start again')!.click())
+    }
+    expect(container.querySelector('#giving-step-heading')?.textContent).toBe('How much would you like to give?')
+    expect(container.querySelector<HTMLInputElement>('input')?.value).toBe('')
+    expect(container.textContent).toContain('Giving to Missions')
+    expect(vi.mocked(fetch).mock.calls.filter(([input,init])=>String(input)==='/api/giving/drafts'&&!init?.method)).toHaveLength(0)
+  })
+
+  it('does not offer another fund when the directed fund is unavailable', async () => {
+    givingContext.directedFundId=99
+    await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey}/>))
+    expect(container.textContent).toContain('This fund is no longer available for giving.')
+    expect(container.querySelector('input')).toBeNull()
+    expect(button(container,'General')).toBeUndefined()
+    expect(container.querySelector('[data-giving-step-preview="fund"]')).toBeNull()
   })
 
   it('loads signed-in identity only when active and prefills the unedited flow once', async () => {

@@ -4,6 +4,8 @@ export const ManualCardGridBlock: Block = {
   slug: 'manualCardGrid',
   interfaceName: 'ManualCardGridBlock',
   fields: [
+    { name: 'dataSource', type: 'select', defaultValue: 'manual', options: [{ label: 'Manual cards', value: 'manual' }, { label: 'Support profiles', value: 'support-profiles' }] },
+    { name: 'supportGroup', type: 'select', options: [{ label: 'Apprentices', value: 'apprentices' }, { label: 'Student ministers', value: 'student-ministers' }], admin: { condition: (data, siblingData) => siblingData.dataSource === 'support-profiles' } },
     {
       name: 'eyebrow',
       type: 'text',
@@ -41,7 +43,7 @@ export const ManualCardGridBlock: Block = {
     {
       name: 'cards',
       type: 'array',
-      required: true,
+      admin: { condition: (data, siblingData) => siblingData.dataSource !== 'support-profiles' },
       fields: [
         {
           name: 'image',

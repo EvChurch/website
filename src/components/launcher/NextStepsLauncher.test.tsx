@@ -193,9 +193,44 @@ function GivingActiveProbe() {
   return <output data-giving-active>{String(giving.givingViewActive)}</output>;
 }
 
+function DirectedGivingProbe() {
+  return <output data-directed-fund>{useGivingExperience().directedFundId ?? 'general'}</output>;
+}
+
+const supportProfiles = [{ id: 1, name: 'Liz Halliday', slug: 'liz-halliday', group: 'apprentices' as const, photo: null, blurb: 'Liz is training for gospel ministry.', email: 'liz@example.com', fundId: 12, fundName: 'Liz Halliday' }];
+
 describe("NextStepsLauncher", () => {
   let container: HTMLDivElement;
   let root: Root;
+
+  it('opens a shared mini profile and then its directed giving flow', async () => {
+    window.history.replaceState(null, '', '/about?launcher=give-liz-halliday');
+    await act(async () => root.render(<GivingExperienceProvider serverEligibility="production" supportProfiles={supportProfiles} givingExperience={<DirectedGivingProbe />}><NextStepsLauncher campuses={campuses} items={items} /></GivingExperienceProvider>));
+    expect(container.textContent).toContain('Liz is training for gospel ministry.');
+    expect(container.querySelector('[data-directed-fund]')).toBeNull();
+    await act(async () => button(container, 'Give Now')?.click());
+    expect(container.querySelector('[data-directed-fund]')?.textContent).toBe('12');
+    expect(container.textContent).not.toContain('Liz is training for gospel ministry.');
+  });
+
+  it('opens About giving actions directly with the selected fund', async () => {
+    await act(async () => root.render(<GivingExperienceProvider serverEligibility="production" supportProfiles={supportProfiles} givingExperience={<DirectedGivingProbe />}><a href="?launcher=give&fund=liz-halliday">Give to Liz</a><NextStepsLauncher campuses={campuses} items={items} /></GivingExperienceProvider>));
+    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="?launcher=give&fund=liz-halliday"]')?.click());
+    expect(container.querySelector('[data-directed-fund]')?.textContent).toBe('12');
+    expect(container.textContent).not.toContain('Liz is training for gospel ministry.');
+  });
+
+  it('resolves direct giving query parameters on initial load', async () => {
+    window.history.replaceState(null, '', '/about?launcher=give&fund=liz-halliday');
+    await act(async () => root.render(<GivingExperienceProvider serverEligibility="production" supportProfiles={supportProfiles} givingExperience={<DirectedGivingProbe />}><NextStepsLauncher campuses={campuses} items={items} /></GivingExperienceProvider>));
+    expect(container.querySelector('[data-directed-fund]')?.textContent).toBe('12');
+  });
+
+  it('does not silently select the general fund for an unknown directed link', async () => {
+    window.history.replaceState(null, '', '/about?launcher=give&fund=unknown');
+    await act(async () => root.render(<GivingExperienceProvider serverEligibility="production" supportProfiles={supportProfiles} givingExperience={<DirectedGivingProbe />}><NextStepsLauncher campuses={campuses} items={items} /></GivingExperienceProvider>));
+    expect(container.querySelector('[data-directed-fund]')).toBeNull();
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();

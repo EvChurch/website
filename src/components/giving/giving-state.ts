@@ -32,6 +32,7 @@ export interface GivingState {
   linearNavigation: boolean
   missingIdentity: GivingIdentityField[]
   fundConfirmed: boolean
+  directedFundId: number | null
 }
 
 export type GivingAction =
@@ -51,17 +52,22 @@ export type GivingAction =
 export function createGivingState(
   funds: readonly PublicGivingFund[],
   identity: Partial<Record<GivingIdentityField, string>> = {},
+  directedFundId: number | null = null,
 ): GivingState {
+  const fund = directedFundId === null
+    ? funds.find((fund) => fund.isDefault) ?? null
+    : funds.find((fund) => fund.id === directedFundId) ?? null
   return {
     step: 'amount',
     history: [],
     editReturnStep: null,
     linearNavigation: false,
-    fundConfirmed: false,
+    fundConfirmed: directedFundId !== null && fund !== null,
+    directedFundId,
     missingIdentity: (['firstName', 'lastName', 'email'] as const).filter((field) => !identity[field]),
     answers: {
       amountMinor: null,
-      fund: funds.find((fund) => fund.isDefault) ?? null,
+      fund,
       frequency: null,
       startDate: null,
       firstName: identity.firstName ?? '',
@@ -86,11 +92,11 @@ export function nextGivingStep(
   return 'review'
 }
 
-export function givingStepOrder(answers: GivingAnswers): GivingStep[] {
+export function givingStepOrder(answers: GivingAnswers, directedFundId: number | null = null): GivingStep[] {
   return [
     'amount',
     'frequency',
-    'fund',
+    ...(directedFundId === null ? ['fund' as const] : []),
     ...(answers.frequency === 'one-off' ? [] : ['starting-date' as const]),
     'identity-firstName',
     'identity-lastName',
@@ -110,7 +116,7 @@ function givingJourney(state: GivingState): GivingStep[] {
     ...state.history.filter((step) => step.startsWith('identity-')),
     ...(state.step.startsWith('identity-') ? [state.step] : []),
   ])
-  return givingStepOrder(state.answers).filter((step) => !step.startsWith('identity-') || identitySteps.has(step))
+  return givingStepOrder(state.answers, state.directedFundId).filter((step) => !step.startsWith('identity-') || identitySteps.has(step))
 }
 
 function adjacentGivingStep(state: GivingState, offset: -1 | 1): GivingStep | null {
@@ -128,6 +134,7 @@ export function givingReducer(state: GivingState, action: GivingAction): GivingS
     case 'setAmount':
       return { ...state, answers: { ...state.answers, amountMinor: action.amountMinor } }
     case 'setFund':
+      if (state.directedFundId !== null) return state
       return { ...state, fundConfirmed: true, answers: { ...state.answers, fund: action.fund } }
     case 'setFrequency':
       const retainedDate = action.frequency !== 'one-off' && state.answers.startDate && state.answers.amountMinor &&
@@ -177,16 +184,19 @@ export function givingReducer(state: GivingState, action: GivingAction): GivingS
       }
     }
     case 'edit':
+      if (action.step === 'fund' && state.directedFundId !== null) return state
       return { ...move(state, action.step), editReturnStep: action.returnTo ?? state.editReturnStep, linearNavigation: false }
     case 'back': {
       const step = previousGivingStep(state)
       return step ? { ...move(state, step), editReturnStep: null, linearNavigation: true } : state
     }
     case 'restore':
+      if (state.directedFundId !== null) return state
       const restoredIdentity = action.missingIdentity ?? state.missingIdentity
       const restoredStep = nextGivingStep(action.answers, restoredIdentity, action.fundConfirmed)
       const restoredOrder = givingStepOrder(action.answers)
       return {
+        directedFundId: state.directedFundId,
         step: restoredStep,
         answers: action.answers,
         history: restoredOrder.slice(0, restoredOrder.indexOf(restoredStep)).filter((step) =>
@@ -197,7 +207,7 @@ export function givingReducer(state: GivingState, action: GivingAction): GivingS
         missingIdentity: restoredIdentity,
       }
     case 'reset':
-      return createGivingState(action.funds, action.identity)
+      return createGivingState(action.funds, action.identity, state.directedFundId)
   }
 }
 

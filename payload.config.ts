@@ -44,6 +44,7 @@ import { MissingPaths } from '@/collections/MissingPaths'
 import { SiteFeedback } from '@/collections/SiteFeedback'
 import { LeaderResourceShares } from '@/collections/LeaderResourceShares'
 import { GivingFunds } from '@/collections/GivingFunds'
+import { SupportProfiles } from '@/collections/SupportProfiles'
 import { GivingGivers } from '@/collections/GivingGivers'
 import { GivingCheckouts } from '@/collections/GivingCheckouts'
 import { GivingGifts } from '@/collections/GivingGifts'
@@ -106,6 +107,7 @@ export const applicationCollections: CollectionConfig[] = [
   Announcements,
   Campuses,
   TeamMembers,
+  SupportProfiles,
   Events,
   ConnectGroups,
   ConnectGroupParticipants,
