@@ -1,4 +1,5 @@
 "use client";
+import { MediaImage } from '@/components/media/MediaImage';
 
 import Image from "next/image";
 import Link from "next/link";
@@ -136,6 +137,8 @@ function viewTitle(view: LauncherView): string {
       return "More next steps";
     case "giving":
       return "Giving";
+    case "supportProfile":
+      return view.title;
     case "feedback":
     case "workflow":
     case "connection":
@@ -167,6 +170,8 @@ export function launcherShareTarget(view: LauncherView): string | null {
       return "catalogue";
     case "giving":
       return "give";
+    case "supportProfile":
+      return `give-${view.slug}`;
     case "feedback":
       return "feedback";
     case "workflow":
@@ -433,6 +438,7 @@ export function NextStepsLauncher({
   const launcherTarget = searchParams.get("launcher");
   const registrationInstanceIdParam = searchParams.get("registrationInstanceId");
   const groupGuidParam = searchParams.get("groupGuid");
+  const fundSlugParam = searchParams.get("fund");
   const pathname = initialPathname ?? currentPathname ?? "/";
   const [state, dispatch] = useReducer(launcherReducer, null, () =>
     createLauncherState(),
@@ -481,10 +487,12 @@ export function NextStepsLauncher({
       target,
       registrationInstanceIdParam,
       groupGuidParam,
+      fundSlugParam,
     }: {
       target: string;
       registrationInstanceIdParam?: string | null;
       groupGuidParam?: string | null;
+      fundSlugParam?: string | null;
     }) => {
       if (
         !campusReady ||
@@ -496,10 +504,20 @@ export function NextStepsLauncher({
 
       if (target === "give") {
         if (!giving.givingSurfaceAvailable) return false;
+        const profile = fundSlugParam ? giving.supportProfiles.find((candidate) => candidate.slug === fundSlugParam && candidate.fundId !== null) : null;
+        if (fundSlugParam && !profile) return false;
+        giving.selectGivingFund(profile?.fundId ?? null);
         dispatch({
           type: "openGiving",
           presentation: isMobile ? "fullscreen" : "compact",
         });
+        return true;
+      }
+
+      if (target.startsWith("give-")) {
+        const profile = giving.supportProfiles.find((candidate) => candidate.slug === target.slice(5) && candidate.fundId !== null);
+        if (!profile || !giving.givingSurfaceAvailable) return false;
+        dispatch({ type: "openView", presentation: isMobile ? "fullscreen" : "compact", view: { type: "supportProfile", slug: profile.slug, title: profile.name } });
         return true;
       }
 
@@ -525,6 +543,8 @@ export function NextStepsLauncher({
       connectCardImageUrl,
       feedback,
       giving.givingSurfaceAvailable,
+      giving.supportProfiles,
+      giving.selectGivingFund,
       isMobile,
       selectedCampusItems,
     ],
@@ -578,6 +598,7 @@ export function NextStepsLauncher({
             "registrationInstanceId",
           ),
           groupGuidParam: url.searchParams.get("groupGuid"),
+          fundSlugParam: url.searchParams.get("fund"),
         })
       ) {
         return;
@@ -666,6 +687,7 @@ export function NextStepsLauncher({
     }
     const handledTargetKey = [
       `${pathname}?launcher=${launcherTarget}`,
+      launcherTarget === "give" ? `fund=${fundSlugParam ?? ""}` : "",
       launcherTarget === "registration"
         ? `registrationInstanceId=${registrationInstanceIdParam ?? ""}`
         : launcherTarget === CONNECT_GROUP_LAUNCHER_TARGET
@@ -679,6 +701,7 @@ export function NextStepsLauncher({
     if (
       !openLauncherTarget({
         target: launcherTarget,
+        fundSlugParam,
         registrationInstanceIdParam,
         groupGuidParam,
       })
@@ -692,6 +715,7 @@ export function NextStepsLauncher({
   }, [
     campusReady,
     launcherTarget,
+    fundSlugParam,
     pathname,
     registrationInstanceIdParam,
     groupGuidParam,
@@ -709,6 +733,7 @@ export function NextStepsLauncher({
     handledLauncherTargetRef.current = null;
     const nextSearchParams = new URLSearchParams(searchParams.toString());
     nextSearchParams.delete("launcher");
+    nextSearchParams.delete("fund");
     nextSearchParams.delete("registrationInstanceId");
     nextSearchParams.delete("groupGuid");
     const query = nextSearchParams.toString();
@@ -867,7 +892,8 @@ export function NextStepsLauncher({
   const formViewHasBanner =
     (state.view.type === "workflow" || state.view.type === "connection") &&
       Boolean(state.view.imageUrl);
-  const shareTarget = launcherShareTarget(state.view);
+  const directedProfile = state.view.type === "giving" ? giving.supportProfiles.find((profile) => profile.fundId === giving.directedFundId) : null;
+  const shareTarget = directedProfile ? `give-${directedProfile.slug}` : launcherShareTarget(state.view);
 
   const pushView = (view: LauncherView) => dispatch({ type: "push", view });
 
@@ -1135,6 +1161,17 @@ export function NextStepsLauncher({
         return giving.givingExperience ? (
           <div className="h-full" data-giving-private>{giving.givingExperience}</div>
         ) : null;
+      case "supportProfile": {
+        const profile = giving.supportProfiles.find((candidate) => candidate.slug === (state.view.type === "supportProfile" ? state.view.slug : null));
+        if (!profile) return null;
+        return <article className="mx-auto max-w-lg pb-6">
+          {profile.photo && <div className="relative mx-auto aspect-[4/5] w-full max-w-xs overflow-hidden rounded-2xl"><MediaImage media={profile.photo} mediaSize="medium" preferOriginalWhenRequestedSizeMissing fill sizes="320px" className="object-cover" /></div>}
+          <h2 className="mt-6 text-2xl font-semibold text-brand-black">{profile.name}</h2>
+          <p className="mt-2 text-sm font-semibold text-rich-red">{profile.group === 'student-ministers' ? 'Student minister' : 'Apprentice'}</p>
+          <p className="mt-4 whitespace-pre-line leading-relaxed text-dark-grey">{profile.blurb}</p>
+          <button type="button" className="mt-6 min-h-14 w-full rounded-full bg-rich-red px-5 font-semibold text-white hover:bg-deep-red" onClick={() => { giving.selectGivingFund(profile.fundId); dispatch({ type: "push", view: { type: "giving" } }); }}>Give Now</button>
+        </article>;
+      }
       case "feedback":
         return feedback ? (
           <FeedbackForm

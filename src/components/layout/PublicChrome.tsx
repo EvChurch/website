@@ -15,6 +15,7 @@ import { AnalyticsManager } from '@/components/seo/AnalyticsManager'
 import type { LauncherData } from '@/lib/launcher/types'
 import type { GivingRuntimeConfiguration } from '@/lib/giving/availability'
 import type { PublicGivingFund } from '@/lib/giving/contracts'
+import type { PublicSupportProfile } from '@/lib/giving/support-profiles'
 import { DEFAULT_GIVING_TRANSACTION_FEE_MINOR } from '@/lib/giving/fees'
 import {
   ANONYMOUS_MEMBER_CHROME,
@@ -42,6 +43,7 @@ export function PublicChrome({
   givingFunds,
   givingTransactionFeeMinor = DEFAULT_GIVING_TRANSACTION_FEE_MINOR,
   givingRuntime,
+  supportProfiles = [],
 }: {
   children: ReactNode
   feedback: PublicSiteFeedbackSettings | null
@@ -51,6 +53,7 @@ export function PublicChrome({
   givingFunds: PublicGivingFund[]
   givingTransactionFeeMinor?: number
   givingRuntime: GivingRuntimeConfiguration | null
+  supportProfiles?: PublicSupportProfile[]
 }) {
   const pathname = usePathname()
   const sharedResource = matchesPathPrefix(pathname, '/shared/leader-resources')
@@ -137,6 +140,7 @@ export function PublicChrome({
       blinkPayEligible={blinkPayEligible}
       resumeRequested={givingResumeRequested}
       givingExperience={givingExperience}
+      supportProfiles={supportProfiles}
     >
       <MediaPlayerProvider>
         <AnalyticsManager postHogIdentity={memberChromeResolved ? memberChrome.postHogIdentity : undefined} />

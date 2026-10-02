@@ -12,6 +12,7 @@ import { StatsGridBlockComponent } from './StatsGridBlockComponent'
 import { BlockquoteBlockComponent } from './BlockquoteBlockComponent'
 import { FormEmbedBlockComponent } from './FormEmbedBlockComponent'
 import { ManualCardGridBlockComponent } from './ManualCardGridBlockComponent'
+import { SupportProfilesBlockComponent } from './SupportProfilesBlockComponent'
 import { PhotoStripBlockComponent } from './PhotoStripBlockComponent'
 import { PageHeaderBlockComponent } from './PageHeaderBlockComponent'
 import { GospelStepperBlockComponent } from './GospelStepperBlockComponent'
@@ -176,6 +177,8 @@ type FormEmbedBlock = Omit<PayloadFormEmbedBlock, 'sourceType'> & {
 
 interface ManualCardGridBlock extends BaseBlock {
   blockType: 'manualCardGrid'
+  dataSource?: 'manual' | 'support-profiles' | null
+  supportGroup?: 'apprentices' | 'student-ministers' | null
   eyebrow?: string | null
   heading?: string | null
   description?: string | null
@@ -498,6 +501,7 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
 
           case 'manualCardGrid': {
             const b = block as ManualCardGridBlock
+            if (b.dataSource === 'support-profiles') return <SupportProfilesBlockComponent key={key} id={b.id} group={b.supportGroup} heading={b.heading} description={b.description} />
             return (
               <ManualCardGridBlockComponent
                 key={key}

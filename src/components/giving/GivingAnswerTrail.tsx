@@ -35,9 +35,9 @@ function summary(step: GivingStep, answers: GivingAnswers, transactionFeeMinor: 
   }
 }
 
-export function GivingAnswerTrail({ answers, transactionFeeMinor, currentStep, visitedSteps, placement, onEdit }: { answers: GivingAnswers; transactionFeeMinor: number; currentStep: GivingStep; visitedSteps: readonly GivingStep[]; placement: 'before' | 'after'; onEdit: (step: GivingStep) => void }) {
+export function GivingAnswerTrail({ answers, transactionFeeMinor, currentStep, visitedSteps, placement, onEdit, directedFundId = null }: { answers: GivingAnswers; transactionFeeMinor: number; currentStep: GivingStep; visitedSteps: readonly GivingStep[]; placement: 'before' | 'after'; directedFundId?: number | null; onEdit: (step: GivingStep) => void }) {
   if (currentStep === 'review') return null
-  const journey = givingStepOrder(answers)
+  const journey = givingStepOrder(answers, directedFundId)
   const currentIndex = journey.indexOf(currentStep)
   const visited = new Set(visitedSteps)
   const candidates = placement === 'before'
