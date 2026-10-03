@@ -1,4 +1,5 @@
 import { getPayloadClient } from '@/lib/payload'
+import { isEventRunning } from '@/lib/event-timing'
 import { rockFetch } from '@/lib/rock-api'
 import { convertHTMLToLexical, editorConfigFactory } from '@payloadcms/richtext-lexical'
 import { JSDOM } from 'jsdom'
@@ -173,8 +174,9 @@ export async function syncTeamMembers(): Promise<SyncResult> {
   return result
 }
 
-async function syncEvents(): Promise<SyncResult> {
+export async function syncEvents(): Promise<SyncResult> {
   const result: SyncResult = { entity: 'events', created: 0, updated: 0, deleted: 0, errors: [] }
+  const now = new Date()
 
   try {
     const payload = await getPayloadClient()
@@ -234,9 +236,10 @@ async function syncEvents(): Promise<SyncResult> {
       occurrences,
       eventItems,
       publicEventItemIds,
+      now,
     )
     const eventItemsById = new Map(eventItems.map((eventItem) => [eventItem.Id, eventItem]))
-    for (const occ of selectNextEventOccurrences(occurrences)) {
+    for (const occ of selectNextEventOccurrences(occurrences, now)) {
       const eventItem = eventItemsById.get(occ.EventItemId)
       if (!eventItem || !publicEventItemIds.has(eventItem.Id)) continue
 
@@ -266,6 +269,14 @@ async function syncEvents(): Promise<SyncResult> {
         depth: 0,
         limit: 1,
       })
+
+      const currentEvent = existing.docs[0]
+      // Rock's next start can advance while the current occurrence is running.
+      // Keep its dates, venue and registration together until it finishes.
+      if (
+        currentEvent && isEventRunning(currentEvent, now) &&
+        new Date(currentEvent.startDate!).getTime() !== new Date(eventData.startDate!).getTime()
+      ) continue
 
       let campus: number | undefined
       if (_campusRockId !== null) {
@@ -316,10 +327,17 @@ async function syncEvents(): Promise<SyncResult> {
       limit: 500,
       select: {
         rockEventId: true,
+        startDate: true,
+        endDate: true,
       },
     })
+    const sourceEventItemIds = new Set(occurrences.map((occurrence) => occurrence.EventItemId))
     for (const event of syncedEvents.docs) {
       if (syncedEventItemIds.has(event.rockEventId)) continue
+      if (
+        eventItemsById.has(event.rockEventId) && publicEventItemIds.has(event.rockEventId) &&
+        sourceEventItemIds.has(event.rockEventId) && isEventRunning(event, now)
+      ) continue
 
       await payload.delete({
         collection: 'events',
