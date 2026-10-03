@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   eventCampusUpdate,
   getEventItemIdsWithUpcomingOccurrences,
+  getRockOccurrenceEndDate,
   getEventItemIdsForCalendar,
   getRegistrationForOccurrence,
   mapRockEvent,
@@ -29,6 +30,13 @@ describe('normalizeRockDateTime', () => {
 
   it('preserves timestamps that already include an offset', () => {
     expect(normalizeRockDateTime('2026-08-08T22:15:00Z')).toBe('2026-08-08T22:15:00.000Z')
+  })
+})
+
+describe('recurring event finish times across Auckland daylight saving', () => {
+  it('keeps the scheduled local finish time when an overnight recurrence crosses the clock change', () => {
+    const schedule = 'DTSTART:20260919T230000\nDTEND:20260920T040000'
+    expect(getRockOccurrenceEndDate('2026-09-26T23:00:00', schedule)).toBe('2026-09-26T15:00:00.000Z')
   })
 })
 
@@ -211,6 +219,21 @@ describe('getRegistrationForOccurrence', () => {
 })
 
 describe('selectNextEventOccurrences', () => {
+  it('keeps the final scheduled occurrence on its inclusive Auckland end date', () => {
+    const occurrence = {
+      EventItemId: 9,
+      CampusId: null,
+      NextStartDateTime: '2026-11-08T12:30:00',
+      Schedule: {
+        EffectiveEndDate: '2026-11-08T00:00:00',
+        iCalendarContent: 'DTSTART:20261018T123000\nDTEND:20261018T143000',
+      },
+    }
+    expect(selectNextEventOccurrences([occurrence], new Date('2026-11-07T21:00:00Z'))).toEqual([occurrence])
+    expect(selectNextEventOccurrences([occurrence], new Date('2026-11-08T00:30:00Z'))).toEqual([occurrence])
+    expect(selectNextEventOccurrences([occurrence], new Date('2026-11-08T01:30:00Z'))).toEqual([])
+  })
+
   it('skips null historical occurrences and keeps the first dated occurrence per event', () => {
     const occurrences = [
       { EventItemId: 1, NextStartDateTime: null, CampusId: null },
@@ -219,7 +242,7 @@ describe('selectNextEventOccurrences', () => {
       { EventItemId: 2, NextStartDateTime: '2026-08-15T10:00:00', CampusId: null },
     ]
 
-    expect(selectNextEventOccurrences(occurrences)).toEqual([
+    expect(selectNextEventOccurrences(occurrences, new Date('2026-08-09T00:00:00Z'))).toEqual([
       occurrences[1],
       occurrences[3],
     ])
