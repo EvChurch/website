@@ -14,6 +14,14 @@ export type SyncedEventRegistration = {
   registrationCapacity: number | null
 }
 
+export function eventCampusUpdate(
+  rockCampusId: number | null,
+  resolvedCampusId: number | undefined,
+): { campus?: number | null } {
+  if (rockCampusId === null) return { campus: null }
+  return resolvedCampusId === undefined ? {} : { campus: resolvedCampusId }
+}
+
 function slugify(name: string): string {
   return name
     .toLowerCase()

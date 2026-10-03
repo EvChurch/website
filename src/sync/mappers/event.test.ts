@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  eventCampusUpdate,
   getEventItemIdsWithUpcomingOccurrences,
   getEventItemIdsForCalendar,
   getRegistrationForOccurrence,
@@ -8,6 +9,17 @@ import {
   normalizeRockDateTime,
   selectNextEventOccurrences,
 } from './event'
+
+describe('eventCampusUpdate', () => {
+  it('clears a stale campus when the current Rock occurrence has none', () => {
+    expect(eventCampusUpdate(null, undefined)).toEqual({ campus: null })
+  })
+
+  it('sets a resolved campus and leaves an unresolved one untouched', () => {
+    expect(eventCampusUpdate(3, 1)).toEqual({ campus: 1 })
+    expect(eventCampusUpdate(3, undefined)).toEqual({})
+  })
+})
 
 describe('normalizeRockDateTime', () => {
   it('interprets Rock timestamps as Auckland local time', () => {
