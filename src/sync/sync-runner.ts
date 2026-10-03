@@ -16,6 +16,7 @@ import type {
 import { mapRockCampus } from './mappers/campus'
 import { mapRockTeamMember, TEAM_GROUP_IDS } from './mappers/team-member'
 import {
+  eventCampusUpdate,
   getEventItemIdsWithUpcomingOccurrences,
   getEventItemIdsForCalendar,
   getRegistrationForOccurrence,
@@ -289,7 +290,7 @@ async function syncEvents(): Promise<SyncResult> {
               JSDOM,
             })
           : null,
-        ...(campus !== undefined ? { campus } : {}),
+        ...eventCampusUpdate(_campusRockId, campus),
         ...(image !== null ? { image } : {}),
       }
 
