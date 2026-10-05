@@ -156,7 +156,7 @@ describe('AnalyticsManager', () => {
     expect(beforeSend(noise)).toBeNull()
   })
 
-  it('removes raw exception details before sending a real exception event', async () => {
+  it('preserves ingestible exception metadata while redacting private details', async () => {
     await act(async () => root.render(<AnalyticsManager />))
 
     const { before_send: beforeSend } = posthog.init.mock.calls[0][1] as {
@@ -167,15 +167,67 @@ describe('AnalyticsManager', () => {
       properties: {
         $exception_list: [
           {
-            value: 'Cannot read properties of undefined',
-            mechanism: { synthetic: false },
-            stacktrace: { frames: [{ filename: 'app.js', lineno: 12 }] },
+            type: 'TypeError',
+            value: 'Payment failed for giver@example.com: secret-token',
+            mechanism: { type: 'onunhandledrejection', handled: false, synthetic: false, data: { email: 'giver@example.com' } },
+            stacktrace: { type: 'raw', frames: [{ platform: 'web:javascript', filename: 'http://localhost:3000/_next/static/chunks/app.js?token=secret#private', lineno: 12, colno: 4, function: 'giver@example.com', vars: { amount: 100 } }] },
           },
         ],
+        $exception_level: 'error',
+        $exception_message: 'giver@example.com',
+        $exception_steps: [{ $message: 'Private payment information' }],
+        paymentToken: 'private',
       },
     }
 
-    expect(beforeSend(realError)).toEqual({ event: '$exception', properties: {} })
+    expect(beforeSend(realError)).toEqual({ event: '$exception', properties: {
+      $exception_list: [{
+        type: 'TypeError',
+        value: '[Redacted error message]',
+        mechanism: { handled: false, synthetic: false },
+        stacktrace: { type: 'raw', frames: [{ platform: 'web:javascript', filename: 'http://localhost:3000/_next/static/chunks/app.js', lineno: 12, colno: 4 }] },
+      }],
+      $exception_level: 'error',
+    } })
+  })
+
+  it('keeps chained exceptions but excludes private and third-party stack locations', async () => {
+    await act(async () => root.render(<AnalyticsManager />))
+    const { before_send: beforeSend } = posthog.init.mock.calls[0][1] as {
+      before_send: (event: unknown) => unknown
+    }
+    const entries = [
+      { type: 'Error', value: 'private', stacktrace: { frames: [
+        { filename: 'https://third-party.example/_next/static/chunks/app.js', lineno: 1 },
+        { filename: 'http://localhost:3000/members/private-person.js', lineno: 2 },
+        { filename: 'http://user:password@localhost:3000/_next/static/chunks/app.js?email=private', lineno: 3 },
+      ] } },
+      { type: 'PrivatePerson', value: 'private cause' },
+    ]
+    expect(beforeSend({ event: '$exception', properties: {
+      $exception_list: entries, $exception_level: 'warning',
+    } })).toEqual({ event: '$exception', properties: {
+      $exception_list: [
+        { type: 'Error', value: '[Redacted error message]',
+          mechanism: { handled: false, synthetic: false },
+          stacktrace: { type: 'raw', frames: [{ platform: 'web:javascript', filename: 'http://localhost:3000/_next/static/chunks/app.js', lineno: 3 }] } },
+        { type: 'Error', value: '[Redacted error message]',
+          mechanism: { handled: false, synthetic: false },
+          stacktrace: { type: 'raw', frames: [] } },
+      ],
+      $exception_level: 'warning',
+    } })
+    expect(entries[0].value).toBe('private')
+  })
+
+  it('drops exception events without usable entries instead of sending malformed events', async () => {
+    await act(async () => root.render(<AnalyticsManager />))
+    const { before_send: beforeSend } = posthog.init.mock.calls[0][1] as {
+      before_send: (event: unknown) => unknown
+    }
+    for (const list of [undefined, [], [null], 'invalid']) {
+      expect(beforeSend({ event: '$exception', properties: { $exception_list: list } })).toBeNull()
+    }
   })
 
   it('keeps only the allowed signed-in identity properties', async () => {
