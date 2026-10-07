@@ -53,7 +53,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-icons": "5.7.0",
-    "sharp": "0.35.4",
+    "sharp": "0.35.5",
     "tailwindcss": "4.3.3",
     "tsx": "4.23.11",
     "video.js": "8.23.9",
@@ -81,7 +81,8 @@
   "packageManager": "pnpm@10.34.5+sha512.a4ee05f2f73658255bd6a89859c065a45c28a57daefae2c893a168ee2b73168c37b91e83e57ea67654ad03f03031746430e8bce38e362e042605fb8abc80192e",
   "pnpm": {
     "overrides": {
-      "pg": "8.15.6"
+      "pg": "8.15.6",
+      "sharp@>=0.35.0 <0.35.5": "0.35.5"
     }
   }
 }
