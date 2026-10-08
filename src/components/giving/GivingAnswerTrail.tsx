@@ -12,6 +12,12 @@ const frequencyLabels: Record<Exclude<GivingAnswers['frequency'], null>, string>
 
 const answerSurface = 'relative flex min-h-14 w-full items-center rounded-full px-5 text-left font-semibold'
 
+export function GivingFundBubble({ name }: { name: string }) {
+  return <div data-giving-directed-fund className={`mb-5 ${answerSurface} bg-white text-dark-grey shadow-sm`}>
+    <span>Giving to {name}</span>
+  </div>
+}
+
 export function GivingStepPreview({ step, label }: { step: GivingStep; label: string }) {
   return (
     <div aria-hidden="true" data-giving-step-preview={step} className="pointer-events-none mt-4">
@@ -35,9 +41,9 @@ function summary(step: GivingStep, answers: GivingAnswers, transactionFeeMinor: 
   }
 }
 
-export function GivingAnswerTrail({ answers, transactionFeeMinor, currentStep, visitedSteps, placement, onEdit }: { answers: GivingAnswers; transactionFeeMinor: number; currentStep: GivingStep; visitedSteps: readonly GivingStep[]; placement: 'before' | 'after'; onEdit: (step: GivingStep) => void }) {
+export function GivingAnswerTrail({ answers, transactionFeeMinor, currentStep, visitedSteps, placement, onEdit, directedFundId = null }: { answers: GivingAnswers; transactionFeeMinor: number; currentStep: GivingStep; visitedSteps: readonly GivingStep[]; placement: 'before' | 'after'; directedFundId?: number | null; onEdit: (step: GivingStep) => void }) {
   if (currentStep === 'review') return null
-  const journey = givingStepOrder(answers)
+  const journey = givingStepOrder(answers, directedFundId)
   const currentIndex = journey.indexOf(currentStep)
   const visited = new Set(visitedSteps)
   const candidates = placement === 'before'

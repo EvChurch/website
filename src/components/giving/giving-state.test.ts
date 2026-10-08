@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { PublicGivingFund } from '@/lib/giving/contracts'
-import { createGivingState, draftAnswers, givingReducer, nextGivingStep } from './giving-state'
+import { createGivingState, draftAnswers, givingReducer, givingStepOrder, nextGivingStep, previousGivingStep } from './giving-state'
 
 const funds: PublicGivingFund[] = [
   { id: 1, name: 'Community', code: 'COMM', sortOrder: 0, isDefault: false, apprenticeRelated: false },
@@ -9,6 +9,35 @@ const funds: PublicGivingFund[] = [
 ]
 
 describe('giving state', () => {
+  it('confirms the directed fund and skips fund selection in both directions', () => {
+    let state = createGivingState(funds, {}, 1)
+    expect(state).toMatchObject({ step: 'amount', directedFundId: 1, fundConfirmed: true, answers: { fund: funds[0], amountMinor: null } })
+    state = givingReducer(state, { type: 'commitAmount', amountMinor: 5000 })
+    state = givingReducer(state, { type: 'setFrequency', frequency: 'monthly' })
+    state = givingReducer(state, { type: 'next' })
+    expect(state.step).toBe('starting-date')
+    expect(previousGivingStep(state)).toBe('frequency')
+    expect(givingStepOrder(state.answers, state.directedFundId)).not.toContain('fund')
+    state = givingReducer(state, { type: 'back' })
+    expect(state.step).toBe('frequency')
+    state = givingReducer(state, { type: 'next' })
+    expect(state.step).toBe('starting-date')
+    expect(givingReducer(state, { type: 'edit', step: 'fund', returnTo: 'review' })).toBe(state)
+    expect(givingReducer(state, { type: 'setFund', fund: funds[1] })).toBe(state)
+  })
+
+  it('ignores draft restoration and retains the directed fund on reset', () => {
+    const initial = createGivingState(funds, {}, 1)
+    const saved = { ...createGivingState(funds).answers, amountMinor: 5000, frequency: 'one-off' as const }
+    expect(givingReducer(initial, { type: 'restore', answers: saved, fundConfirmed: true })).toBe(initial)
+    const progressed = givingReducer(initial, { type: 'commitAmount', amountMinor: 5000 })
+    expect(givingReducer(progressed, { type: 'reset', funds })).toEqual(initial)
+  })
+
+  it('does not fall back to the default when the directed fund is unavailable', () => {
+    expect(createGivingState(funds, {}, 99)).toMatchObject({ directedFundId: 99, fundConfirmed: false, answers: { fund: null } })
+  })
+
   it('selects the default fund by isDefault and preselects no financial commitment', () => {
     expect(createGivingState(funds)).toMatchObject({
       step: 'amount',

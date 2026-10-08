@@ -4,6 +4,7 @@ export type LauncherView =
   | { type: 'home' }
   | { type: 'catalogue' }
   | { type: 'giving' }
+  | { type: 'supportProfile'; slug: string; title: string }
   | { type: 'feedback'; title: string }
   | { type: 'workflow'; workflowTypeGuid: string; imageUrl?: string; body?: unknown; groupGuid?: string; shareTarget?: string; title: string }
   | { type: 'connection'; blockGuid: string; imageUrl?: string; body?: unknown; shareTarget?: string; title: string }

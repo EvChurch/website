@@ -6,6 +6,7 @@ import * as migration_20260907_120000_sermon_articles from './20260907_120000_se
 import * as migration_20260905_120000_sermon_manager from './20260905_120000_sermon_manager';
 import * as migration_20260910_010000_attendance_save_requests from './20260910_010000_attendance_save_requests';
 import * as migration_20260330_195149 from './20260330_195149';
+import * as migration_20261002_010000_support_profiles from './20261002_010000_support_profiles';
 import * as migration_20260330_210020 from './20260330_210020';
 import * as migration_20260330_223741 from './20260330_223741';
 import * as migration_20260331_190736_add_key_color from './20260331_190736_add_key_color';
@@ -365,4 +366,5 @@ export const migrations = [
   },
   { up: migration_20260910_070000_event_website_summary.up, down: migration_20260910_070000_event_website_summary.down, name: '20260910_070000_event_website_summary' },
   { up: migration_20260910_010000_attendance_save_requests.up, down: migration_20260910_010000_attendance_save_requests.down, name: '20260910_010000_attendance_save_requests' },
+  { up: migration_20261002_010000_support_profiles.up, down: migration_20261002_010000_support_profiles.down, name: '20261002_010000_support_profiles' },
 ];
