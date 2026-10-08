@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getCachedActiveGivingFunds: vi.fn().mockResolvedValue([
     { id: 1, name: 'General', code: 'GENERAL', sortOrder: 0, isDefault: true, apprenticeRelated: false },
   ]),
+  getCachedPublicSupportProfiles: vi.fn().mockResolvedValue([]),
   getCachedGivingTransactionFeeMinor: vi.fn().mockResolvedValue(50),
   resolveGivingRuntimeConfiguration: vi.fn().mockReturnValue(null),
   publicChrome: vi.fn(({ children }: {
@@ -24,6 +25,7 @@ vi.mock('next/font/google', () => ({
 vi.mock('@/lib/launcher/service-guide', () => ({ loadLauncherData: mocks.loadLauncherData }))
 vi.mock('@/lib/site-feedback/settings', () => ({ loadSiteFeedbackSettings: mocks.loadSiteFeedbackSettings }))
 vi.mock('@/lib/giving/funds', () => ({ getCachedActiveGivingFunds: mocks.getCachedActiveGivingFunds }))
+vi.mock('@/lib/giving/support-profiles', () => ({ getCachedPublicSupportProfiles: mocks.getCachedPublicSupportProfiles }))
 vi.mock('@/lib/giving/settings', () => ({ getCachedGivingTransactionFeeMinor: mocks.getCachedGivingTransactionFeeMinor }))
 vi.mock('@/lib/giving/availability', () => ({ resolveGivingRuntimeConfiguration: mocks.resolveGivingRuntimeConfiguration }))
 vi.mock('@/components/layout/PublicChrome', () => ({ PublicChrome: mocks.publicChrome }))
@@ -83,6 +85,7 @@ describe('FrontendLayout public rendering boundary', () => {
       givingFunds: [{ id: 1, name: 'General', code: 'GENERAL', sortOrder: 0, isDefault: true, apprenticeRelated: false }],
       givingTransactionFeeMinor: 75,
       givingRuntime,
+      supportProfiles: [],
     }, undefined)
     expect(JSON.stringify(mocks.publicChrome.mock.calls)).not.toContain('memberProfile')
     expect(JSON.stringify(mocks.publicChrome.mock.calls)).not.toContain('impersonation')

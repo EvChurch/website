@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { getCachedPublicSupportProfiles } from '@/lib/giving/support-profiles'
 import type { Metadata, Viewport } from 'next'
 import { Albert_Sans, Source_Serif_4 } from 'next/font/google'
 import { AnnouncementBanner } from '@/components/layout/AnnouncementBanner'
@@ -84,6 +85,7 @@ export const viewport: Viewport = {
 }
 
 export default async function FrontendLayout({ children }: { children: ReactNode }) {
+  const supportProfiles = await getCachedPublicSupportProfiles().catch(() => [])
   const loadGivingFunds = async () => {
     try {
       return await getCachedActiveGivingFunds()
@@ -116,6 +118,7 @@ export default async function FrontendLayout({ children }: { children: ReactNode
       <body className="bg-brand-black font-sans text-brand-black antialiased">
         <PublicChrome
           launcher={launcher}
+          supportProfiles={supportProfiles}
           feedback={feedback}
           announcement={<AnnouncementBanner />}
           footer={<Footer />}

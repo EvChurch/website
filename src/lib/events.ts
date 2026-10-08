@@ -2,6 +2,7 @@ import { getPayloadClient } from '@/lib/payload'
 import type { PayloadMediaImage } from '@/lib/payload-media'
 import { unstable_cache } from 'next/cache'
 import { cache } from 'react'
+import { hasEventEnded } from '@/lib/event-timing'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 
 export type RegistrationStatus = 'open' | 'full' | 'closed' | 'coming-soon' | null
@@ -143,9 +144,7 @@ export function prepareEventsListing(
 }
 
 export function isPastEvent(event: PublicEvent, now = new Date()): boolean {
-  const finalDate = event.endDate ?? event.startDate
-  if (!finalDate) return false
-  return new Date(finalDate).getTime() < now.getTime()
+  return hasEventEnded(event, now)
 }
 
 export function getCampusSlug(event: PublicEvent): string | null {

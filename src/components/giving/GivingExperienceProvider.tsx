@@ -12,10 +12,14 @@ import {
 } from 'react'
 
 import type { GivingServerEligibility } from '@/lib/giving/availability'
+import type { PublicSupportProfile } from '@/lib/giving/support-profiles'
 
 export type GivingFlagState = 'unresolved' | 'enabled' | 'disabled' | 'failed'
 
 interface GivingExperienceContextValue {
+  supportProfiles: PublicSupportProfile[]
+  directedFundId: number | null
+  selectGivingFund: (fundId: number | null) => void
   flagState: GivingFlagState
   blinkPayEnabled: boolean
   givingSurfaceAvailable: boolean
@@ -26,7 +30,7 @@ interface GivingExperienceContextValue {
   consumeGivingRequest: (requestId: number) => boolean
   consumeGivingDismissRequest: (requestId: number) => boolean
   dismissGiving: () => boolean
-  openGiving: () => boolean
+  openGiving: (fundId?: number) => boolean
   setFlagState: (state: GivingFlagState) => void
   setGivingViewActive: (active: boolean) => void
   handleGivingBack: () => boolean
@@ -36,6 +40,9 @@ interface GivingExperienceContextValue {
 }
 
 const disabledContext: GivingExperienceContextValue = {
+  supportProfiles: [],
+  directedFundId: null,
+  selectGivingFund: () => undefined,
   flagState: 'failed',
   blinkPayEnabled: false,
   givingSurfaceAvailable: false,
@@ -64,6 +71,7 @@ export function GivingExperienceProvider({
   blinkPayEligibilityResolved = true,
   blinkPayEligible = false,
   resumeRequested = false,
+  supportProfiles = [],
 }: {
   children: ReactNode
   givingExperience?: ReactNode
@@ -71,7 +79,9 @@ export function GivingExperienceProvider({
   blinkPayEligibilityResolved?: boolean
   blinkPayEligible?: boolean
   resumeRequested?: boolean
+  supportProfiles?: PublicSupportProfile[]
 }) {
+  const [directedFundId, setDirectedFundId] = useState<number | null>(null)
   const [flagOverride, setFlagOverride] = useState<GivingFlagState | null>(null)
   const [givingRequestId, setGivingRequestId] = useState(0)
   const [givingDismissRequestId, setGivingDismissRequestId] = useState(0)
@@ -87,8 +97,9 @@ export function GivingExperienceProvider({
   const blinkPayAllowed = flagOverride ? flagOverride === 'enabled' : blinkPayEligibilityResolved && blinkPayEligible
   const blinkPayEnabled = serverEligibility !== null && blinkPayAllowed
 
-  const openGiving = useCallback(() => {
+  const openGiving = useCallback((fundId?: number) => {
     if (!rendererReady) return false
+    setDirectedFundId(fundId ?? null)
     setGivingRequestId((requestId) => requestId + 1)
     return true
   }, [rendererReady])
@@ -134,10 +145,13 @@ export function GivingExperienceProvider({
   }, [givingDismissRequestId])
 
   const value = useMemo<GivingExperienceContextValue>(() => ({
+    supportProfiles,
+    directedFundId,
+    selectGivingFund: setDirectedFundId,
     flagState,
     blinkPayEnabled,
     givingSurfaceAvailable,
-    givingExperience,
+    givingExperience: givingExperience === null ? null : <div key={directedFundId === null ? 'general' : `directed-${directedFundId}-${givingRequestId}`} className="h-full">{givingExperience}</div>,
     givingRequestId,
     givingDismissRequestId,
     givingViewActive,
@@ -152,6 +166,8 @@ export function GivingExperienceProvider({
     setFlagState: setFlagOverride,
     setGivingViewActive,
   }), [
+    supportProfiles,
+    directedFundId,
     consumeGivingRequest,
     consumeGivingDismissRequest,
     dismissGiving,

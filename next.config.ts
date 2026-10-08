@@ -20,6 +20,15 @@ const nextConfig: NextConfig = {
       ] },
       ...[
         '/api/sermon-audio/file/:path*',
+        '/api/sermon-audio/stream',
+      ].map((source) => ({
+        source,
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store' },
+          { key: 'Cloudflare-CDN-Cache-Control', value: 'no-store' },
+        ],
+      })),
+      ...[
         '/api/media/file/:path*',
         '/images/ev_church_podcast-09e38534.jpg',
       ].map((source) => ({

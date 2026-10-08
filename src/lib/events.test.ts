@@ -129,6 +129,15 @@ describe('event helpers', () => {
     expect(isPastEvent(baseEvent, new Date('2026-08-10T07:00:00.000Z'))).toBe(false)
   })
 
+  it.each([
+    ['summer', '2026-01-11T21:00:00.000Z', '2026-01-12T10:59:59.000Z', '2026-01-12T11:00:00.000Z'],
+    ['winter', '2026-08-09T22:00:00.000Z', '2026-08-10T11:59:59.000Z', '2026-08-10T12:00:00.000Z'],
+  ])('keeps events with no finish time through their Auckland day in %s', (_, startDate, beforeMidnight, midnight) => {
+    const event = { ...baseEvent, startDate, endDate: null }
+    expect(filterUpcomingEvents([event], new Date(beforeMidnight))).toEqual([event])
+    expect(isPastEvent(event, new Date(midnight))).toBe(true)
+  })
+
   it('extracts a campus slug only from a populated relationship', () => {
     expect(getCampusSlug(baseEvent)).toBe('central')
     expect(getCampusSlug({ ...baseEvent, campus: 42 })).toBeNull()

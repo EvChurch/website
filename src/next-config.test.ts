@@ -32,13 +32,25 @@ describe('canonical host redirects', () => {
 })
 
 describe('sermon media caching', () => {
-  it('caches audio and artwork in browsers and Cloudflare for one year', async () => {
+  it('does not cache expiring audio redirects in browsers or Cloudflare', async () => {
+    const headers = await nextConfig.headers?.()
+    for (const source of ['/api/sermon-audio/file/:path*', '/api/sermon-audio/stream']) {
+      expect(headers).toContainEqual({
+        source,
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store' },
+          { key: 'Cloudflare-CDN-Cache-Control', value: 'no-store' },
+        ],
+      })
+    }
+  })
+
+  it('caches artwork in browsers and Cloudflare for one year', async () => {
     const headers = await nextConfig.headers?.()
     const expectedCacheControl =
       'public, max-age=31536000, s-maxage=31536000, immutable'
 
     for (const source of [
-      '/api/sermon-audio/file/:path*',
       '/api/media/file/:path*',
       '/images/ev_church_podcast-09e38534.jpg',
     ]) {

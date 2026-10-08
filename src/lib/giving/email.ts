@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { givingBankTransferDetails } from './bank-transfer'
 import { createGivingBankAcknowledgementUrl } from './email-links'
 
-export type GivingEmailKind = 'bank-transfer-details' | 'bank-transfer-thanks' | 'blinkpay-thanks'
+export type GivingEmailKind = 'bank-transfer-details' | 'bank-transfer-thanks' | 'blinkpay-thanks' | 'blinkpay-support'
 
 export interface GivingEmailSource {
   id: number
@@ -21,6 +21,9 @@ export interface GivingEmailSource {
   frequency: 'one-off' | 'daily' | 'weekly' | 'fortnightly' | 'monthly' | 'annual'
   firstPaymentDate: string | null
   leaseToken: string
+  recipientEmail?: string | null
+  recipientName?: string | null
+  completedAt?: Date | string | null
 }
 
 export interface GivingEmailMessage { to: string; subject: string; text: string; html: string }
@@ -74,6 +77,33 @@ function executiveCommitteeSignOff() {
 }
 
 export function buildGivingEmail(source: GivingEmailSource, now = new Date(), options: GivingEmailBuildOptions = {}): GivingEmailMessage {
+  if (source.kind === 'blinkpay-support') {
+    if (!source.recipientEmail?.trim() || !source.completedAt) throw new Error('Giving support email snapshot is missing')
+    const recurring = source.frequency !== 'one-off'
+    const confirmation = recurring
+      ? 'A donor has authorised a recurring giving arrangement through BlinkPay and its schedule is active.'
+      : 'A donor’s single gift has been confirmed by BlinkPay.'
+    const money = new Intl.NumberFormat('en-NZ', { style: 'currency', currency: 'NZD' })
+    const completedAt = new Intl.DateTimeFormat('en-NZ', {
+      timeZone: 'Pacific/Auckland', dateStyle: 'full', timeStyle: 'long',
+    }).format(new Date(source.completedAt))
+    const fields = [
+      ['Donor name', source.name], ['Donor email', source.email], ['Fund', source.fundName],
+      ['Gift amount', `${money.format(source.amountMinor / 100)} NZD`],
+      ['Transaction fee', `${money.format(source.transactionFeeMinor / 100)} NZD`],
+      ['Total', `${money.format((source.amountMinor + source.transactionFeeMinor) / 100)} NZD`],
+      ['Frequency', source.frequency],
+      ...(recurring && source.firstPaymentDate ? [['First payment date', source.firstPaymentDate]] : []),
+      ['Completed at (Pacific/Auckland)', completedAt],
+    ]
+    const greeting = `Hi ${source.recipientName?.trim() || 'there'},`
+    return {
+      to: source.recipientEmail,
+      subject: recurring ? 'New recurring giving arrangement from Ev Church' : 'New single gift from Ev Church',
+      text: [greeting, '', confirmation, '', ...fields.map(([label, value]) => `${label}: ${value}`), '', 'The Ev Church website team'].join('\n'),
+      html: `<p>${escapeHtml(greeting)}</p><p>${escapeHtml(confirmation)}</p><table role="presentation"><tbody>${fields.map(([label, value]) => `<tr><th style="text-align:left">${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`).join('')}</tbody></table><p>The Ev Church website team</p>`,
+    }
+  }
   const firstName = source.name.trim().split(/\s+/u)[0] || 'there'
   const summary = giftSummary(source)
   if (source.kind === 'bank-transfer-details') {
@@ -129,8 +159,10 @@ export function createGivingEmailStore(pool: Pool) {
           AND (delivery.status='pending' OR delivery.status='sending' AND delivery.lease_expires_at<$4)
           AND (delivery.kind<>'bank-transfer-details' OR checkout.bank_details_prepared_at IS NOT NULL)
           AND (delivery.kind<>'bank-transfer-thanks' OR checkout.bank_setup_acknowledged_at IS NOT NULL)
-          AND (delivery.kind<>'blinkpay-thanks' OR checkout.status='completed' AND checkout.result_code='verified')
+          AND (delivery.kind NOT IN ('blinkpay-thanks','blinkpay-support') OR checkout.status='completed' AND checkout.result_code='verified')
+          AND (delivery.kind<>'blinkpay-support' OR NULLIF(BTRIM(delivery.recipient_email),'') IS NOT NULL)
         RETURNING delivery.id,delivery.checkout_id,delivery.kind,giver.email,giver.name,giver.bank_reference,
+          delivery.recipient_email,delivery.recipient_name,delivery.created_at,
           checkout.bank_code,checkout.fund_code,checkout.fund_name,checkout.amount_minor,checkout.transaction_fee_minor,checkout.frequency,checkout.first_payment_date`,
       [id, leaseToken, leaseExpires, now, MAX_ATTEMPTS])
       const row = result.rows[0] as Record<string, unknown> | undefined
@@ -139,7 +171,10 @@ export function createGivingEmailStore(pool: Pool) {
         id:Number(row.id),checkoutId:Number(row.checkout_id),kind:String(row.kind) as GivingEmailKind,
         email:String(row.email),name:String(row.name),bankReference:String(row.bank_reference),bankCode:String(row.bank_code),
         fundCode:String(row.fund_code),fundName:String(row.fund_name),amountMinor:Number(row.amount_minor),transactionFeeMinor:Number(row.transaction_fee_minor),
-        frequency:String(row.frequency) as GivingEmailSource['frequency'],firstPaymentDate:row.first_payment_date ? String(row.first_payment_date).slice(0,10) : null,leaseToken,
+        frequency:String(row.frequency) as GivingEmailSource['frequency'],firstPaymentDate:row.first_payment_date instanceof Date ? row.first_payment_date.toISOString().slice(0,10) : row.first_payment_date ? String(row.first_payment_date).slice(0,10) : null,leaseToken,
+        recipientEmail:row.recipient_email == null ? null : String(row.recipient_email),
+        recipientName:row.recipient_name == null ? null : String(row.recipient_name),
+        completedAt:row.created_at instanceof Date ? row.created_at : row.created_at == null ? null : String(row.created_at),
       } }
     },
     async markSent(id: number, leaseToken: string, providerId: string, now = new Date()) {

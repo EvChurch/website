@@ -1,10 +1,64 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createGivingCheckoutService, GivingCheckoutError, prepareGivingBankTransfer, type GivingCheckoutBlinkPayClient, type GivingCheckoutOperation, type GivingCheckoutRecord, type GivingCheckoutRepository, type GivingCheckoutStartResult } from './service'
+import { createGivingCheckoutService, createPostgresGivingCheckoutRepository, GivingCheckoutError, prepareGivingBankTransfer, type GivingCheckoutBlinkPayClient, type GivingCheckoutOperation, type GivingCheckoutRecord, type GivingCheckoutRepository, type GivingCheckoutStartResult } from './service'
 import type { ResolvedGivingIdentity } from './rock-identity'
 
 const context = { contextKey: 'sandbox', environment: 'sandbox' as const, synthetic: true }
 const baseSubmission = { submissionKey: 'A'.repeat(43), amountMinor: 2500, transactionFeeMinor: 50, fundId: 1, frequency: 'one-off' as const, firstPaymentDate: null, firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.com', turnstileToken: 'turnstile' }
+
+describe('verified completion email transactions', () => {
+  async function complete(kind: 'single' | 'recurring', query: ReturnType<typeof vi.fn>) {
+    const repo = repository()
+    const { checkout: checkoutService, blinkPay } = service(repo)
+    await checkoutService.start({ ...context, submission: baseSubmission })
+    const checkout = { ...repo.checkouts[0], environment: 'production' as const, synthetic: false, giverId: 1 }
+    const release = vi.fn()
+    const store = createPostgresGivingCheckoutRepository({connect:async()=>({query,release})} as never)
+    if (kind === 'single') await store.completeOneOff(checkout,'payment-1',new Date('2026-08-15T00:00:00Z'))
+    else await store.completeSchedule({...checkout,frequency:'monthly',firstPaymentDate:'2026-09-01'}, {
+      id:2,action:'blinkpay.create-schedule',status:'submitted',providerId:'schedule-1',requestId:'request-1',idempotencyKey:'key-1',requestDigest:'digest-1',
+    },11,await blinkPay.getFixedRecurringPayment(),new Date('2026-08-15T00:00:00Z'))
+    expect(release).toHaveBeenCalledOnce()
+  }
+
+  it.each(['single','recurring'] as const)('queues thanks and snapshotted support only inside the %s completion transaction',async(kind)=>{
+    const query=vi.fn().mockResolvedValue({rowCount:1,rows:[{id:1}]})
+    await complete(kind,query)
+    const calls=query.mock.calls.map(([sql])=>String(sql))
+    expect(calls[0]).toBe('BEGIN')
+    expect(calls.at(-1)).toBe('COMMIT')
+    const completionIndex=calls.findIndex(sql=>sql.includes("SET status='completed',result_code='verified'"))
+    const emails=calls.filter(sql=>sql.includes('INSERT INTO giving_email_deliveries'))
+    expect(emails).toHaveLength(2)
+    expect(calls.indexOf(emails[0])).toBeGreaterThan(completionIndex)
+    expect(emails[0]).toContain("'blinkpay-thanks'")
+    expect(emails[1]).toContain('checkout_id,kind,recipient_email,recipient_name')
+    expect(emails[1]).toContain("checkout.id,'blinkpay-support',BTRIM(profile.email),profile.name")
+    expect(emails[1]).toContain('profile.id=fund.support_profile_id')
+    expect(emails[1]).toContain("checkout.environment='production' AND checkout.synthetic=false")
+    expect(emails[1]).toContain("checkout.status='completed' AND checkout.result_code='verified'")
+    expect(emails[1]).toContain("NULLIF(BTRIM(profile.email),'') IS NOT NULL")
+    expect(emails[1]).not.toContain('profile.published')
+    expect(emails[1]).toContain('ON CONFLICT(checkout_id,kind) DO NOTHING')
+  })
+
+  it.each(['single','recurring'] as const)('rolls back %s completion if support queuing fails',async(kind)=>{
+    const query=vi.fn(async(sql:string)=>{
+      if(sql.includes("'blinkpay-support'")) throw new Error('outbox unavailable')
+      return {rowCount:1,rows:[{id:1}]}
+    })
+    await expect(complete(kind,query)).rejects.toThrow('outbox unavailable')
+    expect(query.mock.calls.at(-1)?.[0]).toBe('ROLLBACK')
+    expect(query.mock.calls.map(([sql])=>sql)).not.toContain('COMMIT')
+  })
+
+  it('does not queue emails if the checkout cannot transition to completed',async()=>{
+    const query=vi.fn(async(sql:string)=>({rowCount:sql.includes("SET status='completed'") ? 0 : 1,rows:[{id:1}]}))
+    await expect(complete('single',query)).rejects.toMatchObject({code:'conflict'})
+    expect(query.mock.calls.some(([sql])=>sql.includes('giving_email_deliveries'))).toBe(false)
+    expect(query.mock.calls.at(-1)?.[0]).toBe('ROLLBACK')
+  })
+})
 
 interface TestSchedule { checkoutId: number; consentId: number; providerScheduleId: string; status: 'pending' | 'active' }
 

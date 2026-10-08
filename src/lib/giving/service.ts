@@ -510,6 +510,21 @@ async function tx<T>(pool: Pool, work: (client: PoolClient) => Promise<T>) {
   }
 }
 
+async function queueBlinkPayCompletionEmails(client: PoolClient, checkoutId: number) {
+  await client.query(`INSERT INTO giving_email_deliveries(checkout_id,kind)
+    VALUES($1,'blinkpay-thanks') ON CONFLICT(checkout_id,kind) DO NOTHING`, [checkoutId])
+  // Snapshot the recipient only at the verified completion transition, never in outbox recovery.
+  await client.query(`INSERT INTO giving_email_deliveries(checkout_id,kind,recipient_email,recipient_name)
+    SELECT checkout.id,'blinkpay-support',BTRIM(profile.email),profile.name
+    FROM giving_checkouts checkout
+    JOIN giving_funds fund ON fund.id=checkout.fund_id
+    JOIN support_profiles profile ON profile.id=fund.support_profile_id
+    WHERE checkout.id=$1 AND checkout.environment='production' AND checkout.synthetic=false
+      AND checkout.status='completed' AND checkout.result_code='verified'
+      AND NULLIF(BTRIM(profile.email),'') IS NOT NULL
+    ON CONFLICT(checkout_id,kind) DO NOTHING`, [checkoutId])
+}
+
 type CheckoutRow = Record<string, unknown>
 function postgresDate(value: unknown): string | null {
   if (!value) return null
@@ -869,8 +884,7 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
         if (gift.rowCount !== 1) throw new GivingCheckoutError('conflict')
         const completed = await client.query(`UPDATE giving_checkouts SET status='completed',result_code='verified',updated_at=now() WHERE id=$1 AND context_key=$2 AND status IN ('authorising','verifying','unknown') RETURNING id`, [checkout.id, checkout.contextKey])
         if (completed.rowCount !== 1) throw new GivingCheckoutError('conflict')
-        await client.query(`INSERT INTO giving_email_deliveries(checkout_id,kind)
-          VALUES($1,'blinkpay-thanks') ON CONFLICT(checkout_id,kind) DO NOTHING`, [checkout.id])
+        await queueBlinkPayCompletionEmails(client, checkout.id)
       })
     },
     recordConsentAuthorised(checkout, consentId, observedAt, providerRequestId) {
@@ -987,8 +1001,7 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
         }
         const completed = await client.query(`UPDATE giving_checkouts SET status='completed',result_code='verified',updated_at=now() WHERE id=$1 AND context_key=$2 AND status IN ('authorising','verifying','unknown') RETURNING id`, [checkout.id,checkout.contextKey])
         if (completed.rowCount !== 1) throw new GivingCheckoutError('conflict')
-        await client.query(`INSERT INTO giving_email_deliveries(checkout_id,kind)
-          VALUES($1,'blinkpay-thanks') ON CONFLICT(checkout_id,kind) DO NOTHING`, [checkout.id])
+        await queueBlinkPayCompletionEmails(client, checkout.id)
       })
     },
     async setProcessing(id) {

@@ -6,12 +6,21 @@ import type {
   RockEventItemOccurrenceGroupMap,
   RockPerson,
 } from '@/lib/rock-api'
+import { aucklandDate, hasEventEnded } from '@/lib/event-timing'
 import { getRockPersonName } from './person'
 
 export type SyncedEventRegistration = {
   registrationUrl: string | null
   registrationStatus: 'open' | 'closed' | 'coming-soon' | null
   registrationCapacity: number | null
+}
+
+export function eventCampusUpdate(
+  rockCampusId: number | null,
+  resolvedCampusId: number | undefined,
+): { campus?: number | null } {
+  if (rockCampusId === null) return { campus: null }
+  return resolvedCampusId === undefined ? {} : { campus: resolvedCampusId }
 }
 
 function slugify(name: string): string {
@@ -64,12 +73,12 @@ export function normalizeRockDateTime(value: string | null): string | null {
   return new Date(instant).toISOString()
 }
 
-function normalizeICalendarDateTime(value: string): string | null {
+function normalizeICalendarDateTime(value: string, wallTime = false): string | null {
   const match = value.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z)?$/)
   if (!match) return null
 
   return normalizeRockDateTime(
-    `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}${match[7] ?? ''}`,
+    `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}${match[7] ?? (wallTime ? 'Z' : '')}`,
   )
 }
 
@@ -92,14 +101,25 @@ export function getRockOccurrenceEndDate(
   const scheduleEndValue = iCalendarValue(iCalendarContent, 'DTEND')
   if (!scheduleStartValue || !scheduleEndValue) return null
 
-  const scheduleStart = normalizeICalendarDateTime(scheduleStartValue)
-  const scheduleEnd = normalizeICalendarDateTime(scheduleEndValue)
+  const localSchedule = !scheduleStartValue.endsWith('Z') && !scheduleEndValue.endsWith('Z')
+  const scheduleStart = normalizeICalendarDateTime(scheduleStartValue, localSchedule)
+  const scheduleEnd = normalizeICalendarDateTime(scheduleEndValue, localSchedule)
   if (!scheduleStart || !scheduleEnd) return null
 
   const duration = new Date(scheduleEnd).getTime() - new Date(scheduleStart).getTime()
   if (!Number.isFinite(duration) || duration <= 0) return null
 
-  return new Date(new Date(nextStart).getTime() + duration).toISOString()
+  if (!localSchedule) return new Date(new Date(nextStart).getTime() + duration).toISOString()
+
+  // Apply local calendar duration before converting to UTC, so overnight and
+  // multi-day recurrences keep their finish time across NZ daylight saving.
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).formatToParts(new Date(nextStart)).map((part) => [part.type, part.value]))
+  const localStart = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+    Number(parts.hour), Number(parts.minute), Number(parts.second))
+  return normalizeRockDateTime(new Date(localStart + duration).toISOString().slice(0, -1))
 }
 
 export function selectNextEventOccurrences(
@@ -110,13 +130,21 @@ export function selectNextEventOccurrences(
 
   return occurrences.filter((occurrence) => {
     const effectiveEndDate = occurrence.Schedule?.EffectiveEndDate
-    const scheduleHasEnded = effectiveEndDate
-      ? normalizeRockDateTime(effectiveEndDate)! < now.toISOString()
+    const startDate = normalizeRockDateTime(occurrence.NextStartDateTime)
+    // Rock's EffectiveEndDate is an inclusive Auckland calendar date, not
+    // midnight at the beginning of the final occurrence.
+    const outsideSchedule = effectiveEndDate && startDate
+      ? aucklandDate(startDate) > aucklandDate(normalizeRockDateTime(effectiveEndDate)!)
       : false
+    const occurrenceHasEnded = hasEventEnded({
+      startDate,
+      endDate: getRockOccurrenceEndDate(occurrence.NextStartDateTime, occurrence.Schedule?.iCalendarContent),
+    }, now)
 
     if (
       !occurrence.NextStartDateTime ||
-      scheduleHasEnded ||
+      outsideSchedule ||
+      occurrenceHasEnded ||
       selectedEventItemIds.has(occurrence.EventItemId)
     ) {
       return false
