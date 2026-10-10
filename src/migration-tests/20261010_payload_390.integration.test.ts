@@ -164,6 +164,52 @@ describe.skipIf(!databaseUrl)('Payload 3.90 security compatibility on disposable
     expect((await payload.findByID({ collection: 'pages', id: pageId }))._status).toBe('draft')
   })
 
+  it('initializes the real HTTP MCP handler and enforces key-owner access through registered tools', async () => {
+    type Endpoint = (req: PayloadRequest) => Promise<Response>
+    const module: { initializeMCPHandler: (options: MCPPluginConfig) => Endpoint } = await import(new URL(
+      './endpoints/mcp.js', import.meta.resolve('@payloadcms/plugin-mcp'),
+    ).href)
+    const token = `transport-${unique}`
+    // Trusted fixture setup represents a historical editor-owned key. The
+    // preceding test verifies that editors cannot create keys through requests.
+    await payload.create({ collection: 'payload-mcp-api-keys', user: editor,
+      data: { user: editor.id, label: 'Synthetic transport key', apiKey: token,
+        pages: { find: true, create: true, update: true, delete: true } } })
+    const endpoint = module.initializeMCPHandler({ collections: { pages: { enabled: true } },
+      userCollection: 'users', mcp: { handlerOptions: { disableSse: true } } })
+    interface RPCResult { result?: { tools?: { name: string }[]; content?: { text: string }[]; protocolVersion?: string }; error?: unknown }
+    async function rpc(method: string, params: Record<string, unknown>, bearer = token, expectedStatus = 200): Promise<RPCResult> {
+      const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
+      const req = await createLocalReq({ user: admin, context: { ...context }, req: {
+        url: 'http://127.0.0.1/api/mcp', method: 'POST',
+        body: new Request('http://127.0.0.1/api/mcp', { method: 'POST', body }).body!,
+        headers: new Headers({ Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json',
+          Accept: 'application/json, text/event-stream', 'MCP-Protocol-Version': '2025-06-18' }),
+      } }, payload)
+      const response = await endpoint(req)
+      expect(req.user?.id).toBe(editor.id)
+      expect(response.status).toBe(expectedStatus)
+      const text = await response.text()
+      return JSON.parse(text.startsWith('event:') || text.startsWith('data:')
+        ? text.split('\n').find(line => line.startsWith('data:'))!.slice(5).trim() : text)
+    }
+    const initialized = await rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {},
+      clientInfo: { name: 'synthetic-security-fixture', version: '1.0.0' } })
+    expect(initialized.result?.protocolVersion).toBe('2025-06-18')
+    expect((await rpc('tools/list', {})).result?.tools?.map(tool => tool.name)).toEqual(
+      expect.arrayContaining(['findPages', 'createPages', 'updatePages', 'deletePages']))
+    const denied = await rpc('tools/call', { name: 'createPages', arguments: { title: 'Denied via HTTP', slug: `http-denied-${unique}` } })
+    expect(denied.result?.content?.[0].text).toMatch(/error/i)
+    const updated = await rpc('tools/call', { name: 'updatePages', arguments: { id: pageId, title: 'HTTP owner-bound update' } })
+    expect(updated.result?.content?.[0].text).not.toMatch(/^Error/)
+    expect((await payload.findByID({ collection: 'pages', id: pageId })).title).toBe('HTTP owner-bound update')
+    const removed = await rpc('tools/call', { name: 'deletePages', arguments: { id: pageId } })
+    expect(removed.result?.content?.[0].text).toMatch(/error/i)
+    const oversized = await rpc('tools/call', { name: 'findPages', arguments: { where: ' '.repeat(4 * 1024 * 1024) } }, token, 413)
+    expect(oversized.error).toMatchObject({ message: expect.stringContaining('4194304') })
+    await expect(rpc('tools/list', {}, 'invalid-synthetic')).rejects.toThrow()
+  })
+
   it('accepts safe SVG and PNG, rejects active SVG and preserves Local API file upload arguments', async () => {
     for (const [name, data, mimetype] of [
       ['safe.svg', Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>'), 'image/svg+xml'],
