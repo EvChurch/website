@@ -1,3 +1,4 @@
+import { payloadStorageKey } from '@/lib/payload-storage-key'
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getPayloadClient } from '@/lib/payload'
 import sharp from 'sharp'
@@ -55,8 +56,7 @@ export async function POST(request: Request) {
 
       if (bucket) {
         // Fetch directly from S3
-        const prefix = (doc as typeof doc & { prefix?: string }).prefix
-        const key = prefix ? `${prefix}/${doc.filename}` : doc.filename
+        const key = payloadStorageKey(doc)
         const s3 = getS3Client()
         const obj = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }))
         buffer = Buffer.from(await obj.Body!.transformToByteArray())

@@ -1,3 +1,4 @@
+import { payloadStorageKey } from '@/lib/payload-storage-key'
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { copyFile, mkdir } from 'node:fs/promises'
 import { createWriteStream } from 'node:fs'
@@ -30,7 +31,7 @@ export async function copyWorkFile(
     const object = await client.send(
       new GetObjectCommand({
         Bucket: process.env.S3_BUCKET,
-        Key: `sermon-work/${file.filename}`,
+        Key: payloadStorageKey(file, 'sermon-work'),
       }),
     )
     if (!object.Body) throw new Error('Audio file is missing from storage.')
@@ -54,7 +55,7 @@ export async function streamWorkFile(payload: Payload, id: number, range: string
   const headers: Record<string, string> = { 'Content-Type': file.mimeType || 'audio/mpeg', 'Cache-Control': 'private, no-store', 'Accept-Ranges': 'bytes', 'Referrer-Policy': 'no-referrer' }
   if (process.env.S3_BUCKET) {
     const client = new S3Client({ region: process.env.S3_REGION || 'auto', ...(process.env.S3_ENDPOINT ? { endpoint: process.env.S3_ENDPOINT } : {}), credentials: { accessKeyId: process.env.S3_ACCESS_KEY_ID || '', secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || '' } })
-    const object = await client.send(new GetObjectCommand({ Bucket: process.env.S3_BUCKET, Key: `sermon-work/${file.filename}`, ...(range ? { Range: range } : {}) }))
+    const object = await client.send(new GetObjectCommand({ Bucket: process.env.S3_BUCKET, Key: payloadStorageKey(file, 'sermon-work'), ...(range ? { Range: range } : {}) }))
     if (!object.Body) throw new Error('Audio is missing.')
     if (object.ContentLength != null) headers['Content-Length'] = String(object.ContentLength)
     if (object.ContentRange) headers['Content-Range'] = object.ContentRange

@@ -134,6 +134,14 @@ describe.each(['stream', 'file'] as const)('sermon audio %s route', (route) => {
     })
   })
 
+  it.each(['GET', 'HEAD'] as const)('includes the persisted upload folder in the signed %s path', async (method) => {
+    mocks.find.mockResolvedValue({
+      docs: [{ filename: 'a sermon.m4a', prefix: 'uploads', _objectKey: 'upload-id', mimeType: 'audio/x-m4a' }],
+    })
+    await handle(request(method, 'a%20sermon.m4a'))
+    expect(mocks.getSignedUrl.mock.calls[0][1].input.Key).toBe('uploads/upload-id/a sermon.m4a')
+  })
+
   it.each(['GET', 'HEAD'] as const)('returns an uncached, temporary %s redirect without reading audio bytes', async (method) => {
     const response = await handle(request(method))
     expect(response.status).toBe(302)
