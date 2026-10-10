@@ -59,7 +59,9 @@ describe('Service Guide launcher data', () => {
     })
   })
 
-  it('caches only the default-time catalogue with source dependency tags', () => {
+  it('caches only the default-time catalogue with source dependency tags', async () => {
+    vi.resetModules()
+    await import('./service-guide')
     expect(cacheMocks.unstableCache).toHaveBeenCalledWith(
       expect.any(Function),
       ['launcher-data-with-rock-forms'],

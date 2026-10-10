@@ -31,7 +31,9 @@ describe('public sermon page data', () => {
     mocks.findByID.mockReset()
   })
 
-  it('uses bounded tagged caches for sermon and taxonomy slug pages', () => {
+  it('uses bounded tagged caches for sermon and taxonomy slug pages', async () => {
+    vi.resetModules()
+    await import('./sermon-pages')
     expect(mocks.unstableCache).toHaveBeenNthCalledWith(
       1,
       expect.any(Function),

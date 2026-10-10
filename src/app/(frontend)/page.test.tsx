@@ -29,7 +29,9 @@ describe('HomePage upcoming events placement', () => {
     mocks.renderBlocks.mockClear()
   })
 
-  it('uses the tagged persistent page cache without forcing dynamic rendering', () => {
+  it('uses the tagged persistent page cache without forcing dynamic rendering', async () => {
+    vi.resetModules()
+    await import('./page')
     expect(mocks.unstableCache).toHaveBeenCalledWith(
       expect.any(Function),
       ['home-page'],

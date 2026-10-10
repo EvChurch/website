@@ -46,7 +46,9 @@ describe('sitemap', () => {
     expect(urls).toContain('https://www.ev.church/give')
   })
 
-  it('uses all source tags and a short fallback for mixed sitemap content', () => {
+  it('uses all source tags and a short fallback for mixed sitemap content', async () => {
+    vi.resetModules()
+    await import('./sitemap')
     expect(mocks.unstableCache).toHaveBeenCalledWith(
       expect.any(Function),
       ['public-sitemap-sections'],

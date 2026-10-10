@@ -233,7 +233,9 @@ describe('Payload-managed campus page', () => {
     expect(markup).not.toContain('Ev Unichurch')
   })
 
-  it('uses the tagged campus source cache and a long ISR fallback', () => {
+  it('uses the tagged campus source cache and a long ISR fallback', async () => {
+    vi.resetModules()
+    await import('./page')
     expect(mocks.unstableCache).toHaveBeenCalledWith(
       expect.any(Function),
       ['managed-campus-by-slug'],

@@ -63,7 +63,9 @@ describe('blog data', () => {
     await expect(getBlogPostBySlug('missing')).resolves.toBeNull()
   })
 
-  it('uses long tagged caches for list and detail reads', () => {
+  it('uses long tagged caches for list and detail reads', async () => {
+    vi.resetModules()
+    await import('./blog')
     expect(mocks.unstableCache).toHaveBeenNthCalledWith(
       1,
       expect.any(Function),

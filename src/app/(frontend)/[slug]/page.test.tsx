@@ -57,7 +57,9 @@ describe('retired dynamic pages', () => {
     expect(mocks.find).not.toHaveBeenCalled()
   })
 
-  it('uses the tagged page source cache and a long ISR fallback', () => {
+  it('uses the tagged page source cache and a long ISR fallback', async () => {
+    vi.resetModules()
+    await import('./page')
     expect(mocks.unstableCache).toHaveBeenCalledWith(
       expect.any(Function),
       ['public-page-by-slug'],

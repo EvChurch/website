@@ -49,7 +49,9 @@ const baseEvent: PublicEvent = {
 }
 
 describe('event helpers', () => {
-  it('caches the raw public event catalogue with its invalidation tag', () => {
+  it('caches the raw public event catalogue with its invalidation tag', async () => {
+    vi.resetModules()
+    await import('./events')
     expect(mocks.unstableCache).toHaveBeenCalledWith(
       expect.any(Function),
       ['public-events'],
@@ -57,7 +59,9 @@ describe('event helpers', () => {
     )
   })
 
-  it('caches event detail reads with the same short invalidation contract', () => {
+  it('caches event detail reads with the same short invalidation contract', async () => {
+    vi.resetModules()
+    await import('./events')
     expect(mocks.unstableCache).toHaveBeenNthCalledWith(
       2,
       expect.any(Function),

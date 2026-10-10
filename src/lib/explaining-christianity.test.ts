@@ -52,7 +52,9 @@ describe('EC registration action', () => {
     mocks.find.mockResolvedValue({ docs: [event] })
   })
 
-  it('refreshes the action on the events cache tag and a five-minute fallback', () => {
+  it('refreshes the action on the events cache tag and a five-minute fallback', async () => {
+    vi.resetModules()
+    await import('./explaining-christianity')
     expect(mocks.unstableCache).toHaveBeenCalledWith(
       expect.any(Function),
       ['explaining-christianity-action-v2'],

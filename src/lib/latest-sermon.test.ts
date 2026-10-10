@@ -25,7 +25,9 @@ describe('latest sermon data', () => {
     mocks.findByID.mockReset()
   })
 
-  it('caches the sermon and populated series under both source tags', () => {
+  it('caches the sermon and populated series under both source tags', async () => {
+    vi.resetModules()
+    await import('./latest-sermon')
     expect(mocks.unstableCache).toHaveBeenCalledWith(
       expect.any(Function),
       ['latest-sermon-with-series'],

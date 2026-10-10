@@ -21,7 +21,9 @@ describe('loadSiteFeedbackSettings', () => {
     findGlobal.mockReset()
   })
 
-  it('caches public launcher settings', () => {
+  it('caches public launcher settings', async () => {
+    vi.resetModules()
+    await import('./settings')
     expect(cacheMocks.unstableCache).toHaveBeenCalledWith(
       expect.any(Function),
       ['public-launcher-feedback-settings'],

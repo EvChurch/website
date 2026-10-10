@@ -24,7 +24,9 @@ function payload(overrides: Record<string, unknown> = {}) {
 }
 
 describe('missing path services', () => {
-  it('caches normalized redirect reads under the missing-path tag', () => {
+  it('caches normalized redirect reads under the missing-path tag', async () => {
+    vi.resetModules()
+    await import('./missing-paths')
     expect(mocks.unstableCache).toHaveBeenCalledWith(
       expect.any(Function),
       ['missing-path-redirect'],

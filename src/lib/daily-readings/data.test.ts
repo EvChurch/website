@@ -21,7 +21,9 @@ import {
 describe('daily reading data cache', () => {
   beforeEach(() => mocks.find.mockReset())
 
-  it('tags list and detail caches for sync invalidation', () => {
+  it('tags list and detail caches for sync invalidation', async () => {
+    vi.resetModules()
+    await import('./data')
     expect(mocks.unstableCache).toHaveBeenCalledWith(
       expect.any(Function),
       ['published-daily-readings'],
