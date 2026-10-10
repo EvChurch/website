@@ -150,8 +150,9 @@ describe.skipIf(!databaseUrl)('Payload S3 schema migration with in-memory storag
     if (upload.collection === 'sermon-work-files') await expect(tampering).rejects.toThrow()
     else {
       await expect(tampering).rejects.toThrow(/MIME Type/)
+      const forgedCoordinates = { filename: 'forged.wav', prefix: 'forged', _objectKey: 'forged' }
       await payload.update({ collection: upload.collection, id: created.id, context: { ...context }, overrideAccess: false, user,
-        data: { filename: 'forged.wav', prefix: 'forged', _objectKey: 'forged' } })
+        data: forgedCoordinates })
     }
     const unchanged = await payload.findByID({ collection: upload.collection, id: created.id, depth: 0 })
     expect(payloadStorageKey(unchanged, upload.prefix)).toBe(payloadStorageKey(created, upload.prefix))
