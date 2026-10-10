@@ -1,3 +1,4 @@
+import { payloadStorageKey } from '@/lib/payload-storage-key'
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import type { CollectionBeforeOperationHook } from 'payload'
 
@@ -6,6 +7,7 @@ import type { Media, User } from '@/payload-types'
 
 type StoredMedia = Media & {
   prefix?: string | null
+  _objectKey?: string | null
 }
 
 function getS3Client() {
@@ -69,7 +71,7 @@ export const loadMediaFileForFocalPoint: CollectionBeforeOperationHook = async (
     return args
   }
 
-  const key = media.prefix ? `${media.prefix}/${media.filename}` : media.filename
+  const key = payloadStorageKey(media)
   const object = await getS3Client().send(
     new GetObjectCommand({ Bucket: bucket, Key: key }),
   )

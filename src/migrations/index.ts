@@ -1,3 +1,4 @@
+import * as migration_20261010_010000_payload_390_upload_keys from './20261010_010000_payload_390_upload_keys';
 import * as migration_20260910_070000_event_website_summary from './20260910_070000_event_website_summary';
 import * as migration_20260908_180000_sermon_transcripts_calendar from './20260908_180000_sermon_transcripts_calendar';
 import * as migration_20260908_150000_feedback_communications from './20260908_150000_feedback_communications';
@@ -367,4 +368,5 @@ export const migrations = [
   { up: migration_20260910_070000_event_website_summary.up, down: migration_20260910_070000_event_website_summary.down, name: '20260910_070000_event_website_summary' },
   { up: migration_20260910_010000_attendance_save_requests.up, down: migration_20260910_010000_attendance_save_requests.down, name: '20260910_010000_attendance_save_requests' },
   { up: migration_20261002_010000_support_profiles.up, down: migration_20261002_010000_support_profiles.down, name: '20261002_010000_support_profiles' },
+  { up: migration_20261010_010000_payload_390_upload_keys.up, down: migration_20261010_010000_payload_390_upload_keys.down, name: '20261010_010000_payload_390_upload_keys' },
 ];

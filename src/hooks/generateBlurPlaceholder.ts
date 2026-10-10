@@ -1,6 +1,7 @@
 import type { CollectionAfterChangeHook } from 'payload'
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
 import sharp from 'sharp'
+import { payloadStorageKey } from '@/lib/payload-storage-key'
 
 function getS3Client() {
   return new S3Client({
@@ -34,8 +35,7 @@ export const generateBlurPlaceholder: CollectionAfterChangeHook = async ({
     if (req.file?.data) {
       buffer = req.file.data
     } else if (bucket && doc.filename) {
-      const prefix = doc.prefix as string | undefined
-      const key = prefix ? `${prefix}/${doc.filename}` : doc.filename
+      const key = payloadStorageKey(doc)
       const s3 = getS3Client()
       const obj = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }))
       buffer = Buffer.from(await obj.Body!.transformToByteArray())

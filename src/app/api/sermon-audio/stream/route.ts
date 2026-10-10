@@ -1,3 +1,4 @@
+import { payloadStorageKey } from '@/lib/payload-storage-key'
 import { S3Client, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { getPayloadClient } from '@/lib/payload'
@@ -49,8 +50,7 @@ async function findSermonAudio(filename: string): Promise<SermonAudio | null> {
 }
 
 function getStorageKey(doc: SermonAudio): string {
-  const prefix = (doc as SermonAudio & { prefix?: string }).prefix
-  return prefix ? `${prefix}/${doc.filename!}` : doc.filename!
+  return payloadStorageKey(doc)
 }
 
 function getContentType(doc: SermonAudio): string {
