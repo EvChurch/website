@@ -84,6 +84,7 @@
       "pg": "8.15.6",
       "sharp@>=0.35.0 <0.35.5": "0.35.5",
       "undici@7.29.0": "7.29.1",
+      "jsdom@30.0.1>undici": "8.10.2",
       "@payloadcms/plugin-mcp@3.90.2>@modelcontextprotocol/sdk": "1.31.0",
       "mcp-handler@1.1.0>@modelcontextprotocol/sdk": "1.31.0",
       "express@5.2.1>proxy-addr": "2.0.8"
