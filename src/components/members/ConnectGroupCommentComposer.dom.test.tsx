@@ -35,7 +35,7 @@ describe('ConnectGroupCommentComposer', () => {
     const editor = container.querySelector<HTMLElement>('[contenteditable="true"]')!
     editor.innerHTML = '<p><strong>Update</strong> <a href="https://ev.church/">website</a></p><ul><li>First</li><li>Second</li></ul>'
     await act(async () => editor.dispatchEvent(new InputEvent('input', { bubbles: true })))
-    await act(async () => container.querySelector<HTMLFormElement>('form')!.requestSubmit())
+    await act(async () => container.querySelector<HTMLButtonElement>('button[type="submit"]')!.click())
 
     const submitted = action.mock.calls[0]?.[0]
     expect(submitted?.get('body')).toBe(JSON.stringify({
@@ -79,7 +79,7 @@ describe('ConnectGroupCommentComposer', () => {
     await act(async () => editor.dispatchEvent(new InputEvent('input', { bubbles: true })))
 
     await act(async () => {
-      container.querySelector<HTMLFormElement>('form')!.requestSubmit()
+      container.querySelector<HTMLButtonElement>('button[type="submit"]')!.click()
       await Promise.resolve()
     })
     const submit = container.querySelector<HTMLButtonElement>('button[type="submit"]')!

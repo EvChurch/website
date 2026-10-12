@@ -87,7 +87,9 @@
       "jsdom@30.0.1>undici": "8.10.2",
       "@payloadcms/plugin-mcp@3.90.2>@modelcontextprotocol/sdk": "1.31.0",
       "mcp-handler@1.1.0>@modelcontextprotocol/sdk": "1.31.0",
-      "express@5.2.1>proxy-addr": "2.0.8"
+      "express@5.2.1>proxy-addr": "2.0.8",
+      "js-yaml@4.3.1": "4.3.2",
+      "@xmldom/xmldom@0.8.13": "0.8.15"
     }
   }
 }
