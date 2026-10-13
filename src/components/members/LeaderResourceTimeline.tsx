@@ -146,7 +146,7 @@ function ResourceActions({ resource, inverted = false, audience = 'leader' }: {
           rel="nofollow"
           className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border px-4 py-2.5 text-sm font-bold transition-colors ${inverted ? secondaryClass : primaryClass}`}
         >
-          <FileIcon /> {inverted ? 'Notes' : 'Leader notes'}
+          <FileIcon /> {inverted ? 'Leaders’ Notes' : 'Leader notes'}
         </a>
       )}
       {resource.hasMemberStudy && (
@@ -264,7 +264,7 @@ function TimelineRows({
               {audience === 'leader' && (
                 <div className="mt-3 flex gap-4 text-sm font-bold text-rich-red">
                   {resource.hasLeaderNotes && (
-                    <a href={`/members/connect-group-leader-resources/${resource.rockId}/files/leader-notes`} rel="nofollow" className="hover:underline">Notes</a>
+                    <a href={`/members/connect-group-leader-resources/${resource.rockId}/files/leader-notes`} rel="nofollow" className="hover:underline">Leaders’ Notes</a>
                   )}
                   {resource.hasMemberStudy && (
                     <a href={`/members/connect-group-leader-resources/${resource.rockId}/files/member-study`} rel="nofollow" className="hover:underline">Study</a>
