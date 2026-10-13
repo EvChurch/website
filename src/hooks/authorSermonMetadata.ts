@@ -5,6 +5,7 @@ import { APIError, type CollectionBeforeValidateHook } from 'payload'
 export const authorSermonMetadata: CollectionBeforeValidateHook = async ({
   data,
   originalDoc,
+  operation,
   collection,
   context,
   req,
@@ -22,6 +23,12 @@ export const authorSermonMetadata: CollectionBeforeValidateHook = async ({
   }
   if (collection.slug === 'sermons') {
     const merged = { ...originalDoc, ...data }
+    const importingPublishedSermon =
+      context.churchResourcesImport === true &&
+      operation === 'create' &&
+      !req.user &&
+      typeof data.resourceId === 'string' &&
+      Boolean(data.resourceId)
     // Pipeline jobs may update their own fields on legacy sermons without reauthoring them.
     const editorial = [
       'title',
@@ -36,6 +43,7 @@ export const authorSermonMetadata: CollectionBeforeValidateHook = async ({
     ]
     if (
       merged.isPublished &&
+      !importingPublishedSermon &&
       (!originalDoc ||
         editorial.some(
           (key) =>
