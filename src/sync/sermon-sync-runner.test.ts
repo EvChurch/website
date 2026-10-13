@@ -55,3 +55,23 @@ it('does not publish partial metadata when dependency import failed', async () =
   expect(results.find(result => result.entity === 'sermons')?.errors).toEqual([expect.stringContaining('taxonomy is incomplete')])
   expect(mocks.create).not.toHaveBeenCalled()
 })
+
+it('isolates the mutable storage-hook context across consecutive uploads', async () => {
+  mocks.fetchAllPages.mockImplementation(async (_query, key) => key === 'sermons' ? [sermon, { ...sermon, id: 'second-sermon', name: 'Second sermon' }] : [])
+  vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => new Response(new Uint8Array(32), { headers: { 'content-type': 'audio/mp4' } })))
+  const uploadContexts: Record<string, unknown>[] = []
+  mocks.create.mockImplementation(async ({ collection, context }) => {
+    if (collection === 'sermon-audio') {
+      uploadContexts.push({ ...context })
+      // Payload's storage hook sets this on the outer context, then resets only
+      // the context copied by its nested metadata update.
+      if (context.skipCloudStorage) throw new Error('Upload was skipped')
+      context.skipCloudStorage = true
+    }
+    return { id: 2 }
+  })
+  const results = await runSermonSync()
+  expect(results.find(result => result.entity === 'sermons')).toMatchObject({ created: 2, errors: [] })
+  expect(uploadContexts).toHaveLength(2)
+  expect(uploadContexts.every(context => context.skipCloudStorage === undefined)).toBe(true)
+})
