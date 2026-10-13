@@ -1,7 +1,8 @@
 import { getPayloadClient } from '@/lib/payload'
 import { fetchAllPages } from '@/lib/resources-api'
 
-const importContext = { churchResourcesImport: true, skipCacheInvalidation: true }
+// Payload upload hooks mutate context; never reuse it across Local API calls.
+const createImportContext = () => ({ churchResourcesImport: true, skipCacheInvalidation: true })
 
 type SyncResult = {
   entity: string
@@ -87,7 +88,7 @@ async function downloadImage(
     const payload = await getPayloadClient()
     const media = await payload.create({
       collection: 'media',
-      context: importContext,
+      context: createImportContext(),
       data: {
         alt: filename,
       },
@@ -128,7 +129,7 @@ async function downloadAudio(
     const payload = await getPayloadClient()
     const audio = await payload.create({
       collection: 'sermon-audio',
-      context: importContext,
+      context: createImportContext(),
       data: {
         duration,
       },
@@ -207,7 +208,7 @@ async function syncCategories(): Promise<SyncResult> {
       })
 
       if (existing.docs.length === 0) {
-        await payload.create({ collection: 'categories', data: mapped, context: importContext })
+        await payload.create({ collection: 'categories', data: mapped, context: createImportContext() })
         result.created++
       }
     }
@@ -251,7 +252,7 @@ async function syncScriptures(): Promise<SyncResult> {
       })
 
       if (existing.docs.length === 0) {
-        await payload.create({ collection: 'scriptures', data: mapped, context: importContext })
+        await payload.create({ collection: 'scriptures', data: mapped, context: createImportContext() })
         result.created++
       }
     }
@@ -295,7 +296,7 @@ async function syncSpeakers(): Promise<SyncResult> {
       })
 
       if (existing.docs.length === 0) {
-        await payload.create({ collection: 'speakers', data: mapped, context: importContext })
+        await payload.create({ collection: 'speakers', data: mapped, context: createImportContext() })
         result.created++
       }
     }
@@ -354,7 +355,7 @@ async function syncTopics(): Promise<SyncResult> {
       })
 
       if (existing.docs.length === 0) {
-        await payload.create({ collection: 'topics', data: mapped, context: importContext })
+        await payload.create({ collection: 'topics', data: mapped, context: createImportContext() })
         result.created++
       }
     }
@@ -437,7 +438,7 @@ async function syncSermonSeries(): Promise<SyncResult> {
       }
 
       if (existing.docs.length === 0) {
-        await payload.create({ collection: 'sermon-series', data: mapped, context: importContext })
+        await payload.create({ collection: 'sermon-series', data: mapped, context: createImportContext() })
         result.created++
       }
     }
@@ -649,7 +650,7 @@ async function syncSermons(limit?: number): Promise<SyncResult> {
       }
 
       try {
-        await payload.create({ collection: 'sermons', data: mapped, context: importContext })
+        await payload.create({ collection: 'sermons', data: mapped, context: createImportContext() })
         result.created++
       } catch (error) {
         // Retry a rejected import without leaving another unreferenced audio upload.
@@ -657,7 +658,7 @@ async function syncSermons(limit?: number): Promise<SyncResult> {
           collection: 'sermons', where: { audio: { equals: audio } }, depth: 0, limit: 1,
         })
         if (references.docs.length === 0) {
-          await payload.delete({ collection: 'sermon-audio', id: audio, context: importContext })
+          await payload.delete({ collection: 'sermon-audio', id: audio, context: createImportContext() })
         }
         throw error
       }
