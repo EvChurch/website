@@ -292,11 +292,17 @@ export default buildConfig({
         ],
         handler: async ({ req }) => {
           const { runSermonSync } = await import('@/sync/sermon-sync-runner')
-          const results = await runSermonSync()
+          const { withRockSyncLock } = await import('@/lib/rock-sync-lock')
+          const { notifyWebsiteCache } = await import('@/workers/rock-sync')
+          const result = await withRockSyncLock(() => runSermonSync())
+          if (!result.acquired) throw new Error('Sermon sync is already in progress')
+          const results = result.value
+          await notifyWebsiteCache(results)
           const created = results.reduce((s, r) => s + r.created, 0)
           const updated = results.reduce((s, r) => s + r.updated, 0)
           const errors = results.reduce((s, r) => s + r.errors.length, 0)
           req.payload.logger.info(`[SermonSync] created=${created} updated=${updated} errors=${errors}`)
+          if (errors) throw new Error(`Sermon import completed with ${errors} errors`)
           return { output: { created, updated, errors } }
         },
       },

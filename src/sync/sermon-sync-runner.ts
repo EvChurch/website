@@ -1,6 +1,8 @@
 import { getPayloadClient } from '@/lib/payload'
 import { fetchAllPages } from '@/lib/resources-api'
 
+const importContext = { churchResourcesImport: true, skipCacheInvalidation: true }
+
 type SyncResult = {
   entity: string
   created: number
@@ -85,6 +87,7 @@ async function downloadImage(
     const payload = await getPayloadClient()
     const media = await payload.create({
       collection: 'media',
+      context: importContext,
       data: {
         alt: filename,
       },
@@ -125,6 +128,7 @@ async function downloadAudio(
     const payload = await getPayloadClient()
     const audio = await payload.create({
       collection: 'sermon-audio',
+      context: importContext,
       data: {
         duration,
       },
@@ -202,15 +206,8 @@ async function syncCategories(): Promise<SyncResult> {
         limit: 1,
       })
 
-      if (existing.docs.length > 0) {
-        await payload.update({
-          collection: 'categories',
-          id: existing.docs[0].id,
-          data: mapped,
-        })
-        result.updated++
-      } else {
-        await payload.create({ collection: 'categories', data: mapped })
+      if (existing.docs.length === 0) {
+        await payload.create({ collection: 'categories', data: mapped, context: importContext })
         result.created++
       }
     }
@@ -253,15 +250,8 @@ async function syncScriptures(): Promise<SyncResult> {
         limit: 1,
       })
 
-      if (existing.docs.length > 0) {
-        await payload.update({
-          collection: 'scriptures',
-          id: existing.docs[0].id,
-          data: mapped,
-        })
-        result.updated++
-      } else {
-        await payload.create({ collection: 'scriptures', data: mapped })
+      if (existing.docs.length === 0) {
+        await payload.create({ collection: 'scriptures', data: mapped, context: importContext })
         result.created++
       }
     }
@@ -304,15 +294,8 @@ async function syncSpeakers(): Promise<SyncResult> {
         limit: 1,
       })
 
-      if (existing.docs.length > 0) {
-        await payload.update({
-          collection: 'speakers',
-          id: existing.docs[0].id,
-          data: mapped,
-        })
-        result.updated++
-      } else {
-        await payload.create({ collection: 'speakers', data: mapped })
+      if (existing.docs.length === 0) {
+        await payload.create({ collection: 'speakers', data: mapped, context: importContext })
         result.created++
       }
     }
@@ -370,15 +353,8 @@ async function syncTopics(): Promise<SyncResult> {
         limit: 1,
       })
 
-      if (existing.docs.length > 0) {
-        await payload.update({
-          collection: 'topics',
-          id: existing.docs[0].id,
-          data: mapped,
-        })
-        result.updated++
-      } else {
-        await payload.create({ collection: 'topics', data: mapped })
+      if (existing.docs.length === 0) {
+        await payload.create({ collection: 'topics', data: mapped, context: importContext })
         result.created++
       }
     }
@@ -406,11 +382,7 @@ async function syncSermonSeries(): Promise<SyncResult> {
       'series',
     )
 
-    const syncedIds = new Set<string>()
-
     for (const series of allSeries) {
-      syncedIds.add(series.id)
-
       const existing = await payload.find({
         collection: 'sermon-series',
         where: { resourceId: { equals: series.id } },
@@ -418,11 +390,12 @@ async function syncSermonSeries(): Promise<SyncResult> {
         limit: 1,
       })
 
-      // Use existing images if already downloaded, otherwise download
-      const existingDoc = existing.docs[0]
-      let backgroundImage = (existingDoc?.backgroundImage as number | null) || null
-      let bannerImage = (existingDoc?.bannerImage as number | null) || null
-      let foregroundImage = (existingDoc?.foregroundImage as number | null) || null
+      if (existing.docs.length > 0) continue
+
+      // Download images only for new series.
+      let backgroundImage: number | null = null
+      let bannerImage: number | null = null
+      let foregroundImage: number | null = null
 
       if (!backgroundImage && series.backgroundUrl) {
         backgroundImage = await downloadImage(
@@ -463,36 +436,12 @@ async function syncSermonSeries(): Promise<SyncResult> {
         lastSyncedAt: new Date().toISOString(),
       }
 
-      if (existing.docs.length > 0) {
-        await payload.update({
-          collection: 'sermon-series',
-          id: existing.docs[0].id,
-          data: mapped,
-        })
-        result.updated++
-      } else {
-        await payload.create({ collection: 'sermon-series', data: mapped })
+      if (existing.docs.length === 0) {
+        await payload.create({ collection: 'sermon-series', data: mapped, context: importContext })
         result.created++
       }
     }
 
-    // Soft-delete series not in API response
-    const allPayloadSeries = await payload.find({
-      collection: 'sermon-series',
-      limit: 500,
-      depth: 0,
-      where: { isPublished: { equals: true } },
-    })
-    for (const doc of allPayloadSeries.docs) {
-      if (doc.resourceId && !syncedIds.has(doc.resourceId)) {
-        await payload.update({
-          collection: 'sermon-series',
-          id: doc.id,
-          data: { isPublished: false },
-        })
-        result.deleted++
-      }
-    }
 
   } catch (error) {
     result.errors.push(String(error))
@@ -584,14 +533,12 @@ async function syncSermons(limit?: number): Promise<SyncResult> {
         pageInfo { hasNextPage endCursor }
       } }`
 
-    let sermons = await fetchAllPages<ResourceSermon>(sermonQuery, 'sermons', limit)
-
-    const syncedIds = new Set<string>()
+    const sermons = await fetchAllPages<ResourceSermon>(sermonQuery, 'sermons', limit)
 
     // Pre-populate usedSlugs with existing DB slugs to avoid unique constraint violations
     const existingSermons = await payload.find({
       collection: 'sermons',
-      limit: 10000,
+      pagination: false,
       depth: 0,
       select: { slug: true, resourceId: true },
     })
@@ -605,8 +552,6 @@ async function syncSermons(limit?: number): Promise<SyncResult> {
 
     for (const sermon of sermons) {
       try {
-      syncedIds.add(sermon.id)
-
       // Reuse existing slug for known sermons, generate for new ones
       let slug = existingSlugMap.get(sermon.id)
       if (!slug) {
@@ -663,17 +608,18 @@ async function syncSermons(limit?: number): Promise<SyncResult> {
         limit: 1,
       })
 
-      const isNew = existing.docs.length === 0
+      if (existing.docs.length > 0) continue
+      if (
+        (sermon.authors.length > 0 && audioSpeakerId == null) ||
+        seriesIds.length !== sermon.series.length ||
+        topicIds.length !== sermon.topics.length ||
+        scriptureIds.length !== sermon.scriptures.length
+      ) {
+        throw new Error('Sermon taxonomy is incomplete; import will retry.')
+      }
 
-      // Download audio only on first creation, keep existing on updates
       let audio: number | null = null
       let duration: number | null = null
-
-      if (!isNew) {
-        const doc = existing.docs[0]
-        audio = (doc.audio as number) || null
-        duration = doc.duration || null
-      }
 
       if (!audio && sermon.audioUrl) {
         const audioResult = await downloadAudio(sermon.audioUrl, `${slug}`)
@@ -682,6 +628,8 @@ async function syncSermons(limit?: number): Promise<SyncResult> {
           duration = audioResult.duration
         }
       }
+
+      if (!audio) throw new Error('Sermon audio could not be downloaded; import will retry.')
 
       const mapped = {
         title: sermon.name,
@@ -700,48 +648,24 @@ async function syncSermons(limit?: number): Promise<SyncResult> {
         lastSyncedAt: new Date().toISOString(),
       }
 
-      if (!isNew) {
-        await payload.update({
-          collection: 'sermons',
-          id: existing.docs[0].id,
-          data: mapped,
-        })
-        result.updated++
-      } else {
-        await payload.create({ collection: 'sermons', data: mapped })
+      try {
+        await payload.create({ collection: 'sermons', data: mapped, context: importContext })
         result.created++
+      } catch (error) {
+        // Retry a rejected import without leaving another unreferenced audio upload.
+        const references = await payload.find({
+          collection: 'sermons', where: { audio: { equals: audio } }, depth: 0, limit: 1,
+        })
+        if (references.docs.length === 0) {
+          await payload.delete({ collection: 'sermon-audio', id: audio, context: importContext })
+        }
+        throw error
       }
       } catch (error) {
         result.errors.push(`Sermon "${sermon.name}" (${sermon.id}): ${String(error)}`)
       }
     }
 
-    // Soft-delete sermons not in API response (only during full sync, not limited)
-    if (!limit) {
-    let page = 1
-    let hasMore = true
-    while (hasMore) {
-      const batch = await payload.find({
-        collection: 'sermons',
-        limit: 100,
-        page,
-        depth: 0,
-        where: { isPublished: { equals: true } },
-      })
-      for (const doc of batch.docs) {
-        if (doc.resourceId && !syncedIds.has(doc.resourceId)) {
-          await payload.update({
-            collection: 'sermons',
-            id: doc.id,
-            data: { isPublished: false },
-          })
-          result.deleted++
-        }
-      }
-      hasMore = batch.hasNextPage
-      page++
-    }
-    } // end soft-delete (full sync only)
 
   } catch (error) {
     result.errors.push(String(error))
@@ -751,18 +675,13 @@ async function syncSermons(limit?: number): Promise<SyncResult> {
 }
 
 /**
- * Full sync for all sermon-related entities from resources.ev.church GraphQL API.
+ * Import new sermon-related entities from resources.ev.church GraphQL API.
+ * Existing Payload content is never updated or unpublished.
  * Sync order matters: dependencies first, then sermons last.
  *
  * @param limit - If set, only sync the first N sermons (for development). Taxonomy entities always sync fully.
  */
-export async function runSermonSync(_limit?: number): Promise<SyncResult[]> {
-  // Payload owns sermon metadata after the authoring cutover. Queued legacy jobs are harmless.
-  return []
-}
-
-/** Retained import implementation for archive reference; not scheduled or exposed. */
-async function _legacySermonImport(limit?: number): Promise<SyncResult[]> {
+export async function runSermonSync(limit?: number): Promise<SyncResult[]> {
   const results: SyncResult[] = []
 
   // Phase 1: Independent entities (no relationships)
