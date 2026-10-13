@@ -485,13 +485,16 @@ describe('member data access', () => {
     await expect(getMemberGroupDetail(999)).resolves.toEqual({ access: 'denied' })
   })
 
-  it('shows approved universal and matching-campus resources to leaders, including upcoming items', async () => {
+  it('shows leaders their full resources plus member-safe studies from other campuses', async () => {
     await expect(
       getMemberResources(new Date('2026-08-08T00:00:00.000Z')),
     ).resolves.toMatchObject({
       access: 'granted',
       current: [{ rockId: 200, title: 'This Week' }],
-      upcoming: [{ rockId: 201, title: 'Central Coming Up' }],
+      upcoming: [
+        { rockId: 201, title: 'Central Coming Up', hasLeaderNotes: true },
+        { rockId: 202, title: 'North Only', hasLeaderNotes: false, youtubeUrl: null },
+      ],
       history: [],
     })
   })
@@ -542,7 +545,7 @@ describe('member data access', () => {
     })
   })
 
-  it('denies leader resources to an ordinary member', async () => {
+  it('shows ordinary members approved studies without leader-only fields', async () => {
     const ordinaryMember = {
       ...participant,
       memberships: participant.memberships.map((membership) => ({
@@ -558,7 +561,17 @@ describe('member data access', () => {
           : payloadDocs(collection),
     }))
 
-    await expect(getMemberResources()).resolves.toEqual({ access: 'denied' })
+    await expect(getMemberResources()).resolves.toMatchObject({
+      access: 'granted',
+      history: expect.arrayContaining([
+        expect.objectContaining({
+          rockId: 200,
+          hasLeaderNotes: false,
+          youtubeUrl: null,
+          hosts: [],
+        }),
+      ]),
+    })
   })
 
   it('returns current matching-campus studies to an ordinary group member', async () => {
@@ -715,11 +728,14 @@ describe('member data access', () => {
         (condition: Record<string, unknown>) => 'rockId' in condition,
       ) as { rockId?: { equals?: number } } | undefined
       const requestedRockId = rockIdCondition?.rockId?.equals
+      const resourceDocs = requestedRockId
+        ? [currentCentralStudy, ...resources].filter((resource) => resource.rockId === requestedRockId)
+        : [currentCentralStudy, ...resources.filter((resource) => resource.rockId !== 201)]
       return {
         docs: collection === 'connect-group-participants'
           ? [ordinaryMember]
           : collection === 'connect-group-leader-resources'
-            ? [currentCentralStudy, ...resources.filter((resource) => resource.rockId !== 201)]
+            ? resourceDocs
             : payloadDocs(collection),
       }
     })
@@ -730,8 +746,49 @@ describe('member data access', () => {
       name: 'Study.pdf',
     })
     await expect(getMemberResourceAsset(201, { kind: 'leader-notes' })).resolves.toBeNull()
-    await expect(getMemberResourceAsset(202, { kind: 'member-study' })).resolves.toBeNull()
-    await expect(getMemberResourceDetail(201)).resolves.toEqual({ access: 'denied' })
+    await expect(getMemberResourceAsset(202, { kind: 'member-study' })).resolves.toEqual({
+      kind: 'file',
+      guid: '66666666-6666-4666-8666-666666666666',
+      name: 'Study.pdf',
+    })
+    await expect(getMemberResourceDetail(201)).resolves.toMatchObject({
+      access: 'granted',
+      resource: {
+        rockId: 201,
+        hasLeaderNotes: false,
+        youtubeUrl: null,
+        hosts: [],
+      },
+    })
+  })
+
+  it('allows a signed-in member without a participant mirror to browse and download studies', async () => {
+    payloadState.find.mockImplementation(async ({ collection, where }) => {
+      const rockIdCondition = where?.and?.find(
+        (condition: Record<string, unknown>) => 'rockId' in condition,
+      ) as { rockId?: { equals?: number } } | undefined
+      const requestedRockId = rockIdCondition?.rockId?.equals
+      return {
+        docs: collection === 'connect-group-participants'
+          ? []
+          : collection === 'connect-group-leader-resources' && requestedRockId
+            ? resources.filter((resource) => resource.rockId === requestedRockId)
+            : payloadDocs(collection),
+      }
+    })
+
+    await expect(getMemberResources()).resolves.toMatchObject({
+      access: 'granted',
+      history: expect.arrayContaining([
+        expect.objectContaining({ rockId: 200, hasLeaderNotes: false }),
+      ]),
+    })
+    await expect(getMemberResourceAsset(200, { kind: 'member-study' })).resolves.toEqual({
+      kind: 'file',
+      guid: '22222222-2222-4222-8222-222222222222',
+      name: 'Member study.pdf',
+    })
+    await expect(getMemberResourceAsset(200, { kind: 'leader-notes' })).resolves.toBeNull()
   })
 
   it('authorizes resource details and protected files through the same eligibility check', async () => {
@@ -744,7 +801,14 @@ describe('member data access', () => {
       },
     })
 
-    await expect(getMemberResourceDetail(202)).resolves.toEqual({ access: 'denied' })
+    await expect(getMemberResourceDetail(202)).resolves.toMatchObject({
+      access: 'granted',
+      resource: {
+        rockId: 202,
+        hasLeaderNotes: false,
+        youtubeUrl: null,
+      },
+    })
   })
 
   it('authorizes coach-only resource details while still rejecting drafts', async () => {

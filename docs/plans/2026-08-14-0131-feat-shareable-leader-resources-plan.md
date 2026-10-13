@@ -42,7 +42,7 @@ Leaders can play training videos and open supporting notes inside the member por
 
 - A1. **Sharing leader:** A signed-in Connect Group leader who can access leader resources and creates or reuses a share link.
 - A2. **Recipient:** Anyone holding the opaque link, including a person who is not signed in.
-- A3. **Resource owner:** EV staff who maintain the source resource, video, description, and leader notes.
+- A3. **Resource owner:** Ev staff who maintain the source resource, video, description, and leader notes.
 
 ### Requirements
 

@@ -10,7 +10,7 @@ export const SITE_URL = 'https://www.ev.church'
 export interface SitemapLink {
   label: string
   url: string
-  lastModified: Date
+  lastModified?: Date
   changeFrequency: NonNullable<MetadataRoute.Sitemap[number]['changeFrequency']>
   priority: number
 }
@@ -20,8 +20,10 @@ export interface SitemapSection {
   links: SitemapLink[]
 }
 
-function updatedAt(value?: string | null): Date {
-  return value ? new Date(value) : new Date()
+function updatedAt(value?: string | null): Date | undefined {
+  if (!value) return undefined
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? undefined : date
 }
 
 function link(
@@ -118,7 +120,6 @@ async function fetchSitemapSections(): Promise<SitemapSection[]> {
         link('Central events', '/events/central', { changeFrequency: 'weekly', priority: 0.8 }),
         link('Unichurch events', '/events/unichurch', { changeFrequency: 'weekly', priority: 0.8 }),
         link('Blog', '/blog', { changeFrequency: 'weekly', priority: 0.6 }),
-        link('Privacy policy', '/privacy', { changeFrequency: 'yearly', priority: 0.3 }),
         link('Health and safety', '/hs', { changeFrequency: 'yearly', priority: 0.3 }),
       ],
     },

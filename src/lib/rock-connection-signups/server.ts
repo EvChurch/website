@@ -547,8 +547,7 @@ export async function initializeRockConnectionSignup(
 ): Promise<RockConnectionSignupSchema> {
   if (!isGuid(blockGuid)) throw new Error('A valid block GUID is required')
   try {
-    const candidate = await findCandidate(normalizedGuid(blockGuid))
-    return await refreshCandidate(candidate)
+    return await loadEligibleRockConnectionSignup(normalizedGuid(blockGuid))
   } catch (error) {
     if (error instanceof RockConnectionUnavailableError) {
       throw new Error('This Rock connection signup is not available')
@@ -557,11 +556,24 @@ export async function initializeRockConnectionSignup(
   }
 }
 
+async function loadEligibleRockConnectionSignup(
+  blockGuid: string,
+): Promise<RockConnectionSignupSchema> {
+  const candidate = await findCandidate(blockGuid)
+  return refreshCandidate(candidate)
+}
+
 export async function isEligibleRockConnectionSignup(
   blockGuid: string,
 ): Promise<boolean> {
-  await initializeRockConnectionSignup(blockGuid)
-  return true
+  if (!isGuid(blockGuid)) return false
+  try {
+    await loadEligibleRockConnectionSignup(normalizedGuid(blockGuid))
+    return true
+  } catch (error) {
+    if (error instanceof RockConnectionUnavailableError) return false
+    throw error
+  }
 }
 
 export async function listEligibleRockConnectionSignups(): Promise<

@@ -30,13 +30,28 @@ not needed for that outcome.
   genuinely open-ended bug, `$ce-plan` for unresolved or large-scope work, and
   `$ce-code-review` for high-risk review. A concrete build request may be
   implemented directly.
-- Commit, push, open a PR, deploy, or mutate production only when the user's
-  request authorizes that action. When asked to ship, continue through the
-  requested delivery steps without adding optional gates.
+- Commit, push, open a PR, or mutate production only when the user's request
+  authorizes that action. Production deploys must come from a PR merged into
+  `main`; do not deploy production from a local worktree or CLI snapshot.
 
 If implementation exposes a product decision that materially changes scope or
 user-visible behavior, pause and ask. Otherwise make reasonable, reversible
 assumptions and keep moving.
+
+## Codex Worktrees
+
+- The project-level Codex MCP configuration lives in `.codex/config.toml` and is
+  tracked so new Git worktrees inherit the Ev Church integrations.
+- Do not put credential values in `.codex/config.toml`. The Payload MCP bearer
+  header is read from `EV_CHURCH_PAYLOAD_MCP_AUTHORIZATION`; AdLoop and Search
+  Console credentials remain machine-local under the user's home directory.
+- Use `pnpm check:worktree` after opening a new worktree. In Codex worktrees it
+  creates or reuses a worktree-specific local Postgres database, writes the
+  gitignored `.env.local`, runs migrations, and verifies the expected
+  integration wiring and local command/credential availability without printing
+  secret values.
+- Keep ad hoc machine-local MCP overrides in `.codex/*.local.toml`, which are
+  intentionally ignored by Git.
 
 ## Tech Stack
 
@@ -48,6 +63,14 @@ assumptions and keep moving.
 - Language: TypeScript in strict mode
 - Package manager: pnpm with `pnpm-lock.yaml`
 - Runtime: Node.js 22 or newer
+
+## BlinkPay Reference
+
+Before changing BlinkPay authentication, payments, consents, recurring
+schedules, webhooks, reconciliation, or operational handling, read
+`docs/reference/blinkpay-debit-api.md`. It is the checked-in merchant portal
+documentation capture for use when the authenticated portal is unavailable.
+Use the live portal as authoritative when access is available.
 
 ## Common Commands
 
@@ -89,6 +112,27 @@ they are sufficient, then run the build for changes that can affect production.
 - Treat database migrations and sync jobs as production-data changes. Confirm
   the target database before running them and preserve idempotency where possible.
 
+## Feedback submitter communication
+
+- After saving received-and-triaged, finished, or closed feedback, immediately
+  write the submitter update and call Payload MCP `sendFeedbackUpdate`. Read
+  `findFeedbackUpdates` first; existing lifecycle messages must not be resent.
+- Send `triaged` once triage is recorded. For an item finished or closed during
+  triage, send only its outcome. Intermediate progress does not need an email.
+- Send `finished` only after the requested outcome is verified and the feedback
+  is resolved with delivery phase `verified` and verification `passed`. Explain
+  what changed and any remaining limitation. Send `closed` for `wont-fix` or
+  `duplicate`, explaining the decision without claiming it was implemented.
+- Write brief, warm, specific public-facing copy as the Ev Church website team.
+  Use the submitter's stored email; replies go to `tataihono@ev.church`. Keep
+  internal IDs, links, replay data, and other people's information out of emails.
+- Use one item per immediate update. Combine outcomes for the same submitter
+  only for a user-authorized catch-up with an explicit set of feedback IDs;
+  historical feedback is not automatically backfilled.
+- Read back the send record. `sent` means provider acceptance, not confirmed
+  inbox delivery. Pending/sending records retry automatically. Report failed
+  sends and inspect provider history before attempting manual recovery.
+
 ## Payload Content Changes
 
 - Use the production Payload MCP server for content changes to collections and
@@ -105,6 +149,10 @@ they are sufficient, then run the build for changes that can affect production.
 
 ## Styling
 
+- Spell the public brand as `Ev` and `Ev Church`, never `EV` or `EV Church`.
+  Uppercase `EV` is reserved for case-sensitive technical contracts such as the
+  `EV123` bank-reference prefix, environment-variable names, HTTP headers, and
+  externally supplied identifiers.
 - Rich Red: `#E22A30`
 - Brand Black: `#0F0004`
 - Warm White: `#FEFAF4`

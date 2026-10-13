@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 
 import { MemberAvatar } from './MemberAvatar'
 
-export type MemberSection = 'overview' | 'service' | 'groups' | 'reading' | 'resources'
+export type MemberSection = 'overview' | 'service' | 'groups' | 'reading' | 'resources' | 'giving'
 
 export function memberConnectGroupHref(groups: Array<{ rockGroupId: number }>) {
   return groups.length === 1
@@ -14,7 +14,6 @@ export function memberConnectGroupHref(groups: Array<{ rockGroupId: number }>) {
 export function MemberPortalChrome({
   active,
   member,
-  canAccessLeaderResources,
   connectGroupHref,
   children,
 }: {
@@ -28,14 +27,13 @@ export function MemberPortalChrome({
     { key: 'overview' as const, label: 'Overview', href: '/members' },
     { key: 'reading' as const, label: 'Daily Reading', href: '/members/daily-readings' },
     { key: 'groups' as const, label: 'Connect Group', href: connectGroupHref },
-    ...(canAccessLeaderResources
-      ? [{
-          key: 'resources' as const,
-          label: 'Leader Resources',
-          href: '/members/connect-group-leader-resources',
-        }]
-      : []),
+    {
+      key: 'resources' as const,
+      label: 'Study Resources',
+      href: '/members/connect-group-leader-resources',
+    },
     { key: 'service' as const, label: 'My Service', href: '/members/my-service' },
+    { key: 'giving' as const, label: 'Giving', href: '/members/giving' },
   ]
 
   return (

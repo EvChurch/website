@@ -8,6 +8,7 @@ import { RenderBlocks, type RenderableBlock } from '@/components/blocks/RenderBl
 import RichText from '@/components/blocks/RichTextRenderer'
 import { BreadcrumbJsonLd, buildBreadcrumbs } from '@/components/seo/BreadcrumbJsonLd'
 import { CampusJsonLd } from '@/components/seo/CampusJsonLd'
+import { CampusGoogleReviews } from '@/components/campus/CampusGoogleReviews'
 import { Button, type ButtonLinkAction } from '@/components/ui/Button'
 import { TrackedButtonLink } from '@/components/analytics/TrackedLink'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
@@ -555,34 +556,21 @@ export default async function CampusPage({
                   ))}
                 </div>
               )}
-              {googleReviewUrl && (
-                <div className="mt-10 border-t border-warm-grey/60 pt-8">
-                  <h3 className="font-sans text-lg font-semibold text-brand-black">
-                    Visited {content.brandName}?
-                  </h3>
-                  <p className="mt-2 max-w-lg text-[0.9375rem] leading-relaxed text-mid-grey">
-                    Your honest feedback can help others know what to expect when they visit.
-                  </p>
-                  <div className="mt-5">
-                    <TrackedButtonLink
-                      href={googleReviewUrl}
-                      external
-                      variant="secondary"
-                      eventName="google_review_click"
-                      eventParameters={{
-                        campus: slug,
-                        destination_host: 'search.google.com',
-                      }}
-                    >
-                      Share your experience on Google
-                    </TrackedButtonLink>
-                  </div>
-                </div>
-              )}
             </ScrollReveal>
           </div>
         </div>
       </section>
+
+      {googleReviewUrl && campus.googlePlaceId && (
+        <CampusGoogleReviews
+          apiKey={process.env.GOOGLE_MAPS_API_KEY ?? ''}
+          campusName={content.brandName}
+          campusSlug={slug}
+          googleMapsUrl={mapPageUrl}
+          placeId={campus.googlePlaceId}
+          reviewUrl={googleReviewUrl}
+        />
+      )}
 
       <RenderBlocks blocks={blocks} />
 

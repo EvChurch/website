@@ -143,6 +143,7 @@ export type RockInteractiveAction = {
 }
 
 export type RockFormContext = {
+  connectGroupGuid?: string
   version: 1
   workflowTypeGuid: string
   personId?: number | null

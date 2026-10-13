@@ -22,6 +22,8 @@ export type PublicBlogPost = BlogPostListing & Pick<
   | 'isAiGenerated'
   | 'aiDisclosure'
   | 'seo'
+  | 'sermon'
+  | 'apiBibleFumsToken'
 >
 
 async function fetchPublishedBlogPosts(): Promise<BlogPostListing[]> {
@@ -68,6 +70,8 @@ async function fetchBlogPostBySlug(slug: string): Promise<PublicBlogPost | null>
       isAiGenerated: true,
       aiDisclosure: true,
       seo: true,
+      sermon: true,
+      apiBibleFumsToken: true,
     },
   })
 

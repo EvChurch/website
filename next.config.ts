@@ -4,11 +4,31 @@ import type { NextConfig } from 'next'
 const LONG_LIVED_ASSET_CACHE_CONTROL =
   'public, max-age=31536000, s-maxage=31536000, immutable'
 
+const allowedDevOrigins = process.env.NEXT_ALLOWED_DEV_ORIGINS
+  ?.split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
+
 const nextConfig: NextConfig = {
+  serverExternalPackages: ['ffmpeg-static'],
+  ...(allowedDevOrigins?.length ? { allowedDevOrigins } : {}),
   async headers() {
     return [
+      { source: '/api/sermon-work-files/file/:path*', headers: [
+        { key: 'Cache-Control', value: 'private, no-store' },
+        { key: 'Cloudflare-CDN-Cache-Control', value: 'no-store' },
+      ] },
       ...[
         '/api/sermon-audio/file/:path*',
+        '/api/sermon-audio/stream',
+      ].map((source) => ({
+        source,
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store' },
+          { key: 'Cloudflare-CDN-Cache-Control', value: 'no-store' },
+        ],
+      })),
+      ...[
         '/api/media/file/:path*',
         '/images/ev_church_podcast-09e38534.jpg',
       ].map((source) => ({
@@ -86,4 +106,23 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default withPayload(nextConfig)
+const payloadConfig = withPayload(nextConfig)
+const payloadHeaders = payloadConfig.headers
+
+payloadConfig.headers = async () => {
+  const headers = (await payloadHeaders?.()) ?? []
+
+  return headers.map((rule) => {
+    const requestsColorScheme = rule.headers.some(
+      ({ key, value }) =>
+        ['Accept-CH', 'Critical-CH'].includes(key) &&
+        value === 'Sec-CH-Prefers-Color-Scheme',
+    )
+
+    return requestsColorScheme
+      ? { ...rule, source: '/admin/:path*' }
+      : rule
+  })
+}
+
+export default payloadConfig

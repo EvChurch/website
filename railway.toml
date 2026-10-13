@@ -1,5 +1,5 @@
 [build]
-buildCommand = "node scripts/clear-next-data-cache.mjs && DATABASE_URL=$BUILD_DATABASE_URL pnpm run payload generate:importmap && DATABASE_URL=$BUILD_DATABASE_URL pnpm run build"
+buildCommand = "node scripts/clear-next-data-cache.mjs && DATABASE_URL=$BUILD_DATABASE_URL pnpm run payload migrate && DATABASE_URL=$BUILD_DATABASE_URL pnpm run payload generate:importmap && DATABASE_URL=$BUILD_DATABASE_URL pnpm run build"
 
 [deploy]
 startCommand = "pnpm run payload migrate && pnpm start"

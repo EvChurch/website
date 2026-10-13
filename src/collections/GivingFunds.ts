@@ -38,15 +38,17 @@ export const protectSoleDefaultGivingFund: CollectionBeforeChangeHook = ({ data,
 }
 
 export const GivingFunds: CollectionConfig = {
-  slug: 'giving-funds', admin: { group: 'Giving', useAsTitle: 'name', defaultColumns: ['name', 'code', 'active', 'isDefault', 'apprenticeRelated', 'sortOrder'], description: 'Exact admins may manage public funds. There must always be one active default fund.' },
+  slug: 'giving-funds', admin: { group: 'Giving', useAsTitle: 'name', defaultColumns: ['name', 'code', 'active', 'isDefault', 'apprenticeRelated', 'studentMinisterRelated', 'sortOrder'], description: 'Exact admins may manage public funds. There must always be one active default fund.' },
   access: { read: publicActiveFunds, create: isAdmin, update: isAdmin, delete: isAdmin },
   hooks: { afterChange: [() => revalidateTag(CACHE_TAGS.givingFunds, 'default')], afterDelete: [() => revalidateTag(CACHE_TAGS.givingFunds, 'default')], beforeChange: [protectSoleDefaultGivingFund, swapDefaultGivingFund], beforeDelete: [protectReferencedFund] },
   fields: [
     { name: 'name', type: 'text', required: true }, { name: 'code', type: 'text', required: true, unique: true, index: true },
+    { name: 'supportProfile', type: 'relationship', relationTo: 'support-profiles', unique: true, admin: { description: 'Person supported by this fund. Their profile supplies About content and the notification email address.' } },
     { name: 'accountingKey', type: 'text', required: true, access: { read: adminField }, admin: { readOnly: false } },
     { name: 'description', type: 'textarea' }, { name: 'active', type: 'checkbox', required: true, defaultValue: true, index: true },
     { name: 'isDefault', type: 'checkbox', required: true, defaultValue: false, index: true },
     { name: 'apprenticeRelated', label: 'Apprentice-related', type: 'checkbox', required: true, defaultValue: false, index: true },
+    { name: 'studentMinisterRelated', label: 'Student minister-related', type: 'checkbox', required: true, defaultValue: false, index: true },
     { name: 'sortOrder', type: 'number', required: true, defaultValue: 0, index: true },
   ],
 }

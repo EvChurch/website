@@ -1,0 +1,481 @@
+'use client'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { visibleWaveform } from './waveform-detail'
+
+export function SermonWaveform({
+  peaks,
+  duration,
+  start,
+  end,
+  currentTime,
+  disabled,
+  onChange,
+  onSeek,
+  onAudition,
+}: {
+  peaks: number[]
+  duration: number
+  start: number
+  end: number
+  currentTime: number
+  disabled: boolean
+  onChange: (start: number, end: number) => void
+  onSeek: (time: number) => void
+  onAudition: (time: number, end: number) => void
+}) {
+  const svg = useRef<SVGSVGElement>(null)
+  const dragging = useRef<'start' | 'end' | 'playhead' | null>(null)
+  const changed = useRef(false)
+  const pointerX = useRef(0)
+  const panFrame = useRef<number | null>(null)
+  useEffect(
+    () => () => {
+      if (panFrame.current !== null) cancelAnimationFrame(panFrame.current)
+    },
+    [],
+  )
+  const selection = useRef({ start, end })
+  selection.current = { start, end }
+  const [view, setView] = useState({ start: 0, span: duration })
+  const visiblePeaks = useMemo(() => visibleWaveform(peaks, duration, view.start, view.span), [peaks, duration, view.start, view.span])
+  const viewport = useRef(view)
+  viewport.current = view
+  const zoom = (factor: number, anchor: number) => {
+    setView((old) => {
+      const span = Math.max(
+        Math.min(2, duration),
+        Math.min(duration, old.span * factor),
+      )
+      return {
+        span,
+        start: Math.max(
+          0,
+          Math.min(duration - span, old.start + anchor * (old.span - span)),
+        ),
+      }
+    })
+  }
+  useEffect(() => {
+    const element = svg.current
+    if (!element) return
+    const wheel = (event: WheelEvent) => {
+      event.preventDefault()
+      const rect = element.getBoundingClientRect()
+      if (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+        const delta =
+          Math.abs(event.deltaX) > Math.abs(event.deltaY)
+            ? event.deltaX
+            : event.deltaY
+        setView((old) => ({
+          ...old,
+          start: Math.max(
+            0,
+            Math.min(
+              duration - old.span,
+              old.start + (delta / rect.width) * old.span,
+            ),
+          ),
+        }))
+      } else {
+        const anchor = Math.max(
+          0,
+          Math.min(1, (event.clientX - rect.left) / rect.width),
+        )
+        const factor = Math.exp(
+          Math.max(
+            -1,
+            Math.min(
+              1,
+              event.deltaY * (event.deltaMode === 1 ? 16 : 1) * 0.002,
+            ),
+          ),
+        )
+        setView((old) => {
+          const span = Math.max(
+            Math.min(2, duration),
+            Math.min(duration, old.span * factor),
+          )
+          return {
+            span,
+            start: Math.max(
+              0,
+              Math.min(duration - span, old.start + anchor * (old.span - span)),
+            ),
+          }
+        })
+      }
+    }
+    element.addEventListener('wheel', wheel, { passive: false })
+    return () => element.removeEventListener('wheel', wheel)
+  }, [duration])
+  const position = (clientX: number) => {
+    const rect = svg.current!.getBoundingClientRect()
+    return Math.max(
+      0,
+      Math.min(
+        duration,
+        viewport.current.start +
+          Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)) *
+            viewport.current.span,
+      ),
+    )
+  }
+  const x = (value: number) => ((value - view.start) / view.span) * 1000
+  const move = (marker: 'start' | 'end', time: number) => {
+    const old = selection.current
+    const next =
+      marker === 'start'
+        ? { start: Math.max(0, Math.min(old.end - 0.1, time)), end: old.end }
+        : {
+            start: old.start,
+            end: Math.min(duration, Math.max(old.start + 0.1, time)),
+          }
+    selection.current = next
+    changed.current = true
+    onChange(next.start, next.end)
+    return next
+  }
+  function beginAutoPan(clientX: number) {
+    pointerX.current = clientX
+    if (panFrame.current !== null) cancelAnimationFrame(panFrame.current)
+    let previous: number | undefined
+    const tick = (now: number) => {
+      if (!dragging.current || !svg.current) {
+        panFrame.current = null
+        return
+      }
+      const rect = svg.current.getBoundingClientRect()
+      const margin = Math.min(40, rect.width / 4)
+      const distance =
+        pointerX.current < rect.left + margin
+          ? pointerX.current - rect.left - margin
+          : pointerX.current > rect.right - margin
+            ? pointerX.current - rect.right + margin
+            : 0
+      const elapsed = previous === undefined ? 16 : Math.min(50, now - previous)
+      previous = now
+      const old = viewport.current
+      const speed = Math.max(-1, Math.min(1, distance / margin))
+      const next = {
+        ...old,
+        start: Math.max(
+          0,
+          Math.min(
+            duration - old.span,
+            old.start + (speed * old.span * elapsed) / 1500,
+          ),
+        ),
+      }
+      if (next.start !== old.start) {
+        viewport.current = next
+        setView(next)
+        const time = position(
+          Math.max(rect.left, Math.min(rect.right, pointerX.current)),
+        )
+        if (dragging.current === 'playhead') onSeek(time)
+        else move(dragging.current, Math.round(time * 100) / 100)
+      }
+      panFrame.current = requestAnimationFrame(tick)
+    }
+    panFrame.current = requestAnimationFrame(tick)
+  }
+  const audition = (marker: 'start' | 'end') => {
+    const cut = selection.current
+    onAudition(
+      marker === 'start' ? cut.start : Math.max(cut.start, cut.end - 5),
+      cut.end,
+    )
+  }
+  const format = (time: number) =>
+    new Date(Math.max(0, time) * 1000).toISOString().slice(11, 22)
+  return (
+    <div className="sermon-waveform__editor">
+      <div className="sermon-manager__row sermon-waveform__tools">
+        <button type="button" onClick={() => zoom(0.5, 0.5)}>
+          Zoom in
+        </button>
+        <button type="button" onClick={() => zoom(2, 0.5)}>
+          Zoom out
+        </button>
+        <button
+          type="button"
+          onClick={() => setView({ start: 0, span: duration })}
+        >
+          Fit recording
+        </button>
+        <button
+          type="button"
+          onClick={() => setView({ start, span: end - start })}
+        >
+          Fit selection
+        </button>
+        <button
+          type="button"
+          aria-label="Pan earlier"
+          onClick={() =>
+            setView((old) => ({
+              ...old,
+              start: Math.max(0, old.start - old.span / 2),
+            }))
+          }
+        >
+          ←
+        </button>
+        <button
+          type="button"
+          aria-label="Pan later"
+          onClick={() =>
+            setView((old) => ({
+              ...old,
+              start: Math.min(duration - old.span, old.start + old.span / 2),
+            }))
+          }
+        >
+          →
+        </button>
+      </div>
+      <details className="sermon-waveform__help"><summary>Timeline controls</summary><p>
+        Click to move the playhead. Scroll to zoom; Shift-scroll or Left/Right
+        on the timeline to pan. Drag either cut edge, or focus it and use arrow
+        keys (Shift for finer adjustments).
+      </p></details>
+      <svg
+        ref={svg}
+        className="sermon-waveform"
+        viewBox="0 0 1000 150"
+        preserveAspectRatio="none"
+        role="group"
+        tabIndex={0}
+        aria-label="Recording timeline"
+        onKeyDown={(event) => {
+          if (
+            event.target !== event.currentTarget ||
+            !['ArrowLeft', 'ArrowRight'].includes(event.key)
+          )
+            return
+          event.preventDefault()
+          const direction = event.key === 'ArrowLeft' ? -1 : 1
+          setView((old) => ({
+            ...old,
+            start: Math.max(
+              0,
+              Math.min(
+                duration - old.span,
+                old.start +
+                  direction * old.span * (event.shiftKey ? 0.02 : 0.1),
+              ),
+            ),
+          }))
+        }}
+        onPointerDown={(event) => {
+          if (dragging.current) return
+          event.currentTarget.focus()
+          onSeek(position(event.clientX))
+        }}
+        onPointerMove={(event) => {
+          if (!dragging.current) return
+          pointerX.current = event.clientX
+          if (dragging.current === 'playhead') {
+            onSeek(position(event.clientX))
+            return
+          }
+          if (disabled) return
+          move(
+            dragging.current,
+            Math.round(position(event.clientX) * 100) / 100,
+          )
+        }}
+        onPointerUp={(event) => {
+          const marker = dragging.current
+          dragging.current = null
+          if (svg.current?.hasPointerCapture(event.pointerId))
+            svg.current.releasePointerCapture(event.pointerId)
+          if (marker && marker !== 'playhead' && changed.current)
+            audition(marker)
+        }}
+        onPointerCancel={() => {
+          dragging.current = null
+        }}
+        onLostPointerCapture={() => {
+          dragging.current = null
+        }}
+      >
+        <rect
+          x={x(start)}
+          y="25"
+          width={((end - start) / view.span) * 1000}
+          height="125"
+          fill="#e22a30"
+          fillOpacity="0.06"
+          pointerEvents="none"
+        />
+        <path
+          d={visiblePeaks.map(p => `M${x(p.from)},${87 - p.peak * 55}h${((p.to - p.from) / view.span) * 1000}v${p.peak * 110}h${-((p.to - p.from) / view.span) * 1000}z`).join(' ')}
+          fill="currentColor"
+          opacity="0.65"
+          pointerEvents="none"
+        />
+        {Array.from({ length: 6 }, (_, i) => (
+          <text
+            key={i}
+            x={i * 200}
+            y="17"
+            textAnchor={i === 0 ? 'start' : i === 5 ? 'end' : 'middle'}
+            fill="currentColor"
+            fontSize="12"
+            pointerEvents="none"
+          >
+            {format(view.start + (view.span * i) / 5)}
+          </text>
+        ))}
+        <g
+          className="sermon-waveform__playhead"
+          aria-label="Playhead"
+          role="slider"
+          tabIndex={0}
+          aria-valuemin={0}
+          aria-valuemax={duration}
+          aria-valuenow={currentTime}
+          aria-valuetext={format(currentTime)}
+          style={{ cursor: 'ew-resize' }}
+          onPointerDown={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            event.currentTarget.focus()
+            dragging.current = 'playhead'
+            svg.current?.setPointerCapture(event.pointerId)
+            beginAutoPan(event.clientX)
+          }}
+          onKeyDown={(event) => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key))
+              return
+            event.preventDefault()
+            onSeek(
+              event.key === 'Home'
+                ? 0
+                : event.key === 'End'
+                  ? duration
+                  : Math.max(
+                      0,
+                      Math.min(
+                        duration,
+                        currentTime +
+                          (event.key === 'ArrowLeft' ? -1 : 1) *
+                            (event.shiftKey ? 0.1 : 1),
+                      ),
+                    ),
+            )
+          }}
+        >
+          <rect
+            x={x(currentTime) - 12}
+            y="17"
+            width="24"
+            height="22"
+            fill="transparent"
+          />
+          <line
+            x1={x(currentTime)}
+            x2={x(currentTime)}
+            y1="25"
+            y2="150"
+            stroke="var(--theme-text)"
+            strokeWidth="1"
+            pointerEvents="none"
+          />
+          <path
+            d={`M${x(currentTime) - 6},23h12l-6,9z`}
+            fill="var(--theme-text)"
+          />
+        </g>
+        {(['start', 'end'] as const).map((marker) => {
+          const time = marker === 'start' ? start : end
+          return (
+            <g
+              key={marker}
+              role="slider"
+              tabIndex={disabled ? -1 : 0}
+              aria-disabled={disabled}
+              aria-label={`${marker} cut boundary`}
+              aria-valuemin={marker === 'start' ? 0 : start + 0.1}
+              aria-valuemax={marker === 'start' ? end - 0.1 : duration}
+              aria-valuenow={time}
+              aria-valuetext={format(time)}
+              onFocus={() => {
+                if (time < view.start || time > view.start + view.span)
+                  setView((old) => ({
+                    ...old,
+                    start: Math.max(
+                      0,
+                      Math.min(duration - old.span, time - old.span / 2),
+                    ),
+                  }))
+              }}
+              onKeyDown={(event) => {
+                if (
+                  disabled ||
+                  !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(
+                    event.key,
+                  )
+                )
+                  return
+                event.preventDefault()
+                move(
+                  marker,
+                  event.key === 'Home'
+                    ? 0
+                    : event.key === 'End'
+                      ? duration
+                      : time +
+                        (event.key === 'ArrowLeft' ? -1 : 1) *
+                          (event.shiftKey ? 0.1 : 1),
+                )
+                audition(marker)
+              }}
+              onPointerDown={(event) => {
+                event.stopPropagation()
+                if (disabled) return
+                event.preventDefault()
+                dragging.current = marker
+                changed.current = false
+                svg.current?.setPointerCapture(event.pointerId)
+                beginAutoPan(event.clientX)
+              }}
+              style={{ cursor: disabled ? 'default' : 'ew-resize' }}
+            >
+              <rect
+                x={Math.max(0, Math.min(980, x(time) - 10))}
+                y="25"
+                width={
+                  time < view.start || time > view.start + view.span ? 0 : 20
+                }
+                height="125"
+                fill="transparent"
+              />
+              <line
+                x1={x(time)}
+                x2={x(time)}
+                y1="25"
+                y2="150"
+                stroke="#E22A30"
+                strokeWidth="3"
+              />
+              <path
+                d={
+                  marker === 'start'
+                    ? `M${x(time)},25h12v16h-12z`
+                    : `M${x(time)},25h-12v16h12z`
+                }
+                fill="#E22A30"
+              />
+            </g>
+          )
+        })}
+      </svg>
+      <p>
+        Start {format(start)} · End {format(end)} · Selected{' '}
+        {format(end - start)}
+      </p>
+    </div>
+  )
+}

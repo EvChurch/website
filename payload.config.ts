@@ -1,10 +1,19 @@
+import { SermonTranscripts } from '@/collections/SermonTranscripts'
+import { sermonTranscriptTasks } from '@/jobs/sermon-transcripts'
+import { SermonArticles } from '@/collections/SermonArticles'
+import { sermonArticleTasks } from '@/jobs/sermon-articles'
+import { SermonProductions } from '@/collections/SermonProductions'
+import { SermonWorkFiles } from '@/collections/SermonWorkFiles'
+import { SermonSettings } from '@/globals/SermonSettings'
+import { sermonAudioTask } from '@/jobs/sermon-audio'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildConfig, type CollectionConfig, type GlobalConfig } from 'payload'
+import { buildConfig, type CollectionConfig, type Field, type GlobalConfig } from 'payload'
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { mcpPlugin, type MCPPluginConfig } from '@payloadcms/plugin-mcp'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { s3Storage } from '@payloadcms/storage-s3'
+import { mediaGalleryPlugin } from '@sitebytom/payload-media-gallery'
 import sharp from 'sharp'
 
 // Collections
@@ -35,6 +44,7 @@ import { MissingPaths } from '@/collections/MissingPaths'
 import { SiteFeedback } from '@/collections/SiteFeedback'
 import { LeaderResourceShares } from '@/collections/LeaderResourceShares'
 import { GivingFunds } from '@/collections/GivingFunds'
+import { SupportProfiles } from '@/collections/SupportProfiles'
 import { GivingGivers } from '@/collections/GivingGivers'
 import { GivingCheckouts } from '@/collections/GivingCheckouts'
 import { GivingGifts } from '@/collections/GivingGifts'
@@ -43,17 +53,22 @@ import { GivingSchedules } from '@/collections/GivingSchedules'
 import { GivingProviderOperations } from '@/collections/GivingProviderOperations'
 import { BlinkPayWebhookEvents } from '@/collections/BlinkPayWebhookEvents'
 import { GivingDrafts } from '@/collections/GivingDrafts'
+import { GivingCancellationFeedback } from '@/collections/GivingCancellationFeedback'
 import { isAdmin } from '@/access/roles'
 
 // Globals
 import { Navigation } from '@/globals/Navigation'
 import { SiteSettings } from '@/globals/SiteSettings'
 import { ServiceGuideSyncState } from '@/globals/ServiceGuideSyncState'
+import { GivingSettings } from '@/globals/GivingSettings'
 import {
   notificationJobConfigs,
   SITE_FEEDBACK_NOTIFICATION_AUTO_RUN,
 } from '@/jobs/site-feedback-notification'
 import { givingJobConfigs, GIVING_LIFECYCLE_AUTO_RUN } from '@/jobs/giving'
+import { givingEmailJobConfigs } from '@/jobs/giving-emails'
+import { feedbackCommunicationsTask } from '@/jobs/feedback-communications'
+import { feedbackCommunicationAuth, feedbackCommunicationTools } from '@/lib/site-feedback/communication-mcp'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -63,6 +78,7 @@ export function restrictMcpApiKeyCollection(
 ): CollectionConfig {
   return {
     ...collection,
+    fields: defaultFeedbackToolPermissions(collection.fields),
     access: {
       create: isAdmin,
       read: isAdmin,
@@ -70,6 +86,17 @@ export function restrictMcpApiKeyCollection(
       delete: isAdmin,
     },
   }
+}
+
+function defaultFeedbackToolPermissions(fields: Field[]): Field[] {
+  return fields.map(field => {
+    if ('name' in field && field.name === 'payload-mcp-tool' && field.type === 'group') {
+      return { ...field, fields: field.fields.map(child => child.type === 'checkbox'
+        ? { ...child, defaultValue: false } : child) }
+    }
+    if ('fields' in field) return { ...field, fields: defaultFeedbackToolPermissions(field.fields) }
+    return field
+  })
 }
 
 export const applicationCollections: CollectionConfig[] = [
@@ -80,6 +107,7 @@ export const applicationCollections: CollectionConfig[] = [
   Announcements,
   Campuses,
   TeamMembers,
+  SupportProfiles,
   Events,
   ConnectGroups,
   ConnectGroupParticipants,
@@ -99,6 +127,10 @@ export const applicationCollections: CollectionConfig[] = [
   Categories,
   Scriptures,
   SermonAudio,
+  SermonProductions,
+  SermonArticles,
+  SermonTranscripts,
+  SermonWorkFiles,
   GivingFunds,
   GivingGivers,
   GivingCheckouts,
@@ -108,15 +140,22 @@ export const applicationCollections: CollectionConfig[] = [
   GivingProviderOperations,
   BlinkPayWebhookEvents,
   GivingDrafts,
+  GivingCancellationFeedback,
 ]
 
 export const applicationGlobals: GlobalConfig[] = [
   Navigation,
   SiteSettings,
   ServiceGuideSyncState,
+  GivingSettings,
+  SermonSettings,
 ]
 
 export const mcpExcludedCollectionSlugs = new Set([
+  'sermon-articles',
+  'sermon-transcripts',
+  'sermon-productions',
+  'sermon-work-files',
   'leader-resource-shares',
   'connect-group-comments',
   'giving-funds',
@@ -128,7 +167,10 @@ export const mcpExcludedCollectionSlugs = new Set([
   'giving-provider-operations',
   'blinkpay-webhook-events',
   'giving-drafts',
+  'giving-cancellation-feedback',
 ])
+
+export const mcpExcludedGlobalSlugs = new Set(['giving-settings', 'sermon-settings'])
 
 function enableMcpEntities<T extends { slug: string }>(entities: T[]) {
   return Object.fromEntries(
@@ -142,7 +184,9 @@ export const mcpCollections = enableMcpEntities(
   MCPPluginConfig['collections']
 >
 
-export const mcpGlobals = enableMcpEntities(applicationGlobals) satisfies NonNullable<
+export const mcpGlobals = enableMcpEntities(
+  applicationGlobals.filter(({ slug }) => !mcpExcludedGlobalSlugs.has(slug)),
+) satisfies NonNullable<
   MCPPluginConfig['globals']
 >
 
@@ -164,11 +208,13 @@ export default buildConfig({
     },
     components: {
       beforeLogin: ['@/components/admin/Auth0BeforeLogin'],
-      afterNavLinks: ['@/components/admin/MemberImpersonationNavLink'],
+      afterNavLinks: ['@/components/admin/MemberImpersonationNavLink', '@/components/admin/SermonManagerNavLink'],
+      beforeDashboard: ['@/components/admin/SermonManagerNavLink'],
       logout: {
         Button: '@/components/admin/Auth0LogoutButton',
       },
       views: {
+        sermonManager: { Component: '@/components/admin/SermonManagerView#SermonManagerView', exact: true, path: '/sermon-manager' },
         memberImpersonation: {
           Component: '@/components/admin/MemberImpersonationView#MemberImpersonationView',
           exact: true,
@@ -179,6 +225,7 @@ export default buildConfig({
   },
 
   db: postgresAdapter({
+    push: false,
     pool: {
       connectionString: process.env.DATABASE_URL || '',
     },
@@ -193,10 +240,13 @@ export default buildConfig({
   globals: [...applicationGlobals],
 
   plugins: [
+    mediaGalleryPlugin({ collections: ['media'] }),
     mcpPlugin({
       collections: mcpCollections,
       globals: mcpGlobals,
       overrideApiKeyCollection: restrictMcpApiKeyCollection,
+      overrideAuth: feedbackCommunicationAuth,
+      mcp: { tools: feedbackCommunicationTools },
     }),
     ...(process.env.S3_BUCKET
       ? [
@@ -204,6 +254,7 @@ export default buildConfig({
             collections: {
               media: true,
               'sermon-audio': true,
+              'sermon-work-files': { prefix: 'sermon-work' },
             },
             bucket: process.env.S3_BUCKET,
             config: {
@@ -223,8 +274,13 @@ export default buildConfig({
 
   jobs: {
     tasks: [
+      sermonAudioTask,
+      ...sermonArticleTasks,
+      ...sermonTranscriptTasks,
       ...notificationJobConfigs,
+      feedbackCommunicationsTask,
       ...givingJobConfigs,
+      ...givingEmailJobConfigs,
       {
         slug: 'fullSermonSync',
         retries: 2,
@@ -284,6 +340,8 @@ export default buildConfig({
       },
     ],
     autoRun: [
+      { cron: '* * * * *', queue: 'sermon-audio', limit: 1 },
+      { cron: '* * * * *', queue: 'sermon-articles', limit: 1 },
       SITE_FEEDBACK_NOTIFICATION_AUTO_RUN,
       GIVING_LIFECYCLE_AUTO_RUN,
       { cron: '*/15 * * * *', queue: 'default', limit: 10 },

@@ -1,7 +1,7 @@
 import { after, NextRequest, NextResponse } from 'next/server'
 
 import { getPayloadClient } from '@/lib/payload'
-import { isSameOriginRequest } from '@/lib/request-origin'
+import { expectedTurnstileHostname, isSameOriginRequest } from '@/lib/request-origin'
 import { SITE_FEEDBACK_TURNSTILE_ACTION } from '@/lib/site-feedback/constants'
 import {
   createPostgresSiteFeedbackRateLimitStore,
@@ -117,12 +117,6 @@ async function boundedJson(request: NextRequest): Promise<unknown> {
   }
 }
 
-function expectedHostname(): string | null {
-  return process.env.NODE_ENV === 'production'
-    ? process.env.RAILWAY_PUBLIC_DOMAIN || null
-    : null
-}
-
 async function createFeedback(
   data: FeedbackData,
 ): Promise<{ id: number | string; shouldNotify: boolean }> {
@@ -224,7 +218,7 @@ export async function handleSiteFeedbackPost(
     await verifyTurnstileToken({
       token: submission.turnstileToken,
       remoteIp: address,
-      expectedHostname: expectedHostname(),
+      expectedHostname: expectedTurnstileHostname(),
       expectedAction: SITE_FEEDBACK_TURNSTILE_ACTION,
     })
 

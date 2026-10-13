@@ -3,7 +3,8 @@ import { unstable_cache } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import type { RockForm } from '@/payload-types'
 import { isGuid } from '@/lib/rock-forms/constants'
-import { getPayloadMediaUrl, type PayloadMediaImage } from '@/lib/payload-media'
+import { registrationPageHref } from '@/lib/rock-forms/registration-page'
+import { getPayloadMediaUrl } from '@/lib/payload-media'
 
 import { classifyLauncherHref, launcherPlainText, sanitizeLauncherHtml } from './sanitize'
 import type {
@@ -53,7 +54,7 @@ interface ServiceGuideRecord {
 type RockFormRecord = Partial<
   Pick<
     RockForm,
-    'title' | 'slug' | 'body' | 'image' | 'workflowTypeGuid' | 'published'
+    'title' | 'slug' | 'body' | 'image' | 'formType' | 'workflowTypeGuid' | 'connectionBlockGuid' | 'registrationPath' | 'published'
   >
 >
 
@@ -81,7 +82,10 @@ const rockFormSelect = {
   slug: true,
   body: true,
   image: true,
+  formType: true,
   workflowTypeGuid: true,
+  connectionBlockGuid: true,
+  registrationPath: true,
   published: true,
 }
 
@@ -267,24 +271,38 @@ export function toLauncherItem(record: ServiceGuideRecord): LauncherItem | null 
 export function rockFormToLauncherItem(record: RockFormRecord): LauncherItem | null {
   const title = record.title?.trim()
   const slug = record.slug?.trim()
-  const workflowTypeGuid = normalizedGuid(record.workflowTypeGuid)
-  if (!record.published || !title || !slug || !workflowTypeGuid) return null
+  if (!record.published || !title || !slug) return null
 
   const imageUrl =
     record.image && typeof record.image === 'object'
       ? getPayloadMediaUrl(record.image, 'large') ?? record.image.url ?? undefined
       : undefined
 
+  const sharedContent = {
+    ...(imageUrl ? { imageUrl } : {}),
+    ...(record.body ? { body: record.body } : {}),
+  }
+  const action: LauncherItemAction | null = (() => {
+    if (record.formType === 'registrationPage') {
+      const href = registrationPageHref(record.registrationPath)
+      return href ? { type: 'registrationPage', href, ...sharedContent } : null
+    }
+    if (record.formType === 'connectionOpportunity') {
+      const blockGuid = normalizedGuid(record.connectionBlockGuid)
+      return blockGuid ? { type: 'connection', blockGuid, ...sharedContent } : null
+    }
+    const workflowTypeGuid = normalizedGuid(record.workflowTypeGuid)
+    return workflowTypeGuid
+      ? { type: 'workflow', workflowTypeGuid, ...sharedContent }
+      : null
+  })()
+  if (!action) return null
+
   return {
     id: slug,
     title,
     campusSlugs: [],
-    action: {
-      type: 'workflow',
-      workflowTypeGuid,
-      ...(imageUrl ? { imageUrl } : {}),
-      ...(record.body ? { body: record.body } : {}),
-    },
+    action,
   }
 }
 
@@ -391,6 +409,35 @@ async function hasPublishedRockFormWorkflow(
   }
 }
 
+async function hasPublishedRockFormConnection(
+  payload: LauncherPayloadClient,
+  connectionBlockGuid: string,
+): Promise<boolean> {
+  try {
+    const result = await payload.find({
+      collection: 'rock-forms',
+      depth: 0,
+      limit: 1,
+      overrideAccess: true,
+      select: { connectionBlockGuid: true, published: true },
+      where: {
+        and: [
+          { published: { equals: true } },
+          { connectionBlockGuid: { equals: connectionBlockGuid } },
+        ],
+      },
+    })
+    return result.docs
+      .map(asRockFormRecord)
+      .some(
+        (form) =>
+          form.published && normalizedGuid(form.connectionBlockGuid) === connectionBlockGuid,
+      )
+  } catch {
+    return false
+  }
+}
+
 async function loadLauncherDataAt(now: Date): Promise<LauncherData> {
   try {
     const payload = (await getPayloadClient()) as unknown as LauncherPayloadClient
@@ -421,10 +468,17 @@ async function loadLauncherDataAt(now: Date): Promise<LauncherData> {
         item.action.type === 'workflow' ? [item.action.workflowTypeGuid] : [],
       ),
     )
+    const managedConnectionGuids = new Set(
+      rockFormItems.flatMap((item) =>
+        item.action.type === 'connection' ? [item.action.blockGuid] : [],
+      ),
+    )
     const uniqueServiceGuideItems = serviceGuideItems.filter(
       (item) =>
-        item.action.type !== 'workflow' ||
-        !managedWorkflowGuids.has(item.action.workflowTypeGuid),
+        (item.action.type !== 'workflow' ||
+          !managedWorkflowGuids.has(item.action.workflowTypeGuid)) &&
+        (item.action.type !== 'connection' ||
+          !managedConnectionGuids.has(item.action.blockGuid)),
     )
     const campuses = campusResult.docs
       .map(toCampus)
@@ -488,6 +542,8 @@ export async function isPublishedLauncherConnection(
 ): Promise<boolean> {
   const guid = normalizedGuid(blockGuid)
   if (!guid) return false
+  const payload = (await getPayloadClient()) as unknown as LauncherPayloadClient
+  if (await hasPublishedRockFormConnection(payload, guid)) return true
   return hasWinningAction(
     (action) => action.type === 'connection' && action.blockGuid === guid,
   )

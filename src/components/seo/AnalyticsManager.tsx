@@ -9,16 +9,12 @@ import {
   mustPauseAnalyticsCapture,
 } from '@/lib/analytics-privacy'
 import { useGivingExperience } from '@/components/giving/GivingExperienceProvider'
-import {
-  GIVING_FLAG_KEY,
-  sanitizeAnalyticsPayload,
-} from '@/lib/giving/analytics'
+import { sanitizeAnalyticsPayload } from '@/lib/giving/analytics'
 import { GA_ID, GoogleAnalytics } from './GoogleAnalytics'
 import type { MemberChromeState } from '@/lib/member-chrome'
 
 let postHogInitialized = false
 let privateCaptureActive = false
-export const POSTHOG_FLAG_TIMEOUT_MS = 3_000
 
 // A browser extension (the known source is an Outlook/Office family one) injects
 // a script that rejects a promise with a plain string. Exception autocapture
@@ -27,12 +23,61 @@ const BROWSER_EXTENSION_REJECTION =
   /Object Not Found Matching Id:\d+, MethodName:\w+, ParamCount:\d+/
 
 interface ExceptionListEntry {
+  type?: unknown
   value?: unknown
-  mechanism?: { synthetic?: boolean }
+  mechanism?: { synthetic?: boolean; handled?: boolean }
   stacktrace?: { frames?: unknown[] }
 }
 
+// Restore only the SDK fields required to ingest and locate exceptions. Free-
+// form messages, breadcrumbs, source context and frame variables can contain
+// personal data, so they never bypass the general analytics scrubber.
+function sanitizeExceptionEntry(entry: ExceptionListEntry) {
+  const type =
+    typeof entry.type === 'string' &&
+    /^(?:Error|TypeError|ReferenceError|SyntaxError|RangeError|URIError|EvalError|AggregateError|ChunkLoadError)$/.test(entry.type)
+      ? entry.type
+      : 'Error'
+  const originalFrames = entry.stacktrace?.frames
+  const frames = (Array.isArray(originalFrames) ? originalFrames : []).flatMap((frame) => {
+    if (!frame || typeof frame !== 'object') return []
+    const original = frame as Record<string, unknown>
+    if (typeof original.filename !== 'string') return []
+    let url: URL
+    try {
+      url = new URL(original.filename, window.location.origin)
+    } catch {
+      return []
+    }
+    if (
+      url.origin !== window.location.origin ||
+      !/^\/_next\/static\/[A-Za-z0-9_./%\[\]()-]+\.js$/.test(url.pathname)
+    ) return []
+    const sanitized: Record<string, unknown> = {
+      platform: 'web:javascript',
+      filename: `${url.origin}${url.pathname}`,
+    }
+    for (const key of ['lineno', 'colno'] as const) {
+      const value = original[key]
+      if (typeof value === 'number' && Number.isInteger(value) && value >= 0) {
+        sanitized[key] = value
+      }
+    }
+    return [sanitized]
+  })
+  return {
+    type,
+    value: '[Redacted error message]',
+    mechanism: {
+      handled: entry.mechanism?.handled === true,
+      synthetic: entry.mechanism?.synthetic === true,
+    },
+    stacktrace: { type: 'raw', frames },
+  }
+}
+
 function isBrowserExtensionRejection(entry: ExceptionListEntry): boolean {
+  if (!entry || typeof entry !== 'object') return false
   if (
     typeof entry.value === 'string' &&
     BROWSER_EXTENSION_REJECTION.test(entry.value)
@@ -66,13 +111,44 @@ function sanitizePostHogEvent(event: CaptureResult | null): CaptureResult | null
   const filtered = dropBrowserExtensionExceptions(event)
   if (!filtered) return null
 
-  const sanitized = sanitizeAnalyticsPayload(filtered)
+  const sanitized = {
+    ...sanitizeAnalyticsPayload(filtered),
+    // The SDK envelope is not application data. In particular, recursively
+    // sanitizing a Date turns it into {}, which breaks ingestion timestamps.
+    uuid: filtered.uuid,
+    timestamp: filtered.timestamp,
+  }
+  const originalProperties = filtered.properties as Record<string, unknown>
+  const sanitizedProperties = sanitized.properties as Record<string, unknown>
+  // Keep PostHog's public ingestion token and SDK identifiers. Giving tokens
+  // and arbitrary token-shaped application properties remain scrubbed.
+  for (const key of ['token', 'distinct_id', '$device_id', '$session_id', '$window_id'] as const) {
+    const value = originalProperties[key]
+    if (typeof value === 'string') sanitizedProperties[key] = value
+  }
+  // rrweb has already applied input masking and the private-element blocklist.
+  // Its encoded recording payload must not be rewritten by the event scrubber.
+  if (filtered.event === '$snapshot' && '$snapshot_data' in originalProperties) {
+    sanitizedProperties.$snapshot_data = originalProperties.$snapshot_data
+  }
+  if (filtered.event === '$exception') {
+    const entries = originalProperties.$exception_list as
+      | ExceptionListEntry[]
+      | undefined
+    if (!Array.isArray(entries) || entries.length === 0) return null
+    const validEntries = entries.filter((entry) => entry && typeof entry === 'object')
+    if (validEntries.length === 0) return null
+    sanitizedProperties.$exception_list = validEntries.map(sanitizeExceptionEntry)
+    const level = originalProperties.$exception_level
+    sanitizedProperties.$exception_level =
+      typeof level === 'string' && ['fatal', 'error', 'warning', 'log', 'info', 'debug'].includes(level)
+        ? level
+        : 'error'
+  }
   if (filtered.event !== '$identify' && filtered.event !== '$set') {
     return sanitized
   }
 
-  const originalProperties = filtered.properties as Record<string, unknown>
-  const sanitizedProperties = sanitized.properties as Record<string, unknown>
   const identityProperties = originalProperties.$set
   const safeIdentityProperties: Record<string, string> = {}
 
@@ -151,53 +227,15 @@ export function AnalyticsManager({
   postHogIdentity?: MemberChromeState['postHogIdentity']
 } = {}) {
   const pathname = usePathname()
-  const { givingViewActive, setFlagState } = useGivingExperience()
+  const { givingViewActive } = useGivingExperience()
   const lastIdentity = useRef<string | null | undefined>(undefined)
   const mayTrack = canTrackAnalyticsPath(pathname)
   const privatePath = mustPauseAnalyticsCapture(pathname)
   const pausePrivateCapture = givingViewActive || privatePath
 
   useEffect(() => {
-    if (privatePath) {
-      setFlagState('failed')
-      return
-    }
-    if (!initializePostHog()) {
-      setFlagState('failed')
-      return
-    }
-
-    try {
-      let settled = false
-      const timeout = window.setTimeout(() => {
-        if (!settled) setFlagState('failed')
-      }, POSTHOG_FLAG_TIMEOUT_MS)
-      const unsubscribe = posthog.onFeatureFlags((_flags, _variants, context) => {
-        settled = true
-        window.clearTimeout(timeout)
-        if (context?.errorsLoading) {
-          setFlagState('failed')
-          return
-        }
-        try {
-          const enabled = posthog.isFeatureEnabled(GIVING_FLAG_KEY, {
-            fresh: true,
-            send_event: false,
-          })
-          setFlagState(enabled === true ? 'enabled' : enabled === false ? 'disabled' : 'failed')
-        } catch {
-          setFlagState('failed')
-        }
-      })
-      return () => {
-        settled = true
-        window.clearTimeout(timeout)
-        unsubscribe()
-      }
-    } catch {
-      setFlagState('failed')
-    }
-  }, [privatePath, setFlagState])
+    if (!privatePath) initializePostHog()
+  }, [privatePath])
 
   useEffect(() => {
     if (privatePath || postHogIdentity === undefined || !initializePostHog()) return
@@ -221,7 +259,7 @@ export function AnalyticsManager({
 
   useEffect(() => {
     if (GA_ID) {
-      ;(window as unknown as Record<string, unknown>)[`ga-disable-${GA_ID}`] = !mayTrack
+      ;(window as unknown as Record<string, unknown>)[`ga-disable-${GA_ID}`] = !mayTrack || givingViewActive
     }
 
     if (pausePrivateCapture) {
@@ -236,7 +274,7 @@ export function AnalyticsManager({
       $current_url: `${window.location.origin}${pathname}`,
       $pathname: pathname,
     })
-  }, [mayTrack, pathname, pausePrivateCapture])
+  }, [mayTrack, pathname, pausePrivateCapture, givingViewActive])
 
   return mayTrack && !givingViewActive
     ? <GoogleAnalytics pagePath={pathname} />

@@ -35,11 +35,16 @@ export function createPageUpserter(payload: PageSeedClient) {
         collection: 'pages',
         id: String(existing.docs[0].id),
         data: canonicalData,
+        context: { skipCacheInvalidation: true },
       })
       return
     }
 
     console.log(`  Creating page: ${slug}`)
-    await payload.create({ collection: 'pages', data: canonicalData })
+    await payload.create({
+      collection: 'pages',
+      data: canonicalData,
+      context: { skipCacheInvalidation: true },
+    })
   }
 }

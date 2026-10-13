@@ -1,3 +1,4 @@
+import { CONNECT_GROUP_WORKFLOW_GUID, CONNECT_GROUP_FIELD_GUID } from '@/lib/connect-groups/constants'
 import { randomUUID } from 'node:crypto'
 import { rockFetch } from '@/lib/rock-api'
 import {
@@ -9,7 +10,13 @@ import {
 export { verifyTurnstileToken } from '@/lib/turnstile'
 import { createRockFormContextToken } from './context-token'
 import { isGuid } from './constants'
-import { parseRockInteractiveAction, replaceApiPersonDefaults } from './schema'
+import { resolveRockBinaryFileTypeGuid } from './file-upload'
+import { toRockPersonEntryBag } from './person-entry'
+import {
+  defaultPersonEntryValues,
+  parseRockInteractiveAction,
+  replaceApiPersonDefaults,
+} from './schema'
 import type {
   RockFormContext,
   RockFormSchema,
@@ -75,6 +82,7 @@ export async function getPublicRockWorkflow(
 
 type WorkflowEntryRequest = {
   context: { sessionGuid: string; interactionGuid: string }
+  pageParameters?: Record<string, string>
   personId?: number | null
   workflowGuid?: string | null
   actionTypeGuid?: string | null
@@ -93,6 +101,7 @@ async function callWorkflowEntry(
     body: {
       __context: {
         pageParameters: {
+          ...request.pageParameters,
           WorkflowTypeGuid: workflowTypeGuid,
           ...(request.personId ? { PersonId: String(request.personId) } : {}),
         },
@@ -246,7 +255,15 @@ async function getKnownPersonEntryValues(
 export async function startRockForm(
   workflowTypeGuid: string,
   personId: number | null = null,
+  pageParameters: Record<string, string> = {},
 ): Promise<RockFormSchema> {
+  if (workflowTypeGuid.toLowerCase() === CONNECT_GROUP_WORKFLOW_GUID) {
+    // Collection configuration imports this module; load Payload only at runtime.
+    const { isPublicConnectGroupGuid } = await import('@/lib/connect-groups/server')
+    if (!(await isPublicConnectGroupGuid(pageParameters.GroupGuid || ''))) {
+      throw new Error('Choose a public Connect Group')
+    }
+  }
   const workflow = await getPublicRockWorkflow(workflowTypeGuid)
 
   if (!workflow) {
@@ -258,6 +275,7 @@ export async function startRockForm(
   const action = await callWorkflowEntry(workflow.guid, {
     context: { sessionGuid, interactionGuid },
     personId,
+    pageParameters,
   })
 
   return await buildRockFormSchema({
@@ -266,6 +284,7 @@ export async function startRockForm(
     sessionGuid,
     interactionGuid,
     personId,
+    connectGroupGuid: pageParameters.GroupGuid,
   })
 }
 
@@ -276,6 +295,7 @@ export async function buildRockFormSchema({
   interactionGuid,
   personId = null,
   clearPersonDefaults = true,
+  connectGroupGuid,
 }: {
   workflow: RockWorkflowOption
   action: RockInteractiveAction
@@ -283,6 +303,7 @@ export async function buildRockFormSchema({
   interactionGuid: string
   personId?: number | null
   clearPersonDefaults?: boolean
+  connectGroupGuid?: string
 }): Promise<RockFormSchema> {
   const parsed = parseRockInteractiveAction(action)
   if (parsed.buttons.length === 0) {
@@ -302,21 +323,17 @@ export async function buildRockFormSchema({
   const hidePersonEntryWhenKnown = Boolean(
     personId && personEntryBehavior?.hideIfCurrentPersonKnown,
   )
+  const visiblePersonEntryValues =
+    parsed.personEntry && !hidePersonEntryWhenKnown
+      ? initialPersonEntryValues || defaultPersonEntryValues()
+      : null
   const allowedFields = parsed.fields.map((field) => {
-    const rawBinaryFileType =
-      field.attribute.configurationValues.binaryFileType || ''
-    let binaryFileTypeGuid = rawBinaryFileType
-    try {
-      binaryFileTypeGuid =
-        (JSON.parse(rawBinaryFileType) as { value?: string }).value || ''
-    } catch {
-      // Rock uses either a GUID or a serialized ListItemBag here.
-    }
-
     return {
       attributeGuid: field.attribute.attributeGuid.toLowerCase(),
       fieldTypeGuid: field.attribute.fieldTypeGuid.toLowerCase(),
-      binaryFileTypeGuid,
+      binaryFileTypeGuid: resolveRockBinaryFileTypeGuid(
+        field.attribute.configurationValues.binaryFileType,
+      ),
       securityGrantToken:
         field.securityGrantToken ||
         field.attribute.securityGrantToken ||
@@ -325,6 +342,7 @@ export async function buildRockFormSchema({
     }
   })
   const context: RockFormContext = {
+    ...(connectGroupGuid ? { connectGroupGuid } : {}),
     version: 1,
     workflowTypeGuid: workflow.guid,
     personId,
@@ -340,7 +358,9 @@ export async function buildRockFormSchema({
     buttonTitles: parsed.buttons.map((button) => button.title),
     expiresAt: Date.now() + ROCK_FORM_CONTEXT_TTL_SECONDS * 1000,
   }
-  const publicFields = parsed.fields.map((field) => ({
+  const publicFields = parsed.fields
+    .filter((field) => !connectGroupGuid || field.attribute.attributeGuid.toLowerCase() !== CONNECT_GROUP_FIELD_GUID)
+    .map((field) => ({
     ...field,
     securityGrantToken: undefined,
     attribute: {
@@ -358,8 +378,7 @@ export async function buildRockFormSchema({
     fields: publicFields,
     personEntry: hidePersonEntryWhenKnown ? null : parsed.personEntry,
     initialFieldValues: parsed.initialFieldValues,
-    initialPersonEntryValues:
-      hidePersonEntryWhenKnown ? null : initialPersonEntryValues,
+    initialPersonEntryValues: visiblePersonEntryValues,
     buttons: parsed.buttons,
     contextToken: createRockFormContextToken(context),
     turnstileSiteKey: getTurnstileSiteKey(),
@@ -423,6 +442,7 @@ export async function submitRockForm({
   personEntryValues: RockPersonEntryValues | null
   button: string
 }): Promise<{ action: RockInteractiveAction; workflow: RockWorkflowOption }> {
+  const personEntryBag = toRockPersonEntryBag(personEntryValues)
   const workflow = await getPublicRockWorkflow(context.workflowTypeGuid)
   if (!workflow) {
     throw new Error('This Rock form is no longer available')
@@ -439,7 +459,7 @@ export async function submitRockForm({
     actionStartDateTime: context.actionStartDateTime,
     componentData: {
       fieldValues: JSON.stringify(fieldValues),
-      personEntryValues: JSON.stringify(personEntryValues),
+      personEntryValues: JSON.stringify(personEntryBag),
       button,
     },
   })

@@ -28,14 +28,17 @@ export interface ConnectGroupAttendanceEntry {
 export interface AttendanceSaveInput {
   groupId: number
   meeting: AttendanceMeetingIdentity
-  roster: Array<{ rockPersonId: number; state: Exclude<AttendanceMarkState, 'unrecorded'> }>
+  roster: Array<{ rockPersonId: number; state: AttendanceMarkState }>
+  changedPersonIds?: number[]
+  writeNotes?: boolean
+  writeDidNotMeet?: boolean
   notes: string
   didNotMeet: boolean
 }
 
 export type AttendanceSaveResult =
   | { status: 'saved'; state: ConnectGroupAttendanceMeeting }
-  | { status: 'rejected' | 'outcome-unknown' | 'read-back-failed'; message: string }
+  | { status: 'rejected' | 'outcome-unknown' | 'read-back-failed'; message: string; retrySafe?: boolean }
 
 interface RockGroupSchedule {
   Id: number
@@ -225,7 +228,7 @@ async function loadMeeting(groupId: number, identity: AttendanceMeetingIdentity,
   )
   if (canonical.length > 1) throw new Error('Rock returned ambiguous attendance occurrences')
   const occurrence = canonical[0]
-  const marks = Object.fromEntries(rosterIds.map((id) => [id, occurrence ? 'unrecorded' : 'present'])) as Record<number, AttendanceMarkState>
+  const marks = Object.fromEntries(rosterIds.map((id) => [id, 'unrecorded'])) as Record<number, AttendanceMarkState>
   if (!occurrence) return { identity: { ...identity, occurrenceId: null }, notes: '', didNotMeet: false, marks }
   const aliases = await aliasesByPerson(rosterIds)
   const aliasToPerson = new Map([...aliases].map(([person, alias]) => [alias, person]))
@@ -247,7 +250,7 @@ async function loadMeeting(groupId: number, identity: AttendanceMeetingIdentity,
     const person = positive(attendance.PersonAliasId)
       ? aliasToPerson.get(attendance.PersonAliasId) ?? unknownAliases.get(attendance.PersonAliasId)
       : null
-    if (person) marks[person] = attendance.DidAttend == null ? 'unrecorded' : attendance.DidAttend ? 'present' : 'absent'
+    if (person && rosterIds.includes(person)) marks[person] = attendance.DidAttend == null ? 'unrecorded' : attendance.DidAttend ? 'present' : 'absent'
   }
   return {
     identity: { ...identity, occurrenceId: occurrence.Id }, notes: occurrence.Notes ?? '',
@@ -330,7 +333,7 @@ export async function saveConnectGroupAttendanceMeeting(input: AttendanceSaveInp
     !/^\d{4}-\d{2}-\d{2}$/u.test(input.meeting.date) ||
     !positive(input.meeting.scheduleId) ||
     (input.meeting.locationId !== null && !positive(input.meeting.locationId)) ||
-    input.roster.some((row) => !positive(row.rockPersonId) || (row.state !== 'present' && row.state !== 'absent')) ||
+    input.roster.some((row) => !positive(row.rockPersonId) || (row.state !== 'present' && row.state !== 'absent' && row.state !== 'unrecorded')) ||
     new Set(input.roster.map((row) => row.rockPersonId)).size !== input.roster.length
   ) {
     return { status: 'rejected', message: 'The attendance save was invalid.' }
@@ -340,12 +343,24 @@ export async function saveConnectGroupAttendanceMeeting(input: AttendanceSaveInp
   const rosterIds = input.roster.map((row) => row.rockPersonId)
   let mutationStarted = false
   let mutationCompleted = false
+  let mutationPending = false
+  async function write<T>(endpoint: string, method: 'POST' | 'PUT', body: unknown): Promise<T> {
+    mutationPending = true
+    try {
+      const result = await mutate<T>(endpoint, method, body)
+      mutationPending = false
+      return result
+    } catch (error) {
+      if (!mutationOutcomeUnknown(error)) mutationPending = false
+      throw error
+    }
+  }
   try {
     const current = await loadMeeting(input.groupId, input.meeting, rosterIds)
     let occurrenceId = current.identity.occurrenceId
     if (!occurrenceId) {
       mutationStarted = true
-      occurrenceId = await mutate<number>('AttendanceOccurrences', 'POST', {
+      occurrenceId = await write<number>('AttendanceOccurrences', 'POST', {
         GroupId: input.groupId, LocationId: input.meeting.locationId, ScheduleId: input.meeting.scheduleId,
         OccurrenceDate: input.meeting.date, Notes: notes, DidNotOccur: input.didNotMeet,
       })
@@ -354,7 +369,7 @@ export async function saveConnectGroupAttendanceMeeting(input: AttendanceSaveInp
     } else {
       const existing = await rockFetch<RockOccurrence>({ endpoint: `AttendanceOccurrences/${occurrenceId}`, ...REQUEST })
       mutationStarted = true
-      await mutate<void>(`AttendanceOccurrences/${occurrenceId}`, 'PUT', { ...existing, Notes: notes, DidNotOccur: input.didNotMeet })
+      await write<void>(`AttendanceOccurrences/${occurrenceId}`, 'PUT', { ...existing, Notes: input.writeNotes === false ? existing.Notes : notes, DidNotOccur: input.writeDidNotMeet === false ? existing.DidNotOccur : input.didNotMeet })
       mutationCompleted = true
     }
     const allAttendances = await rockFetchAll<RockAttendance>({
@@ -376,7 +391,7 @@ export async function saveConnectGroupAttendanceMeeting(input: AttendanceSaveInp
           : null
         if (!personId || !rosterIds.includes(personId)) continue
         mutationStarted = true
-        await mutate<void>(`Attendances/${attendance.Id}`, 'PUT', { ...attendance, DidAttend: null })
+        await write<void>(`Attendances/${attendance.Id}`, 'PUT', { ...attendance, DidAttend: null })
         mutationCompleted = true
       }
     } else {
@@ -399,15 +414,17 @@ export async function saveConnectGroupAttendanceMeeting(input: AttendanceSaveInp
         existingByPerson.set(personId, attendance)
       }
       for (const row of input.roster) {
+        if (input.changedPersonIds && !input.changedPersonIds.includes(row.rockPersonId)) continue
+        if (row.state === 'unrecorded') continue
         const aliasId = aliases.get(row.rockPersonId)
         if (!aliasId) throw new Error('Rock primary alias missing during save')
         const existing = existingByPerson.get(row.rockPersonId) ?? existingByAlias.get(aliasId)
         const didAttend = row.state === 'present'
         mutationStarted = true
         if (existing) {
-          await mutate<void>(`Attendances/${existing.Id}`, 'PUT', { ...existing, DidAttend: didAttend })
+          await write<void>(`Attendances/${existing.Id}`, 'PUT', { ...existing, DidAttend: didAttend })
         } else {
-          await mutate<number>('Attendances', 'POST', {
+          await write<number>('Attendances', 'POST', {
             OccurrenceId: occurrenceId, PersonAliasId: aliasId, DidAttend: didAttend,
             StartDateTime: input.meeting.startDateTime,
           })
@@ -419,11 +436,11 @@ export async function saveConnectGroupAttendanceMeeting(input: AttendanceSaveInp
       const state = await loadMeeting(input.groupId, { ...input.meeting, occurrenceId }, rosterIds)
       return { status: 'saved', state }
     } catch {
-      return { status: 'read-back-failed', message: 'Rock saved the attendance, but the canonical result could not be reloaded.' }
+      return { status: 'read-back-failed', retrySafe: true, message: 'Rock saved the attendance, but the canonical result could not be reloaded.' }
     }
   } catch (error) {
     return mutationCompleted || (mutationStarted && mutationOutcomeUnknown(error))
-      ? { status: 'outcome-unknown', message: 'Rock may have received part of this save. Reload before trying again.' }
+      ? { status: 'outcome-unknown', retrySafe: !mutationPending, message: 'Rock may have received part of this save. Reload before trying again.' }
       : { status: 'rejected', message: 'Rock rejected the attendance save.' }
   }
 }

@@ -7,6 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const navigation = {
   pathname: "/about",
 };
+const mediaPlayer = vi.hoisted(() => ({
+  isVideoExpanded: true,
+  minimizeVideo: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => navigation.pathname,
@@ -15,11 +19,14 @@ vi.mock("next/navigation", () => ({
   }),
   useSearchParams: () => new URLSearchParams(window.location.search),
 }));
+vi.mock("@/components/audio/AudioPlayerProvider", () => ({
+  useAudioPlayer: () => mediaPlayer,
+}));
 vi.mock("@/components/forms/RockForm", () => ({
-  RockForm: ({ workflowTypeGuid }: { workflowTypeGuid: string }) => (
+  RockForm: ({ workflowTypeGuid, groupGuid }: { workflowTypeGuid: string; groupGuid?: string }) => (
     <label>
       Form draft
-      <input aria-label={`Workflow ${workflowTypeGuid}`} />
+      <input aria-label={`Workflow ${workflowTypeGuid}`} data-group-guid={groupGuid} />
     </label>
   ),
 }));
@@ -33,12 +40,27 @@ vi.mock("@/components/forms/SafeRockHtml", () => ({
     <div data-safe-html={value} />
   ),
 }));
+vi.mock("@/components/events/RegistrationFrame", () => ({
+  RegistrationFrame: ({ src, title }: { src: string; title: string }) => (
+    <div data-registration-frame data-src={src} data-title={title} />
+  ),
+}));
 
 import {
   launcherShareHref,
   launcherShareTarget,
   NextStepsLauncher,
+  safeConnectGroupGuid,
+  safeRegistrationInstanceId,
 } from "./NextStepsLauncher";
+import {
+  registrationPageHref,
+  validateRegistrationPagePath,
+} from "@/lib/rock-forms/registration-page";
+import {
+  OPEN_EVENT_REGISTRATION,
+  type OpenEventRegistrationDetail,
+} from "@/components/events/EventRegistrationAction";
 import { Header } from "@/components/layout/Header";
 import {
   GivingExperienceProvider,
@@ -46,6 +68,7 @@ import {
 } from "@/components/giving/GivingExperienceProvider";
 import {
   CONNECT_CARD_WORKFLOW_GUID,
+  CONNECT_GROUP_WORKFLOW_GUID,
   LAUNCHER_CAMPUS_STORAGE_KEY,
   PLAN_A_VISIT_WORKFLOW_GUID,
 } from "@/lib/launcher/constants";
@@ -80,11 +103,8 @@ const items: LauncherItem[] = [
 ];
 
 const feedback: PublicSiteFeedbackSettings = {
-  bannerCopy: "Help us improve the new ev.church.",
-  ctaLabel: "Share feedback.",
   modalTitle: "Share your feedback",
   modalIntro: "Tell us what is working well or what we could improve.",
-  dismissalVersion: "v1",
   turnstileSiteKey: "site-key",
 };
 
@@ -173,11 +193,48 @@ function GivingActiveProbe() {
   return <output data-giving-active>{String(giving.givingViewActive)}</output>;
 }
 
+function DirectedGivingProbe() {
+  return <output data-directed-fund>{useGivingExperience().directedFundId ?? 'general'}</output>;
+}
+
+const supportProfiles = [{ id: 1, name: 'Liz Halliday', slug: 'liz-halliday', group: 'apprentices' as const, photo: null, blurb: 'Liz is training for gospel ministry.', email: 'liz@example.com', fundId: 12, fundName: 'Liz Halliday' }];
+
 describe("NextStepsLauncher", () => {
   let container: HTMLDivElement;
   let root: Root;
 
+  it('opens a shared mini profile and then its directed giving flow', async () => {
+    window.history.replaceState(null, '', '/about?launcher=give-liz-halliday');
+    await act(async () => root.render(<GivingExperienceProvider serverEligibility="production" supportProfiles={supportProfiles} givingExperience={<DirectedGivingProbe />}><NextStepsLauncher campuses={campuses} items={items} /></GivingExperienceProvider>));
+    expect(container.textContent).toContain('Liz is training for gospel ministry.');
+    expect(container.querySelector('[data-directed-fund]')).toBeNull();
+    await act(async () => button(container, 'Give Now')?.click());
+    expect(container.querySelector('[data-directed-fund]')?.textContent).toBe('12');
+    expect(container.textContent).not.toContain('Liz is training for gospel ministry.');
+  });
+
+  it('opens About giving actions directly with the selected fund', async () => {
+    await act(async () => root.render(<GivingExperienceProvider serverEligibility="production" supportProfiles={supportProfiles} givingExperience={<DirectedGivingProbe />}><a href="?launcher=give&fund=liz-halliday">Give to Liz</a><NextStepsLauncher campuses={campuses} items={items} /></GivingExperienceProvider>));
+    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="?launcher=give&fund=liz-halliday"]')?.click());
+    expect(container.querySelector('[data-directed-fund]')?.textContent).toBe('12');
+    expect(container.textContent).not.toContain('Liz is training for gospel ministry.');
+  });
+
+  it('resolves direct giving query parameters on initial load', async () => {
+    window.history.replaceState(null, '', '/about?launcher=give&fund=liz-halliday');
+    await act(async () => root.render(<GivingExperienceProvider serverEligibility="production" supportProfiles={supportProfiles} givingExperience={<DirectedGivingProbe />}><NextStepsLauncher campuses={campuses} items={items} /></GivingExperienceProvider>));
+    expect(container.querySelector('[data-directed-fund]')?.textContent).toBe('12');
+  });
+
+  it('does not silently select the general fund for an unknown directed link', async () => {
+    window.history.replaceState(null, '', '/about?launcher=give&fund=unknown');
+    await act(async () => root.render(<GivingExperienceProvider serverEligibility="production" supportProfiles={supportProfiles} givingExperience={<DirectedGivingProbe />}><NextStepsLauncher campuses={campuses} items={items} /></GivingExperienceProvider>));
+    expect(container.querySelector('[data-directed-fund]')).toBeNull();
+  });
+
   beforeEach(() => {
+    vi.clearAllMocks();
+    mediaPlayer.isVideoExpanded = true;
     navigation.pathname = "/about";
     window.history.replaceState(null, "", "/about");
     window.localStorage.clear();
@@ -217,6 +274,7 @@ describe("NextStepsLauncher", () => {
 
     await act(async () => toggle.click());
 
+    expect(mediaPlayer.minimizeVideo).toHaveBeenCalledTimes(1);
     expect(toggle.isConnected).toBe(true);
     expect(toggle.getAttribute("aria-label")).toBe("Close next steps");
     const share = button(container, "Share Your next step")!;
@@ -326,7 +384,7 @@ describe("NextStepsLauncher", () => {
     );
     expect(panelText).not.toContain("Choose a campus and let us know");
     expect(panelText).not.toContain(
-      "Give securely through the EV Church website",
+      "Give securely through the Ev Church website",
     );
     expect(panelText).not.toContain(
       "Introduce yourself or ask us to get in touch",
@@ -389,6 +447,72 @@ describe("NextStepsLauncher", () => {
     ).not.toBeNull();
     expect(button(container, "Back")).toBeTruthy();
     expect(button(container, "Close next steps")).toBeTruthy();
+  });
+
+  it("opens a same-page launcher link without navigating or scrolling", async () => {
+    const scrollTo = vi
+      .spyOn(window, "scrollTo")
+      .mockImplementation(() => undefined);
+
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+
+    const link = document.createElement("a");
+    link.href = "/about?launcher=home";
+    link.textContent = "Open launcher";
+    document.body.appendChild(link);
+    await act(async () => link.click());
+    link.remove();
+
+    expect(window.location.pathname).toBe("/about");
+    expect(window.location.search).toBe("");
+    expect(button(container, "Share Your next step")).toBeTruthy();
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  it("opens the selected Connect Group without navigating", async () => {
+    const groupGuid = "9756a8fd-a865-4070-add3-03b3396c4b9a";
+    navigation.pathname = "/connect-groups";
+    window.history.replaceState(null, "", "/connect-groups");
+
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+
+    const link = document.createElement("a");
+    link.href = `?launcher=connect-group&groupGuid=${groupGuid}`;
+    document.body.appendChild(link);
+    await act(async () => link.click());
+    link.remove();
+
+    expect(window.location.pathname).toBe("/connect-groups");
+    expect(window.location.search).toBe("");
+    expect(
+      container.querySelector(
+        `input[aria-label="Workflow ${CONNECT_GROUP_WORKFLOW_GUID}"]`,
+      )?.getAttribute("data-group-guid"),
+    ).toBe(groupGuid);
+  });
+
+  it("opens the Connect Group workflow with the selected group", async () => {
+    const groupGuid = "9756a8fd-a865-4070-add3-03b3396c4b9a";
+    navigation.pathname = "/connect-groups";
+    window.history.replaceState(
+      null,
+      "",
+      `/connect-groups?launcher=connect-group&groupGuid=${groupGuid}`,
+    );
+
+    await act(async () => {
+      root.render(<NextStepsLauncher campuses={campuses} items={items} />);
+    });
+
+    const form = container.querySelector(
+      `input[aria-label="Workflow ${CONNECT_GROUP_WORKFLOW_GUID}"]`,
+    );
+    expect(form?.getAttribute("data-group-guid")).toBe(groupGuid);
+    expect(button(container, "Share Join a Connect Group")).toBeTruthy();
   });
 
   it("opens giving from the validated giving launcher target", async () => {
@@ -480,8 +604,8 @@ describe("NextStepsLauncher", () => {
       share,
     });
     const rockForm: LauncherItem = {
-      id: "kids-enrolment",
-      title: "Kids enrolment",
+      id: "managed-rock-form",
+      title: "Managed Rock form",
       campusSlugs: [],
       action: {
         type: "workflow",
@@ -498,7 +622,7 @@ describe("NextStepsLauncher", () => {
         },
       },
     };
-    window.history.replaceState(null, "", "/kids?launcher=kids-enrolment");
+    window.history.replaceState(null, "", "/kids?launcher=managed-rock-form");
 
     await act(async () => {
       root.render(
@@ -510,7 +634,7 @@ describe("NextStepsLauncher", () => {
     expect(
       container.querySelector(`input[aria-label="Workflow ${formGuid}"]`),
     ).not.toBeNull();
-    const shareButton = button(container, "Share Kids enrolment");
+    const shareButton = button(container, "Share Managed Rock form");
     const closeButton = button(container, "Close next steps");
     expect(shareButton).toBeTruthy();
     expect(shareButton?.parentElement).toBe(closeButton?.parentElement);
@@ -519,16 +643,110 @@ describe("NextStepsLauncher", () => {
     expect(shareButton?.className).toContain("animate-launcher-share-reveal");
     expect(shareButton?.className).toContain("motion-reduce:animate-none");
     expect(shareButton?.querySelector("[data-launcher-link-icon]")).not.toBeNull();
-    await act(async () => button(container, "Share Kids enrolment")?.click());
+    await act(async () => button(container, "Share Managed Rock form")?.click());
     expect(share).toHaveBeenCalledWith({
-      title: "Kids enrolment",
-      url: `${window.location.origin}/?launcher=kids-enrolment`,
+      title: "Managed Rock form",
+      url: `${window.location.origin}/?launcher=managed-rock-form`,
+    });
+  });
+
+  it("opens a managed Connection Opportunity by its URL key with rich content", async () => {
+    const connectionForm: LauncherItem = {
+      id: "newish-connect",
+      title: "Newish Connect",
+      campusSlugs: [],
+      action: {
+        type: "connection",
+        blockGuid: "22222222-2222-2222-2222-222222222222",
+        body: {
+          root: {
+            children: [
+              {
+                type: "paragraph",
+                children: [{ type: "text", text: "Register your interest." }],
+              },
+            ],
+          },
+        },
+      },
+    };
+    window.history.replaceState(null, "", "/newish?launcher=newish-connect");
+
+    await act(async () => {
+      root.render(
+        <NextStepsLauncher campuses={campuses} items={[...items, connectionForm]} />,
+      );
+    });
+
+    expect(container.textContent).toContain("Register your interest.");
+    expect(
+      container.querySelector(
+        '[data-connection-guid="22222222-2222-2222-2222-222222222222"]',
+      ),
+    ).not.toBeNull();
+    expect(button(container, "Share Newish Connect")).toBeTruthy();
+  });
+
+  it("opens and shares a Registration-site page managed by a Rock Form record", async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { ...window.navigator, share });
+    navigation.pathname = "/kids";
+    const registrationPage: LauncherItem = {
+      id: "kids-enrolment",
+      title: "Kids Enrolment",
+      campusSlugs: [],
+      action: {
+        type: "registrationPage",
+        href: "https://registration.ev.church/kids",
+        imageUrl: "/images/kids.jpg",
+        body: {
+          root: {
+            children: [{
+              type: "paragraph",
+              children: [{ type: "text", text: "Register your family." }],
+            }],
+          },
+        },
+      },
+    };
+    window.history.replaceState(null, "", "/kids?launcher=kids-enrolment");
+
+    await act(async () => {
+      root.render(
+        <NextStepsLauncher campuses={campuses} items={[...items, registrationPage]} />,
+      );
+    });
+
+    const frame = container.querySelector<HTMLElement>(
+      "[data-registration-frame]",
+    );
+    expect(frame?.getAttribute("data-src")).toBe(
+      "https://registration.ev.church/kids",
+    );
+    expect(frame?.getAttribute("data-title")).toBe("Kids Enrolment");
+    expect(container.textContent).toContain("Register your family.");
+    expect(hasImageSource(container, "/images/kids.jpg")).toBe(true);
+    expect(button(container, "Close next steps")).toBeTruthy();
+    await act(async () => button(container, "Share Kids Enrolment")?.click());
+    expect(share).toHaveBeenCalledWith({
+      title: "Kids Enrolment",
+      url: `${window.location.origin}/kids?launcher=kids-enrolment`,
     });
   });
 
   it("builds launcher share links from the site root", () => {
     expect(launcherShareHref("kids enrolment")).toBe(
       "/?launcher=kids%20enrolment",
+    );
+    expect(
+      launcherShareHref("registration", "/events/next-steps", {
+        registrationInstanceId: "81",
+      }),
+    ).toBe(
+      "/events/next-steps?launcher=registration&registrationInstanceId=81",
+    );
+    expect(launcherShareHref("registration", "//evil.test")).toBe(
+      "/?launcher=registration",
     );
   });
 
@@ -581,6 +799,22 @@ describe("NextStepsLauncher", () => {
     expect(
       launcherShareTarget({ type: "feedback", title: "Website feedback" }),
     ).toBe("feedback");
+    expect(
+      launcherShareTarget({
+        type: "registration",
+        href: "https://registration.ev.church/?RegistrationInstanceId=81",
+        registrationInstanceId: 81,
+        title: "Registration",
+      }),
+    ).toBe("registration");
+    expect(
+      launcherShareTarget({
+        type: "registrationPage",
+        href: "https://registration.ev.church/kids",
+        shareTarget: "kids-enrolment",
+        title: "Kids Enrolment",
+      }),
+    ).toBe("kids-enrolment");
   });
 
   it("ignores launcher targets that do not resolve to an internal view", async () => {
@@ -840,7 +1074,7 @@ describe("NextStepsLauncher", () => {
       );
     });
     await act(async () => button(container, "Open next steps")?.click());
-    await act(async () => button(container, "New website feedback")?.click());
+    await act(async () => button(container, "Website feedback")?.click());
 
     expect(container.textContent).toContain("Share your feedback");
     expect(container.textContent).toContain(feedback.modalIntro);
@@ -848,7 +1082,7 @@ describe("NextStepsLauncher", () => {
     expect(container.querySelector('input[name="email"]')).toBeNull();
 
     await act(async () => button(container, "Back")?.click());
-    expect(button(container, "New website feedback")).toBeTruthy();
+    expect(button(container, "Website feedback")).toBeTruthy();
   });
 
   it("preserves an active form through full screen and clears it on close", async () => {
@@ -1193,5 +1427,124 @@ describe("NextStepsLauncher", () => {
         ?.className,
     ).toContain("max-w-2xl");
     expect(container.textContent?.match(/Learn more/g)).toHaveLength(1);
+  });
+
+  it("opens an event registration form inside the launcher", async () => {
+    await act(async () => {
+      root.render(
+        <NextStepsLauncher
+          campuses={campuses}
+          items={items}
+          initialPathname="/events/next-steps"
+        />,
+      );
+    });
+
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent<OpenEventRegistrationDetail>(OPEN_EVENT_REGISTRATION, {
+          detail: {
+            registrationInstanceId: 81,
+            title: "Next Steps",
+          },
+        }),
+      );
+    });
+
+    const frame = container.querySelector<HTMLElement>(
+      "[data-registration-frame]",
+    );
+    expect(frame?.getAttribute("data-src")).toBe(
+      "https://registration.ev.church/?RegistrationInstanceId=81",
+    );
+    expect(frame?.getAttribute("data-title")).toBe("Register for Next Steps");
+    expect(
+      container.querySelector('[role="region"][aria-label="Next steps launcher"]'),
+    ).not.toBeNull();
+  });
+
+  it("opens and shares a registration instance from any page", async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { ...window.navigator, share });
+    navigation.pathname = "/about";
+    window.history.replaceState(
+      null,
+      "",
+      "/about?launcher=registration&registrationInstanceId=81",
+    );
+
+    await act(async () => {
+      root.render(
+        <NextStepsLauncher
+          campuses={campuses}
+          items={items}
+          initialPathname="/about"
+        />,
+      );
+    });
+
+    const frame = container.querySelector<HTMLElement>(
+      "[data-registration-frame]",
+    );
+    expect(frame?.getAttribute("data-src")).toBe(
+      "https://registration.ev.church/?RegistrationInstanceId=81",
+    );
+
+    await act(async () => button(container, "Share Registration")?.click());
+    expect(share).toHaveBeenCalledWith({
+      title: "Registration",
+      url: `${window.location.origin}/about?launcher=registration&registrationInstanceId=81`,
+    });
+  });
+
+  it("opens the EC registration CTA without navigating to the event page", async () => {
+    navigation.pathname = "/explaining-christianity";
+    window.history.replaceState(null, "", "/explaining-christianity");
+    await act(async () => {
+      root.render(<>
+        <a href="?launcher=registration&registrationInstanceId=85">Register now</a>
+        <NextStepsLauncher campuses={campuses} items={items} initialPathname="/explaining-christianity" />
+      </>);
+    });
+    await act(async () => container.querySelector<HTMLAnchorElement>('a[href^="?launcher=registration"]')?.click());
+    expect(container.querySelector('[data-registration-frame]')?.getAttribute('data-src'))
+      .toBe('https://registration.ev.church/?RegistrationInstanceId=85');
+    expect(window.location.pathname).toBe('/explaining-christianity');
+  });
+
+  it("accepts only positive numeric registration instance IDs", () => {
+    expect(safeRegistrationInstanceId("81")).toBe(81);
+    expect(safeRegistrationInstanceId("0")).toBeNull();
+    expect(safeRegistrationInstanceId("81x")).toBeNull();
+    expect(safeRegistrationInstanceId("9007199254740992")).toBeNull();
+  });
+
+  it("accepts only valid Connect Group GUIDs", () => {
+    expect(safeConnectGroupGuid("9756A8FD-A865-4070-ADD3-03B3396C4B9A")).toBe(
+      "9756a8fd-a865-4070-add3-03b3396c4b9a",
+    );
+    expect(safeConnectGroupGuid("not-a-guid")).toBeNull();
+    expect(safeConnectGroupGuid(null)).toBeNull();
+  });
+
+  it("accepts only constrained Registration-site paths", () => {
+    expect(registrationPageHref("kids")).toBe("https://registration.ev.church/kids");
+    expect(registrationPageHref("kids/pre-enrolment")).toBe(
+      "https://registration.ev.church/kids/pre-enrolment",
+    );
+    for (const path of [
+      "/kids",
+      "../admin",
+      "kids?mode=edit",
+      "kids//child",
+      "admin/users",
+      "api/people",
+      "page/433",
+      "https://example.com/kids",
+      "x".repeat(129),
+    ]) {
+      expect(validateRegistrationPagePath(path)).toBeTypeOf("string");
+      expect(registrationPageHref(path)).toBeNull();
+    }
   });
 });

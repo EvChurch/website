@@ -5,7 +5,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { PublicSiteFeedbackSettings } from '@/lib/site-feedback/settings'
-import { FeedbackStrip } from './FeedbackStrip'
+import { FeedbackForm } from './FeedbackForm'
 
 const posthog = vi.hoisted(() => ({
   get_session_replay_url: vi.fn(() =>
@@ -27,15 +27,12 @@ vi.mock('@/components/forms/TurnstileWidget', () => ({
 }))
 
 const settings: PublicSiteFeedbackSettings = {
-  bannerCopy: 'Help us improve the new ev.church.',
-  ctaLabel: 'Share feedback.',
   modalTitle: 'Share your feedback',
   modalIntro: 'Tell us what is working well or what we could improve.',
-  dismissalVersion: 'v1',
   turnstileSiteKey: 'site-key',
 }
 
-describe('FeedbackStrip modal', () => {
+describe('FeedbackForm', () => {
   let container: HTMLDivElement
   let root: Root | null
 
@@ -60,31 +57,9 @@ describe('FeedbackStrip modal', () => {
 
   async function open() {
     await act(async () =>
-      root?.render(<FeedbackStrip settings={settings} onDismiss={() => undefined} />),
+      root?.render(<FeedbackForm settings={settings} />),
     )
-    const trigger = container.querySelector<HTMLButtonElement>(
-      'button[data-feedback-trigger]',
-    )!
-    await act(async () => trigger.click())
-    return trigger
   }
-
-  it('uses prominent close icons with touch-sized controls', async () => {
-    await open()
-
-    const dismiss = container.querySelector<HTMLButtonElement>(
-      '[aria-label="Dismiss feedback prompt"]',
-    )!
-    const close = container.querySelector<HTMLButtonElement>(
-      '[aria-label="Close feedback dialog"]',
-    )!
-
-    expect(dismiss.className).toContain('h-11')
-    expect(dismiss.querySelector('span')?.className).toContain('text-2xl')
-    expect(close.className).toContain('h-11')
-    expect(close.querySelector('span')?.className).toContain('text-3xl')
-    expect(container.querySelector('h2')?.className).toContain('pr-14')
-  })
 
   async function type(element: HTMLInputElement | HTMLTextAreaElement, value: string) {
     await act(async () => {
@@ -96,23 +71,7 @@ describe('FeedbackStrip modal', () => {
     })
   }
 
-  it('opens a labelled dialog, closes with Escape, restores focus, and unlocks scroll', async () => {
-    const trigger = await open()
-    const dialog = container.querySelector<HTMLElement>('[role="dialog"]')!
-    expect(dialog.getAttribute('aria-labelledby')).toBeTruthy()
-    expect(dialog.getAttribute('aria-describedby')).toBeTruthy()
-    expect(document.documentElement.style.overflow).toBe('hidden')
-    expect(document.activeElement).toBe(
-      container.querySelector<HTMLTextAreaElement>('textarea[name="comment"]'),
-    )
-
-    await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })))
-    expect(container.querySelector('[role="dialog"]')).toBeNull()
-    expect(document.documentElement.style.overflow).toBe('')
-    expect(document.activeElement).toBe(trigger)
-  })
-
-  it('submits one valid payload and keeps the thank-you inside the modal', async () => {
+  it('submits one valid payload and keeps the thank-you inside the launcher', async () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify({ ok: true }), {
         status: 201,
@@ -172,15 +131,11 @@ describe('FeedbackStrip modal', () => {
     )
     await act(async () =>
       root?.render(
-        <FeedbackStrip
+        <FeedbackForm
           settings={settings}
           signedInEmail="aroha@example.com"
-          onDismiss={() => undefined}
         />,
       ),
-    )
-    await act(async () =>
-      container.querySelector<HTMLButtonElement>('button[data-feedback-trigger]')!.click(),
     )
 
     expect(container.querySelector('input[name="email"]')).toBeNull()

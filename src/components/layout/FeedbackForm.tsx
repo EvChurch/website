@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useCallback, useEffect, useId, useRef, useState } from 'react'
+import { FormEvent, useEffect, useId, useRef, useState } from 'react'
 import posthog from 'posthog-js'
 import { TurnstileWidget } from '@/components/forms/TurnstileWidget'
 import { SITE_FEEDBACK_TURNSTILE_ACTION } from '@/lib/site-feedback/constants'
@@ -20,22 +20,15 @@ function retryAfterSeconds(value: string | null): number | null {
   return Math.max(0, Math.ceil((retryAt - Date.now()) / 1_000))
 }
 
-export function FeedbackStrip({
+export function FeedbackForm({
   settings,
   signedInEmail,
-  onDismiss,
-  stripRef,
-  embedded = false,
-  onEmbeddedClose,
+  onClose,
 }: {
   settings: PublicSiteFeedbackSettings
   signedInEmail?: string
-  onDismiss?: () => void
-  stripRef?: React.Ref<HTMLDivElement>
-  embedded?: boolean
-  onEmbeddedClose?: () => void
+  onClose?: () => void
 }) {
-  const [open, setOpen] = useState(embedded)
   const [comment, setComment] = useState('')
   const [email, setEmail] = useState('')
   const [website, setWebsite] = useState('')
@@ -47,7 +40,6 @@ export function FeedbackStrip({
   const [cooldownSeconds, setCooldownSeconds] = useState(0)
   const titleId = useId()
   const descriptionId = useId()
-  const triggerRef = useRef<HTMLButtonElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const submissionControllerRef = useRef<AbortController | null>(null)
   const mountedRef = useRef(true)
@@ -68,30 +60,6 @@ export function FeedbackStrip({
     )
     return () => window.clearTimeout(timer)
   }, [cooldownSeconds])
-
-  const close = useCallback(() => {
-    if (embedded) {
-      onEmbeddedClose?.()
-      return
-    }
-    setOpen(false)
-    window.requestAnimationFrame(() => triggerRef.current?.focus())
-  }, [embedded, onEmbeddedClose])
-
-  useEffect(() => {
-    if (!open || embedded) return
-    const previousOverflow = document.documentElement.style.overflow
-    document.documentElement.style.overflow = 'hidden'
-    window.requestAnimationFrame(() => textareaRef.current?.focus())
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { event.preventDefault(); close() }
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.documentElement.style.overflow = previousOverflow
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [close, embedded, open])
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -162,10 +130,10 @@ export function FeedbackStrip({
     <div className="py-8 text-center" role="status">
       <h3 className="text-2xl text-brand-black">Thank you for your feedback</h3>
       <p className="mt-3 text-sm text-dark-grey">We appreciate you helping us improve ev.church.</p>
-      <button type="button" className="mt-6 rounded-full bg-rich-red px-6 py-3 text-sm font-semibold text-white hover:bg-deep-red" onClick={close}>Close</button>
+      <button type="button" className="mt-6 rounded-full bg-rich-red px-6 py-3 text-sm font-semibold text-white hover:bg-deep-red" onClick={onClose}>Close</button>
     </div>
   ) : (
-    <form className={embedded ? 'space-y-5' : 'mt-6 space-y-5'} onSubmit={submit}>
+    <form className="space-y-5" onSubmit={submit}>
       <div><label htmlFor={`${titleId}-comment`} className="block text-sm font-semibold text-brand-black">Feedback</label><textarea ref={textareaRef} id={`${titleId}-comment`} name="comment" required maxLength={4000} rows={5} value={comment} onChange={(event) => setComment(event.target.value)} className="mt-2 w-full resize-y rounded-lg border border-mid-grey/40 bg-white px-4 py-3 text-base outline-none focus:border-rich-red focus:ring-2 focus:ring-rich-red/20" /></div>
       {!signedInEmail && <div><label htmlFor={`${titleId}-email`} className="block text-sm font-semibold text-brand-black">Email</label><input id={`${titleId}-email`} name="email" type="email" required maxLength={254} autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-2 w-full rounded-lg border border-mid-grey/40 bg-white px-4 py-3 text-base outline-none focus:border-rich-red focus:ring-2 focus:ring-rich-red/20" /></div>}
       <div className="absolute -left-[9999px]" aria-hidden="true"><label htmlFor={`${titleId}-website`}>Website</label><input id={`${titleId}-website`} name="website" tabIndex={-1} autoComplete="off" value={website} onChange={(event) => setWebsite(event.target.value)} /></div>
@@ -175,25 +143,8 @@ export function FeedbackStrip({
     </form>
   )
 
-  if (embedded) {
-    return <div className="animate-fade-in motion-reduce:animate-none">
-      <p id={descriptionId} className="mb-6 text-sm leading-6 text-dark-grey">{settings.modalIntro}</p>
-      {content}
-    </div>
-  }
-
-  return <>
-    <div ref={stripRef} data-site-feedback-strip className="relative z-[52] flex min-h-11 items-center justify-center bg-brand-black px-12 py-2 text-center text-sm text-white shadow-sm">
-      <p><span>{settings.bannerCopy}</span>{' '}<button ref={triggerRef} type="button" data-feedback-trigger className="font-semibold text-white underline decoration-white/60 underline-offset-4 hover:text-warm-white focus-visible:outline-2 focus-visible:outline-white" onClick={() => setOpen(true)}>{settings.ctaLabel}</button></p>
-      <button type="button" aria-label="Dismiss feedback prompt" className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-white/80 hover:bg-white/10 hover:text-white sm:right-2" onClick={onDismiss}><span aria-hidden="true" className="text-2xl leading-none">×</span></button>
-    </div>
-    {open && <div className="fixed inset-0 z-[80] flex items-center justify-center bg-brand-black/65 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) close() }}>
-      <section role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId} className="relative max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl bg-warm-white p-6 shadow-2xl sm:p-8">
-        <button type="button" aria-label="Close feedback dialog" className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full text-brand-black/60 hover:bg-brand-black/5 sm:right-4 sm:top-4" onClick={close}><span aria-hidden="true" className="text-3xl leading-none">×</span></button>
-        <h2 id={titleId} className="pr-14 text-3xl text-brand-black">{settings.modalTitle}</h2>
-        <p id={descriptionId} className="mt-2 text-sm leading-6 text-dark-grey">{settings.modalIntro}</p>
-        {content}
-      </section>
-    </div>}
-  </>
+  return <div className="animate-fade-in motion-reduce:animate-none">
+    <p id={descriptionId} className="mb-6 text-sm leading-6 text-dark-grey">{settings.modalIntro}</p>
+    {content}
+  </div>
 }

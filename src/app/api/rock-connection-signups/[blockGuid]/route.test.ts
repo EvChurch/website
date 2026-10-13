@@ -115,7 +115,8 @@ describe('public Rock Connection signup route', () => {
     vi.stubEnv('ROCK_CONNECTION_RATE_LIMIT_SECRET', 'a'.repeat(32))
     vi.stubEnv('ROCK_CONNECTION_TRUST_CF_CONNECTING_IP', 'true')
     vi.stubEnv('NODE_ENV', 'production')
-    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'www.ev.church')
+    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'new.ev.church')
+    vi.stubEnv('APP_BASE_URL', 'https://www.ev.church')
     verifyTurnstileToken.mockResolvedValue(undefined)
     isRockConnectionSignupPublished.mockResolvedValue(true)
     initializeRockConnectionSignup.mockResolvedValue(schema())
@@ -146,8 +147,9 @@ describe('public Rock Connection signup route', () => {
     expect(result.contextToken).toEqual(expect.any(String))
   })
 
-  it('uses the Railway public hostname for Turnstile behind the production proxy', async () => {
-    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'www.ev.church')
+  it('uses the canonical hostname even when Railway selects a retired domain', async () => {
+    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'new.ev.church')
+    vi.stubEnv('APP_BASE_URL', 'https://www.ev.church')
     const response = await handlePost(
       request(
         { intent: 'start', turnstileToken: 'fresh-start' },

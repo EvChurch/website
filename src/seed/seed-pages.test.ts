@@ -165,6 +165,7 @@ describe('seeded page content and giving navigation', () => {
     expect(update).toHaveBeenCalledWith({
       collection: 'pages',
       id: '42',
+      context: { skipCacheInvalidation: true },
       data: {
         title: 'Visit',
         slug: 'visit',
@@ -196,6 +197,7 @@ describe('seeded page content and giving navigation', () => {
 
     expect(create).toHaveBeenCalledWith({
       collection: 'pages',
+      context: { skipCacheInvalidation: true },
       data: {
         title: 'Kids',
         slug: 'kids',

@@ -1,5 +1,3 @@
-import Link from 'next/link'
-
 interface AuthAccessMessageProps {
   eyebrow: string
   title: string
@@ -32,21 +30,21 @@ export function AuthAccessMessage({
           {children}
         </div>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Link
+          <a
             className="inline-flex min-h-12 items-center justify-center rounded-full bg-rich-red px-6 py-3 font-semibold text-white transition hover:bg-brand-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rich-red"
             href={primaryHref}
             rel="nofollow"
           >
             {primaryLabel}
-          </Link>
+          </a>
           {secondaryHref && secondaryLabel ? (
-            <Link
+            <a
               className="inline-flex min-h-12 items-center justify-center rounded-full border border-brand-black px-6 py-3 font-semibold text-brand-black transition hover:bg-brand-black hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-black"
               href={secondaryHref}
               rel="nofollow"
             >
               {secondaryLabel}
-            </Link>
+            </a>
           ) : null}
         </div>
       </div>

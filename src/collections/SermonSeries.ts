@@ -1,6 +1,9 @@
+import { reindexSermonTaxonomy } from '@/hooks/reindexSermonTaxonomy'
+import { authorSermonMetadata } from '@/hooks/authorSermonMetadata'
+import { createCacheInvalidationHook } from '@/hooks/revalidateCacheTags'
 import type { CollectionConfig } from 'payload'
 
-import { isAdmin } from '@/access/roles'
+import { isSermonManager, isAdmin } from '@/access/roles'
 
 export const SermonSeries: CollectionConfig = {
   slug: 'sermon-series',
@@ -10,9 +13,14 @@ export const SermonSeries: CollectionConfig = {
   },
   access: {
     read: () => true,
-    create: isAdmin,
-    update: isAdmin,
+    create: isSermonManager,
+    update: isSermonManager,
     delete: isAdmin,
+  },
+  hooks: {
+    beforeValidate: [authorSermonMetadata],
+    afterChange: [reindexSermonTaxonomy, createCacheInvalidationHook('sermons', 'sermon-series')],
+    afterDelete: [createCacheInvalidationHook('sermon-series')],
   },
   fields: [
     {
@@ -30,7 +38,6 @@ export const SermonSeries: CollectionConfig = {
     {
       name: 'resourceId',
       type: 'text',
-      required: true,
       unique: true,
       index: true,
       admin: {

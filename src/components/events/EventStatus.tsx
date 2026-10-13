@@ -1,4 +1,4 @@
-import { getRegistrationHref, type PublicEvent } from '@/lib/events'
+import type { PublicEvent } from '@/lib/events'
 
 const labels = {
   open: 'Registration open',
@@ -7,18 +7,17 @@ const labels = {
   'coming-soon': 'Registration coming soon',
 } as const
 
-export function EventStatus({ event }: { event: PublicEvent }) {
+export function EventStatus({ event, onDark = false }: { event: PublicEvent; onDark?: boolean }) {
   const status = event.registrationStatus
-  if (!status) return null
+  if (!status || status === 'open') return null
 
-  const isOpen = Boolean(getRegistrationHref(event))
   return (
     <span
       className={`inline-flex items-center gap-2 text-sm font-semibold ${
-        isOpen ? 'text-light-red-1' : 'text-white/55'
+        onDark ? 'text-white/55' : 'text-brand-black'
       }`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${isOpen ? 'bg-light-red-1' : 'bg-white/40'}`} />
+      <span className={`h-1.5 w-1.5 rounded-full ${onDark ? 'bg-white/40' : 'bg-rich-red'}`} />
       {labels[status]}
     </span>
   )

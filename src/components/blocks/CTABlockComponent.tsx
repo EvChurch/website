@@ -17,6 +17,7 @@ type MediaRef = PayloadMediaImage & { id: string }
 
 interface CTABlockProps {
   heading: string
+  actionDescription?: string
   text?: string | null
   supportingText?: string | null
   buttons?: CTAButton[] | null
@@ -30,6 +31,7 @@ const NOISE_TEXTURE =
 
 export function CTABlockComponent({
   heading,
+  actionDescription,
   text,
   supportingText,
   buttons,
@@ -158,6 +160,11 @@ export function CTABlockComponent({
                 )
               })}
             </div>
+          )}
+          {actionDescription && (
+            <p className={`mt-4 text-sm leading-relaxed ${isColored ? 'text-white/80' : 'text-dark-grey'}`}>
+              {actionDescription}
+            </p>
           )}
         </ScrollReveal>
       </div>

@@ -32,4 +32,13 @@ describe('giving analytics privacy', () => {
       safe: 'one-off',
     })).toEqual({ step: 'amount', safe: 'one-off' })
   })
+
+  it('keeps an allowlisted feedback category without retaining an error', () => {
+    expect(sanitizeAnalyticsPayload({
+      step: 'result',
+      outcome: 'failed',
+      feedback_reason: 'testing',
+      error: 'The payment was declined',
+    })).toEqual({ step: 'result', outcome: 'failed', feedback_reason: 'testing' })
+  })
 })

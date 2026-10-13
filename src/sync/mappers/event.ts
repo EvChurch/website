@@ -3,9 +3,25 @@ import type {
   RockEventCalendarItem,
   RockEventItem,
   RockEventItemOccurrence,
+  RockEventItemOccurrenceGroupMap,
   RockPerson,
 } from '@/lib/rock-api'
+import { aucklandDate, hasEventEnded } from '@/lib/event-timing'
 import { getRockPersonName } from './person'
+
+export type SyncedEventRegistration = {
+  registrationUrl: string | null
+  registrationStatus: 'open' | 'closed' | 'coming-soon' | null
+  registrationCapacity: number | null
+}
+
+export function eventCampusUpdate(
+  rockCampusId: number | null,
+  resolvedCampusId: number | undefined,
+): { campus?: number | null } {
+  if (rockCampusId === null) return { campus: null }
+  return resolvedCampusId === undefined ? {} : { campus: resolvedCampusId }
+}
 
 function slugify(name: string): string {
   return name
@@ -57,6 +73,55 @@ export function normalizeRockDateTime(value: string | null): string | null {
   return new Date(instant).toISOString()
 }
 
+function normalizeICalendarDateTime(value: string, wallTime = false): string | null {
+  const match = value.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z)?$/)
+  if (!match) return null
+
+  return normalizeRockDateTime(
+    `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}${match[7] ?? (wallTime ? 'Z' : '')}`,
+  )
+}
+
+function iCalendarValue(content: string, property: 'DTSTART' | 'DTEND'): string | null {
+  const unfolded = content.replace(/\r?\n[ \t]/g, '')
+  const line = unfolded
+    .split(/\r?\n/)
+    .find((candidate) => candidate.startsWith(`${property}:`) || candidate.startsWith(`${property};`))
+  return line?.slice(line.indexOf(':') + 1).trim() || null
+}
+
+export function getRockOccurrenceEndDate(
+  nextStartDateTime: string | null,
+  iCalendarContent?: string,
+): string | null {
+  const nextStart = normalizeRockDateTime(nextStartDateTime)
+  if (!nextStart || !iCalendarContent) return null
+
+  const scheduleStartValue = iCalendarValue(iCalendarContent, 'DTSTART')
+  const scheduleEndValue = iCalendarValue(iCalendarContent, 'DTEND')
+  if (!scheduleStartValue || !scheduleEndValue) return null
+
+  const localSchedule = !scheduleStartValue.endsWith('Z') && !scheduleEndValue.endsWith('Z')
+  const scheduleStart = normalizeICalendarDateTime(scheduleStartValue, localSchedule)
+  const scheduleEnd = normalizeICalendarDateTime(scheduleEndValue, localSchedule)
+  if (!scheduleStart || !scheduleEnd) return null
+
+  const duration = new Date(scheduleEnd).getTime() - new Date(scheduleStart).getTime()
+  if (!Number.isFinite(duration) || duration <= 0) return null
+
+  if (!localSchedule) return new Date(new Date(nextStart).getTime() + duration).toISOString()
+
+  // Apply local calendar duration before converting to UTC, so overnight and
+  // multi-day recurrences keep their finish time across NZ daylight saving.
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).formatToParts(new Date(nextStart)).map((part) => [part.type, part.value]))
+  const localStart = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+    Number(parts.hour), Number(parts.minute), Number(parts.second))
+  return normalizeRockDateTime(new Date(localStart + duration).toISOString().slice(0, -1))
+}
+
 export function selectNextEventOccurrences(
   occurrences: RockEventItemOccurrence[],
   now = new Date(),
@@ -65,13 +130,21 @@ export function selectNextEventOccurrences(
 
   return occurrences.filter((occurrence) => {
     const effectiveEndDate = occurrence.Schedule?.EffectiveEndDate
-    const scheduleHasEnded = effectiveEndDate
-      ? normalizeRockDateTime(effectiveEndDate)! < now.toISOString()
+    const startDate = normalizeRockDateTime(occurrence.NextStartDateTime)
+    // Rock's EffectiveEndDate is an inclusive Auckland calendar date, not
+    // midnight at the beginning of the final occurrence.
+    const outsideSchedule = effectiveEndDate && startDate
+      ? aucklandDate(startDate) > aucklandDate(normalizeRockDateTime(effectiveEndDate)!)
       : false
+    const occurrenceHasEnded = hasEventEnded({
+      startDate,
+      endDate: getRockOccurrenceEndDate(occurrence.NextStartDateTime, occurrence.Schedule?.iCalendarContent),
+    }, now)
 
     if (
       !occurrence.NextStartDateTime ||
-      scheduleHasEnded ||
+      outsideSchedule ||
+      occurrenceHasEnded ||
       selectedEventItemIds.has(occurrence.EventItemId)
     ) {
       return false
@@ -121,22 +194,98 @@ export function getEventItemIdsForCalendar(
   return eventItemIds
 }
 
+function registrationStatus(
+  instance: NonNullable<RockEventItemOccurrenceGroupMap['RegistrationInstance']>,
+  now: Date,
+): Exclude<SyncedEventRegistration['registrationStatus'], null> {
+  if (!instance.IsActive) return 'closed'
+
+  try {
+    const start = normalizeRockDateTime(instance.StartDateTime)
+    if (start && start > now.toISOString()) return 'coming-soon'
+
+    const end = normalizeRockDateTime(instance.EndDateTime)
+    return end && end < now.toISOString() ? 'closed' : 'open'
+  } catch {
+    return 'closed'
+  }
+}
+
+export function getRegistrationForOccurrence(
+  occurrenceId: number | undefined,
+  linkages: RockEventItemOccurrenceGroupMap[],
+  registrationEntryUrl: string,
+  now = new Date(),
+): SyncedEventRegistration {
+  const unavailable: SyncedEventRegistration = {
+    registrationUrl: null,
+    registrationStatus: null,
+    registrationCapacity: null,
+  }
+  if (occurrenceId === undefined) return unavailable
+
+  const matching = linkages.filter(
+    (linkage) =>
+      linkage.EventItemOccurrenceId === occurrenceId &&
+      linkage.RegistrationInstanceId !== null &&
+      linkage.RegistrationInstance,
+  )
+  // Multiple registration linkages require an explicit Rock-admin decision.
+  // Failing closed avoids sending somebody to the wrong registration form.
+  if (matching.length !== 1) return unavailable
+
+  const linkage = matching[0]
+  const instance = linkage.RegistrationInstance!
+  let url: URL
+  try {
+    url = new URL(registrationEntryUrl)
+  } catch {
+    return unavailable
+  }
+  if (
+    url.protocol !== 'https:' ||
+    (url.hostname !== 'rock.ev.church' && url.hostname !== 'registration.ev.church') ||
+    !Number.isSafeInteger(linkage.RegistrationInstanceId) ||
+    linkage.RegistrationInstanceId! <= 0
+  ) {
+    return unavailable
+  }
+
+  url.searchParams.set('RegistrationInstanceId', String(linkage.RegistrationInstanceId))
+  return {
+    registrationUrl: url.toString(),
+    registrationStatus: registrationStatus(instance, now),
+    registrationCapacity: instance.MaxAttendees,
+  }
+}
+
 export function mapRockEvent(
   rock: RockEventItemOccurrence,
   eventItem: RockEventItem,
   resolvedContactPerson?: RockPerson | null,
+  registration: SyncedEventRegistration = {
+    registrationUrl: null,
+    registrationStatus: null,
+    registrationCapacity: null,
+  },
 ) {
   const contactPerson = resolvedContactPerson ?? rock.ContactPersonAlias?.Person
   const contactEmail = rock.ContactEmail || contactPerson?.Email || ''
   const contactPhone = rock.ContactPhone || ''
 
+  const startDate = normalizeRockDateTime(rock.NextStartDateTime || null)
+
   return {
     title: eventItem.Name,
     slug: slugify(eventItem.Name),
     rockEventId: eventItem.Id,
-    startDate: normalizeRockDateTime(rock.NextStartDateTime || null),
-    // EffectiveEndDate is the recurrence boundary, not this occurrence's end time.
-    endDate: null,
+    startDate,
+    // EffectiveEndDate is the recurrence boundary. The iCalendar DTSTART/DTEND
+    // pair provides this occurrence's duration, applied to its next start.
+    endDate: getRockOccurrenceEndDate(
+      rock.NextStartDateTime,
+      rock.Schedule?.iCalendarContent,
+    ),
     // Campus relationship resolved by matching rockId in the sync runner
     _campusRockId: rock.CampusId,
     location: {
@@ -159,6 +308,7 @@ export function mapRockEvent(
     _imageUrl: eventItem.Photo?.Guid
       ? `/GetImage.ashx?Guid=${eventItem.Photo.Guid}`
       : null,
+    ...registration,
     lastSyncedAt: new Date().toISOString(),
   }
 }

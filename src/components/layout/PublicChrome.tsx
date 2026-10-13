@@ -2,11 +2,11 @@
 
 import { Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
+import dynamic from 'next/dynamic'
 
 import { AudioPlayerBar } from '@/components/audio/AudioPlayerBar'
 import { AudioPlayerSpacer } from '@/components/audio/AudioPlayerSpacer'
 import { GivingExperienceProvider } from '@/components/giving/GivingExperienceProvider'
-import { GivingFlow } from '@/components/giving/GivingFlow'
 import { GivingUnavailable } from '@/components/giving/GivingUnavailable'
 import { NextStepsLauncher } from '@/components/launcher/NextStepsLauncher'
 import { MediaPlayerProvider } from '@/components/media/MediaPlayerProvider'
@@ -15,6 +15,8 @@ import { AnalyticsManager } from '@/components/seo/AnalyticsManager'
 import type { LauncherData } from '@/lib/launcher/types'
 import type { GivingRuntimeConfiguration } from '@/lib/giving/availability'
 import type { PublicGivingFund } from '@/lib/giving/contracts'
+import type { PublicSupportProfile } from '@/lib/giving/support-profiles'
+import { DEFAULT_GIVING_TRANSACTION_FEE_MINOR } from '@/lib/giving/fees'
 import {
   ANONYMOUS_MEMBER_CHROME,
   isAnonymousMemberChrome,
@@ -26,6 +28,12 @@ import type { PublicSiteFeedbackSettings } from '@/lib/site-feedback/settings'
 import { Header } from './Header'
 import { SiteHeader } from './SiteHeader'
 
+// The launcher renders this only when giving is opened, including payment returns.
+const GivingFlow = dynamic(
+  () => import('@/components/giving/GivingFlow').then((module) => module.GivingFlow),
+  { loading: () => <p role="status" className="p-6 text-dark-grey">Loading giving…</p> },
+)
+
 export function PublicChrome({
   children,
   feedback,
@@ -33,7 +41,9 @@ export function PublicChrome({
   announcement,
   footer,
   givingFunds,
+  givingTransactionFeeMinor = DEFAULT_GIVING_TRANSACTION_FEE_MINOR,
   givingRuntime,
+  supportProfiles = [],
 }: {
   children: ReactNode
   feedback: PublicSiteFeedbackSettings | null
@@ -41,7 +51,9 @@ export function PublicChrome({
   announcement: ReactNode
   footer: ReactNode
   givingFunds: PublicGivingFund[]
+  givingTransactionFeeMinor?: number
   givingRuntime: GivingRuntimeConfiguration | null
+  supportProfiles?: PublicSupportProfile[]
 }) {
   const pathname = usePathname()
   const sharedResource = matchesPathPrefix(pathname, '/shared/leader-resources')
@@ -50,6 +62,7 @@ export function PublicChrome({
   const [givingResumeRequested, setGivingResumeRequested] = useState(false)
   const [givingTurnstileSiteKey, setGivingTurnstileSiteKey] = useState('')
   const [memberChromeResolved, setMemberChromeResolved] = useState(false)
+  const [memberChromeAvailable, setMemberChromeAvailable] = useState(false)
 
   useLayoutEffect(() => {
     if (initialRoute.current) {
@@ -80,6 +93,7 @@ export function PublicChrome({
       .then(async (response) => response.ok ? parseMemberChromeState(await response.json()) : null)
       .then((state) => {
         if (!cancelled && state) {
+          setMemberChromeAvailable(true)
           setMemberChrome((current) =>
             isAnonymousMemberChrome(current) && isAnonymousMemberChrome(state)
               ? current
@@ -110,24 +124,28 @@ export function PublicChrome({
   const givingExperience = givingFunds.length > 0
     ? <GivingFlow
         funds={givingFunds}
+        transactionFeeMinor={givingTransactionFeeMinor}
         identity={{ signedIn: memberChrome.memberProfile !== null }}
         resumeRequested={givingResumeRequested}
         turnstileSiteKey={givingTurnstileSiteKey}
         gatewayOrigins={givingRuntime?.gatewayOrigins ?? []}
       />
     : <GivingUnavailable />
+  const blinkPayEligible = memberChromeResolved && memberChromeAvailable && memberChrome.impersonation === null
 
   return (
     <GivingExperienceProvider
       serverEligibility={givingRuntime?.eligibility ?? null}
+      blinkPayEligibilityResolved={memberChromeResolved}
+      blinkPayEligible={blinkPayEligible}
       resumeRequested={givingResumeRequested}
       givingExperience={givingExperience}
+      supportProfiles={supportProfiles}
     >
       <MediaPlayerProvider>
         <AnalyticsManager postHogIdentity={memberChromeResolved ? memberChrome.postHogIdentity : undefined} />
         {announcement}
         <SiteHeader
-          feedback={feedback}
           memberProfile={memberChrome.memberProfile}
           adminHref={memberChrome.adminHref ?? undefined}
           impersonation={memberChrome.impersonation}

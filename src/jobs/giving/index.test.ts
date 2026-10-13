@@ -9,7 +9,7 @@ describe('giving job registration', () => {
     const tasks = createGivingJobConfigs({ processEvent, reconcile })
     expect(tasks.map((task) => task.slug)).toEqual([PROCESS_BLINKPAY_WEBHOOK_EVENT_TASK, RECONCILE_GIVING_LIFECYCLE_TASK])
     expect(tasks[1].schedule).toEqual([{ cron: '*/5 * * * *', queue: 'giving-lifecycle' }])
-    expect(tasks[1].outputSchema?.map((field) => 'name' in field ? field.name : null)).toEqual(['events', 'eventFailures', 'verifications', 'verificationFailures', 'continuations', 'continuationFailures', 'cancellations', 'cancellationFailures', 'draftsDeleted'])
+    expect(tasks[1].outputSchema?.map((field) => 'name' in field ? field.name : null)).toEqual(['events', 'eventFailures', 'verifications', 'verificationFailures', 'continuations', 'continuationFailures', 'cancellations', 'cancellationFailures', 'draftsDeleted', 'recurringSchedules', 'recurringFailures'])
     expect(GIVING_LIFECYCLE_AUTO_RUN).toEqual({ cron: '* * * * *', queue: 'giving-lifecycle', limit: 10 })
     await (tasks[0].handler as (args: unknown) => Promise<unknown>)({ input: { eventId: 9 }, req: { payload: {} } })
     await (tasks[1].handler as (args: unknown) => Promise<unknown>)({ input: {}, req: { payload: {} } })

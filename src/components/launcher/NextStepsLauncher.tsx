@@ -1,4 +1,5 @@
 "use client";
+import { MediaImage } from '@/components/media/MediaImage';
 
 import Image from "next/image";
 import Link from "next/link";
@@ -27,18 +28,27 @@ import { RockConnectionOpportunitySignup } from "@/components/forms/RockConnecti
 import { RockForm } from "@/components/forms/RockForm";
 import { SafeRockHtml } from "@/components/forms/SafeRockHtml";
 import RichText from "@/components/blocks/RichTextRenderer";
-import { FeedbackStrip } from "@/components/layout/FeedbackStrip";
+import { FeedbackForm } from "@/components/layout/FeedbackForm";
+import {
+  OPEN_EVENT_REGISTRATION,
+  type OpenEventRegistrationDetail,
+} from "@/components/events/EventRegistrationAction";
+import { RegistrationFrame } from "@/components/events/RegistrationFrame";
 import {
   MemberAccountControl,
   type MemberDisplayProfile,
 } from "@/components/layout/MemberAccountControl";
 import { useGivingExperience } from "@/components/giving/GivingExperienceProvider";
+import { useAudioPlayer } from "@/components/audio/AudioPlayerProvider";
 import {
   CONNECT_CARD_WORKFLOW_GUID,
   GIVING_LAUNCHER_HREF,
   LAUNCHER_CAMPUS_STORAGE_KEY,
   PLAN_A_VISIT_WORKFLOW_GUID,
+  CONNECT_GROUP_WORKFLOW_GUID,
 } from "@/lib/launcher/constants";
+import { CONNECT_GROUP_LAUNCHER_TARGET } from "@/lib/connect-groups/constants";
+import { isGuid } from "@/lib/rock-forms/constants";
 import type { LauncherCampus, LauncherItem } from "@/lib/launcher/types";
 import type { PublicSiteFeedbackSettings } from "@/lib/site-feedback/settings";
 import {
@@ -84,6 +94,7 @@ function viewForLauncherItem(item: LauncherItem): LauncherView | null {
         workflowTypeGuid: item.action.workflowTypeGuid,
         imageUrl: item.action.imageUrl,
         body: item.action.body,
+        groupGuid: item.action.groupGuid,
         shareTarget: item.id,
       };
     case "connection":
@@ -92,6 +103,16 @@ function viewForLauncherItem(item: LauncherItem): LauncherView | null {
         title: item.title,
         blockGuid: item.action.blockGuid,
         imageUrl: item.action.imageUrl,
+        body: item.action.body,
+        shareTarget: item.id,
+      };
+    case "registrationPage":
+      return {
+        type: "registrationPage",
+        title: item.title,
+        href: item.action.href,
+        imageUrl: item.action.imageUrl,
+        body: item.action.body,
         shareTarget: item.id,
       };
     case "content":
@@ -116,16 +137,29 @@ function viewTitle(view: LauncherView): string {
       return "More next steps";
     case "giving":
       return "Giving";
+    case "supportProfile":
+      return view.title;
     case "feedback":
     case "workflow":
     case "connection":
+    case "registration":
+    case "registrationPage":
     case "content":
       return view.title;
   }
 }
 
-export function launcherShareHref(target: string): string {
-  return `/?launcher=${encodeURIComponent(target)}`;
+export function launcherShareHref(
+  target: string,
+  pathname = "/",
+  parameters: Record<string, string> = {},
+): string {
+  const safePathname =
+    pathname.startsWith("/") && !pathname.startsWith("//") ? pathname : "/";
+  const additionalQuery = new URLSearchParams(parameters).toString();
+  return `${safePathname}?launcher=${encodeURIComponent(target)}${
+    additionalQuery ? `&${additionalQuery}` : ""
+  }`;
 }
 
 export function launcherShareTarget(view: LauncherView): string | null {
@@ -136,13 +170,104 @@ export function launcherShareTarget(view: LauncherView): string | null {
       return "catalogue";
     case "giving":
       return "give";
+    case "supportProfile":
+      return `give-${view.slug}`;
     case "feedback":
       return "feedback";
     case "workflow":
     case "connection":
+    case "registrationPage":
     case "content":
       return view.shareTarget ?? null;
+    case "registration":
+      return "registration";
   }
+}
+
+export function safeRegistrationInstanceId(value: unknown): number | null {
+  if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) return null;
+  const id = Number(value);
+  return Number.isSafeInteger(id) ? id : null;
+}
+
+export function safeConnectGroupGuid(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const guid = value.toLowerCase();
+  return isGuid(guid) ? guid : null;
+}
+
+function registrationLauncherHref(registrationInstanceId: number): string {
+  const url = new URL("https://registration.ev.church/");
+  url.searchParams.set("RegistrationInstanceId", String(registrationInstanceId));
+  return url.toString();
+}
+
+function launcherViewForTarget({
+  target,
+  registrationInstanceIdParam,
+  groupGuidParam,
+  connectCardImageUrl,
+  feedback,
+  selectedCampusItems,
+}: {
+  target: string;
+  registrationInstanceIdParam?: string | null;
+  groupGuidParam?: string | null;
+  connectCardImageUrl?: string;
+  feedback?: PublicSiteFeedbackSettings | null;
+  selectedCampusItems: LauncherItem[];
+}): LauncherView | null {
+  if (target === "home") return { type: "home" };
+  if (target === "catalogue") return { type: "catalogue" };
+  if (target === "visit") {
+    return {
+      type: "workflow",
+      title: "Plan a Visit",
+      workflowTypeGuid: PLAN_A_VISIT_WORKFLOW_GUID,
+      imageUrl: PLAN_A_VISIT_IMAGE_URL,
+      shareTarget: "visit",
+    };
+  }
+  if (target === "connect") {
+    return {
+      type: "workflow",
+      title: "Connect Card",
+      workflowTypeGuid: CONNECT_CARD_WORKFLOW_GUID,
+      imageUrl: connectCardImageUrl,
+      shareTarget: "connect",
+    };
+  }
+  if (target === CONNECT_GROUP_LAUNCHER_TARGET) {
+    const groupGuid = safeConnectGroupGuid(groupGuidParam);
+    return groupGuid
+      ? {
+          type: "workflow",
+          title: "Join a Connect Group",
+          workflowTypeGuid: CONNECT_GROUP_WORKFLOW_GUID,
+          groupGuid,
+          shareTarget: CONNECT_GROUP_LAUNCHER_TARGET,
+        }
+      : null;
+  }
+  if (target === "feedback") {
+    return feedback ? { type: "feedback", title: feedback.modalTitle } : null;
+  }
+  if (target === "registration") {
+    const registrationInstanceId = safeRegistrationInstanceId(
+      registrationInstanceIdParam,
+    );
+    return registrationInstanceId
+      ? {
+          type: "registration",
+          href: registrationLauncherHref(registrationInstanceId),
+          registrationInstanceId,
+          title: "Registration",
+        }
+      : null;
+  }
+
+  const item = selectedCampusItems.find(({ id }) => id === target);
+  return item ? viewForLauncherItem(item) : null;
 }
 
 function LauncherShareButton({
@@ -150,11 +275,15 @@ function LauncherShareButton({
   title,
   buttonRef,
   closing,
+  parameters,
+  pathname,
 }: {
   target: string;
   title: string;
   buttonRef: React.RefObject<HTMLButtonElement | null>;
   closing: boolean;
+  parameters?: Record<string, string>;
+  pathname?: string;
 }) {
   const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle");
   const shareRequestRef = useRef(0);
@@ -170,7 +299,10 @@ function LauncherShareButton({
 
   const share = async () => {
     const requestId = ++shareRequestRef.current;
-    const url = new URL(launcherShareHref(target), window.location.origin).toString();
+    const url = new URL(
+      launcherShareHref(target, pathname, parameters),
+      window.location.origin,
+    ).toString();
     setStatus("idle");
     try {
       if (navigator.share) {
@@ -304,6 +436,9 @@ export function NextStepsLauncher({
   const router = useRouter();
   const searchParams = useSearchParams();
   const launcherTarget = searchParams.get("launcher");
+  const registrationInstanceIdParam = searchParams.get("registrationInstanceId");
+  const groupGuidParam = searchParams.get("groupGuid");
+  const fundSlugParam = searchParams.get("fund");
   const pathname = initialPathname ?? currentPathname ?? "/";
   const [state, dispatch] = useReducer(launcherReducer, null, () =>
     createLauncherState(),
@@ -315,6 +450,7 @@ export function NextStepsLauncher({
   const [isClosing, setIsClosing] = useState(false);
   const [isCloseMotionActive, setIsCloseMotionActive] = useState(false);
   const giving = useGivingExperience();
+  const { isVideoExpanded, minimizeVideo } = useAudioPlayer();
   const launcherRootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -346,6 +482,74 @@ export function NextStepsLauncher({
     );
   }, [items, state.campusSlug]);
 
+  const openLauncherTarget = useCallback(
+    ({
+      target,
+      registrationInstanceIdParam,
+      groupGuidParam,
+      fundSlugParam,
+    }: {
+      target: string;
+      registrationInstanceIdParam?: string | null;
+      groupGuidParam?: string | null;
+      fundSlugParam?: string | null;
+    }) => {
+      if (
+        !campusReady ||
+        !target ||
+        target.length > MAX_LAUNCHER_TARGET_LENGTH
+      ) {
+        return false;
+      }
+
+      if (target === "give") {
+        if (!giving.givingSurfaceAvailable) return false;
+        const profile = fundSlugParam ? giving.supportProfiles.find((candidate) => candidate.slug === fundSlugParam && candidate.fundId !== null) : null;
+        if (fundSlugParam && !profile) return false;
+        giving.selectGivingFund(profile?.fundId ?? null);
+        dispatch({
+          type: "openGiving",
+          presentation: isMobile ? "fullscreen" : "compact",
+        });
+        return true;
+      }
+
+      if (target.startsWith("give-")) {
+        const profile = giving.supportProfiles.find((candidate) => candidate.slug === target.slice(5) && candidate.fundId !== null);
+        if (!profile || !giving.givingSurfaceAvailable) return false;
+        dispatch({ type: "openView", presentation: isMobile ? "fullscreen" : "compact", view: { type: "supportProfile", slug: profile.slug, title: profile.name } });
+        return true;
+      }
+
+      const targetView = launcherViewForTarget({
+        target,
+        registrationInstanceIdParam,
+        groupGuidParam,
+        connectCardImageUrl,
+        feedback,
+        selectedCampusItems,
+      });
+      if (!targetView) return false;
+
+      dispatch({
+        type: "openView",
+        presentation: isMobile ? "fullscreen" : "compact",
+        view: targetView,
+      });
+      return true;
+    },
+    [
+      campusReady,
+      connectCardImageUrl,
+      feedback,
+      giving.givingSurfaceAvailable,
+      giving.supportProfiles,
+      giving.selectGivingFund,
+      isMobile,
+      selectedCampusItems,
+    ],
+  );
+
   useEffect(() => {
     const mediaQuery = window.matchMedia(MOBILE_LAUNCHER_QUERY);
     const updateViewport = () => setIsMobile(mediaQuery.matches);
@@ -355,10 +559,97 @@ export function NextStepsLauncher({
   }, []);
 
   useEffect(() => {
+    const openSamePageLauncher = (event: MouseEvent) => {
+      if (
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const anchor = target.closest<HTMLAnchorElement>("a[href]");
+      if (
+        !anchor ||
+        anchor.target === "_blank" ||
+        anchor.hasAttribute("download")
+      ) {
+        return;
+      }
+
+      const url = new URL(anchor.href, window.location.href);
+      if (
+        url.origin !== window.location.origin ||
+        url.pathname !== window.location.pathname
+      ) {
+        return;
+      }
+
+      const targetName = url.searchParams.get("launcher");
+      if (
+        !targetName ||
+        !openLauncherTarget({
+          target: targetName,
+          registrationInstanceIdParam: url.searchParams.get(
+            "registrationInstanceId",
+          ),
+          groupGuidParam: url.searchParams.get("groupGuid"),
+          fundSlugParam: url.searchParams.get("fund"),
+        })
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+    };
+
+    document.addEventListener("click", openSamePageLauncher, true);
+    return () =>
+      document.removeEventListener("click", openSamePageLauncher, true);
+  }, [openLauncherTarget]);
+
+  useEffect(() => {
+    const openRegistration = (event: Event) => {
+      const detail = (event as CustomEvent<OpenEventRegistrationDetail>).detail;
+      const registrationInstanceId =
+        Number.isSafeInteger(detail?.registrationInstanceId) &&
+        detail.registrationInstanceId > 0
+          ? detail.registrationInstanceId
+          : null;
+      const title = detail?.title?.trim().slice(0, 160);
+      if (!registrationInstanceId || !title) return;
+
+      dispatch({
+        type: "openView",
+        presentation: isMobile ? "fullscreen" : "compact",
+        view: {
+          type: "registration",
+          href: registrationLauncherHref(registrationInstanceId),
+          registrationInstanceId,
+          title,
+        },
+      });
+    };
+
+    window.addEventListener(OPEN_EVENT_REGISTRATION, openRegistration);
+    return () => window.removeEventListener(OPEN_EVENT_REGISTRATION, openRegistration);
+  }, [isMobile]);
+
+  useEffect(() => {
     if (isMobile && state.presentation === "compact") {
       dispatch({ type: "open", presentation: "fullscreen" });
     }
   }, [isMobile, state.presentation]);
+
+  useEffect(() => {
+    if (state.presentation !== "collapsed" && isVideoExpanded) {
+      minimizeVideo();
+    }
+  }, [isVideoExpanded, minimizeVideo, state.presentation]);
 
   useEffect(() => {
     const routeOrStoredCampus = chooseInitialCampus({
@@ -394,63 +685,41 @@ export function NextStepsLauncher({
       handledLauncherTargetRef.current = null;
       return;
     }
-    const handledTargetKey = `${pathname}?launcher=${launcherTarget}`;
+    const handledTargetKey = [
+      `${pathname}?launcher=${launcherTarget}`,
+      launcherTarget === "give" ? `fund=${fundSlugParam ?? ""}` : "",
+      launcherTarget === "registration"
+        ? `registrationInstanceId=${registrationInstanceIdParam ?? ""}`
+        : launcherTarget === CONNECT_GROUP_LAUNCHER_TARGET
+          ? `groupGuid=${groupGuidParam ?? ""}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("&");
     if (handledLauncherTargetRef.current === handledTargetKey) return;
 
-    let targetView: LauncherView | null = null;
-    if (launcherTarget === "home") targetView = { type: "home" };
-    else if (launcherTarget === "catalogue") targetView = { type: "catalogue" };
-    else if (launcherTarget === "visit") {
-      targetView = {
-        type: "workflow",
-        title: "Plan a Visit",
-        workflowTypeGuid: PLAN_A_VISIT_WORKFLOW_GUID,
-        imageUrl: PLAN_A_VISIT_IMAGE_URL,
-        shareTarget: "visit",
-      };
-    } else if (launcherTarget === "connect") {
-      targetView = {
-        type: "workflow",
-        title: "Connect Card",
-        workflowTypeGuid: CONNECT_CARD_WORKFLOW_GUID,
-        imageUrl: connectCardImageUrl,
-        shareTarget: "connect",
-      };
-    } else if (launcherTarget === "feedback" && feedback) {
-      targetView = { type: "feedback", title: feedback.modalTitle };
-    } else if (launcherTarget === "give" && giving.givingSurfaceAvailable) {
-      handledLauncherTargetRef.current = handledTargetKey;
-      dispatch({
-        type: "openGiving",
-        presentation: isMobile ? "fullscreen" : "compact",
-      });
-      return;
-    } else {
-      const item = selectedCampusItems.find(({ id }) => id === launcherTarget);
-      targetView = item ? viewForLauncherItem(item) : null;
-    }
-
-    if (!targetView) {
+    if (
+      !openLauncherTarget({
+        target: launcherTarget,
+        fundSlugParam,
+        registrationInstanceIdParam,
+        groupGuidParam,
+      })
+    ) {
       if (handledLauncherTargetRef.current) dispatch({ type: "close" });
       handledLauncherTargetRef.current = null;
       return;
     }
 
     handledLauncherTargetRef.current = handledTargetKey;
-    dispatch({
-      type: "openView",
-      presentation: isMobile ? "fullscreen" : "compact",
-      view: targetView,
-    });
   }, [
     campusReady,
-    connectCardImageUrl,
-    feedback,
-    giving.givingSurfaceAvailable,
-    isMobile,
     launcherTarget,
+    fundSlugParam,
     pathname,
-    selectedCampusItems,
+    registrationInstanceIdParam,
+    groupGuidParam,
+    openLauncherTarget,
   ]);
 
   useEffect(() => {
@@ -464,6 +733,9 @@ export function NextStepsLauncher({
     handledLauncherTargetRef.current = null;
     const nextSearchParams = new URLSearchParams(searchParams.toString());
     nextSearchParams.delete("launcher");
+    nextSearchParams.delete("fund");
+    nextSearchParams.delete("registrationInstanceId");
+    nextSearchParams.delete("groupGuid");
     const query = nextSearchParams.toString();
     router.replace(`${pathname}${query ? `?${query}` : ""}`, { scroll: false });
   }, [pathname, router, searchParams]);
@@ -493,6 +765,11 @@ export function NextStepsLauncher({
       LAUNCHER_CLOSE_FALLBACK_MS,
     );
   }, [clearUrlLauncherTarget, completeClose, giving.handleGivingClose, isClosing, state.view.type]);
+
+  useEffect(() => {
+    if (!giving.consumeGivingDismissRequest(giving.givingDismissRequestId)) return;
+    close();
+  }, [close, giving.consumeGivingDismissRequest, giving.givingDismissRequestId]);
 
   const back = () => {
     if (state.view.type === "giving" && giving.handleGivingBack()) return;
@@ -615,7 +892,8 @@ export function NextStepsLauncher({
   const formViewHasBanner =
     (state.view.type === "workflow" || state.view.type === "connection") &&
       Boolean(state.view.imageUrl);
-  const shareTarget = launcherShareTarget(state.view);
+  const directedProfile = state.view.type === "giving" ? giving.supportProfiles.find((profile) => profile.fundId === giving.directedFundId) : null;
+  const shareTarget = directedProfile ? `give-${directedProfile.slug}` : launcherShareTarget(state.view);
 
   const pushView = (view: LauncherView) => dispatch({ type: "push", view });
 
@@ -868,7 +1146,7 @@ export function NextStepsLauncher({
             />
             {feedback && (
               <LauncherActionButton
-                title="New website feedback"
+                title="Website feedback"
                 animationDelay={415}
                 onClick={() =>
                   pushView({ type: "feedback", title: feedback.modalTitle })
@@ -883,13 +1161,25 @@ export function NextStepsLauncher({
         return giving.givingExperience ? (
           <div className="h-full" data-giving-private>{giving.givingExperience}</div>
         ) : null;
+      case "supportProfile": {
+        const profile = giving.supportProfiles.find((candidate) => candidate.slug === (state.view.type === "supportProfile" ? state.view.slug : null));
+        if (!profile) return null;
+        return <article className="w-full pb-6">
+          {profile.photo && <div className="relative aspect-video w-full overflow-hidden"><MediaImage media={profile.photo} mediaSize="large" preferOriginalWhenRequestedSizeMissing fill sizes={state.presentation === "fullscreen" ? "(max-width: 1024px) 100vw, 1024px" : "(max-width: 640px) 100vw, 416px"} className="object-cover" /></div>}
+          <div className="mx-auto max-w-lg px-4 sm:px-6">
+            <h2 className="mt-6 text-2xl font-semibold text-brand-black">{profile.name}</h2>
+            <p className="mt-2 text-sm font-semibold text-rich-red">{profile.group === 'student-ministers' ? 'Student minister' : 'Apprentice'}</p>
+            <p className="mt-4 whitespace-pre-line leading-relaxed text-dark-grey">{profile.blurb}</p>
+            <div className="mt-6"><LauncherActionButton title="Give Now" animationDelay={0} onClick={() => { giving.selectGivingFund(profile.fundId); dispatch({ type: "push", view: { type: "giving" } }); }} /></div>
+          </div>
+        </article>;
+      }
       case "feedback":
         return feedback ? (
-          <FeedbackStrip
-            embedded
+          <FeedbackForm
             settings={feedback}
             signedInEmail={signedInEmail}
-            onEmbeddedClose={back}
+            onClose={back}
           />
         ) : null;
       case "workflow":
@@ -906,6 +1196,7 @@ export function NextStepsLauncher({
             )}
             <RockForm
               workflowTypeGuid={state.view.workflowTypeGuid}
+              groupGuid={state.view.groupGuid}
               scrollContainerRef={scrollRef}
               personDefaults={memberProfile}
             />
@@ -918,7 +1209,35 @@ export function NextStepsLauncher({
               imageUrl={state.view.imageUrl}
               bleed={state.presentation !== "fullscreen"}
             />
+            {state.view.body != null && (
+              <div className="prose prose-neutral mx-auto mb-8 max-w-2xl px-4 text-dark-grey sm:px-6">
+                <RichText data={state.view.body} />
+              </div>
+            )}
             <RockConnectionOpportunitySignup blockGuid={state.view.blockGuid} />
+          </div>
+        );
+      case "registration":
+        return (
+          <RegistrationFrame
+            src={state.view.href}
+            title={`Register for ${state.view.title}`}
+            scrollContainerRef={scrollRef}
+          />
+        );
+      case "registrationPage":
+        return (
+          <div className="animate-fade-in motion-reduce:animate-none">
+            <LauncherBanner
+              imageUrl={state.view.imageUrl}
+              bleed={state.presentation !== "fullscreen"}
+            />
+            {state.view.body != null && (
+              <div className="prose prose-neutral mx-auto mb-8 max-w-2xl px-4 text-dark-grey sm:px-6">
+                <RichText data={state.view.body} />
+              </div>
+            )}
+            <RegistrationFrame src={state.view.href} title={state.view.title} scrollContainerRef={scrollRef} />
           </div>
         );
       case "content":
@@ -937,19 +1256,28 @@ export function NextStepsLauncher({
   };
 
   return (
-    <div ref={launcherRootRef} className="relative z-[9999] print:hidden">
+    <div ref={launcherRootRef} className="relative print:hidden">
+      {state.presentation === "fullscreen" && (
+        <div
+          aria-hidden="true"
+          className={`pointer-events-none fixed inset-0 z-[61] bg-brand-black/45 backdrop-blur-sm transition-opacity duration-200 ease-out motion-reduce:transition-none ${
+            isClosing && isCloseMotionActive ? "opacity-0" : "opacity-100"
+          }`}
+        />
+      )}
       {state.presentation !== "collapsed" && (
         <div
+          data-launcher-control-surface
           className={
             state.presentation === "fullscreen"
-              ? `fixed inset-0 bg-brand-black/45 p-0 pb-[max(5rem,calc(env(safe-area-inset-bottom)+4.25rem))] backdrop-blur-sm transition-opacity duration-200 ease-out motion-reduce:animate-none motion-reduce:transition-none sm:p-5 ${
+              ? `fixed inset-0 z-[9999] p-0 pb-[max(5rem,calc(env(safe-area-inset-bottom)+4.25rem))] transition-opacity duration-200 ease-out motion-reduce:animate-none motion-reduce:transition-none sm:p-5 ${
                   isClosing
                     ? isCloseMotionActive
                       ? "opacity-0"
                       : "opacity-100"
                     : "animate-fade-in"
                 }`
-              : "pointer-events-none fixed inset-0 flex items-end justify-end p-3 pb-[max(5rem,calc(env(safe-area-inset-bottom)+4.25rem))] sm:p-6 sm:pb-24"
+              : "pointer-events-none fixed inset-0 z-[9999] flex items-end justify-end p-3 pb-[max(5rem,calc(env(safe-area-inset-bottom)+4.25rem))] sm:p-6 sm:pb-24"
           }
         >
           <div
@@ -1052,8 +1380,12 @@ export function NextStepsLauncher({
             <div
               ref={scrollRef}
               className={
-                state.view.type === "content"
+                (state.view.type === "content" || state.view.type === "supportProfile")
                   ? "min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pb-6"
+                  : state.view.type === "giving"
+                    ? `min-h-0 flex-1 overflow-hidden ${
+                        formViewHasBanner ? "pt-0" : "pt-2 sm:pt-3"
+                      }`
                   : `min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6 ${
                       formViewHasBanner ? "pt-0" : "pt-2 sm:pt-3"
                     }`
@@ -1061,9 +1393,9 @@ export function NextStepsLauncher({
             >
               <div
                 className={
-                  state.view.type === "content"
+                  (state.view.type === "content" || state.view.type === "supportProfile")
                     ? "w-full"
-                    : `mx-auto w-full max-w-2xl ${state.view.type === "giving" ? "h-full" : ""}`
+                    : `mx-auto w-full ${state.view.type === "registration" || state.view.type === "registrationPage" ? "max-w-4xl" : "max-w-2xl"} ${state.view.type === "giving" ? "h-full" : ""}`
                 }
               >
                 {renderView()}
@@ -1072,12 +1404,30 @@ export function NextStepsLauncher({
           </div>
         </div>
       )}
-      <div className="fixed right-3 bottom-[max(.75rem,env(safe-area-inset-bottom))] z-[1] flex items-center gap-2 sm:right-6 sm:bottom-6">
+      <div className="mobile-action-bar fixed right-3 bottom-[max(.75rem,env(safe-area-inset-bottom))] z-[10000] flex items-center gap-2 transition-[bottom] duration-300 ease-out motion-reduce:transition-none sm:right-6 sm:bottom-6">
         {state.presentation !== "collapsed" &&
           shareTarget && (
             <LauncherShareButton
               buttonRef={shareButtonRef}
               closing={isClosing}
+              parameters={
+                state.view.type === "registration"
+                  ? {
+                      registrationInstanceId: String(
+                        state.view.registrationInstanceId,
+                      ),
+                    }
+                  : state.view.type === "workflow" && state.view.groupGuid
+                    ? { groupGuid: state.view.groupGuid }
+                  : undefined
+              }
+              pathname={
+                state.view.type === "registration" ||
+                state.view.type === "registrationPage" ||
+                (state.view.type === "workflow" && Boolean(state.view.groupGuid))
+                  ? pathname
+                  : undefined
+              }
               target={shareTarget}
               title={viewTitle(state.view)}
             />

@@ -7,7 +7,7 @@ const ORIGINS = {
 } as const
 const SANDBOX_GATEWAY_ORIGIN = 'https://sandbox.secure.blinkpay.co.nz'
 
-const CALLBACK_ORIGIN = 'https://www.ev.church' as const
+export const DEFAULT_BLINKPAY_CALLBACK_ORIGIN = 'https://www.ev.church' as const
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/u
 
 export class BlinkPayConfigurationError extends Error {
@@ -51,6 +51,11 @@ function exactHttpsOrigin(value: string | undefined) {
   return url.origin
 }
 
+export function blinkPayCallbackOrigin(env: Record<string, string | undefined> = process.env): string {
+  const configured = env.APP_BASE_URL
+  return configured ? exactHttpsOrigin(configured) : DEFAULT_BLINKPAY_CALLBACK_ORIGIN
+}
+
 export function loadBlinkPayConfig(
   environment: GivingEnvironment,
   env: Record<string, string | undefined> = process.env,
@@ -77,7 +82,7 @@ export function loadBlinkPayConfig(
     oauthTokenUrl: `${origin}/oauth2/token`,
     apiBaseUrl: `${origin}/payments/v1/`,
     gatewayOrigins: Object.freeze([gatewayOrigin]),
-    callbackOrigin: CALLBACK_ORIGIN,
+    callbackOrigin: blinkPayCallbackOrigin(env),
     clientId: requiredSecret(env[`${prefix}_CLIENT_ID`]),
     clientSecret: requiredSecret(env[`${prefix}_CLIENT_SECRET`]),
     webhookSecrets: optionalSecrets(env[`${prefix}_WEBHOOK_SECRETS`] ?? env[`${prefix}_WEBHOOK_SECRET`]),

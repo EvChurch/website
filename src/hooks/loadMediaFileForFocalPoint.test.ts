@@ -23,7 +23,10 @@ describe('loadMediaFileForFocalPoint', () => {
     delete process.env.S3_BUCKET
   })
 
-  it('loads the original directly from S3 before Payload regenerates focal-point sizes', async () => {
+  it.each([
+    [null, 'people/team-member.jpg'],
+    ['upload-id', 'people/upload-id/team-member.jpg'],
+  ])('loads the original from its stored S3 path (%s) before regenerating sizes', async (_objectKey, key) => {
     process.env.S3_BUCKET = 'production-media'
     const image = Buffer.from('original image')
     s3Send.mockResolvedValue({
@@ -38,6 +41,7 @@ describe('loadMediaFileForFocalPoint', () => {
       focalY: 50,
       mimeType: 'image/jpeg',
       prefix: 'people',
+      _objectKey,
     })
     const req = {
       query: {
@@ -69,7 +73,7 @@ describe('loadMediaFileForFocalPoint', () => {
 
     expect(s3Send).toHaveBeenCalledWith({
       Bucket: 'production-media',
-      Key: 'people/team-member.jpg',
+      Key: key,
     })
     expect(findByID).toHaveBeenCalledWith({
       collection: 'media',

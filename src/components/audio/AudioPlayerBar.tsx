@@ -44,7 +44,10 @@ export function AudioPlayerBar() {
 
   const [show, setShow] = useState(false)
   const [render, setRender] = useState(false)
+  const [scrollMobileSummary, setScrollMobileSummary] = useState(false)
   const barRef = useRef<HTMLDivElement>(null)
+  const mobileSummaryViewportRef = useRef<HTMLDivElement>(null)
+  const mobileSummaryTextRef = useRef<HTMLSpanElement>(null)
   const swipeRef = useRef<{ startX: number; startY: number; currentX: number } | null>(null)
 
   // Open: mount then animate in on next frame
@@ -82,6 +85,21 @@ export function AudioPlayerBar() {
     onEndedRef.current = handleClose
     return () => { onEndedRef.current = null }
   }, [handleClose, onEndedRef])
+
+  useEffect(() => {
+    const measure = () => {
+      const viewport = mobileSummaryViewportRef.current
+      const text = mobileSummaryTextRef.current
+      if (!viewport || !text) return
+      const overflow = Math.max(0, text.scrollWidth - viewport.clientWidth)
+      viewport.style.setProperty('--mobile-player-offset', `-${overflow}px`)
+      setScrollMobileSummary(overflow > 0)
+    }
+
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [currentSermon?.series, currentSermon?.speaker, currentSermon?.title, render])
 
   const [swipeX, setSwipeX] = useState(0)
   const SWIPE_THRESHOLD = 100
@@ -122,6 +140,9 @@ export function AudioPlayerBar() {
 
   const mediaHref = currentSermon.href ?? `/sermons/${currentSermon.slug}`
   const progressPercent = duration > 0 ? (progress / duration) * 100 : 0
+  const mobileSubtitle = [currentSermon.speaker, currentSermon.series]
+    .filter(Boolean)
+    .join(' · ')
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (duration <= 0) return
@@ -139,16 +160,16 @@ export function AudioPlayerBar() {
   }
 
   return (
-    <div data-audio-player className="pointer-events-none fixed inset-x-0 bottom-0 z-[62] flex justify-center px-4 pb-4 sm:px-6 sm:pb-5">
+    <div data-audio-player className="pointer-events-none fixed inset-x-0 bottom-0 z-[62] flex justify-center sm:px-6 sm:pb-5">
       <div
         ref={barRef}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className={`pointer-events-auto w-full max-w-2xl rounded-2xl border border-white/10 bg-brand-black/80 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl transition-transform duration-300 ease-out ${show ? 'translate-y-0' : 'translate-y-[calc(100%+2rem)]'}`}
+        className={`pointer-events-auto w-full max-w-2xl rounded-none border-t border-white/10 bg-brand-black/80 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl transition-transform duration-300 ease-out sm:rounded-2xl sm:border ${show ? 'translate-y-0' : 'translate-y-[calc(100%+2rem)]'}`}
         style={swipeX !== 0 ? { transform: `translateX(${swipeX}px)`, opacity: Math.max(0, 1 - Math.abs(swipeX) / (SWIPE_THRESHOLD * 2)), transition: 'opacity 0.15s' } : undefined}
       >
-        <div className="flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
+        <div className="px-3 pt-2.5 sm:flex sm:items-center sm:gap-3 sm:px-4 sm:py-3">
           {/* Artwork + video iframe target (desktop only) */}
           <div ref={videoThumbnailRef as React.RefObject<HTMLDivElement | null>} className="relative hidden aspect-video h-12 shrink-0 overflow-hidden rounded-lg sm:block">
             {currentSermon.artworkUrl ? (
@@ -181,8 +202,24 @@ export function AudioPlayerBar() {
             {/* Layer 3: chevron rendered as fixed element from VideoContainer */}
           </div>
 
+          {/* Mobile title ticker */}
+          <div
+            ref={mobileSummaryViewportRef}
+            className="mb-1.5 overflow-hidden whitespace-nowrap text-xs text-warm-white/60 sm:hidden"
+          >
+            <Link
+              href={mediaHref}
+              className={`inline-flex w-max hover:text-warm-white ${scrollMobileSummary ? 'motion-safe:animate-[mobile-player-marquee_18s_linear_infinite]' : ''}`}
+            >
+              <span ref={mobileSummaryTextRef}>
+                <span className="font-medium text-warm-white">{currentSermon.title}</span>
+                {mobileSubtitle && <span> · {mobileSubtitle}</span>}
+              </span>
+            </Link>
+          </div>
+
           {/* Sermon info + desktop progress */}
-          <div className="min-w-0 flex-1">
+          <div className="hidden min-w-0 flex-1 sm:block">
             <Link
               href={mediaHref}
               className="block truncate text-sm font-medium leading-tight text-warm-white hover:underline"
@@ -242,65 +279,87 @@ export function AudioPlayerBar() {
           </div>
 
           {/* Controls */}
-          <div className="flex items-center gap-0.5 sm:gap-1">
-            {/* Skip back */}
-            <button
-              onClick={skipBack}
-              className="relative inline-flex items-center justify-center rounded-full p-2.5 text-warm-white/60 transition-colors hover:text-warm-white sm:p-1.5"
-              aria-label="Skip back 15 seconds"
-            >
-              <svg className="h-8 w-8 -scale-x-100 sm:h-5 sm:w-5" viewBox="0 0 18 18" fill="none">
-                <path fill="currentColor" d="M1 9c0 2.21.895 4.21 2.343 5.657l1.414-1.414a6 6 0 1 1 8.956-7.956l-1.286 1.286a.25.25 0 0 0 .177.427h4.146a.25.25 0 0 0 .25-.25V2.604a.25.25 0 0 0-.427-.177l-1.438 1.438A8 8 0 0 0 1 9" />
-              </svg>
-              <span className="absolute inset-0 flex items-center justify-center pt-[1px] text-[11px] font-bold leading-none text-current sm:text-[7px]">15</span>
-            </button>
+          <div className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center sm:flex sm:justify-start sm:gap-1">
+            <div className="col-start-2 row-start-1 flex items-center justify-center gap-0.5 sm:contents">
+              {/* Skip back */}
+              <button
+                onClick={skipBack}
+                className="relative inline-flex items-center justify-center rounded-full p-2.5 text-warm-white/60 transition-colors hover:text-warm-white sm:p-1.5"
+                aria-label="Skip back 15 seconds"
+              >
+                <svg className="h-8 w-8 -scale-x-100 sm:h-5 sm:w-5" viewBox="0 0 18 18" fill="none">
+                  <path fill="currentColor" d="M1 9c0 2.21.895 4.21 2.343 5.657l1.414-1.414a6 6 0 1 1 8.956-7.956l-1.286 1.286a.25.25 0 0 0 .177.427h4.146a.25.25 0 0 0 .25-.25V2.604a.25.25 0 0 0-.427-.177l-1.438 1.438A8 8 0 0 0 1 9" />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center pt-[1px] text-[11px] font-bold leading-none text-current sm:text-[7px]">15</span>
+              </button>
 
-            {/* Play/Pause */}
-            <button
-              onClick={isPlaying ? pause : resume}
-              className="relative flex h-11 w-11 items-center justify-center rounded-full bg-warm-white text-brand-black transition-transform hover:scale-105 sm:h-9 sm:w-9"
-              aria-label={isPlaying ? 'Pause' : 'Play'}
-              disabled={isLoading}
-            >
-              {/* Loading ring */}
-              {isLoading && (
-                <svg className="pointer-events-none absolute h-[calc(100%+4px)] w-[calc(100%+4px)] animate-spin" viewBox="0 0 48 48">
-                  <circle cx="24" cy="24" r="22" fill="none" stroke="rgba(226,42,48,0.2)" strokeWidth="2.5" />
-                  <circle cx="24" cy="24" r="22" fill="none" stroke="#E22A30" strokeWidth="2.5" strokeLinecap="round" strokeDasharray={138.2} strokeDashoffset={103.7} />
-                </svg>
-              )}
-              {isPlaying ? (
-                <svg className="h-5 w-5 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="6" y="4" width="4" height="16" />
-                  <rect x="14" y="4" width="4" height="16" />
-                </svg>
-              ) : (
-                <svg className="h-5 w-5 pl-0.5 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="currentColor">
-                  <polygon points="5,3 19,12 5,21" />
-                </svg>
-              )}
-            </button>
+              {/* Play/Pause */}
+              <button
+                onClick={isPlaying ? pause : resume}
+                className="relative flex h-11 w-11 items-center justify-center rounded-full bg-warm-white text-brand-black transition-transform hover:scale-105 sm:h-9 sm:w-9"
+                aria-label={isPlaying ? 'Pause' : 'Play'}
+                disabled={isLoading}
+              >
+                {/* Loading ring */}
+                {isLoading && (
+                  <svg className="pointer-events-none absolute h-[calc(100%+4px)] w-[calc(100%+4px)] animate-spin" viewBox="0 0 48 48">
+                    <circle cx="24" cy="24" r="22" fill="none" stroke="rgba(226,42,48,0.2)" strokeWidth="2.5" />
+                    <circle cx="24" cy="24" r="22" fill="none" stroke="#E22A30" strokeWidth="2.5" strokeLinecap="round" strokeDasharray={138.2} strokeDashoffset={103.7} />
+                  </svg>
+                )}
+                {isPlaying ? (
+                  <svg className="h-5 w-5 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16" />
+                    <rect x="14" y="4" width="4" height="16" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5 pl-0.5 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5,3 19,12 5,21" />
+                  </svg>
+                )}
+              </button>
 
-            {/* Skip forward */}
-            <button
-              onClick={skipForward}
-              className="relative inline-flex items-center justify-center rounded-full p-2.5 text-warm-white/60 transition-colors hover:text-warm-white sm:p-1.5"
-              aria-label="Skip forward 15 seconds"
-            >
-              <svg className="h-8 w-8 sm:h-5 sm:w-5" viewBox="0 0 18 18" fill="none">
-                <path fill="currentColor" d="M1 9c0 2.21.895 4.21 2.343 5.657l1.414-1.414a6 6 0 1 1 8.956-7.956l-1.286 1.286a.25.25 0 0 0 .177.427h4.146a.25.25 0 0 0 .25-.25V2.604a.25.25 0 0 0-.427-.177l-1.438 1.438A8 8 0 0 0 1 9" />
-              </svg>
-              <span className="absolute inset-0 flex items-center justify-center pt-[1px] text-[11px] font-bold leading-none text-current sm:text-[7px]">15</span>
-            </button>
+              {/* Skip forward */}
+              <button
+                onClick={skipForward}
+                className="relative inline-flex items-center justify-center rounded-full p-2.5 text-warm-white/60 transition-colors hover:text-warm-white sm:p-1.5"
+                aria-label="Skip forward 15 seconds"
+              >
+                <svg className="h-8 w-8 sm:h-5 sm:w-5" viewBox="0 0 18 18" fill="none">
+                  <path fill="currentColor" d="M1 9c0 2.21.895 4.21 2.343 5.657l1.414-1.414a6 6 0 1 1 8.956-7.956l-1.286 1.286a.25.25 0 0 0 .177.427h4.146a.25.25 0 0 0 .25-.25V2.604a.25.25 0 0 0-.427-.177l-1.438 1.438A8 8 0 0 0 1 9" />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center pt-[1px] text-[11px] font-bold leading-none text-current sm:text-[7px]">15</span>
+              </button>
+            </div>
 
             {/* Speed */}
             <button
               onClick={cycleSpeed}
-              className="w-10 rounded-md px-1.5 py-0.5 text-center text-xs font-medium tabular-nums text-warm-white/50 transition-colors hover:text-warm-white"
+              className="col-start-1 row-start-1 w-10 rounded-md px-1.5 py-0.5 text-center text-xs font-medium tabular-nums text-warm-white/50 transition-colors hover:text-warm-white"
               aria-label={`Playback speed ${playbackSpeed}x`}
             >
               {playbackSpeed}x
             </button>
+
+            {/* Mobile video size toggle */}
+            {isVideoMode && isVideoVisible && activeVideo && (
+              <button
+                type="button"
+                onClick={isVideoExpanded ? minimizeVideo : expandVideo}
+                className="col-start-3 row-start-1 inline-flex h-10 w-10 translate-x-[5px] items-center justify-center rounded-full text-warm-white/60 transition-colors hover:text-warm-white sm:hidden"
+                aria-label={isVideoExpanded ? 'Minimise video' : 'Expand video'}
+              >
+                {isVideoExpanded ? (
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 3v6H3M15 3v6h6M9 21v-6H3M15 21v-6h6" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" />
+                  </svg>
+                )}
+              </button>
+            )}
 
             {/* Close (desktop only, mobile uses swipe) */}
             <button

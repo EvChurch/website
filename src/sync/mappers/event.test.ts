@@ -1,12 +1,26 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  eventCampusUpdate,
   getEventItemIdsWithUpcomingOccurrences,
+  getRockOccurrenceEndDate,
   getEventItemIdsForCalendar,
+  getRegistrationForOccurrence,
   mapRockEvent,
   normalizeRockDateTime,
   selectNextEventOccurrences,
 } from './event'
+
+describe('eventCampusUpdate', () => {
+  it('clears a stale campus when the current Rock occurrence has none', () => {
+    expect(eventCampusUpdate(null, undefined)).toEqual({ campus: null })
+  })
+
+  it('sets a resolved campus and leaves an unresolved one untouched', () => {
+    expect(eventCampusUpdate(3, 1)).toEqual({ campus: 1 })
+    expect(eventCampusUpdate(3, undefined)).toEqual({})
+  })
+})
 
 describe('normalizeRockDateTime', () => {
   it('interprets Rock timestamps as Auckland local time', () => {
@@ -19,7 +33,43 @@ describe('normalizeRockDateTime', () => {
   })
 })
 
+describe('recurring event finish times across Auckland daylight saving', () => {
+  it('keeps the scheduled local finish time when an overnight recurrence crosses the clock change', () => {
+    const schedule = 'DTSTART:20260919T230000\nDTEND:20260920T040000'
+    expect(getRockOccurrenceEndDate('2026-09-26T23:00:00', schedule)).toBe('2026-09-26T15:00:00.000Z')
+  })
+})
+
 describe('mapRockEvent', () => {
+  it('derives the occurrence end time from the Rock iCalendar schedule', () => {
+    const mapped = mapRockEvent(
+      {
+        EventItemId: 40,
+        NextStartDateTime: '2026-11-06T19:00:00',
+        CampusId: null,
+        Schedule: {
+          EffectiveEndDate: '2026-11-08T15:00:00',
+          iCalendarContent: [
+            'BEGIN:VEVENT',
+            'DTSTART;TZID=Pacific/Auckland:20251107T190000',
+            'DTEND;TZID=Pacific/Auckland:20251109T150000',
+            'END:VEVENT',
+          ].join('\r\n'),
+        },
+      },
+      {
+        Id: 40,
+        Name: 'Weekend Together',
+        Summary: '',
+        Description: '',
+        IsActive: true,
+      },
+    )
+
+    expect(mapped.startDate).toBe('2026-11-06T06:00:00.000Z')
+    expect(mapped.endDate).toBe('2026-11-08T02:00:00.000Z')
+  })
+
   it('carries occurrence notes and contact details into the synced event', () => {
     const mapped = mapRockEvent(
       {
@@ -88,7 +138,102 @@ describe('mapRockEvent', () => {
   })
 })
 
+describe('getRegistrationForOccurrence', () => {
+  const linkage = {
+    Id: 88,
+    EventItemOccurrenceId: 170,
+    RegistrationInstanceId: 81,
+    RegistrationInstance: {
+      Id: 81,
+      Name: 'Next Steps 30 Aug',
+      IsActive: true,
+      StartDateTime: '2026-08-17T00:00:00',
+      EndDateTime: '2026-08-30T23:59:59',
+      MaxAttendees: 20,
+    },
+  }
+
+  it('builds the public entry URL for one open linked instance', () => {
+    expect(
+      getRegistrationForOccurrence(
+        170,
+        [linkage],
+        'https://registration.ev.church/registration',
+        new Date('2026-08-20T00:00:00.000Z'),
+      ),
+    ).toEqual({
+      registrationUrl:
+        'https://registration.ev.church/registration?RegistrationInstanceId=81',
+      registrationStatus: 'open',
+      registrationCapacity: 20,
+    })
+  })
+
+  it('reports future and ended registration windows without exposing the wrong status', () => {
+    expect(
+      getRegistrationForOccurrence(
+        170,
+        [linkage],
+        'https://rock.ev.church/page/404',
+        new Date('2026-08-01T00:00:00.000Z'),
+      ).registrationStatus,
+    ).toBe('coming-soon')
+    expect(
+      getRegistrationForOccurrence(
+        170,
+        [linkage],
+        'https://rock.ev.church/page/404',
+        new Date('2026-09-01T00:00:00.000Z'),
+      ).registrationStatus,
+    ).toBe('closed')
+  })
+
+  it('clears registration when the linkage is missing, ambiguous, or unsafe', () => {
+    const emptyRegistration = {
+      registrationUrl: null,
+      registrationStatus: null,
+      registrationCapacity: null,
+    }
+
+    expect(
+      getRegistrationForOccurrence(
+        999,
+        [linkage],
+        'https://rock.ev.church/page/404',
+      ),
+    ).toEqual(emptyRegistration)
+    expect(
+      getRegistrationForOccurrence(
+        170,
+        [linkage, { ...linkage, Id: 89 }],
+        'https://rock.ev.church/page/404',
+      ),
+    ).toEqual(emptyRegistration)
+    expect(
+      getRegistrationForOccurrence(170, [linkage], 'http://rock.ev.church/page/404'),
+    ).toEqual(emptyRegistration)
+    expect(
+      getRegistrationForOccurrence(170, [linkage], 'https://example.test/registration'),
+    ).toEqual(emptyRegistration)
+  })
+})
+
 describe('selectNextEventOccurrences', () => {
+  it('keeps the final scheduled occurrence on its inclusive Auckland end date', () => {
+    const occurrence = {
+      EventItemId: 9,
+      CampusId: null,
+      NextStartDateTime: '2026-11-08T12:30:00',
+      Schedule: {
+        EffectiveEndDate: '2026-11-08T00:00:00',
+        iCalendarContent: 'DTSTART:20261018T123000\nDTEND:20261018T143000',
+      },
+    }
+    expect(selectNextEventOccurrences([occurrence], new Date('2026-11-07T21:00:00Z'))).toEqual([occurrence])
+    expect(selectNextEventOccurrences([occurrence], new Date('2026-11-08T00:30:00Z'))).toEqual([occurrence])
+    expect(selectNextEventOccurrences([occurrence], new Date('2026-11-08T01:30:00Z'))).toEqual([])
+  })
+
   it('skips null historical occurrences and keeps the first dated occurrence per event', () => {
     const occurrences = [
       { EventItemId: 1, NextStartDateTime: null, CampusId: null },
@@ -97,7 +242,7 @@ describe('selectNextEventOccurrences', () => {
       { EventItemId: 2, NextStartDateTime: '2026-08-15T10:00:00', CampusId: null },
     ]
 
-    expect(selectNextEventOccurrences(occurrences)).toEqual([
+    expect(selectNextEventOccurrences(occurrences, new Date('2026-08-09T00:00:00Z'))).toEqual([
       occurrences[1],
       occurrences[3],
     ])

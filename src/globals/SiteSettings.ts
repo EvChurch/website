@@ -61,27 +61,6 @@ export const SiteSettings: GlobalConfig = {
       type: 'group',
       fields: [
         {
-          name: 'enabled',
-          type: 'checkbox',
-          defaultValue: false,
-        },
-        {
-          name: 'bannerCopy',
-          label: 'Banner copy',
-          type: 'text',
-          required: true,
-          defaultValue: 'Help us improve the new ev.church.',
-          maxLength: 160,
-        },
-        {
-          name: 'ctaLabel',
-          label: 'CTA label',
-          type: 'text',
-          required: true,
-          defaultValue: 'Share feedback.',
-          maxLength: 80,
-        },
-        {
           name: 'modalTitle',
           label: 'Modal title',
           type: 'text',
@@ -96,26 +75,6 @@ export const SiteSettings: GlobalConfig = {
           required: true,
           defaultValue: 'Tell us what is working well or what we could improve.',
           maxLength: 500,
-        },
-        {
-          name: 'dismissalVersion',
-          label: 'Dismissal version',
-          type: 'text',
-          required: true,
-          defaultValue: 'v1',
-          maxLength: 100,
-          admin: {
-            description: 'Change this value to show the feedback banner again after dismissal.',
-          },
-        },
-        {
-          name: 'endDate',
-          label: 'End date',
-          type: 'date',
-          admin: {
-            description: 'Optional date and time after which the feedback banner is hidden.',
-            date: { pickerAppearance: 'dayAndTime' },
-          },
         },
         {
           name: 'notificationRecipient',

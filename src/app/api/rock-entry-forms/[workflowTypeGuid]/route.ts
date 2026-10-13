@@ -19,9 +19,14 @@ import {
 } from '@/lib/rock-forms/server'
 import { getTurnstileSiteKey } from '@/lib/rock-forms/config'
 import type { RockPersonBasicValues, RockPersonEntryValues } from '@/lib/rock-forms/types'
-import { isSameOriginRequest } from '@/lib/request-origin'
+import { expectedTurnstileHostname, isSameOriginRequest } from '@/lib/request-origin'
 import { safeRockWorkflowRedirect } from '@/lib/rock-forms/redirect'
 import { TurnstileVerificationError } from '@/lib/turnstile'
+import {
+  CONNECT_GROUP_WORKFLOW_GUID,
+  CONNECT_GROUP_FIELD_GUID,
+} from '@/lib/connect-groups/constants'
+import { isPublicConnectGroupGuid } from '@/lib/connect-groups/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -210,6 +215,20 @@ export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const body = await boundedFormData(request)
     const isStart = body.get('intent') === 'start'
+    const requestedGroupGuid = String(body.get('groupGuid') || '').toLowerCase()
+    const isConnectGroup = workflowTypeGuid.toLowerCase() === CONNECT_GROUP_WORKFLOW_GUID
+    if (isStart && isConnectGroup && !requestedGroupGuid) {
+      return jsonError('Choose a public Connect Group', 400)
+    }
+    if (
+      requestedGroupGuid &&
+      (!isStart ||
+        workflowTypeGuid.toLowerCase() !== CONNECT_GROUP_WORKFLOW_GUID ||
+        !isGuid(requestedGroupGuid) ||
+        !(await isPublicConnectGroupGuid(requestedGroupGuid)))
+    ) {
+      return jsonError('Invalid Connect Group identifier', 400)
+    }
 
     if (!(await isRockFormPublished(workflowTypeGuid))) {
       return jsonError('This form is not published on the website', 404)
@@ -218,10 +237,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     await verifyTurnstileToken({
       token: String(body.get('turnstileToken') || ''),
       remoteIp: request.headers.get('cf-connecting-ip'),
-      expectedHostname:
-        process.env.NODE_ENV === 'production'
-          ? process.env.RAILWAY_PUBLIC_DOMAIN || null
-          : null,
+      expectedHostname: expectedTurnstileHostname(),
       expectedAction:
         process.env.NODE_ENV === 'production'
           ? isStart
@@ -232,7 +248,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     if (isStart) {
       return NextResponse.json(
-        await startRockForm(workflowTypeGuid, await authenticatedPersonId(request)),
+        await startRockForm(
+          workflowTypeGuid,
+          await authenticatedPersonId(request),
+          requestedGroupGuid ? { GroupGuid: requestedGroupGuid } : {},
+        ),
       )
     }
 
@@ -248,6 +268,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
     ) {
       return jsonError('The signed-in person does not match this form', 403)
     }
+    if (isConnectGroup && (!formContext.connectGroupGuid ||
+      !(await isPublicConnectGroupGuid(formContext.connectGroupGuid)))) {
+      return jsonError('This Connect Group is no longer available for public signup', 400)
+    }
     const knownFields = new Map(
       formContext.allowedFields.map((field) => [field.attributeGuid, field]),
     )
@@ -262,6 +286,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       if (knownFields.has(normalizedGuid) && typeof value === 'string') {
         fieldValues[normalizedGuid] = value.slice(0, 100_000)
       }
+    }
+
+    if (isConnectGroup) {
+      // Keep the selected group immutable, including crafted field submissions.
+      fieldValues[CONNECT_GROUP_FIELD_GUID] = formContext.connectGroupGuid!
     }
 
     const pendingFiles = [...knownFields].flatMap(([attributeGuid, field]) => {
@@ -331,6 +360,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           interactionGuid: formContext.interactionGuid,
           personId: formContext.personId,
           clearPersonDefaults: false,
+          connectGroupGuid: formContext.connectGroupGuid,
         }),
       })
     }

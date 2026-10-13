@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server'
 
 import type { GivingRequestMarker } from './contracts'
+import { isSameOriginRequest } from '@/lib/request-origin'
 
 const MAX_BODY_BYTES = 8_192
 
@@ -18,7 +19,7 @@ export class InvalidGivingRequestError extends Error {
 }
 
 export function trustedGivingMutation(request: NextRequest, marker: GivingRequestMarker) {
-  return request.headers.get('origin') === 'https://www.ev.church' &&
+  return isSameOriginRequest(request) &&
     request.headers.get('sec-fetch-site') === 'same-origin' &&
     request.headers.get('x-ev-giving-request') === marker
 }

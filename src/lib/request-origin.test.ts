@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { isSameOriginRequest } from './request-origin'
+import { expectedTurnstileHostname, isSameOriginRequest } from './request-origin'
 
 function request(origin: string | null, url: string) {
   return {
@@ -35,9 +35,40 @@ describe('same-origin request validation', () => {
     expect(isSameOriginRequest(request('https://www.ev.church:444', 'https://0.0.0.0:3000/path'))).toBe(false)
   })
 
-  it('fails closed in production without a Railway public domain', () => {
+  it('allows the configured public app origin in a production build preview', () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('APP_BASE_URL', 'https://cons-catch-carlos-cape.trycloudflare.com')
+
+    expect(isSameOriginRequest(request(
+      'https://cons-catch-carlos-cape.trycloudflare.com',
+      'http://0.0.0.0:3001/api/giving/drafts',
+    ))).toBe(true)
+    expect(isSameOriginRequest(request(
+      'https://other.trycloudflare.com',
+      'http://0.0.0.0:3001/api/giving/drafts',
+    ))).toBe(false)
+  })
+
+  it('allows configured HTTPS tunnel origins in development', () => {
+    vi.stubEnv('NODE_ENV', 'development')
+    vi.stubEnv('APP_BASE_URL', 'https://cons-catch-carlos-cape.trycloudflare.com')
+    vi.stubEnv('NEXT_ALLOWED_DEV_ORIGINS', 'cons-catch-carlos-cape.trycloudflare.com')
+
+    expect(isSameOriginRequest(request(
+      'https://cons-catch-carlos-cape.trycloudflare.com',
+      'http://0.0.0.0:3001/api/giving/drafts',
+    ))).toBe(true)
+    expect(isSameOriginRequest(request(
+      'http://cons-catch-carlos-cape.trycloudflare.com',
+      'http://0.0.0.0:3001/api/giving/drafts',
+    ))).toBe(false)
+  })
+
+  it('fails closed in production without a configured public origin', () => {
     vi.stubEnv('NODE_ENV', 'production')
     vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', '')
+    vi.stubEnv('APP_BASE_URL', '')
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', '')
 
     expect(isSameOriginRequest(request('https://www.ev.church', 'https://www.ev.church/path'))).toBe(false)
   })
@@ -47,5 +78,29 @@ describe('same-origin request validation', () => {
     vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'not a valid hostname')
 
     expect(isSameOriginRequest(request('https://www.ev.church', 'https://www.ev.church/path'))).toBe(false)
+  })
+})
+
+
+describe('canonical Turnstile hostname', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it.each([
+    ['https://www.ev.church', 'https://other.example', 'www.ev.church'],
+    ['', 'https://www.ev.church', 'www.ev.church'],
+    ['', '', 'www.ev.church'],
+    ['https://preview.example', '', 'preview.example'],
+  ])('uses the configured canonical URL (%s, %s)', (appUrl, siteUrl, hostname) => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('APP_BASE_URL', appUrl)
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', siteUrl)
+    vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', 'new.ev.church')
+    expect(expectedTurnstileHostname()).toBe(hostname)
+  })
+
+  it.each(['invalid URL', 'file:///website', 'mailto:team@example.com'])('rejects invalid canonical configuration %s', (url) => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('APP_BASE_URL', url)
+    expect(() => expectedTurnstileHostname()).toThrow()
   })
 })

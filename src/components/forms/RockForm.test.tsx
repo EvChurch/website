@@ -235,7 +235,9 @@ describe('RockForm', () => {
     expect(markup).toContain('Female')
   })
 
-  it('uses the shared responsive calendar for Rock date fields', async () => {
+  it('submits a historical date unchanged through the shared Rock date picker', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: 'complete', message: 'Thanks.' })))
+    vi.stubGlobal('fetch', fetchMock)
     const dateGuid = '55555555-5555-4555-8555-555555555555'
     const container = document.createElement('div')
     document.body.appendChild(container)
@@ -272,11 +274,72 @@ describe('RockForm', () => {
 
       await act(async () => trigger?.click())
       expect(container.querySelector('[aria-label="Date calendar"]')).not.toBeNull()
+      for (const [label, value] of [['Year', '2012'], ['Month', '2']]) {
+        await act(async () => {
+          const select = container.querySelector<HTMLSelectElement>(`select[aria-label="${label}"]`)!
+          select.value = value
+          select.dispatchEvent(new Event('change', { bubbles: true }))
+        })
+      }
       await act(async () => {
-        container.querySelector<HTMLButtonElement>('[aria-label="Choose 21 August 2026"]')?.click()
+        container.querySelector<HTMLButtonElement>('[aria-label="Choose 29 February 2012"]')!.click()
       })
-      expect(trigger?.textContent).toContain('21 Aug 2026')
+      expect(trigger?.textContent).toContain('29 Feb 2012')
       expect(container.querySelector('[aria-label="Date calendar"]')).toBeNull()
+      await act(async () => turnstileMocks.onToken?.('valid-token'))
+      await act(async () => container.querySelector<HTMLButtonElement>('button[type="submit"]')!.click())
+      expect(fetchMock).toHaveBeenCalledOnce()
+      const body: FormData = fetchMock.mock.calls[0][1].body
+      const fieldValues = JSON.parse(String(body.get('fieldValues')))
+      expect(fieldValues[dateGuid]).toBe('2012-02-29')
+    } finally {
+      await act(async () => root.unmount())
+      container.remove()
+    }
+  })
+
+  it('uses the shared calendar for person and spouse birth dates without changing submitted dates', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ status: 'complete', message: 'Thanks.' }))
+    vi.stubGlobal('fetch', fetchMock)
+    const base = spouseSchema()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+
+    try {
+      await act(async () => root.render(<RockForm workflowTypeGuid={workflowTypeGuid} initialSchema={{
+        ...base,
+        personEntry: { ...base.personEntry!, birthDateOption: 2, spouseOption: 2, emailOption: 0 },
+        initialPersonEntryValues: {
+          person: { firstName: 'Test', lastName: 'Person', personBirthDate: '1990-06-12T00:00:00' },
+          spouse: { firstName: 'Test', lastName: 'Spouse', personBirthDate: '1991-06-12' },
+        },
+      }} />))
+
+      expect(container.querySelector('input[type="date"]')).toBeNull()
+      for (const label of ['Date of birth', 'Spouse Date of birth']) {
+        const trigger = container.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!
+        expect(trigger.getAttribute('aria-required')).toBe('true')
+        await act(async () => trigger.click())
+        const calendar = container.querySelector(`[aria-label="${label} calendar"]`)!
+        for (const [name, value] of [['Year', '1988'], ['Month', '2']]) {
+          await act(async () => {
+            const select = calendar.querySelector<HTMLSelectElement>(`select[aria-label="${name}"]`)!
+            select.value = value
+            select.dispatchEvent(new Event('change', { bubbles: true }))
+          })
+        }
+        await act(async () => calendar.querySelector<HTMLButtonElement>('[aria-label="Choose 29 February 1988"]')!.click())
+        expect(trigger.textContent).toContain('29 Feb 1988')
+        expect(container.querySelector(`[aria-label="${label} calendar"]`)).toBeNull()
+      }
+      await act(async () => turnstileMocks.onToken?.('valid-token'))
+      await act(async () => container.querySelector<HTMLButtonElement>('button[type="submit"]')!.click())
+      expect(fetchMock).toHaveBeenCalledOnce()
+      const body: FormData = fetchMock.mock.calls[0][1].body
+      const values = JSON.parse(String(body.get('personEntryValues')))
+      expect(values.person.personBirthDate).toBe('1988-02-29')
+      expect(values.spouse.personBirthDate).toBe('1988-02-29')
     } finally {
       await act(async () => root.unmount())
       container.remove()
@@ -295,6 +358,22 @@ describe('RockForm', () => {
     expect(markup).toContain('value="Tatai"')
     expect(markup).toContain('value="Nikora"')
     expect(markup).toContain('value="tatai@example.com"')
+  })
+
+  it('renders blank person-entry fields when Rock omits person defaults', () => {
+    const markup = renderToStaticMarkup(
+      <RockForm
+        workflowTypeGuid={workflowTypeGuid}
+        initialSchema={{
+          ...spouseSchema(),
+          initialPersonEntryValues: null,
+        }}
+      />,
+    )
+
+    expect(markup).toContain('First name')
+    expect(markup).toContain('Last name')
+    expect(markup).toContain('Email *')
   })
 
   it('shows the retry and contact fallback when the startup security check fails', async () => {
@@ -547,6 +626,30 @@ describe('RockForm', () => {
     } finally {
       await act(async () => root.unmount())
       container.remove()
+    }
+  })
+})
+
+
+describe('Connect Group Newish pathway', () => {
+  it('offers positive choices before starting the signup form', async () => {
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    const container = document.createElement('div')
+    const root = createRoot(container)
+    try {
+      await act(async () => root.render(<RockForm workflowTypeGuid="a448e93f-dd25-4f55-b89d-8ed2043df747" groupGuid="11111111-1111-4111-8111-111111111111" initialSchema={schema()} />))
+      expect(container.querySelector('a')?.getAttribute('href')).toBe('/newish')
+      expect(container.textContent).toContain('Explore Newish')
+      expect(container.querySelector('img')?.getAttribute('alt')).toBe('Newish Connect')
+      expect(container.querySelector('form')).toBeNull()
+      expect(fetcher).not.toHaveBeenCalled()
+      await act(async () => container.querySelector('button')?.click())
+      expect(container.querySelector('form')).not.toBeNull()
+      expect(container.querySelector('img')?.getAttribute('alt')).toBe('Connect Groups')
+    } finally {
+      await act(async () => root.unmount())
+      vi.unstubAllGlobals()
     }
   })
 })

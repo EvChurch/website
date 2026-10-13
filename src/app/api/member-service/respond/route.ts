@@ -4,6 +4,7 @@ import { getAuth0Client } from '@/auth/auth0-client'
 import { getMemberImpersonationFromSession } from '@/auth/member-impersonation'
 import { getMemberProfileStateFromSession } from '@/auth/member-session'
 import { isSameOriginRequest } from '@/lib/request-origin'
+import { normalizedDeclineNote } from '@/lib/members/decline-notes'
 import {
   respondToVolunteerSchedule,
   type VolunteerScheduleResponse,
@@ -15,7 +16,7 @@ const PRIVATE_HEADERS = {
   Vary: 'Cookie',
 }
 const SESSION_COOKIE_NAMES = ['__Host-ev_admin_session', 'ev_admin_session'] as const
-const MAX_BODY_BYTES = 512
+const MAX_BODY_BYTES = 4096
 const ASSIGNMENT_ID_PATTERN = /^rock-schedule:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
 
 function hasSessionCookie(request: NextRequest) {
@@ -37,16 +38,18 @@ function parseInput(value: unknown): {
   assignmentId: string
   response: VolunteerScheduleResponse
   declineReasonId?: number
+  declineNote?: string
 } | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const input = value as Record<string, unknown>
   if (
     Object.keys(input).some((key) =>
-      key !== 'assignmentId' && key !== 'response' && key !== 'declineReasonId') ||
+      key !== 'assignmentId' && key !== 'response' && key !== 'declineReasonId' && key !== 'declineNote') ||
     typeof input.assignmentId !== 'string' ||
     !ASSIGNMENT_ID_PATTERN.test(input.assignmentId) ||
     (input.response !== 'accept' && input.response !== 'decline') ||
-    (input.response === 'accept' && input.declineReasonId !== undefined) ||
+    (input.response === 'accept' && (input.declineReasonId !== undefined || input.declineNote !== undefined)) ||
+    (input.declineNote !== undefined && normalizedDeclineNote(input.declineNote) === null) ||
     (input.response === 'decline' && (
       typeof input.declineReasonId !== 'number' ||
       !Number.isSafeInteger(input.declineReasonId) ||
@@ -57,6 +60,7 @@ function parseInput(value: unknown): {
     assignmentId: input.assignmentId,
     response: input.response,
     ...(input.response === 'decline' ? { declineReasonId: input.declineReasonId as number } : {}),
+    ...(input.declineNote !== undefined ? { declineNote: normalizedDeclineNote(input.declineNote)! } : {}),
   }
 }
 
@@ -99,6 +103,7 @@ export async function POST(request: NextRequest) {
     input.response,
     new Date(),
     input.declineReasonId,
+    input.declineNote,
   )
   if (result.status === 'accepted' || result.status === 'declined') return json(result, 200)
   if (result.status === 'invalid-request') return json(result, 400)

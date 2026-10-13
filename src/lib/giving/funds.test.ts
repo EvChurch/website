@@ -18,7 +18,7 @@ describe('giving funds', () => {
     expect(find).toHaveBeenCalledWith(expect.objectContaining({
       collection: 'giving-funds',
       where: { active: { equals: true } },
-      select: { name: true, code: true, sortOrder: true, isDefault: true, apprenticeRelated: true },
+      select: { name: true, code: true, sortOrder: true, isDefault: true, apprenticeRelated: true, studentMinisterRelated: true },
     }))
   })
 
@@ -31,10 +31,20 @@ describe('giving funds', () => {
       .mockResolvedValueOnce({ docs: [{ id: 1, name: 'General', code: 'GEN', sortOrder: 0, isDefault: true }] })
 
     await expect(getActiveGivingFunds({ find } as never)).resolves.toEqual([
-      { id: 1, name: 'General', code: 'GEN', sortOrder: 0, isDefault: true, apprenticeRelated: false },
+      { id: 1, name: 'General', code: 'GEN', sortOrder: 0, isDefault: true, apprenticeRelated: false, studentMinisterRelated: false },
     ])
     expect(find).toHaveBeenNthCalledWith(2, expect.objectContaining({
       select: { name: true, code: true, sortOrder: true, isDefault: true },
+    }))
+  })
+
+  it('preserves apprentices while the student minister column awaits migration', async () => {
+    const missing = Object.assign(new Error('column student_minister_related does not exist'), { code: '42703' })
+    const apprentice = { id: 3, name: 'Apprentice', code: 'APP', sortOrder: 3, isDefault: false, apprenticeRelated: true }
+    const find = vi.fn().mockRejectedValueOnce(missing).mockResolvedValueOnce({ docs: [apprentice] })
+    await expect(getActiveGivingFunds({ find } as never)).resolves.toEqual([{ ...apprentice, studentMinisterRelated: false }])
+    expect(find).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      select: { name: true, code: true, sortOrder: true, isDefault: true, apprenticeRelated: true },
     }))
   })
 

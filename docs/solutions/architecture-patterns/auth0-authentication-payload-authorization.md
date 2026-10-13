@@ -21,7 +21,7 @@ tags:
 
 ## Context
 
-EV Church needed Auth0 SSO for the Payload admin panel while preserving Payload's existing `admin`, `content-lead`, and `editor` permissions. A successful identity-provider login must not automatically grant CMS access, especially because the same Auth0 tenant may later support member-facing authentication.
+Ev Church needed Auth0 SSO for the Payload admin panel while preserving Payload's existing `admin`, `content-lead`, and `editor` permissions. A successful identity-provider login must not automatically grant CMS access, especially because the same Auth0 tenant may later support member-facing authentication.
 
 ## Guidance
 

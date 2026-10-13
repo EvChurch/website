@@ -34,11 +34,19 @@ export type GivingElapsedBucket =
   | '2-5m'
   | 'over-5m'
 
+export type GivingFeedbackReason =
+  | 'change-something'
+  | 'decided-not-to-give'
+  | 'testing'
+  | 'technical-problem'
+  | 'prefer-not-to-say'
+
 export interface GivingAnalyticsProperties {
   step?: GivingAnalyticsStep
   frequency?: GivingAnalyticsFrequency
   outcome?: GivingAnalyticsOutcome
   elapsed_bucket?: GivingElapsedBucket
+  feedback_reason?: GivingFeedbackReason
 }
 
 export type GivingAnalyticsEvent =
@@ -46,6 +54,7 @@ export type GivingAnalyticsEvent =
   | 'giving_step_viewed'
   | 'giving_provider_returned'
   | 'giving_outcome_verified'
+  | 'giving_outcome_feedback'
 
 const DENIED_KEY_PARTS = new Set([
   'amount',

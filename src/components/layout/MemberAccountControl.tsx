@@ -32,8 +32,11 @@ interface MemberAccountControlProps {
 function memberAccountMenuItems(adminHref?: string) {
   return [
     { label: 'Overview', href: '/members' },
-    { label: 'My Service', href: '/members/my-service' },
+    { label: 'Daily Reading', href: '/members/daily-readings' },
     { label: 'Connect Group', href: '/members/connect-groups' },
+    { label: 'Study Resources', href: '/members/connect-group-leader-resources' },
+    { label: 'My Service', href: '/members/my-service' },
+    { label: 'Giving', href: '/members/giving' },
     ...(adminHref ? [{ label: 'Admin', href: adminHref }] : []),
   ]
 }

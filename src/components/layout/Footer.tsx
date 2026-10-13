@@ -153,9 +153,17 @@ export function Footer() {
           </div>
 
           {/* Legal */}
-          <div className="flex items-center gap-4 text-xs text-dark-grey">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-dark-grey sm:justify-end">
+            <span>Auckland Evangelical Church Trust</span>
+            <span aria-hidden="true">&middot;</span>
+            <span>NZ Charities Services CC48476</span>
+            <span aria-hidden="true">&middot;</span>
             <Link href="/privacy" className="transition-colors hover:text-deep-red">
               Privacy Policy
+            </Link>
+            <span aria-hidden="true">&middot;</span>
+            <Link href="/terms" className="transition-colors hover:text-deep-red">
+              Terms of Service
             </Link>
             <span aria-hidden="true">&middot;</span>
             <span>&copy; {new Date().getFullYear()} Ev Church</span>

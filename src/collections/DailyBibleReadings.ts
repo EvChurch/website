@@ -1,10 +1,10 @@
 import type { Access, CollectionConfig } from 'payload'
 
-import { denyExternalMutation, hasPayloadAdminRole } from '@/access/roles'
+import { denyExternalMutation, hasEditorialRole } from '@/access/roles'
 import type { User } from '@/payload-types'
 
 export const readPublishedDailyBibleReadings: Access = ({ req: { user } }) => {
-  if (hasPayloadAdminRole(user as User | null)) return true
+  if (hasEditorialRole(user as User | null)) return true
   return { isPublished: { equals: true } }
 }
 

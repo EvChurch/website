@@ -62,6 +62,17 @@ describe('missing path services', () => {
       .resolves.toBe('/?launcher=reimbursement')
   })
 
+  it.each(['/content/EvChurch/Ev-long-white.png', '/downloads/old.pdf'])(
+    'looks up database redirects for file URL %s', async (source) => {
+      const find = vi.fn().mockResolvedValue({ docs: [{ destination: '/images/global/ev-church-logo.png' }] })
+      await expect(findMissingPathRedirect(source, payload({ find })))
+        .resolves.toBe('/images/global/ev-church-logo.png')
+      expect(find).toHaveBeenCalledWith(expect.objectContaining({
+        where: { path: { equals: source } },
+      }))
+    },
+  )
+
   it('returns no destination for absent, unresolved, or ineligible paths', async () => {
     const unresolved = vi.fn().mockResolvedValue({ docs: [{ destination: null }] })
     expect(await findMissingPathRedirect('/old', payload({ find: unresolved }))).toBeNull()

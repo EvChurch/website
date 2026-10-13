@@ -18,29 +18,33 @@ describe('verifyTurnstileToken', () => {
     turnstileConfig.getTurnstileSecretKey.mockReturnValue('turnstile-secret')
   })
 
-  it('accepts Cloudflare test-mode action metadata outside production', async () => {
-    vi.stubEnv('NODE_ENV', 'development')
-    turnstileConfig.getTurnstileSecretKey.mockReturnValue(
-      '1x0000000000000000000000000000000AA',
-    )
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          success: true,
-          hostname: 'localhost',
-          action: 'test',
-        }),
-        { headers: { 'content-type': 'application/json' } },
-      ),
-    )
+  it.each(['development', 'production'])(
+    'accepts Cloudflare test-mode metadata in %s',
+    async (nodeEnv) => {
+      vi.stubEnv('NODE_ENV', nodeEnv)
+      turnstileConfig.getTurnstileSecretKey.mockReturnValue(
+        '1x0000000000000000000000000000000AA',
+      )
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: true,
+            hostname: 'dummy.example',
+            action: 'test',
+          }),
+          { headers: { 'content-type': 'application/json' } },
+        ),
+      )
 
-    await expect(
-      verifyTurnstileToken({
-        token: 'XXXX.DUMMY.TOKEN.XXXX',
-        expectedAction: 'rock-connection-signup-start',
-      }),
-    ).resolves.toBeUndefined()
-  })
+      await expect(
+        verifyTurnstileToken({
+          token: 'XXXX.DUMMY.TOKEN.XXXX',
+          expectedHostname: 'www.ev.church',
+          expectedAction: 'rock-connection-signup-start',
+        }),
+      ).resolves.toBeUndefined()
+    },
+  )
 
   it('sends the siteverify request and accepts the expected hostname and action', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(

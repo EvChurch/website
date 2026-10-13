@@ -1,8 +1,8 @@
 # Rock Connection Opportunity Signups
 
 This integration renders a Rock RMS 19.2 Connection Opportunity Signup through
-EV Church while keeping Rock as the only submission store. A browser talks only
-to EV endpoints. EV verifies Turnstile, validates a short-lived one-use context,
+Ev Church while keeping Rock as the only submission store. A browser talks only
+to Ev endpoints. Ev verifies Turnstile, validates a short-lived one-use context,
 then calls Rock's Obsidian BlockActions with a server-only, least-privilege Rock
 API identity.
 
@@ -34,12 +34,12 @@ The page and block must meet all of these conditions:
 - Campus, phone, comment-label, status, source, attribute-category, and Lava
   settings reflect the intended business behavior.
 - Every required Connection Request attribute uses a field type supported by
-  the EV adapter. Unsupported configuration makes the block ineligible.
+  the Ev adapter. Unsupported configuration makes the block ineligible.
 
 Rock's CAPTCHA in 19.2 is not Cloudflare Turnstile. The Rock CAPTCHA is disabled
-for this proxy block because EV Turnstile is verified before the server calls
+for this proxy block because Ev Turnstile is verified before the server calls
 Rock. The API credential remains server-only and browser requests cannot call
-Rock directly through EV.
+Rock directly through Ev.
 
 ## Rock API boundary
 
@@ -52,10 +52,10 @@ needed to discover the configured block and opportunity and invoke:
 
 Do not reuse a Rock administrator's API key. The API identity must not have Rock
 admin access or unrelated data permissions. Rock rate limiting is defense in
-depth; EV Turnstile, one-use contexts, and application rate limits remain the
+depth; Ev Turnstile, one-use contexts, and application rate limits remain the
 public abuse boundary.
 
-EV sends `Authorization-Token` only from server code to the fixed HTTPS Rock
+Ev sends `Authorization-Token` only from server code to the fixed HTTPS Rock
 origin. The same `ROCK_API_KEY` authenticates discovery, runtime eligibility
 rechecks, initialization, and Signup. It is never returned to the browser.
 
@@ -138,10 +138,10 @@ contract, or Turnstile secret must make Connection Signup unavailable.
    ID, path, order, layout, count, or version.
 5. Deploy the code and seed/migration with the final eligible block GUID.
 6. Perform read-only browser QA on Newish, Contact, and a complex Workflow form
-   at desktop and mobile widths. Confirm browser network traffic stays on EV
+   at desktop and mobile widths. Confirm browser network traffic stays on Ev
    origins. Enter no real personal data and stop before any final submission.
 7. In a separately authorized non-production Rock environment, submit one
-   clearly synthetic request through the complete EV-to-Rock path, verify the
+   clearly synthetic request through the complete Ev-to-Rock path, verify the
    resulting Connection Request and supported fields, and clean it up.
 8. Record the non-production receipt and approve activation. Production browser
    QA still stops before Signup; never use a production Connection Request as a
@@ -157,11 +157,11 @@ Record only:
 
 - environment and timestamp;
 - deployed revision;
-- EV correlation ID and normalized result class;
+- Ev correlation ID and normalized result class;
 - Rock Connection Request ID;
 - expected field names and pass/fail outcomes, without values;
 - cleanup operator, timestamp, and result;
-- direct-denial and EV-refresh pass/fail outcomes.
+- direct-denial and Ev-refresh pass/fail outcomes.
 
 Do not record names, email addresses, phone numbers, comments, attribute values,
 Turnstile tokens, signed contexts, IP addresses, request/response bodies,
@@ -179,13 +179,13 @@ contexts, and headers must not be logged.
 
 - **Discovery unavailable:** verify the API key and candidate eligibility. Do
   not offer free-form GUID entry.
-- **Rock authorization denied from EV:** verify the API identity's page, block,
+- **Rock authorization denied from Ev:** verify the API identity's page, block,
   opportunity, and connection-type permissions. Do not grant administrator or
   unrelated data access.
 - **Unauthenticated direct request reaches Rock:** deactivate the proxy block
   and restore the Rock authorization boundary before re-enabling Newish.
 - **CAPTCHA mismatch:** confirm both raw `Disable Captcha Support = Yes` and
-  effective initialization `true`. Do not attempt to pass an EV Turnstile token
+  effective initialization `true`. Do not attempt to pass an Ev Turnstile token
   to Rock CAPTCHA.
 - **Nonce or rate store unavailable:** fail closed and repair the application
   database. Do not fall back to process memory in a multi-instance deployment.

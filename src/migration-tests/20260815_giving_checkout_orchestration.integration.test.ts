@@ -10,12 +10,16 @@ import { GIVING_PILOT_UP_SQL } from '../migrations/20260815_170000_giving_pilot'
 import { GIVING_CHECKOUT_ORCHESTRATION_UP_SQL } from '../migrations/20260815_230000_giving_checkout_orchestration'
 import { GIVING_BANK_CODE_UP_SQL } from '../migrations/20260817_010000_giving_bank_code'
 import { GIVING_BANK_ACKNOWLEDGEMENT_UP_SQL } from '../migrations/20260817_020000_giving_bank_acknowledgement'
+import { GIVING_EMAIL_DELIVERIES_UP_SQL } from '../migrations/20260822_010000_giving_email_deliveries'
+import { GIVING_TRANSACTION_FEES_UP_SQL } from '../migrations/20260903_010000_giving_transaction_fees'
+import { createGivingEmailStore } from '../lib/giving/email'
 
 const databaseUrl = process.env.GIVING_MIGRATION_TEST_DATABASE_URL
 
 function assertDisposable(value: string) {
   const url = new URL(value)
-  if (!['localhost', '127.0.0.1'].includes(url.hostname) || url.pathname !== '/giving_pilot_test') {
+  const local = ['localhost', '127.0.0.1'].includes(url.hostname) || url.hostname === '' && url.searchParams.get('host') === '/var/run/postgresql'
+  if (!local || url.pathname !== '/giving_pilot_test') {
     throw new Error('GIVING_MIGRATION_TEST_DATABASE_URL must target local database giving_pilot_test')
   }
 }
@@ -34,10 +38,47 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     await pool.query(GIVING_CHECKOUT_ORCHESTRATION_UP_SQL)
     await pool.query(GIVING_BANK_CODE_UP_SQL)
     await pool.query(GIVING_BANK_ACKNOWLEDGEMENT_UP_SQL)
+    await pool.query(GIVING_EMAIL_DELIVERIES_UP_SQL)
+    await pool.query(GIVING_TRANSACTION_FEES_UP_SQL)
+    await pool.query(`
+      CREATE TABLE support_profiles(id serial PRIMARY KEY,name varchar,email varchar,published boolean DEFAULT false);
+      ALTER TABLE giving_funds ADD COLUMN support_profile_id integer REFERENCES support_profiles(id);
+      ALTER TABLE giving_email_deliveries ADD COLUMN recipient_email varchar, ADD COLUMN recipient_name varchar;
+      ALTER TABLE giving_email_deliveries DROP CONSTRAINT giving_email_deliveries_kind_check;
+      ALTER TABLE giving_email_deliveries ADD CONSTRAINT giving_email_deliveries_kind_check CHECK(kind IN ('bank-transfer-details','bank-transfer-thanks','blinkpay-thanks','blinkpay-support'));
+    `)
     await pool.query("INSERT INTO giving_funds(name,code,accounting_key,is_default) VALUES('General','GEN','general',true)")
   })
 
   async function seedScope(_scope: string) { return 0 }
+
+  it.each([
+    { environment: 'production' as const, synthetic: false, notified: true },
+    { environment: 'sandbox' as const, synthetic: true, notified: false },
+  ])('snapshots support recipients only for real production gifts ($environment, synthetic=$synthetic)', async ({ environment, synthetic, notified }) => {
+    const repository = createPostgresGivingCheckoutRepository(pool)
+    await pool.query("INSERT INTO support_profiles(name,email,published) VALUES('Liz Halliday','liz@example.com',false)")
+    await pool.query('UPDATE giving_funds SET support_profile_id=1 WHERE id=1')
+    const contextKey = environment
+    const created = await repository.createOrReuse({ ...input('support-email', 0), contextKey, environment, synthetic })
+    const giver = await pool.query<{ id: number }>("INSERT INTO giving_givers(context_key,environment,synthetic,rock_person_alias_id,bank_reference,name,email) VALUES($1,$1,$2,700,'EV700','Ada Lovelace','ada@example.com') RETURNING id", [contextKey,synthetic])
+    await pool.query("UPDATE giving_checkouts SET giver_id=$2,status='verifying' WHERE id=$1", [created.checkout.id,giver.rows[0].id])
+    const checkout = (await repository.get(created.checkout.id))!
+    await repository.completeOneOff(checkout, 'support-payment', new Date())
+    const notifications = await pool.query<{ id: number; recipient_email: string; recipient_name: string }>("SELECT id,recipient_email,recipient_name FROM giving_email_deliveries WHERE kind='blinkpay-support'")
+    expect(notifications.rows).toHaveLength(notified ? 1 : 0)
+    if (notified) {
+      expect(notifications.rows[0]).toMatchObject({ recipient_email: 'liz@example.com', recipient_name: 'Liz Halliday' })
+      await pool.query("UPDATE support_profiles SET email='changed@example.com'")
+      const store = createGivingEmailStore(pool)
+      const claim = await store.claim(notifications.rows[0].id)
+      expect(claim.status).toBe('claimed')
+      if (claim.status === 'claimed') expect(claim.delivery).toMatchObject({ recipientEmail: 'liz@example.com', email: 'ada@example.com', name: 'Ada Lovelace' })
+      expect((await store.claim(notifications.rows[0].id)).status).toBe('skipped')
+      await expect(repository.completeOneOff(checkout,'support-payment',new Date())).rejects.toBeInstanceOf(GivingCheckoutError)
+      expect((await pool.query("SELECT count(*)::integer AS count FROM giving_email_deliveries WHERE kind='blinkpay-support'")).rows[0].count).toBe(1)
+    }
+  })
 
   function input(scope: string, _scopeId: number, overrides: { keyDigest?: string; requestDigest?: string; returnDigest?: string } = {}) {
     return {
@@ -45,7 +86,7 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
       environment: 'sandbox' as const,
       synthetic: true,
       submission: {
-        submissionKey: 'A'.repeat(43), amountMinor: 2500, fundId: 1, frequency: 'one-off' as const,
+        submissionKey: 'A'.repeat(43), amountMinor: 2500, transactionFeeMinor: 50, fundId: 1, frequency: 'one-off' as const,
         firstPaymentDate: null, firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.com', turnstileToken: 'token',
       },
       submissionKeyDigest: overrides.keyDigest ?? `key-${scope}`,
@@ -70,10 +111,14 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     const repository = createPostgresGivingCheckoutRepository(pool)
     const run = await seedScope('bank-ack')
     const created = await repository.createOrReuse(input('bank-ack', run, { returnDigest: 'bank-ack-digest' }))
+    await bindGiver(created.checkout.id, 'bank-ack', run, 127)
     const now = new Date()
+    const detailsDeliveryId = await repository.markBankTransferPrepared(created.checkout.id, now)
+    expect(await repository.markBankTransferPrepared(created.checkout.id, now)).toBe(detailsDeliveryId)
     expect(await repository.acknowledgeBankSetup('bank-ack-digest', now)).toBe(true)
     expect(await repository.acknowledgeBankSetup('bank-ack-digest', now)).toBe(true)
     expect((await pool.query('SELECT status,bank_setup_acknowledged_at FROM giving_checkouts WHERE id=$1', [created.checkout.id])).rows[0]).toMatchObject({ status: 'draft', bank_setup_acknowledged_at: now })
+    expect((await pool.query('SELECT kind FROM giving_email_deliveries WHERE checkout_id=$1 ORDER BY kind',[created.checkout.id])).rows).toEqual([{kind:'bank-transfer-details'},{kind:'bank-transfer-thanks'}])
   })
 
   it('transitions a prepared Rock operation without ambiguous PostgreSQL parameter types', async () => {
@@ -143,7 +188,7 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     expect((await pool.query('SELECT return_capability_digest FROM giving_checkouts WHERE id=$1', [checkout.id])).rows[0].return_capability_digest).toBe('return-rotated')
   })
 
-  it('keeps a live hosted return capability and recovers instead of rotating after consumption', async () => {
+  it('rotates a live hosted return capability and recovers instead of rotating after consumption', async () => {
     const repository = createPostgresGivingCheckoutRepository(pool)
     const run = await seedScope('hosted-reuse')
     const initialInput = input('hosted-reuse', run, { returnDigest: 'return-hosted-original' })
@@ -158,13 +203,13 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
 
     const reused = await repository.createOrReuse({ ...initialInput, returnCapabilityDigest: 'return-hosted-retry', currentTime: new Date() })
     expect(reused.disposition).toBe('redirect')
-    expect((await pool.query('SELECT return_capability_digest FROM giving_checkouts WHERE id=$1',[checkout.id])).rows[0].return_capability_digest).toBe('return-hosted-original')
+    expect((await pool.query('SELECT return_capability_digest FROM giving_checkouts WHERE id=$1',[checkout.id])).rows[0].return_capability_digest).toBe('return-hosted-retry')
 
     const now = new Date()
-    await repository.consumeReturn('return-hosted-original', 'provider-hosted', now, 'status-hosted', 'status-hosted', new Date(now.getTime()+60_000))
+    await repository.consumeReturn('return-hosted-retry', 'provider-hosted', now, 'status-hosted', 'status-hosted', new Date(now.getTime()+60_000))
     const consumed = await repository.createOrReuse({ ...initialInput, returnCapabilityDigest: 'return-hosted-must-not-rotate', currentTime: new Date() })
     expect(consumed.disposition).toBe('recover')
-    expect((await pool.query('SELECT return_capability_digest FROM giving_checkouts WHERE id=$1',[checkout.id])).rows[0].return_capability_digest).toBe('return-hosted-original')
+    expect((await pool.query('SELECT return_capability_digest FROM giving_checkouts WHERE id=$1',[checkout.id])).rows[0].return_capability_digest).toBe('return-hosted-retry')
 
     const expiredRun = await seedScope('hosted-expired')
     const expiredInput = input('hosted-expired', expiredRun, { returnDigest: 'return-hosted-expired-original' })
@@ -239,7 +284,8 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
       INSERT INTO giving_gifts(context_key,environment,synthetic,checkout_id,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,provider_payment_id,status)
       VALUES($1,'sandbox',true,$2,$3,1,'General','GEN','general',2500,'payment-existing','settled')
     `, [checkout.contextKey, checkout.id, giverId])
-    await expect(repository.completeOneOff(checkout, 'payment-different', new Date())).rejects.toBeInstanceOf(GivingCheckoutError)
+    // A different payment for the same one-off checkout is rejected by PostgreSQL's unique constraint.
+    await expect(repository.completeOneOff(checkout, 'payment-different', new Date())).rejects.toMatchObject({ code: '23505' })
     expect((await repository.get(checkout.id))?.status).toBe('verifying')
 
     const consent = await pool.query<{ id: number }>(`
@@ -280,7 +326,7 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     const checkout = (await repository.get(created.checkout.id))!
     const consentProviderId = '22222222-2222-4222-8222-222222222223'
     const consent = await repository.recordConsentAuthorised(checkout, consentProviderId, new Date('2026-08-15T00:00:00Z'))
-    const scheduleRequestDigest = createHash('sha256').update(JSON.stringify({ action:'blinkpay.create-schedule',checkoutId:checkout.id,contextKey:checkout.contextKey,amountMinor:checkout.amountMinor,frequency:checkout.frequency,firstPaymentDate:checkout.firstPaymentDate,fundCode:checkout.fundCode,bankReference:checkout.bankReference })).digest('hex')
+    const scheduleRequestDigest = createHash('sha256').update(JSON.stringify({ action:'blinkpay.create-schedule',checkoutId:checkout.id,contextKey:checkout.contextKey,amountMinor:checkout.amountMinor,transactionFeeMinor:checkout.transactionFeeMinor,frequency:checkout.frequency,firstPaymentDate:checkout.firstPaymentDate,fundCode:checkout.fundCode,bankReference:checkout.bankReference })).digest('hex')
     const operation = await repository.prepareOperation(checkout, 'blinkpay.create-schedule', scheduleRequestDigest, {
       requestId: 'request-key-recovery-0001', idempotencyKey: 'idempotency-recovery-0001',
     })
@@ -292,7 +338,7 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
     const createFixedRecurringPayment = vi.fn()
     const getFixedRecurringPayment = vi.fn().mockResolvedValue({
       fixed_recurring_payment_id: providerScheduleId, consent_id: consentProviderId, status: 'active',
-      start_date: '2026-09-01', next_payment_date: '2026-09-01', amount: { total: '25.00', currency: 'NZD' },
+      start_date: '2026-09-01', next_payment_date: '2026-09-01', amount: { total: '25.50', currency: 'NZD' },
       pcr: { particulars: 'GEN', reference: 'EV323' }, retry_strategy: 'same_day', creation_timestamp: '2026-08-15T00:00:00Z',
     })
     const service = createGivingCheckoutService({
@@ -304,19 +350,20 @@ describe.skipIf(!databaseUrl)('giving checkout PostgreSQL concurrency and confli
       } as never,
       resolveIdentity: vi.fn(), digestSecret: 's'.repeat(32), now: () => new Date('2026-08-15T00:01:00Z'),
     })
-    expect(checkout).toMatchObject({ firstPaymentDate:'2026-09-01',amountMinor:2500,frequency:'monthly' })
+    expect(checkout).toMatchObject({ firstPaymentDate:'2026-09-01',amountMinor:2500,transactionFeeMinor:50,frequency:'monthly' })
     expect(await repository.findOperation(checkout.id,'blinkpay.create-schedule')).toMatchObject({ providerId:providerScheduleId,status:'unknown' })
     await service.continueRecurring(checkout, consentProviderId)
 
     expect(createFixedRecurringPayment).not.toHaveBeenCalled()
     expect(getFixedRecurringPayment).toHaveBeenCalledWith(providerScheduleId)
-    expect((await pool.query(`SELECT context_key,environment,synthetic,checkout_id,giver_id,consent_id,provider_schedule_id,status,frequency,amount_minor
+    expect((await pool.query(`SELECT context_key,environment,synthetic,checkout_id,giver_id,consent_id,provider_schedule_id,status,frequency,amount_minor,transaction_fee_minor
       FROM giving_schedules WHERE checkout_id=$1`,[checkout.id])).rows).toEqual([{
       context_key:checkout.contextKey,environment:'sandbox',synthetic:true,checkout_id:checkout.id,giver_id:checkout.giverId,
-      consent_id:consent,provider_schedule_id:providerScheduleId,status:'active',frequency:'monthly',amount_minor:'2500',
+      consent_id:consent,provider_schedule_id:providerScheduleId,status:'active',frequency:'monthly',amount_minor:'2500',transaction_fee_minor:'50',
     }])
     expect((await repository.findOperation(checkout.id,'blinkpay.create-schedule'))?.status).toBe('succeeded')
     expect((await repository.get(checkout.id))?.status).toBe('completed')
+    expect((await pool.query('SELECT kind FROM giving_email_deliveries WHERE checkout_id=$1',[checkout.id])).rows).toEqual([{kind:'blinkpay-thanks'}])
   })
 
   it('increments layered rate-limit buckets atomically across connections', async () => {

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   CONNECTION_OPPORTUNITY_SIGNUP_BLOCK_TYPE_GUID,
   initializeRockConnectionSignup,
+  isEligibleRockConnectionSignup,
   listEligibleRockConnectionSignups,
   RockConnectionSignupOutcomeUnknownError,
   sendRockConnectionSignup,
@@ -46,8 +47,8 @@ function pageMetadata(overrides: Record<string, unknown> = {}) {
   return {
     Id: 42,
     Guid: pageGuid,
-    InternalName: 'EV Newish proxy',
-    PageTitle: 'EV Newish proxy',
+    InternalName: 'Ev Newish proxy',
+    PageTitle: 'Ev Newish proxy',
     ...overrides,
   }
 }
@@ -119,7 +120,7 @@ describe('Rock connection signup server adapter', () => {
       {
         blockGuid,
         opportunityGuid,
-        label: 'Newish — EV Newish proxy — Newish signup proxy',
+        label: 'Newish — Ev Newish proxy — Newish signup proxy',
       },
     ])
 
@@ -141,7 +142,7 @@ describe('Rock connection signup server adapter', () => {
       {
         blockGuid: rockGuid,
         opportunityGuid,
-        label: 'Newish — EV Newish proxy — Newish signup proxy',
+        label: 'Newish — Ev Newish proxy — Newish signup proxy',
       },
     ])
   })
@@ -375,6 +376,15 @@ describe('Rock connection signup server adapter', () => {
       initializeRockConnectionSignup('../other-origin'),
     ).rejects.toThrow('valid block')
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('reports a known-ineligible Connection Opportunity without treating Rock as unavailable', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      jsonResponse([metadataBlock({ IsActive: false })]),
+    )
+
+    await expect(isEligibleRockConnectionSignup(blockGuid)).resolves.toBe(false)
+    expect(fetchMock).toHaveBeenCalledOnce()
   })
 
   it('does not retry a timed-out refresh', async () => {

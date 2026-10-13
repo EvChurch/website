@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const state = vi.hoisted(() => ({
   options: undefined as
     | {
+      domain: string
       beforeSessionSaved(
         session: { user: Record<string, unknown> },
       ): Promise<Record<string, unknown>>
@@ -46,7 +47,7 @@ vi.mock('./auth0-config', () => ({
     clientId: 'client',
     clientSecret: 'secret',
     domain: 'login.ev.church',
-    issuer: 'https://login.ev.church/',
+    issuer: 'https://tenant.au.auth0.com/',
     secret: 'a'.repeat(64),
   }),
 }))
@@ -93,6 +94,17 @@ describe('Auth0 callback', () => {
       }),
     )
     expect(state.options!.session).not.toHaveProperty('inactivityDuration')
+  })
+
+  it('uses the login domain for the SDK and the stable issuer for Payload accounts', async () => {
+    provisionAuth0User.mockResolvedValue({ roles: ['editor'] })
+    await callback()(null, { returnTo: '/admin' }, verifiedSession)
+
+    expect(state.options?.domain).toBe('login.ev.church')
+    expect(provisionAuth0User).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ issuer: 'https://tenant.au.auth0.com/', subject: 'auth0|123' }),
+    )
   })
 
   it('stores the resolved Rock profile in the shared Auth0 session', async () => {

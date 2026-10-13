@@ -1,5 +1,7 @@
 'use client'
 
+import Image from 'next/image'
+
 import {
   useCallback,
   useEffect,
@@ -9,6 +11,7 @@ import {
   useState,
   type RefObject,
 } from 'react'
+import { CONNECT_GROUP_WORKFLOW_GUID } from '@/lib/connect-groups/constants'
 import { SafeRockHtml } from './SafeRockHtml'
 import { FormSelect } from './FormSelect'
 import { CalendarDatePicker } from './CalendarDatePicker'
@@ -22,7 +25,7 @@ import {
   ROCK_FORM_START_ACTION,
   ROCK_FORM_SUBMIT_ACTION,
 } from '@/lib/rock-forms/constants'
-import { parseJson } from '@/lib/rock-forms/schema'
+import { defaultPersonEntryValues, parseJson } from '@/lib/rock-forms/schema'
 import {
   isCompleteResponse,
   isRockFormSchema,
@@ -81,6 +84,8 @@ function PersonFields({
   const visible = (option: number) => option !== 0
   const required = (option: number) => option === 2
   const fieldPrefix = prefix ? `${prefix} ` : ''
+  const birthDateId = useId()
+  const [isBirthDateOpen, setIsBirthDateOpen] = useState(false)
 
   return (
     <div className="grid gap-5 @md/rock-form:grid-cols-2">
@@ -152,17 +157,25 @@ function PersonFields({
         </label>
       )}
       {visible(configuration.birthDateOption) && (
-        <label className={labelClass}>
-          {fieldPrefix}Date of birth
-          {required(configuration.birthDateOption) && ' *'}
-          <input
-            className={inputClass}
-            type="date"
-            value={String(values.personBirthDate || '').slice(0, 10)}
-            onChange={(event) => set('personBirthDate', event.target.value)}
-            required={required(configuration.birthDateOption)}
-          />
-        </label>
+        <div className="min-w-0">
+          <label htmlFor={birthDateId} className={labelClass}>
+            {fieldPrefix}Date of birth
+            {required(configuration.birthDateOption) && ' *'}
+          </label>
+          <div className="mt-2">
+            <CalendarDatePicker
+              id={birthDateId}
+              clearable
+              label={`${fieldPrefix}Date of birth`}
+              startDate={String(values.personBirthDate || '').slice(0, 10)}
+              isOpen={isBirthDateOpen}
+              onOpen={() => setIsBirthDateOpen((open) => !open)}
+              onComplete={() => setIsBirthDateOpen(false)}
+              onChange={(date) => set('personBirthDate', date)}
+              required={required(configuration.birthDateOption)}
+            />
+          </div>
+        </div>
       )}
       {configuration.isSmsVisible && (
         <label className="flex items-start gap-3 text-sm text-dark-grey @md/rock-form:col-span-2">
@@ -465,6 +478,18 @@ function withPersonDefaults(
   }
 }
 
+function initialPersonEntryState(
+  schema: RockFormSchema | null | undefined,
+  defaults?: { name: string; email: string } | null,
+) {
+  if (!schema?.personEntry) return null
+
+  return withPersonDefaults(
+    schema.initialPersonEntryValues || defaultPersonEntryValues(),
+    defaults,
+  )
+}
+
 function PersonSearchField({
   value,
   contextToken,
@@ -581,14 +606,49 @@ function PersonSearchField({
   )
 }
 
-export function RockForm({
+export function RockForm(props: Parameters<typeof WorkflowForm>[0]) {
+  const [confirmedGroup, setConfirmedGroup] = useState<string | null>(null)
+  if (props.workflowTypeGuid.toLowerCase() !== CONNECT_GROUP_WORKFLOW_GUID) {
+    return <WorkflowForm {...props} />
+  }
+  const showNewish = confirmedGroup !== (props.groupGuid || 'unselected')
+  return (
+    <>
+      <Image
+        src={showNewish
+          ? '/images/newish/newish-connect-banner.jpg'
+          : '/images/connect-groups/connect-groups-banner.jpg'}
+        alt={showNewish ? 'Newish Connect' : 'Connect Groups'}
+        width={1920}
+        height={1080}
+        sizes="(max-width: 640px) 100vw, 768px"
+        loading="eager"
+        className="mb-6 h-auto w-full"
+      />
+      {showNewish ? (
+        <div className="mx-auto max-w-xl space-y-6 px-4 py-6 text-center">
+          <h2 className="font-serif text-3xl">Start with Newish</h2>
+          <p className="text-dark-grey">Newish is a great way to get to know Ev Church and take your next step into community. If you have already completed Newish, you can continue to register for this Connect Group.</p>
+          <div className="flex flex-col items-center gap-4">
+            <Button href="/newish">Explore Newish</Button>
+            <Button type="button" variant="text" onClick={() => setConfirmedGroup(props.groupGuid || 'unselected')}>I’ve completed Newish</Button>
+          </div>
+        </div>
+      ) : <WorkflowForm {...props} />}
+    </>
+  )
+}
+
+function WorkflowForm({
   workflowTypeGuid,
+  groupGuid,
   initialSchema = null,
   fallbackAction = DEFAULT_FORM_FALLBACK_ACTION,
   scrollContainerRef,
   personDefaults,
 }: {
   workflowTypeGuid: string
+  groupGuid?: string
   initialSchema?: RockFormSchema | null
   fallbackAction?: FormFallbackAction
   scrollContainerRef?: RefObject<HTMLElement | null>
@@ -603,10 +663,7 @@ export function RockForm({
   )
   const [personEntryValues, setPersonEntryValues] =
     useState<RockPersonEntryValues | null>(
-      withPersonDefaults(
-        initialSchema?.initialPersonEntryValues || null,
-        personDefaults,
-      ),
+      initialPersonEntryState(initialSchema, personDefaults),
     )
   const [files, setFiles] = useState<Record<string, File>>({})
   const [turnstileToken, setTurnstileToken] = useState('')
@@ -633,9 +690,7 @@ export function RockForm({
   const applySchema = useCallback((nextSchema: RockFormSchema) => {
     setSchema(nextSchema)
     setFieldValues(nextSchema.initialFieldValues)
-    setPersonEntryValues(
-      withPersonDefaults(nextSchema.initialPersonEntryValues, personDefaults),
-    )
+    setPersonEntryValues(initialPersonEntryState(nextSchema, personDefaults))
     setFiles({})
     setTurnstileToken('')
     setTurnstileResetKey((key) => key + 1)
@@ -646,9 +701,7 @@ export function RockForm({
       setSchema(initialSchema)
       setStartupSiteKey(initialSchema.turnstileSiteKey)
       setFieldValues(initialSchema.initialFieldValues)
-      setPersonEntryValues(
-        withPersonDefaults(initialSchema.initialPersonEntryValues, personDefaults),
-      )
+      setPersonEntryValues(initialPersonEntryState(initialSchema, personDefaults))
       setFiles({})
       setError('')
       setLoading(false)
@@ -689,7 +742,7 @@ export function RockForm({
       startController.current?.abort()
       submitController.current?.abort()
     }
-  }, [workflowTypeGuid, initialSchema, startupRetryKey, personDefaults])
+  }, [workflowTypeGuid, groupGuid, initialSchema, startupRetryKey, personDefaults])
 
   const startForm = useCallback(
     async (token: string) => {
@@ -703,6 +756,7 @@ export function RockForm({
         const body = new FormData()
         body.set('intent', 'start')
         body.set('turnstileToken', token)
+        if (groupGuid) body.set('groupGuid', groupGuid)
         const response = await fetch(`/api/rock-entry-forms/${workflowTypeGuid}`, {
           method: 'POST',
           body,
@@ -726,7 +780,7 @@ export function RockForm({
         }
       }
     },
-    [workflowTypeGuid, applySchema],
+    [workflowTypeGuid, groupGuid, applySchema],
   )
 
   const fieldsBySection = useMemo(() => {

@@ -14,7 +14,7 @@ deepened: 2026-08-06
 
 ## Goal Capsule
 
-- **Objective:** Replace Payload's local admin credential flow with EV Church Auth0 SSO while retaining Payload user records and authorization.
+- **Objective:** Replace Payload's local admin credential flow with Ev Church Auth0 SSO while retaining Payload user records and authorization.
 - **Product authority:** This plan owns authentication for the Payload admin panel only. Member sign-in, Rock identity linking, and member-facing access are surrounding future work, not active scope.
 - **Open blockers:** None. The first administrator is established by a one-time direct PostgreSQL role promotion after their initial SSO login.
 - **Authority order:** Product Contract requirements and session-settled decisions override the Planning Contract; KTDs override unit-local preferences.
@@ -28,11 +28,11 @@ deepened: 2026-08-06
 
 ### Summary
 
-The Payload admin panel will use EV Church's existing Auth0 tenant for sign-in. Auth0 will establish identity, while Payload will keep one local user record per admin identity and remain the source of truth for roles and permissions.
+The Payload admin panel will use Ev Church's existing Auth0 tenant for sign-in. Auth0 will establish identity, while Payload will keep one local user record per admin identity and remain the source of truth for roles and permissions.
 
 ### Problem Frame
 
-EV Church already uses Auth0 SSO and allows users to choose an established identity provider. Payload's separate email-and-password login would introduce another credential system for the same staff and would separate website administration from EV Church's existing sign-in experience.
+Ev Church already uses Auth0 SSO and allows users to choose an established identity provider. Payload's separate email-and-password login would introduce another credential system for the same staff and would separate website administration from Ev Church's existing sign-in experience.
 
 The site is not yet in production, so existing development user accounts do not need migration or transitional password access.
 
@@ -44,7 +44,7 @@ The site is not yet in production, so existing development user accounts do not 
 
 ```mermaid
 flowchart TB
-  A["Staff visits /admin"] --> B["EV Church Auth0 SSO"]
+  A["Staff visits /admin"] --> B["Ev Church Auth0 SSO"]
   B --> C["Stable Auth0 identity"]
   C --> D["Payload user record"]
   D --> E["Payload roles and permissions"]
@@ -56,8 +56,8 @@ flowchart TB
 
 **Admin sign-in and identity**
 
-- R1. A signed-out visitor to `/admin` is redirected immediately to EV Church Auth0 without first seeing the Payload password form.
-- R2. After successful authentication, the user returns to the intended location within `/admin`; return destinations must remain within the EV Church site.
+- R1. A signed-out visitor to `/admin` is redirected immediately to Ev Church Auth0 without first seeing the Payload password form.
+- R2. After successful authentication, the user returns to the intended location within `/admin`; return destinations must remain within the Ev Church site.
 - R3. Auth0 is the sole verifier of admin login credentials, and Payload's email-and-password login, password reset, and password fallback are unavailable.
 - R4. A successful Auth0 admin sign-in resolves to one local Payload `users` record using the stable Auth0 identity; the record is created on first sign-in when absent.
 - R5. A newly created Payload user has no role and cannot access the admin panel until an existing Payload administrator assigns a role.
@@ -83,8 +83,8 @@ flowchart TB
 
 ### Actors
 
-- A1. **EV Church staff user:** Signs in through the existing SSO choices and uses Payload according to their locally stored role.
-- A2. **Auth0:** Verifies identity and returns the stable, linked identity already used by EV Church SSO.
+- A1. **Ev Church staff user:** Signs in through the existing SSO choices and uses Payload according to their locally stored role.
+- A2. **Auth0:** Verifies identity and returns the stable, linked identity already used by Ev Church SSO.
 - A3. **Payload:** Maintains the local user record, roles, permissions, and admin access decisions.
 - A4. **Payload access administrator:** Verifies a staff access request and assigns or removes an existing Payload role without changing Auth0 identity data.
 - A5. **Trusted deployment operator:** Performs the audited initial-admin bootstrap or emergency lockout recovery against a verified database target.
@@ -136,7 +136,7 @@ flowchart TB
 
 ### Acceptance Examples
 
-- AE1. **Covers R1-R5, R11.** Given an EV Church SSO user has never used Payload, when they visit `/admin` and complete Auth0 login, then one roleless Payload user is created, panel access is denied, and the user is told to ask an administrator for access.
+- AE1. **Covers R1-R5, R11.** Given an Ev Church SSO user has never used Payload, when they visit `/admin` and complete Auth0 login, then one roleless Payload user is created, panel access is denied, and the user is told to ask an administrator for access.
 - AE2. **Covers R5-R7, R11.** Given an administrator assigns the new user the `editor` role, when that user signs in again, then the same Payload record opens the panel with editor permissions.
 - AE3. **Covers R4, R6-R7.** Given an existing Payload user has been promoted from `editor` to `content-lead`, when that person signs in again through either linked Auth0 provider, then Payload resolves the same user record and applies `content-lead` permissions.
 - AE4. **Covers R2.** Given a user starts sign-in from a nested admin page, when authentication succeeds, then they return to that safe admin destination rather than an external or untrusted URL.
@@ -177,7 +177,7 @@ This plan owns Payload admin SSO. The broader identity direction below is contex
 
 ### Dependencies and Assumptions
 
-- EV Church's Auth0 tenant and application configuration are available for the site environments.
+- Ev Church's Auth0 tenant and application configuration are available for the site environments.
 - Auth0 already offers the intended provider choices and links a person's provider identities into one stable Auth0 user.
 - Only the admin authentication context established by this feature can provision a Payload admin user; sharing the tenant does not make every future Auth0 application an admin authority.
 - Existing Payload user data is development-only and can be removed without migration or rollback requirements.
@@ -259,7 +259,7 @@ sequenceDiagram
 - Because Payload's built-in CSRF checks are tied to its local cookie strategy, require the Auth0 request adapter to enforce the configured canonical `Origin` and a documented `Sec-Fetch-Site` fallback before accepting cookie-authenticated state-changing requests.
 - Provision only inside Auth0 SDK `onCallback`, after the SDK validates the one-time callback transaction. Do not expose a separate completion endpoint or accept provisioning from ordinary authenticated requests.
 - Keep an explicit required, unique, indexed email profile field when local strategy fields are disabled. Preserve the existing email column, but remove password, reset-token, API-key, and Payload-session credential paths.
-- The production admin Auth0 application must use approved EV Church identity connections, MFA or equivalent strong assurance for privileged staff, and the tenant's brute-force and breached-credential protections. Any exception is a recorded deployment risk.
+- The production admin Auth0 application must use approved Ev Church identity connections, MFA or equivalent strong assurance for privileged staff, and the tenant's brute-force and breached-credential protections. Any exception is a recorded deployment risk.
 
 ### Risks and Dependencies
 
@@ -376,7 +376,7 @@ sequenceDiagram
 - **Dependencies:** U2, U3.
 - **Files:** `src/components/admin/Auth0PendingAccess.tsx`, `src/components/admin/Auth0PendingAccess.test.tsx`, `src/components/admin/Auth0LogoutButton.tsx`, `src/components/admin/Auth0LogoutButton.test.tsx`, `src/app/(frontend)/auth/pending/page.tsx`, `src/app/(frontend)/auth/error/page.tsx`, `payload.config.ts`, `src/app/(payload)/admin/importMap.js` (generated; do not hand-edit).
 - **Approach:** Use a dedicated non-cacheable pending route and only Payload 3.80-supported component/view slots verified against the installed types; `beforeLogin` is additive and must not be treated as a replacement. Callback completion routes roleless users to `/auth/pending`, authorized users to their safe intended admin destination, and invalid sessions back through sign-in. Later roleless `/admin` requests must resolve to pending without exposing Payload's login form or looping. Check-again loads fresh roles, returns to the safe destination on success, and otherwise stays pending with an announced status. Replace the Payload-only logout action with full navigation to the SDK logout route and the canonical `/` destination; clear the tenant SSO session without federated provider logout.
-- **Patterns to follow:** Use `payload.config.ts` custom-component paths and regenerate the Payload import map. Match existing EV Church page styling without broad visual changes.
+- **Patterns to follow:** Use `payload.config.ts` custom-component paths and regenerate the Payload import map. Match existing Ev Church page styling without broad visual changes.
 - **Test scenarios:**
   - Covers AE1. A valid roleless identity sees the pending message and never sees admin content or a Payload password form.
   - Covers AE2. Check-again admits the same session after an administrator assigns a role.

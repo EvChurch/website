@@ -21,10 +21,10 @@ describe('loadSiteFeedbackSettings', () => {
     findGlobal.mockReset()
   })
 
-  it('caches only the default-time public settings with a time-safe fallback', () => {
+  it('caches public launcher settings', () => {
     expect(cacheMocks.unstableCache).toHaveBeenCalledWith(
       expect.any(Function),
-      ['public-site-feedback-settings'],
+      ['public-launcher-feedback-settings'],
       { tags: ['site-settings'], revalidate: 300 },
     )
   })
@@ -34,23 +34,17 @@ describe('loadSiteFeedbackSettings', () => {
       feedback: {
         enabled: true,
         notificationRecipient: 'private-recipient@ev.church',
-        bannerCopy: null,
-        ctaLabel: null,
         modalTitle: 'Tell us what you think',
         modalIntro: 'Your feedback helps us improve.',
-        dismissalVersion: '  v2  ',
         endDate: null,
       },
     })
 
     await expect(
-      loadSiteFeedbackSettings(new Date('2026-08-12T12:00:00Z')),
+      loadSiteFeedbackSettings(),
     ).resolves.toEqual({
-      bannerCopy: 'Help us improve the new ev.church.',
-      ctaLabel: 'Share feedback.',
       modalTitle: 'Tell us what you think',
       modalIntro: 'Your feedback helps us improve.',
-      dismissalVersion: 'v2',
       turnstileSiteKey: expect.any(String),
     })
 
@@ -60,13 +54,8 @@ describe('loadSiteFeedbackSettings', () => {
       overrideAccess: true,
       select: {
         feedback: {
-          enabled: true,
-          bannerCopy: true,
-          ctaLabel: true,
           modalTitle: true,
           modalIntro: true,
-          dismissalVersion: true,
-          endDate: true,
         },
       },
     })
@@ -75,33 +64,17 @@ describe('loadSiteFeedbackSettings', () => {
     )
   })
 
-  it('returns null when disabled or expired at the exact boundary', async () => {
-    const now = new Date('2026-08-12T12:00:00Z')
-    findGlobal.mockResolvedValue({ feedback: { enabled: false } })
-    await expect(loadSiteFeedbackSettings(now)).resolves.toBeNull()
-
-    findGlobal.mockResolvedValue({
-      feedback: { enabled: true, endDate: now.toISOString() },
+  it.each([
+    { enabled: false },
+    { enabled: true, endDate: '2020-01-01T00:00:00Z' },
+    { enabled: true, endDate: 'not-a-date' },
+    undefined,
+  ])('keeps feedback available regardless of legacy banner settings: %j', async (feedback) => {
+    findGlobal.mockResolvedValue({ feedback })
+    await expect(loadSiteFeedbackSettings()).resolves.toMatchObject({
+      modalTitle: 'Share your feedback',
+      modalIntro: 'Tell us what is working well or what we could improve.',
     })
-    await expect(loadSiteFeedbackSettings(now)).resolves.toBeNull()
-  })
-
-  it('keeps a future end date eligible and fails closed on invalid data', async () => {
-    findGlobal.mockResolvedValue({
-      feedback: {
-        enabled: true,
-        endDate: '2026-08-12T12:00:01Z',
-        dismissalVersion: '',
-      },
-    })
-    await expect(
-      loadSiteFeedbackSettings(new Date('2026-08-12T12:00:00Z')),
-    ).resolves.toMatchObject({ dismissalVersion: 'v1' })
-
-    findGlobal.mockResolvedValue({
-      feedback: { enabled: true, endDate: 'not-a-date' },
-    })
-    await expect(loadSiteFeedbackSettings()).resolves.toBeNull()
   })
 
   it('fails closed when Payload is unavailable', async () => {

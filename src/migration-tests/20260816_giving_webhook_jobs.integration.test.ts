@@ -5,6 +5,9 @@ import { GIVING_PILOT_UP_SQL } from '../migrations/20260815_170000_giving_pilot'
 import { GIVING_CHECKOUT_ORCHESTRATION_UP_SQL } from '../migrations/20260815_230000_giving_checkout_orchestration'
 import { GIVING_WEBHOOK_JOBS_DOWN_SQL, GIVING_WEBHOOK_JOBS_UP_SQL, GIVING_WEBHOOK_JOB_SLUGS } from '../migrations/20260816_000000_giving_webhook_jobs'
 import { GIVING_BANK_CODE_UP_SQL } from '../migrations/20260817_010000_giving_bank_code'
+import { GIVING_TRANSACTION_FEES_UP_SQL } from '../migrations/20260903_010000_giving_transaction_fees'
+import { reconcileRecurringGiving, recordRecurringObservation } from '../lib/giving/recurring-reconciliation'
+import type { BlinkPayConsent, BlinkPayFixedRecurringPayment, BlinkPayPayment } from '../lib/giving/blinkpay/types'
 
 const databaseUrl = process.env.GIVING_MIGRATION_TEST_DATABASE_URL
 function assertDisposable(value: string) {
@@ -22,6 +25,7 @@ describe.skipIf(!databaseUrl)('giving webhook PostgreSQL leases and failure reco
     await pool.query(GIVING_CHECKOUT_ORCHESTRATION_UP_SQL)
     await pool.query(GIVING_WEBHOOK_JOBS_UP_SQL)
     await pool.query(GIVING_BANK_CODE_UP_SQL)
+    await pool.query(GIVING_TRANSACTION_FEES_UP_SQL)
     await pool.query("INSERT INTO giving_funds(name,code,accounting_key,is_default) VALUES('General','GEN','general',true)")
   })
 
@@ -39,6 +43,105 @@ describe.skipIf(!databaseUrl)('giving webhook PostgreSQL leases and failure reco
     const schedule = await pool.query<{id:number}>(`INSERT INTO giving_schedules(context_key,environment,synthetic,checkout_id,giver_id,consent_id,provider_schedule_id,status,frequency,amount_minor) VALUES('production','production',false,$1,$2,$3,'33333333-3333-4333-8333-333333333333','active','monthly',4200) RETURNING id`, [checkout.rows[0].id,giver.rows[0].id,consent.rows[0].id])
     return { giverId:giver.rows[0].id,checkoutId:checkout.rows[0].id,consentId:consent.rows[0].id,scheduleId:schedule.rows[0].id }
   }
+
+  function recurringProvider() {
+    const payment: BlinkPayPayment = {
+      payment_id:'44444444-4444-4444-8444-444444444444',type:'enduring',status:'AcceptedSettlementCompleted',
+      creation_timestamp:'2026-09-06T09:00:02+12:00',status_updated_timestamp:'2026-09-06T09:03:50+12:00',refunds:[],
+      detail:{consent_id:'22222222-2222-4222-8222-222222222222',amount:{total:'42.00',currency:'NZD'},pcr:{particulars:'GEN',code:'RGIVER',reference:'EV20'}},
+    }
+    const schedule: BlinkPayFixedRecurringPayment = {
+      fixed_recurring_payment_id:'33333333-3333-4333-8333-333333333333',consent_id:'22222222-2222-4222-8222-222222222222',
+      status:'active',start_date:'2026-09-06',next_payment_date:'2026-10-06',amount:{total:'42.00',currency:'NZD'},
+      pcr:{particulars:'GEN',code:'RGIVER',reference:'EV20'},retry_strategy:'same_day',creation_timestamp:'2026-09-05T10:00:00Z',status_updated_timestamp:'2026-09-05T10:00:00Z',
+    }
+    const consent: BlinkPayConsent = {consent_id:schedule.consent_id,status:'Authorised',creation_timestamp:'2026-09-05T10:00:00Z',status_updated_timestamp:'2026-09-05T10:00:00Z',detail:{},payments:[payment]}
+    const provider = {getPayment:vi.fn().mockResolvedValue(payment),getFixedRecurringPayment:vi.fn().mockResolvedValue(schedule),getEnduringConsent:vi.fn().mockResolvedValue(consent)}
+    return {payment,schedule,consent,provider}
+  }
+
+  it('recovers a completed checkout without webhooks, refreshes dates, and deduplicates concurrent and repeated sweeps', async () => {
+    const seeded = await seedRecurring()
+    await pool.query("UPDATE giving_schedules SET next_payment_date='2026-09-06',provider_status='active',provider_status_updated_at='2026-09-05T10:00:00Z'")
+    const {provider,payment} = recurringProvider()
+    const input = {pool,provider:()=>provider,now:()=>new Date('2026-09-08T00:00:00Z')}
+    expect(await Promise.all([reconcileRecurringGiving(input),reconcileRecurringGiving(input)])).toEqual([
+      {recurringSchedules:1,recurringFailures:0},{recurringSchedules:1,recurringFailures:0},
+    ])
+    provider.getPayment.mockClear()
+    await reconcileRecurringGiving(input)
+    expect(provider.getPayment).not.toHaveBeenCalled()
+    expect((await pool.query('SELECT checkout_id,schedule_id,status,amount_minor,provider_source,created_at FROM giving_gifts')).rows).toEqual([
+      {checkout_id:seeded.checkoutId,schedule_id:seeded.scheduleId,status:'settled',amount_minor:'4200',provider_source:'reconciliation',created_at:new Date(payment.creation_timestamp)},
+    ])
+    expect((await pool.query('SELECT next_payment_date,provider_status FROM giving_schedules')).rows[0]).toEqual({next_payment_date:new Date('2026-10-06'),provider_status:'active'})
+    expect((await pool.query('SELECT count(*) FROM blinkpay_webhook_events')).rows[0].count).toBe('0')
+    expect((await pool.query('SELECT count(*) FROM giving_provider_operations')).rows[0].count).toBe('0')
+  })
+
+  it('recovers in-flight payments on cancelled schedules without reactivating them', async () => {
+    await seedRecurring()
+    await pool.query("UPDATE giving_schedules SET status='cancelled',provider_status='cancelled',provider_verified_at='2026-09-09T00:00:00Z'")
+    const {provider} = recurringProvider()
+    expect(await reconcileRecurringGiving({pool,provider:()=>provider,now:()=>new Date('2026-09-08T00:00:00Z')})).toEqual({recurringSchedules:1,recurringFailures:0})
+    expect((await pool.query('SELECT status,provider_status FROM giving_schedules')).rows[0]).toEqual({status:'cancelled',provider_status:'cancelled'})
+    expect((await pool.query('SELECT status FROM giving_gifts')).rows[0].status).toBe('settled')
+  })
+
+  it('polls intermediate payments again instead of assuming consent authorisation means settlement', async () => {
+    await seedRecurring()
+    const {provider,payment} = recurringProvider()
+    provider.getPayment.mockResolvedValueOnce({...payment,status:'AcceptedSettlementInProcess',status_updated_timestamp:'2026-09-06T09:01:00+12:00'})
+    await reconcileRecurringGiving({pool,provider:()=>provider})
+    expect((await pool.query('SELECT status FROM giving_gifts')).rows[0].status).toBe('pending')
+    await reconcileRecurringGiving({pool,provider:()=>provider})
+    expect((await pool.query('SELECT status FROM giving_gifts')).rows[0].status).toBe('settled')
+    expect(provider.getPayment).toHaveBeenCalledTimes(2)
+  })
+
+  it('rejects wrong amounts, fees, references, consents and cross-environment observations atomically', async () => {
+    const seeded=await seedRecurring()
+    const {schedule,payment}=recurringProvider()
+    const candidate={id:seeded.scheduleId,environment:'production' as const,provider_schedule_id:schedule.fixed_recurring_payment_id,provider_consent_id:schedule.consent_id}
+    for (const detail of [
+      {...payment.detail,amount:{total:'42.50',currency:'NZD'}},
+      {...payment.detail,pcr:{particulars:'GEN',code:'WRONG',reference:'EV20'}},
+      {...payment.detail,consent_id:'55555555-5555-4555-8555-555555555555'},
+    ]) await expect(recordRecurringObservation(pool,candidate,schedule,[{...payment,detail}],new Date())).rejects.toThrow(/mismatch/)
+    await expect(recordRecurringObservation(pool,{...candidate,environment:'sandbox'},schedule,[payment],new Date())).rejects.toThrow(/provenance/)
+    expect((await pool.query('SELECT count(*) FROM giving_gifts')).rows[0].count).toBe('0')
+    expect((await pool.query('SELECT provider_verified_at FROM giving_schedules')).rows[0].provider_verified_at).toBeNull()
+  })
+
+  it('records transaction fees separately and refuses to roll dates or settled gifts backwards', async () => {
+    const seeded=await seedRecurring()
+    await pool.query('UPDATE giving_checkouts SET transaction_fee_minor=50')
+    await pool.query('UPDATE giving_schedules SET transaction_fee_minor=50')
+    const {schedule,payment}=recurringProvider()
+    const withFee={...schedule,amount:{total:'42.50',currency:'NZD' as const}}
+    const paid={...payment,detail:{...payment.detail,amount:withFee.amount}}
+    const candidate={id:seeded.scheduleId,environment:'production' as const,provider_schedule_id:schedule.fixed_recurring_payment_id,provider_consent_id:schedule.consent_id}
+    await recordRecurringObservation(pool,candidate,withFee,[paid],new Date('2026-09-08T00:00:00Z'))
+    await recordRecurringObservation(pool,candidate,{...withFee,next_payment_date:'2026-09-06'},[{...paid,status:'Pending',status_updated_timestamp:'2026-09-06T09:00:02+12:00'}],new Date('2026-09-07T00:00:00Z'))
+    expect((await pool.query('SELECT amount_minor,transaction_fee_minor,status FROM giving_gifts')).rows).toEqual([{amount_minor:'4200',transaction_fee_minor:'50',status:'settled'}])
+    expect((await pool.query('SELECT next_payment_date FROM giving_schedules')).rows[0].next_payment_date).toEqual(new Date('2026-10-06'))
+    await recordRecurringObservation(pool,candidate,{...withFee,next_payment_date:'2026-09-06',status_updated_timestamp:'2026-09-04T10:00:00Z'},[],new Date('2026-09-09T00:00:00Z'))
+    expect((await pool.query('SELECT next_payment_date,provider_status_updated_at FROM giving_schedules')).rows[0]).toEqual({next_payment_date:new Date('2026-10-06'),provider_status_updated_at:new Date(schedule.status_updated_timestamp!)})
+  })
+
+  it('isolates a failed payment read so another payment and the schedule can still recover', async () => {
+    await seedRecurring()
+    const {provider,consent,payment}=recurringProvider()
+    const badPayment={...payment,payment_id:'55555555-5555-4555-8555-555555555555'}
+    provider.getEnduringConsent.mockResolvedValue({...consent,payments:[badPayment,payment]})
+    provider.getPayment.mockRejectedValueOnce(new Error('provider unavailable'))
+    const log=vi.spyOn(console,'error').mockImplementation(()=>undefined)
+    try {
+      expect(await reconcileRecurringGiving({pool,provider:()=>provider})).toEqual({recurringSchedules:1,recurringFailures:1})
+      expect((await pool.query('SELECT status,provider_payment_id FROM giving_gifts')).rows).toEqual([{status:'settled',provider_payment_id:payment.payment_id}])
+      expect((await pool.query('SELECT next_payment_date FROM giving_schedules')).rows[0].next_payment_date).toEqual(new Date('2026-10-06'))
+    } finally { log.mockRestore() }
+  })
 
   it('authoritatively correlates concurrent recurring payment events and creates one immutable schedule gift', async () => {
     const recurring = await seedRecurring()

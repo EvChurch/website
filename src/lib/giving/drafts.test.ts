@@ -16,7 +16,7 @@ function memoryStore() {
   }
 }
 
-const answers = { amountMinor: 5000, fundId: 2, frequency: 'monthly' as const, startDate: '2026-09-01', firstName: 'Alex', lastName: 'Taylor', email: 'alex@example.com' }
+const answers = { amountMinor: 5000, fundId: 2, fundConfirmed: true, frequency: 'monthly' as const, startDate: '2026-09-01', firstName: 'Alex', lastName: 'Taylor', email: 'alex@example.com' }
 
 describe('giving draft capabilities', () => {
   it('uses Secure __Host capability names in HTTPS contexts with local-development fallbacks', () => {
@@ -34,7 +34,20 @@ describe('giving draft capabilities', () => {
   })
 
   it('accepts a previous-release draft and discards its obsolete return path', () => {
-    expect(validateGivingDraftAnswers({ ...answers, returnPathname: '/events' })).toEqual(answers)
+    const { fundConfirmed: _fundConfirmed, ...previousAnswers } = answers
+    expect(validateGivingDraftAnswers({ ...previousAnswers, returnPathname: '/events' })).toEqual(answers)
+  })
+
+  it('accepts partial progress while rejecting contradictory partial state', () => {
+    expect(validateGivingDraftAnswers({ ...answers, fundId: null, fundConfirmed: false, frequency: null, startDate: null })).toEqual({
+      ...answers,
+      fundId: null,
+      fundConfirmed: false,
+      frequency: null,
+      startDate: null,
+    })
+    expect(() => validateGivingDraftAnswers({ ...answers, fundId: null, fundConfirmed: true })).toThrow(GivingDraftCapabilityError)
+    expect(() => validateGivingDraftAnswers({ ...answers, frequency: null })).toThrow(GivingDraftCapabilityError)
   })
 
   it.each([

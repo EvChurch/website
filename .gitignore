@@ -1,9 +1,9 @@
 # Dependencies
 node_modules/
 
-# MCP server config (contains API keys)
+# Machine-local MCP server config (contains API keys)
 .mcp.json
-.codex/config.toml
+.codex/*.local.toml
 
 # Compound Engineering machine-local preferences
 .compound-engineering/*.local.yaml
@@ -49,3 +49,5 @@ next-env.d.ts
 # Uploaded media (synced from external APIs)
 /sermon-audio/
 .worktrees
+
+/sermon-work-files/

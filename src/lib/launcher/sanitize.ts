@@ -1,14 +1,8 @@
-const ALLOWED_TAGS = new Set(['p', 'br', 'strong', 'em', 'b', 'i', 'ul', 'ol', 'li'])
-const SITE_ORIGIN = 'https://www.ev.church'
+import { JSDOM } from 'jsdom'
 
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
-}
+const ALLOWED_TAGS = new Set(['p', 'br', 'strong', 'em', 'b', 'i', 'ul', 'ol', 'li'])
+const DANGEROUS_TAGS = 'script, style, svg, math, iframe, object, embed, form'
+const SITE_ORIGIN = 'https://www.ev.church'
 
 export function classifyLauncherHref(rawHref: string): string | null {
   const href = rawHref.trim()
@@ -35,54 +29,54 @@ export function classifyLauncherHref(rawHref: string): string | null {
   }
 }
 
-function safeTag(token: string): string {
-  const closingTag = token.match(/^<\s*\/\s*([a-z0-9]+)\s*>$/i)
-  if (closingTag) {
-    const name = closingTag[1].toLowerCase()
-    return name === 'a' || ALLOWED_TAGS.has(name) ? `</${name}>` : ''
-  }
+function isStandaloneParagraphLink(anchor: HTMLAnchorElement): boolean {
+  const paragraph = anchor.parentElement
+  if (paragraph?.tagName.toLowerCase() !== 'p') return false
 
-  const openingTag = token.match(/^<\s*([a-z0-9]+)(?:\s+[^>]*)?\s*\/?>$/i)
-  if (openingTag) {
-    const rawName = openingTag[1]
-    const name = rawName.toLowerCase()
-    if (ALLOWED_TAGS.has(name)) return name === 'br' ? '<br>' : `<${name}>`
-  }
-
-  const anchorOpen = token.match(/^<\s*a\s+([^>]*)>$/i)
-  if (!anchorOpen) return ''
-  const hrefMatch = anchorOpen[1].match(
-    /(?:^|\s)href\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
+  return [...paragraph.childNodes].every(
+    (node) => node === anchor || (node.nodeType === 3 && !node.textContent?.trim()),
   )
-  const href = hrefMatch ? classifyLauncherHref(hrefMatch[1] ?? hrefMatch[2] ?? '') : null
-  if (!href) return '<a>'
-  const isCta = /(?:^|\s)data-launcher-cta(?:\s*=\s*(?:"true"|'true'|true))?(?:\s|$)/i.test(
-    anchorOpen[1],
-  )
-  return `<a href="${escapeHtml(href)}"${isCta ? ' data-launcher-cta="true"' : ''} target="_blank" rel="noopener noreferrer nofollow">`
 }
 
 export function sanitizeLauncherHtml(value: string): string {
-  const withCtaMarkers = value
-    .replace(
-      /<a\b([^>]*\bclass\s*=\s*(?:"[^"]*\blink-button\b[^"]*"|'[^']*\blink-button\b[^']*')[^>]*)>/gi,
-      '<a$1 data-launcher-cta="true">',
-    )
-    .replace(
-      /<p\b[^>]*>\s*(<a\b(?![^>]*data-launcher-cta)[^>]*>[^<]*<\/a>)\s*<\/p>/gi,
-      (paragraph) => paragraph.replace(/<a\b/, '<a data-launcher-cta="true"'),
-    )
+  const document = new JSDOM(`<body>${value}</body>`).window.document
 
-  // Drop dangerous containers with their content before reconstructing only the
-  // small tag allowlist. Everything outside an allowed tag is emitted as text.
-  const withoutDangerousContent = withCtaMarkers.replace(
-    /<(script|style|svg|math|iframe|object|embed|form)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,
-    '',
-  )
-  return (withoutDangerousContent.match(/<[^>]*>|[^<]+|</g) ?? [])
-    .map((token) => (token.startsWith('<') ? safeTag(token) : escapeHtml(token)))
-    .join('')
-    .trim()
+  document.body.querySelectorAll(DANGEROUS_TAGS).forEach((element) => element.remove())
+
+  for (const element of [...document.body.querySelectorAll('*')]) {
+    const name = element.tagName.toLowerCase()
+
+    if (name === 'a') {
+      const anchor = element as HTMLAnchorElement
+      const href = classifyLauncherHref(anchor.getAttribute('href') ?? '')
+      const isCta =
+        anchor.classList.contains('link-button') ||
+        anchor.getAttribute('data-launcher-cta') === 'true' ||
+        isStandaloneParagraphLink(anchor)
+
+      for (const attribute of [...anchor.attributes]) {
+        anchor.removeAttribute(attribute.name)
+      }
+      if (href) {
+        anchor.setAttribute('href', href)
+        if (isCta) anchor.setAttribute('data-launcher-cta', 'true')
+        anchor.setAttribute('target', '_blank')
+        anchor.setAttribute('rel', 'noopener noreferrer nofollow')
+      }
+      continue
+    }
+
+    if (ALLOWED_TAGS.has(name)) {
+      for (const attribute of [...element.attributes]) {
+        element.removeAttribute(attribute.name)
+      }
+      continue
+    }
+
+    element.replaceWith(...element.childNodes)
+  }
+
+  return document.body.innerHTML.trim()
 }
 
 export function launcherPlainText(value: string): string {

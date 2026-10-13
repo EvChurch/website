@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { PublicGivingFund } from '@/lib/giving/contracts'
-import { createGivingState, givingReducer, nextGivingStep } from './giving-state'
+import { createGivingState, draftAnswers, givingReducer, givingStepOrder, nextGivingStep, previousGivingStep } from './giving-state'
 
 const funds: PublicGivingFund[] = [
   { id: 1, name: 'Community', code: 'COMM', sortOrder: 0, isDefault: false, apprenticeRelated: false },
@@ -9,6 +9,35 @@ const funds: PublicGivingFund[] = [
 ]
 
 describe('giving state', () => {
+  it('confirms the directed fund and skips fund selection in both directions', () => {
+    let state = createGivingState(funds, {}, 1)
+    expect(state).toMatchObject({ step: 'amount', directedFundId: 1, fundConfirmed: true, answers: { fund: funds[0], amountMinor: null } })
+    state = givingReducer(state, { type: 'commitAmount', amountMinor: 5000 })
+    state = givingReducer(state, { type: 'setFrequency', frequency: 'monthly' })
+    state = givingReducer(state, { type: 'next' })
+    expect(state.step).toBe('starting-date')
+    expect(previousGivingStep(state)).toBe('frequency')
+    expect(givingStepOrder(state.answers, state.directedFundId)).not.toContain('fund')
+    state = givingReducer(state, { type: 'back' })
+    expect(state.step).toBe('frequency')
+    state = givingReducer(state, { type: 'next' })
+    expect(state.step).toBe('starting-date')
+    expect(givingReducer(state, { type: 'edit', step: 'fund', returnTo: 'review' })).toBe(state)
+    expect(givingReducer(state, { type: 'setFund', fund: funds[1] })).toBe(state)
+  })
+
+  it('ignores draft restoration and retains the directed fund on reset', () => {
+    const initial = createGivingState(funds, {}, 1)
+    const saved = { ...createGivingState(funds).answers, amountMinor: 5000, frequency: 'one-off' as const }
+    expect(givingReducer(initial, { type: 'restore', answers: saved, fundConfirmed: true })).toBe(initial)
+    const progressed = givingReducer(initial, { type: 'commitAmount', amountMinor: 5000 })
+    expect(givingReducer(progressed, { type: 'reset', funds })).toEqual(initial)
+  })
+
+  it('does not fall back to the default when the directed fund is unavailable', () => {
+    expect(createGivingState(funds, {}, 99)).toMatchObject({ directedFundId: 99, fundConfirmed: false, answers: { fund: null } })
+  })
+
   it('selects the default fund by isDefault and preselects no financial commitment', () => {
     expect(createGivingState(funds)).toMatchObject({
       step: 'amount',
@@ -73,22 +102,128 @@ describe('giving state', () => {
     expect(state.answers).toMatchObject({ amountMinor: 7500, frequency: 'monthly', startDate: '2026-09-01', email: 'alex@example.com' })
   })
 
+  it('moves backward and forward linearly after revisiting completed steps', () => {
+    let state = createGivingState(funds, { firstName: 'Alex', lastName: 'Taylor', email: 'alex@example.com' })
+    state = {
+      ...state,
+      step: 'review',
+      fundConfirmed: true,
+      history: ['amount', 'frequency', 'fund', 'starting-date', 'amount', 'frequency'],
+      answers: { ...state.answers, amountMinor: 5000, frequency: 'monthly', startDate: '2026-09-01' },
+    }
+
+    state = givingReducer(state, { type: 'back' })
+    expect(state.step).toBe('starting-date')
+    state = givingReducer(state, { type: 'back' })
+    expect(state.step).toBe('fund')
+    state = givingReducer(state, { type: 'back' })
+    expect(state.step).toBe('frequency')
+    state = givingReducer(state, { type: 'back' })
+    expect(state.step).toBe('amount')
+
+    state = givingReducer(state, { type: 'commitAmount', amountMinor: 7500 })
+    expect(state.step).toBe('frequency')
+    state = givingReducer(state, { type: 'setFrequency', frequency: 'monthly' })
+    state = givingReducer(state, { type: 'next' })
+    expect(state.step).toBe('fund')
+  })
+
+  it('does not use an explicit edit origin as a Back destination', () => {
+    let state = createGivingState(funds, { firstName: 'Alex', lastName: 'Taylor', email: 'alex@example.com' })
+    state = {
+      ...state,
+      step: 'review',
+      fundConfirmed: true,
+      answers: { ...state.answers, amountMinor: 5000, frequency: 'one-off' },
+    }
+
+    state = givingReducer(state, { type: 'edit', step: 'amount', returnTo: 'review' })
+    state = givingReducer(state, { type: 'back' })
+    expect(state.step).toBe('amount')
+  })
+
+  it('backs from a later edited answer to its canonical previous step', () => {
+    let state = createGivingState(funds, { firstName: 'Alex', lastName: 'Taylor', email: 'alex@example.com' })
+    state = {
+      ...state,
+      step: 'starting-date',
+      fundConfirmed: true,
+      answers: { ...state.answers, amountMinor: 5000, frequency: 'monthly', startDate: '2026-09-01' },
+    }
+
+    state = givingReducer(state, { type: 'edit', step: 'fund', returnTo: 'starting-date' })
+    state = givingReducer(state, { type: 'back' })
+    expect(state.step).toBe('frequency')
+    state = givingReducer(state, { type: 'setFrequency', frequency: 'monthly' })
+    state = givingReducer(state, { type: 'next' })
+    expect(state.step).toBe('fund')
+  })
+
+  it('backs from the current identity step after profile hydration fills it', () => {
+    let state = createGivingState(funds)
+    state = {
+      ...state,
+      step: 'identity-firstName',
+      fundConfirmed: true,
+      history: ['amount', 'frequency', 'fund'],
+      answers: { ...state.answers, amountMinor: 5000, frequency: 'one-off' },
+    }
+
+    state = givingReducer(state, {
+      type: 'hydrateIdentity',
+      identity: { firstName: 'Alex', lastName: 'Taylor', email: 'alex@example.com' },
+      unedited: ['firstName', 'lastName', 'email'],
+    })
+    state = givingReducer(state, { type: 'back' })
+    expect(state.step).toBe('fund')
+  })
+
   it('requires an explicit fund confirmation while retaining the default selection', () => {
     let state = createGivingState(funds)
     state = givingReducer(state, { type: 'commitAmount', amountMinor: 5000 })
-    expect(state.step).toBe('fund')
+    expect(state.step).toBe('frequency')
     expect(state.answers.fund).toBe(funds[1])
+    state = givingReducer(state, { type: 'setFrequency', frequency: 'monthly' })
+    state = givingReducer(state, { type: 'next' })
+    expect(state.step).toBe('fund')
     state = givingReducer(state, { type: 'setFund', fund: funds[1] })
     state = givingReducer(state, { type: 'next' })
-    expect(state.step).toBe('frequency')
+    expect(state.step).toBe('starting-date')
   })
 
   it('uses the actual missing identity set after restoring a signed-in draft', () => {
     const saved = { ...createGivingState(funds).answers, amountMinor: 5000, frequency: 'monthly' as const, startDate: '2026-09-01', firstName: 'Fresh', lastName: 'Member', email: '' }
     let state = createGivingState(funds)
-    state = givingReducer(state, { type: 'restore', answers: saved, missingIdentity: ['email'] })
+    state = givingReducer(state, { type: 'restore', answers: saved, fundConfirmed: true, missingIdentity: ['email'] })
     expect(state.step).toBe('identity-email')
-    state = givingReducer(state, { type: 'restore', answers: { ...saved, email: 'fresh@example.com' }, missingIdentity: [] })
+    state = givingReducer(state, { type: 'restore', answers: { ...saved, email: 'fresh@example.com' }, fundConfirmed: true, missingIdentity: [] })
     expect(state.step).toBe('review')
+  })
+
+  it('serializes and restores partial progress without confirming the default fund', () => {
+    const initial = createGivingState(funds)
+    const answers = { ...initial.answers, amountMinor: 10000 }
+    expect(draftAnswers(answers, false)).toEqual({
+      amountMinor: 10000,
+      fundId: null,
+      fundConfirmed: false,
+      frequency: null,
+      startDate: null,
+      firstName: '',
+      lastName: '',
+      email: '',
+    })
+
+    const restored = givingReducer(initial, { type: 'restore', answers, fundConfirmed: false })
+    expect(restored.step).toBe('frequency')
+    expect(restored.history).toEqual(['amount'])
+    expect(restored.answers.fund).toBe(funds[1])
+  })
+
+  it('resets an explicitly discarded flow', () => {
+    let state = createGivingState(funds)
+    state = givingReducer(state, { type: 'commitAmount', amountMinor: 10000 })
+    state = givingReducer(state, { type: 'reset', funds })
+    expect(state).toMatchObject({ step: 'amount', history: [], fundConfirmed: false, answers: { amountMinor: null, frequency: null } })
   })
 })

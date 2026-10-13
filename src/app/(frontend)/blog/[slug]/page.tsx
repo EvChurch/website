@@ -1,3 +1,4 @@
+import { ScriptureViews } from '@/components/sermon-articles/ScriptureViews'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
@@ -110,7 +111,9 @@ export default async function BlogPostPage({ params }: Props) {
             )}
             <div className="text-[1.0625rem] leading-[1.8] text-dark-grey [&_blockquote]:my-8 [&_blockquote]:border-l-4 [&_blockquote]:border-rich-red/30 [&_blockquote]:pl-6 [&_blockquote]:text-xl [&_blockquote]:italic [&_h2]:mb-4 [&_h2]:mt-12 [&_h2]:text-h3 [&_h2]:text-brand-black [&_h3]:mb-3 [&_h3]:mt-9 [&_h3]:text-h4 [&_h3]:text-brand-black [&_li]:mb-2 [&_ol]:my-6 [&_ol]:list-decimal [&_ol]:pl-7 [&_p]:mb-6 [&_ul]:my-6 [&_ul]:list-disc [&_ul]:pl-7">
               <RichText data={post.content} />
+              {post.apiBibleFumsToken && <ScriptureViews token={post.apiBibleFumsToken} />}
             </div>
+            {post.sermon && typeof post.sermon === 'object' && post.sermon.isPublished && <p className="mt-8"><Link className="text-rich-red underline" href={`/sermons/${post.sermon.slug}`}>Listen to the sermon</Link></p>}
             {post.isAiGenerated && post.aiDisclosure && (
               <p className="mt-12 border-l-2 border-warm-grey pl-4 text-sm italic text-mid-grey">
                 {post.aiDisclosure}

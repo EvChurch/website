@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
+  delete: vi.fn(),
   fetchActiveGroupMembers: vi.fn(),
   find: vi.fn(),
   getPayloadClient: vi.fn(),
@@ -15,7 +16,12 @@ vi.mock('./rock-group-members', () => ({
   fetchActiveGroupMembers: mocks.fetchActiveGroupMembers,
 }))
 
-import { syncCampuses, syncTeamMembers } from './sync-runner'
+vi.mock('@payloadcms/richtext-lexical', () => ({
+  editorConfigFactory: { default: vi.fn().mockResolvedValue({}) },
+  convertHTMLToLexical: vi.fn(),
+}))
+
+import { syncCampuses, syncEvents, syncTeamMembers } from './sync-runner'
 
 describe('campus sync location hydration', () => {
   beforeEach(() => {
@@ -105,4 +111,75 @@ describe('group sync isolation', () => {
     ])
   })
 
+})
+
+describe('event sync during an occurrence', () => {
+  const current = {
+    id: 3, rockEventId: 9,
+    startDate: '2026-10-17T23:30:00.000Z',
+    endDate: '2026-10-18T01:30:00.000Z',
+  }
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-18T00:30:00Z'))
+    mocks.find.mockResolvedValue({ docs: [current] })
+    mocks.getPayloadClient.mockResolvedValue({
+      config: {}, find: mocks.find, create: mocks.create,
+      update: mocks.update, delete: mocks.delete,
+    })
+  })
+  afterEach(() => vi.useRealTimers())
+
+  function source(nextStart: string | null, isPublic = true) {
+    mocks.rockFetch.mockImplementation(async ({ endpoint }: { endpoint: string }) => {
+      switch (endpoint) {
+        case 'EventItemOccurrences': return [{
+          EventItemId: 9, CampusId: null, NextStartDateTime: nextStart,
+          Schedule: { EffectiveEndDate: '2026-11-08T00:00:00', iCalendarContent: 'DTSTART:20261018T123000\nDTEND:20261018T143000' },
+        }]
+        case 'EventItems': return [{ Id: 9, Name: 'Course', IsActive: true }]
+        case 'EventCalendars': return [{ Id: 1, Name: 'Website (Public)', IsActive: true }]
+        case 'EventCalendarItems': return [{ EventCalendarId: 1, EventItemId: isPublic ? 9 : 10 }]
+        default: return []
+      }
+    })
+  }
+
+  it.each([null, '2026-10-25T12:30:00'])('keeps the running event when Rock next start changes to %s', async (nextStart) => {
+    source(nextStart)
+    expect(await syncEvents()).toMatchObject({ errors: [], deleted: 0, updated: 0 })
+    expect(mocks.delete).not.toHaveBeenCalled()
+    expect(mocks.update).not.toHaveBeenCalled()
+  })
+
+  it('keeps an event with an unknown finish through its Auckland day', async () => {
+    source(null)
+    mocks.find.mockResolvedValue({ docs: [{ ...current, endDate: null }] })
+    vi.setSystemTime(new Date('2026-10-18T10:59:59Z'))
+    expect(await syncEvents()).toMatchObject({ errors: [], deleted: 0 })
+    vi.setSystemTime(new Date('2026-10-18T11:00:00Z'))
+    expect(await syncEvents()).toMatchObject({ errors: [], deleted: 1 })
+  })
+
+  it('removes a completed event when Rock has no next start', async () => {
+    source(null)
+    vi.setSystemTime(new Date('2026-10-18T01:30:00Z'))
+    expect(await syncEvents()).toMatchObject({ errors: [], deleted: 1 })
+    expect(mocks.delete).toHaveBeenCalledWith({ collection: 'events', id: 3 })
+  })
+
+  it('advances to the next occurrence after the current one finishes', async () => {
+    source('2026-10-25T12:30:00')
+    vi.setSystemTime(new Date('2026-10-18T01:30:00Z'))
+    expect(await syncEvents()).toMatchObject({ errors: [], updated: 1 })
+    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
+      startDate: '2026-10-24T23:30:00.000Z', endDate: '2026-10-25T01:30:00.000Z',
+    }) }))
+  })
+
+  it('honours removal from the public calendar even while an event is running', async () => {
+    source(null, false)
+    expect(await syncEvents()).toMatchObject({ errors: [], deleted: 1 })
+  })
 })

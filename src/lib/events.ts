@@ -2,15 +2,18 @@ import { getPayloadClient } from '@/lib/payload'
 import type { PayloadMediaImage } from '@/lib/payload-media'
 import { unstable_cache } from 'next/cache'
 import { cache } from 'react'
+import { hasEventEnded } from '@/lib/event-timing'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 
 export type RegistrationStatus = 'open' | 'full' | 'closed' | 'coming-soon' | null
 
 export interface PublicEvent {
   id: number | string
+  rockEventId?: number
   title: string
   slug: string
   summary: unknown
+  websiteSummary?: unknown
   image: unknown
   startDate: string | null
   endDate: string | null
@@ -41,8 +44,17 @@ export type PublicMedia = PayloadMediaImage
 
 const AUCKLAND_TIME_ZONE = 'Pacific/Auckland'
 
+export function resolveEventContent(event: PublicEvent): PublicEvent {
+  if (event.websiteSummary == null) return event
+
+  return {
+    ...event,
+    summary: event.websiteSummary,
+  }
+}
+
 function asPublicEvent(value: unknown): PublicEvent {
-  return value as PublicEvent
+  return resolveEventContent(value as PublicEvent)
 }
 
 async function fetchAllEvents(): Promise<PublicEvent[]> {
@@ -132,9 +144,7 @@ export function prepareEventsListing(
 }
 
 export function isPastEvent(event: PublicEvent, now = new Date()): boolean {
-  const finalDate = event.endDate ?? event.startDate
-  if (!finalDate) return false
-  return new Date(finalDate).getTime() < now.getTime()
+  return hasEventEnded(event, now)
 }
 
 export function getCampusSlug(event: PublicEvent): string | null {
@@ -191,10 +201,20 @@ export function getRegistrationHref(event: PublicEvent): string | null {
 
   try {
     const url = new URL(event.registrationUrl)
-    return url.protocol === 'https:' && url.hostname === 'rock.ev.church' ? url.toString() : null
+    return url.protocol === 'https:' &&
+      (url.hostname === 'rock.ev.church' || url.hostname === 'registration.ev.church')
+      ? url.toString()
+      : null
   } catch {
     return null
   }
+}
+
+export function getEmbeddedRegistrationHref(event: PublicEvent): string | null {
+  const href = getRegistrationHref(event)
+  if (!href) return null
+
+  return new URL(href).hostname === 'registration.ev.church' ? href : null
 }
 
 export function formatEventDate(event: PublicEvent): string {
@@ -219,7 +239,16 @@ export function formatEventDate(event: PublicEvent): string {
 
   const sameDay = new Intl.DateTimeFormat('en-CA', { timeZone: AUCKLAND_TIME_ZONE }).format(start)
     === new Intl.DateTimeFormat('en-CA', { timeZone: AUCKLAND_TIME_ZONE }).format(end)
-  if (!sameDay) return date
+  if (!sameDay) {
+    const endDate = new Intl.DateTimeFormat('en-NZ', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+      timeZone: AUCKLAND_TIME_ZONE,
+    }).format(end)
+    const endTime = new Intl.DateTimeFormat('en-NZ', {
+      hour: 'numeric', minute: '2-digit', timeZone: AUCKLAND_TIME_ZONE,
+    }).format(end)
+    return `${date}, ${startTime} – ${endDate}, ${endTime}`
+  }
 
   const endTime = new Intl.DateTimeFormat('en-NZ', {
     hour: 'numeric',

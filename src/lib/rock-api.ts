@@ -12,7 +12,7 @@ type RockRequestOptions = {
   endpoint: string
   params?: Record<string, string>
   retries?: number
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
   timeoutMs?: number
 }
@@ -336,27 +336,48 @@ export async function fetchDailyBibleReadingCommunications(): Promise<RockCommun
 }
 
 export type RockGroup = {
+  IsPublic?: boolean | null
   Id: number
+  Guid: string
   Name: string
   Description: string
   IsActive: boolean
   ParentGroupId: number | null
   GroupCapacity: number | null
   CampusId: number | null
+  ScheduleId: number | null
   Members: RockGroupMember[]
   GroupLocations: Array<{
     Location?: { Street1?: string; City?: string }
   }>
 }
 
+export type RockSchedule = {
+  Id: number
+  Description: string
+  FriendlyScheduleText?: string | null
+  IsActive: boolean
+  WeeklyDayOfWeek: number | null
+  WeeklyTimeOfDay: string | null
+}
+
 export type RockRegistrationInstance = {
   Id: number
   Name: string
   IsActive: boolean
-  StartDateTime: string
-  EndDateTime: string
+  StartDateTime: string | null
+  EndDateTime: string | null
   MaxAttendees: number | null
   RegistrationTemplate?: {
     EventItemId?: number
   }
+}
+
+export type RockEventItemOccurrenceGroupMap = {
+  Id: number
+  EventItemOccurrenceId: number | null
+  RegistrationInstanceId: number | null
+  PublicName?: string | null
+  UrlSlug?: string | null
+  RegistrationInstance?: RockRegistrationInstance | null
 }

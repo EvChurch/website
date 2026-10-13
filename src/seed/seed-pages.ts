@@ -180,7 +180,7 @@ async function seed() {
             collection: 'media',
             id: existingDoc.id,
             data: { blurDataURL },
-            context: { skipBlurGeneration: true },
+            context: { skipBlurGeneration: true, skipCacheInvalidation: true },
           })
           console.log(`  Blur backfill: ${entry.key} (id: ${existingDoc.id})`)
         }
@@ -196,7 +196,7 @@ async function seed() {
         collection: 'media',
         data: { alt: entry.alt, ...(blurDataURL ? { blurDataURL } : {}) },
         filePath: fullPath,
-        context: { skipBlurGeneration: true },
+        context: { skipBlurGeneration: true, skipCacheInvalidation: true },
       })
       mediaMap.set(entry.key, doc.id as number)
       console.log(`  Uploaded: ${entry.key} (id: ${doc.id})`)
@@ -370,6 +370,13 @@ async function seed() {
             linkLabel: 'Learn more about Newish Connect',
           },
         ],
+      },
+      {
+        blockType: 'connectGroups',
+        eyebrow: 'Find your people',
+        heading: 'Find a Connect Group',
+        description:
+          'Explore Connect Groups across Auckland and choose one that works for you.',
       },
       {
         blockType: 'cta',

@@ -389,6 +389,7 @@ export async function ensureCampusPageDefaults(payload: Payload): Promise<void> 
         collection: 'campuses',
         id: campus.id,
         data,
+        context: { skipCacheInvalidation: true },
       })
     }),
   )

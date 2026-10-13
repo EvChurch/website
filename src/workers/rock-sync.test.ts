@@ -68,7 +68,7 @@ describe('runRockSyncWorker', () => {
     await expect(runRockSyncWorker({ runSync, withLock, notifyWebsite })).rejects.toThrow(
       'Sync completed with errors: events: Rock unavailable',
     )
-    expect(notifyWebsite).not.toHaveBeenCalled()
+    expect(notifyWebsite).toHaveBeenCalledOnce()
   })
 
   it('skips cleanly when another reconciliation owns the lock', async () => {

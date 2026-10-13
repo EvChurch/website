@@ -5,6 +5,7 @@ import {
   type RockGroup,
   type RockGroupMember,
   type RockPerson,
+  type RockSchedule,
 } from '@/lib/rock-api'
 import { getPayloadClient } from '@/lib/payload'
 
@@ -17,6 +18,7 @@ export const CONNECT_GROUP_TYPE_IDS = [25, 46] as const
 export const CONNECT_GROUP_COACH_SECURITY_GROUP_ID = 33287
 export const CONNECT_GROUP_COACHING_PARENT_IDS = [28241, 28781, 28782] as const
 const CONNECT_GROUP_COACHING_GROUP_TYPE_ID = 23
+const SCHEDULE_FILTER_BATCH_SIZE = 15
 
 const MIN_EXISTING_RECORDS_FOR_DROP_GUARD = 10
 const MIN_ACCEPTABLE_SNAPSHOT_RATIO = 0.5
@@ -250,6 +252,30 @@ export async function syncConnectGroups(): Promise<SyncResult> {
         $orderby: 'Name,Id',
       },
     })
+    const scheduleIds = Array.from(
+      new Set(
+        groups.flatMap((group) =>
+          Number.isInteger(group.ScheduleId) && (group.ScheduleId ?? 0) > 0
+            ? [group.ScheduleId as number]
+            : [],
+        ),
+      ),
+    )
+    const schedules: RockSchedule[] = []
+    for (let offset = 0; offset < scheduleIds.length; offset += SCHEDULE_FILTER_BATCH_SIZE) {
+      const batch = scheduleIds.slice(offset, offset + SCHEDULE_FILTER_BATCH_SIZE)
+      schedules.push(...await rockFetchAll<RockSchedule>({
+        endpoint: 'Schedules',
+        getKey: (schedule) => requireDurableId(schedule.Id, 'Rock schedule'),
+        params: {
+          $filter: batch.map((id) => `Id eq ${id}`).join(' or '),
+          $orderby: 'Id',
+          $select:
+            'Id,Description,IsActive,WeeklyDayOfWeek,WeeklyTimeOfDay',
+        },
+      }))
+    }
+    const scheduleById = new Map(schedules.map((schedule) => [schedule.Id, schedule]))
     const memberSnapshots: Array<{ groupId: number; memberships: RockGroupMember[] }> = []
     for (const group of groups) {
       memberSnapshots.push({
@@ -298,7 +324,10 @@ export async function syncConnectGroups(): Promise<SyncResult> {
 
     const preparedGroups: PreparedRecord[] = groups.map((group, index) => {
       const members = memberSnapshots[index].memberships
-      const mapped = mapRockConnectGroup({ ...group, Members: members })
+      const mapped = mapRockConnectGroup(
+        { ...group, Members: members },
+        group.ScheduleId ? scheduleById.get(group.ScheduleId) ?? null : null,
+      )
       const { _campusRockId, ...publicGroup } = mapped
       const campus =
         _campusRockId === null ? null : campusPayloadIdByRockId.get(_campusRockId)

@@ -1,4 +1,13 @@
+import * as migration_20261010_010000_payload_390_upload_keys from './20261010_010000_payload_390_upload_keys';
+import * as migration_20260910_070000_event_website_summary from './20260910_070000_event_website_summary';
+import * as migration_20260908_180000_sermon_transcripts_calendar from './20260908_180000_sermon_transcripts_calendar';
+import * as migration_20260908_150000_feedback_communications from './20260908_150000_feedback_communications';
+import * as migration_20260908_120000_giving_student_minister_funds from './20260908_120000_giving_student_minister_funds';
+import * as migration_20260907_120000_sermon_articles from './20260907_120000_sermon_articles';
+import * as migration_20260905_120000_sermon_manager from './20260905_120000_sermon_manager';
+import * as migration_20260910_010000_attendance_save_requests from './20260910_010000_attendance_save_requests';
 import * as migration_20260330_195149 from './20260330_195149';
+import * as migration_20261002_010000_support_profiles from './20261002_010000_support_profiles';
 import * as migration_20260330_210020 from './20260330_210020';
 import * as migration_20260330_223741 from './20260330_223741';
 import * as migration_20260331_190736_add_key_color from './20260331_190736_add_key_color';
@@ -47,6 +56,15 @@ import * as migration_20260819_030000_fix_connect_group_comments_lock_relation f
 import * as migration_20260819_100000_launcher_rock_forms from './20260819_100000_launcher_rock_forms';
 import * as migration_20260820_150000_fix_rock_forms_mcp_permissions from './20260820_150000_fix_rock_forms_mcp_permissions';
 import * as migration_20260820_180000_giving_apprentice_funds from './20260820_180000_giving_apprentice_funds';
+import * as migration_20260821_120000_rock_form_registration_pages from './20260821_120000_rock_form_registration_pages';
+import * as migration_20260821_150000_rock_form_connection_opportunities from './20260821_150000_rock_form_connection_opportunities';
+import * as migration_20260822_010000_giving_email_deliveries from './20260822_010000_giving_email_deliveries';
+import * as migration_20260825_120000_connect_groups_finder from './20260825_120000_connect_groups_finder';
+import * as migration_20260903_010000_giving_transaction_fees from './20260903_010000_giving_transaction_fees';
+import * as migration_20260903_010000_member_giving_self_service from './20260903_010000_member_giving_self_service';
+import * as migration_20260905_060000_feedback_github_issue_links from './20260905_060000_feedback_github_issue_links';
+
+import * as migration_20260910_010000_connect_group_visibility from './20260910_010000_connect_group_visibility';
 
 export const migrations = [
   {
@@ -294,4 +312,61 @@ export const migrations = [
     down: migration_20260820_180000_giving_apprentice_funds.down,
     name: '20260820_180000_giving_apprentice_funds',
   },
+  {
+    up: migration_20260821_120000_rock_form_registration_pages.up,
+    down: migration_20260821_120000_rock_form_registration_pages.down,
+    name: '20260821_120000_rock_form_registration_pages',
+  },
+  {
+    up: migration_20260821_150000_rock_form_connection_opportunities.up,
+    down: migration_20260821_150000_rock_form_connection_opportunities.down,
+    name: '20260821_150000_rock_form_connection_opportunities',
+  },
+  {
+    up: migration_20260822_010000_giving_email_deliveries.up,
+    down: migration_20260822_010000_giving_email_deliveries.down,
+    name: '20260822_010000_giving_email_deliveries',
+  },
+  {
+    up: migration_20260825_120000_connect_groups_finder.up,
+    down: migration_20260825_120000_connect_groups_finder.down,
+    name: '20260825_120000_connect_groups_finder',
+  },
+  {
+    up: migration_20260903_010000_giving_transaction_fees.up,
+    down: migration_20260903_010000_giving_transaction_fees.down,
+    name: '20260903_010000_giving_transaction_fees',
+  },
+  {
+    up: migration_20260903_010000_member_giving_self_service.up,
+    down: migration_20260903_010000_member_giving_self_service.down,
+    name: '20260903_010000_member_giving_self_service',
+  },
+  {
+    up: migration_20260905_060000_feedback_github_issue_links.up,
+    down: migration_20260905_060000_feedback_github_issue_links.down,
+    name: '20260905_060000_feedback_github_issue_links',
+  },
+  { up: migration_20260905_120000_sermon_manager.up, down: migration_20260905_120000_sermon_manager.down, name: '20260905_120000_sermon_manager' },
+  { up: migration_20260907_120000_sermon_articles.up, down: migration_20260907_120000_sermon_articles.down, name: '20260907_120000_sermon_articles' },
+  {
+    up: migration_20260908_120000_giving_student_minister_funds.up,
+    down: migration_20260908_120000_giving_student_minister_funds.down,
+    name: '20260908_120000_giving_student_minister_funds',
+  },
+  {
+    up: migration_20260908_150000_feedback_communications.up,
+    down: migration_20260908_150000_feedback_communications.down,
+    name: '20260908_150000_feedback_communications',
+  },
+  { up: migration_20260908_180000_sermon_transcripts_calendar.up, down: migration_20260908_180000_sermon_transcripts_calendar.down, name: '20260908_180000_sermon_transcripts_calendar' },
+  {
+    up: migration_20260910_010000_connect_group_visibility.up,
+    down: migration_20260910_010000_connect_group_visibility.down,
+    name: '20260910_010000_connect_group_visibility',
+  },
+  { up: migration_20260910_070000_event_website_summary.up, down: migration_20260910_070000_event_website_summary.down, name: '20260910_070000_event_website_summary' },
+  { up: migration_20260910_010000_attendance_save_requests.up, down: migration_20260910_010000_attendance_save_requests.down, name: '20260910_010000_attendance_save_requests' },
+  { up: migration_20261002_010000_support_profiles.up, down: migration_20261002_010000_support_profiles.down, name: '20261002_010000_support_profiles' },
+  { up: migration_20261010_010000_payload_390_upload_keys.up, down: migration_20261010_010000_payload_390_upload_keys.down, name: '20261010_010000_payload_390_upload_keys' },
 ];

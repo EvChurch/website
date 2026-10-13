@@ -1,4 +1,4 @@
-import type { GivingAnswers, GivingStep } from './giving-state'
+import { givingStepOrder, type GivingAnswers, type GivingStep } from './giving-state'
 import { givingStartDateSummary } from './steps/StartingDateStep'
 
 const frequencyLabels: Record<Exclude<GivingAnswers['frequency'], null>, string> = {
@@ -10,9 +10,27 @@ const frequencyLabels: Record<Exclude<GivingAnswers['frequency'], null>, string>
   annual: 'Every year',
 }
 
-function summary(step: GivingStep, answers: GivingAnswers): { label: string; value: string } | null {
+const answerSurface = 'relative flex min-h-14 w-full items-center rounded-full px-5 text-left font-semibold'
+
+export function GivingFundBubble({ name }: { name: string }) {
+  return <div data-giving-directed-fund className={`mb-5 ${answerSurface} bg-white text-dark-grey shadow-sm`}>
+    <span>Giving to {name}</span>
+  </div>
+}
+
+export function GivingStepPreview({ step, label }: { step: GivingStep; label: string }) {
+  return (
+    <div aria-hidden="true" data-giving-step-preview={step} className="pointer-events-none mt-4">
+      <div data-giving-preview-outline className="min-h-14 w-full rounded-full ring-1 ring-inset ring-warm-grey/25">
+        <div data-giving-answer-preview className={`${answerSurface} animate-fade-in-up bg-white text-dark-grey [mask-image:linear-gradient(to_bottom,rgba(0,0,0,0.6)_0%,transparent_80%)] motion-reduce:animate-none`}>{label}</div>
+      </div>
+    </div>
+  )
+}
+
+function summary(step: GivingStep, answers: GivingAnswers, transactionFeeMinor: number): { label: string; value: string } | null {
   switch (step) {
-    case 'amount': return answers.amountMinor === null ? null : { label: 'amount', value: `I’d like to give $${(answers.amountMinor / 100).toFixed(2)}` }
+    case 'amount': return answers.amountMinor === null ? null : { label: 'amount', value: `I’d like to give $${(answers.amountMinor / 100).toFixed(2)}${transactionFeeMinor > 0 ? `+$${(transactionFeeMinor / 100).toFixed(2)}` : ''}` }
     case 'fund': return answers.fund ? { label: 'fund', value: `for ${answers.fund.name}` } : null
     case 'frequency': return answers.frequency ? { label: 'frequency', value: frequencyLabels[answers.frequency] } : null
     case 'starting-date': return answers.startDate ? { label: 'starting date', value: `starting ${givingStartDateSummary(answers.startDate)}` } : null
@@ -23,25 +41,16 @@ function summary(step: GivingStep, answers: GivingAnswers): { label: string; val
   }
 }
 
-export function GivingAnswerTrail({ answers, currentStep, visitedSteps, placement, onEdit }: { answers: GivingAnswers; currentStep: GivingStep; visitedSteps: readonly GivingStep[]; placement: 'before' | 'after'; onEdit: (step: GivingStep) => void }) {
+export function GivingAnswerTrail({ answers, transactionFeeMinor, currentStep, visitedSteps, placement, onEdit, directedFundId = null }: { answers: GivingAnswers; transactionFeeMinor: number; currentStep: GivingStep; visitedSteps: readonly GivingStep[]; placement: 'before' | 'after'; directedFundId?: number | null; onEdit: (step: GivingStep) => void }) {
   if (currentStep === 'review') return null
-  const journey: GivingStep[] = [
-    'amount',
-    'fund',
-    'frequency',
-    ...(answers.frequency === 'one-off' ? [] : ['starting-date' as const]),
-    'identity-firstName',
-    'identity-lastName',
-    'identity-email',
-    'review',
-  ]
+  const journey = givingStepOrder(answers, directedFundId)
   const currentIndex = journey.indexOf(currentStep)
   const visited = new Set(visitedSteps)
   const candidates = placement === 'before'
     ? journey.slice(0, currentIndex)
     : journey.slice(currentIndex + 1)
   const rows = candidates.filter((step) => visited.has(step)).flatMap((step) => {
-    const item = summary(step, answers)
+    const item = summary(step, answers, transactionFeeMinor)
     return item ? [{ ...item, step }] : []
   })
   if (rows.length === 0) return null
@@ -55,7 +64,7 @@ export function GivingAnswerTrail({ answers, currentStep, visitedSteps, placemen
           onClick={() => onEdit(step)}
           aria-label={`Change ${label}`}
           data-giving-answer
-          className="group relative flex min-h-14 w-full animate-fade-in-up items-center rounded-full bg-white px-5 pr-24 text-left font-semibold text-dark-grey shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red motion-reduce:animate-none motion-reduce:transform-none"
+          className={`group ${answerSurface} animate-fade-in-up bg-white pr-24 text-dark-grey shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red motion-reduce:animate-none motion-reduce:transform-none`}
         >
           <span className="truncate">{value}</span>
           <span className="absolute right-5 text-sm font-semibold text-rich-red opacity-60 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 sm:opacity-0">Change</span>

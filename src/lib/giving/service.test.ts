@@ -1,10 +1,64 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createGivingCheckoutService, GivingCheckoutError, prepareGivingBankTransfer, type GivingCheckoutBlinkPayClient, type GivingCheckoutOperation, type GivingCheckoutRecord, type GivingCheckoutRepository, type GivingCheckoutStartResult } from './service'
+import { createGivingCheckoutService, createPostgresGivingCheckoutRepository, GivingCheckoutError, prepareGivingBankTransfer, type GivingCheckoutBlinkPayClient, type GivingCheckoutOperation, type GivingCheckoutRecord, type GivingCheckoutRepository, type GivingCheckoutStartResult } from './service'
 import type { ResolvedGivingIdentity } from './rock-identity'
 
 const context = { contextKey: 'sandbox', environment: 'sandbox' as const, synthetic: true }
-const baseSubmission = { submissionKey: 'A'.repeat(43), amountMinor: 2500, fundId: 1, frequency: 'one-off' as const, firstPaymentDate: null, firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.com', turnstileToken: 'turnstile' }
+const baseSubmission = { submissionKey: 'A'.repeat(43), amountMinor: 2500, transactionFeeMinor: 50, fundId: 1, frequency: 'one-off' as const, firstPaymentDate: null, firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.com', turnstileToken: 'turnstile' }
+
+describe('verified completion email transactions', () => {
+  async function complete(kind: 'single' | 'recurring', query: ReturnType<typeof vi.fn>) {
+    const repo = repository()
+    const { checkout: checkoutService, blinkPay } = service(repo)
+    await checkoutService.start({ ...context, submission: baseSubmission })
+    const checkout = { ...repo.checkouts[0], environment: 'production' as const, synthetic: false, giverId: 1 }
+    const release = vi.fn()
+    const store = createPostgresGivingCheckoutRepository({connect:async()=>({query,release})} as never)
+    if (kind === 'single') await store.completeOneOff(checkout,'payment-1',new Date('2026-08-15T00:00:00Z'))
+    else await store.completeSchedule({...checkout,frequency:'monthly',firstPaymentDate:'2026-09-01'}, {
+      id:2,action:'blinkpay.create-schedule',status:'submitted',providerId:'schedule-1',requestId:'request-1',idempotencyKey:'key-1',requestDigest:'digest-1',
+    },11,await blinkPay.getFixedRecurringPayment(),new Date('2026-08-15T00:00:00Z'))
+    expect(release).toHaveBeenCalledOnce()
+  }
+
+  it.each(['single','recurring'] as const)('queues thanks and snapshotted support only inside the %s completion transaction',async(kind)=>{
+    const query=vi.fn().mockResolvedValue({rowCount:1,rows:[{id:1}]})
+    await complete(kind,query)
+    const calls=query.mock.calls.map(([sql])=>String(sql))
+    expect(calls[0]).toBe('BEGIN')
+    expect(calls.at(-1)).toBe('COMMIT')
+    const completionIndex=calls.findIndex(sql=>sql.includes("SET status='completed',result_code='verified'"))
+    const emails=calls.filter(sql=>sql.includes('INSERT INTO giving_email_deliveries'))
+    expect(emails).toHaveLength(2)
+    expect(calls.indexOf(emails[0])).toBeGreaterThan(completionIndex)
+    expect(emails[0]).toContain("'blinkpay-thanks'")
+    expect(emails[1]).toContain('checkout_id,kind,recipient_email,recipient_name')
+    expect(emails[1]).toContain("checkout.id,'blinkpay-support',BTRIM(profile.email),profile.name")
+    expect(emails[1]).toContain('profile.id=fund.support_profile_id')
+    expect(emails[1]).toContain("checkout.environment='production' AND checkout.synthetic=false")
+    expect(emails[1]).toContain("checkout.status='completed' AND checkout.result_code='verified'")
+    expect(emails[1]).toContain("NULLIF(BTRIM(profile.email),'') IS NOT NULL")
+    expect(emails[1]).not.toContain('profile.published')
+    expect(emails[1]).toContain('ON CONFLICT(checkout_id,kind) DO NOTHING')
+  })
+
+  it.each(['single','recurring'] as const)('rolls back %s completion if support queuing fails',async(kind)=>{
+    const query=vi.fn(async(sql:string)=>{
+      if(sql.includes("'blinkpay-support'")) throw new Error('outbox unavailable')
+      return {rowCount:1,rows:[{id:1}]}
+    })
+    await expect(complete(kind,query)).rejects.toThrow('outbox unavailable')
+    expect(query.mock.calls.at(-1)?.[0]).toBe('ROLLBACK')
+    expect(query.mock.calls.map(([sql])=>sql)).not.toContain('COMMIT')
+  })
+
+  it('does not queue emails if the checkout cannot transition to completed',async()=>{
+    const query=vi.fn(async(sql:string)=>({rowCount:sql.includes("SET status='completed'") ? 0 : 1,rows:[{id:1}]}))
+    await expect(complete('single',query)).rejects.toMatchObject({code:'conflict'})
+    expect(query.mock.calls.some(([sql])=>sql.includes('giving_email_deliveries'))).toBe(false)
+    expect(query.mock.calls.at(-1)?.[0]).toBe('ROLLBACK')
+  })
+})
 
 interface TestSchedule { checkoutId: number; consentId: number; providerScheduleId: string; status: 'pending' | 'active' }
 
@@ -37,7 +91,7 @@ function repository(): GivingCheckoutRepository & { checkouts: GivingCheckoutRec
         returns.set(input.returnCapabilityDigest, existing.id)
         return { checkout: existing, reused: true, disposition: 'start' as const }
       }
-      const checkout: GivingCheckoutRecord = { contextKey: input.contextKey, environment: input.environment, synthetic: input.synthetic, id: checkouts.length + 1, giverId: null, bankReference: null, bankCode: 'ALOVELACE', fundId: 1, fundName: 'General', fundCode: 'GEN', fundAccountingKey: 'general', amountMinor: input.submission.amountMinor, frequency: input.submission.frequency, firstPaymentDate: input.submission.firstPaymentDate, correlationKey: input.correlationKey, submissionKeyDigest: input.submissionKeyDigest, submissionDigest: input.submissionDigest, gatewayRedirectUri: null, status: 'draft', resultCode: null }
+      const checkout: GivingCheckoutRecord = { contextKey: input.contextKey, environment: input.environment, synthetic: input.synthetic, id: checkouts.length + 1, giverId: null, bankReference: null, bankCode: 'ALOVELACE', fundId: 1, fundName: 'General', fundCode: 'GEN', fundAccountingKey: 'general', amountMinor: input.submission.amountMinor, transactionFeeMinor: input.submission.transactionFeeMinor, frequency: input.submission.frequency, firstPaymentDate: input.submission.firstPaymentDate, correlationKey: input.correlationKey, submissionKeyDigest: input.submissionKeyDigest, submissionDigest: input.submissionDigest, gatewayRedirectUri: null, status: 'draft', resultCode: null }
       checkouts.push(checkout); returns.set(input.returnCapabilityDigest, checkout.id)
       return { checkout, reused: false, disposition: 'start' as const }
     },
@@ -55,6 +109,8 @@ function repository(): GivingCheckoutRepository & { checkouts: GivingCheckoutRec
     async recordAcceptedUnknown(input) { const operation=operations.find((item)=>item.id===input.operationId)!;operation.status='unknown';operation.providerId=input.providerId;const checkout=checkouts.find((item)=>item.id===input.checkoutId)!;checkout.status='unknown';checkout.resultCode='unknown' },
     async markFailed(id) { operations.find((operation) => operation.id === id)!.status = 'failed' },
     async acknowledgeBankSetup() { return true },
+    async acknowledgeBankSetupByCheckoutId() { return true },
+    async markBankTransferPrepared(id) { return id + 100 },
     async recordHostedSuccess(input) { const stored=operations.find((operation)=>operation.id===input.operation.id)!; stored.status = 'succeeded'; stored.providerId = input.providerId; const checkout=checkouts.find((item)=>item.id===input.checkout.id)!;checkout.gatewayRedirectUri = input.gatewayRedirectUri; checkout.status = 'authorising'; checkout.resultCode = 'processing' },
     async consumeReturn(digest,expectedProviderId,_now,statusDigest) { const id = returns.get(digest); if (!id) return null; const checkout=checkouts.find((item)=>item.id===id)!;const operation=operations.find((item)=>(item as GivingCheckoutOperation & {checkoutId?:number}).checkoutId===id);if(expectedProviderId&&operation?.providerId!==expectedProviderId)return null;returns.delete(digest); statuses.clear(); statuses.set(statusDigest,id); checkout.status = 'verifying'; return checkout },
     async findByStatusCapability(digest) { const id=statuses.get(digest); return id ? checkouts.find((checkout)=>checkout.id===id) ?? null : null },
@@ -77,7 +133,7 @@ function service(repo = repository(), overrides: Partial<GivingCheckoutBlinkPayC
     createEnduringConsent: vi.fn(async (_input,keys) => ({ outcome: 'succeeded' as const, value: { consent_id: 'consent-1', redirect_uri: 'https://sandbox.debit.blinkpay.co.nz/gateway/consent' }, metadata: keys })),
     getEnduringConsent: vi.fn(async () => ({ consent_id: 'consent-1', status: 'Authorised', creation_timestamp: '2026-08-15T00:00:00Z', status_updated_timestamp: '2026-08-15T00:00:01Z', detail: {}, payments: [] })),
     createFixedRecurringPayment: vi.fn(async (_input,keys) => ({ outcome: 'succeeded' as const, value: { fixed_recurring_payment_id: 'schedule-1' }, metadata: keys })),
-    getFixedRecurringPayment: vi.fn(async () => ({ fixed_recurring_payment_id: 'schedule-1', consent_id: 'consent-1', status: 'active', start_date: '2026-09-01', next_payment_date: '2026-09-01', amount: { total: '25.00', currency: 'NZD' as const }, pcr: { particulars: 'GEN' }, retry_strategy: 'same_day' as const, creation_timestamp: '2026-08-15T00:00:02Z' })),
+    getFixedRecurringPayment: vi.fn(async () => ({ fixed_recurring_payment_id: 'schedule-1', consent_id: 'consent-1', status: 'active', start_date: '2026-09-01', next_payment_date: '2026-09-01', amount: { total: '25.50', currency: 'NZD' as const }, pcr: { particulars: 'GEN' }, retry_strategy: 'same_day' as const, creation_timestamp: '2026-08-15T00:00:02Z' })),
     isPaymentSettled: (value: { status: string }) => value.status === 'AcceptedSettlementCompleted', isConsentAuthorised: (value: { status: string }) => value.status === 'Authorised', isFixedRecurringPaymentActive: (value: { status: string }) => value.status === 'active',
   } satisfies GivingCheckoutBlinkPayClient
   const client: GivingCheckoutBlinkPayClient = { ...blinkPay, ...overrides }
@@ -91,8 +147,11 @@ function returnToken(result: GivingCheckoutStartResult) {
 }
 
 describe('giving checkout orchestration', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
   it('prepares direct-bank references through the same Rock identity resolution without calling BlinkPay', async () => {
     const repo = repository()
+    const createOrReuse = vi.spyOn(repo, 'createOrReuse')
     const resolveIdentity = vi.fn(async () => {
       repo.checkouts[0].giverId = 9
       repo.checkouts[0].bankReference = 'EV123'
@@ -115,8 +174,13 @@ describe('giving checkout orchestration', () => {
       code: 'ALOVELACE',
       reference: 'EV123',
       acknowledgementToken: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/u),
+      checkoutId: 1,
+      emailDeliveryId: 101,
     })
     expect(second).toMatchObject({ ...first, acknowledgementToken: expect.any(String) })
+    expect(createOrReuse).toHaveBeenCalledWith(expect.objectContaining({
+      returnCapabilityExpiresAt: new Date('2026-09-14T00:00:00Z'),
+    }))
     expect(resolveIdentity).toHaveBeenCalledTimes(1)
     expect(repo.operations).toHaveLength(0)
   })
@@ -136,6 +200,7 @@ describe('giving checkout orchestration', () => {
       fundCode: 'GEN',
       fundAccountingKey: 'general',
       amountMinor: baseSubmission.amountMinor,
+      transactionFeeMinor: baseSubmission.transactionFeeMinor,
       frequency: baseSubmission.frequency,
       firstPaymentDate: baseSubmission.firstPaymentDate,
       correlationKey: 'interrupted-checkout',
@@ -185,6 +250,7 @@ describe('giving checkout orchestration', () => {
       fundCode: 'GEN',
       fundAccountingKey: 'general',
       amountMinor: baseSubmission.amountMinor,
+      transactionFeeMinor: baseSubmission.transactionFeeMinor,
       frequency: baseSubmission.frequency,
       firstPaymentDate: baseSubmission.firstPaymentDate,
       correlationKey: 'blinkpay-checkout',
@@ -216,10 +282,15 @@ describe('giving checkout orchestration', () => {
 
   it('reuses an identical submission, commits caller-owned keys before the call and verifies one-off settlement authoritatively', async () => {
     const { checkout, blinkPay, repo } = service()
+    const createOrReuse = vi.spyOn(repo, 'createOrReuse')
     const first = await checkout.start({ ...context, submission: baseSubmission })
     const second = await checkout.start({ ...context, submission: baseSubmission })
     expect(second).toMatchObject({ reused: true, gatewayRedirectUri: first.gatewayRedirectUri })
+    expect(createOrReuse).toHaveBeenCalledWith(expect.objectContaining({
+      returnCapabilityExpiresAt: new Date('2026-08-15T00:30:00Z'),
+    }))
     expect(blinkPay.createQuickPayment).toHaveBeenCalledTimes(1)
+    expect(blinkPay.createQuickPayment.mock.calls[0][0].amount).toEqual({ total: '25.50', currency: 'NZD' })
     expect(blinkPay.createQuickPayment.mock.calls[0][0].pcr).toEqual({ particulars: 'GEN', code: 'ALOVELACE', reference: 'EV123' })
     expect(blinkPay.createQuickPayment.mock.calls[0][1]).toEqual({ requestId: repo.operations[0].requestId, idempotencyKey: repo.operations[0].idempotencyKey })
     expect(blinkPay.createQuickPayment.mock.calls[0][1]).toEqual({
@@ -228,7 +299,34 @@ describe('giving checkout orchestration', () => {
     })
     expect(blinkPay.createQuickPayment.mock.calls[0][0].flow.detail.redirect_uri).toBe('https://www.ev.church/give/return')
     const returned = await checkout.consumeReturn(returnToken(second))
-    expect(await checkout.status(returned.statusToken)).toEqual({ state: 'verified', retryAllowed: false, kind: 'one-off' })
+    expect(await checkout.status(returned.statusToken)).toMatchObject({
+      state: 'verified',
+      retryAllowed: false,
+      kind: 'one-off',
+      gift: {
+        amountMinor: 2500,
+        transactionFeeMinor: 50,
+        fundName: 'General',
+        frequency: 'one-off',
+        firstPaymentDate: null,
+      },
+    })
+  })
+
+  it('uses the configured preview callback origin for hosted BlinkPay', async () => {
+    vi.stubEnv('NODE_ENV', 'development')
+    vi.stubEnv('APP_BASE_URL', 'https://cons-catch-carlos-cape.trycloudflare.com')
+    const { checkout, blinkPay } = service()
+    await checkout.start({ ...context, submission: baseSubmission })
+    expect(blinkPay.createQuickPayment.mock.calls[0][0].flow.detail.redirect_uri).toBe('https://cons-catch-carlos-cape.trycloudflare.com/give/return')
+  })
+
+  it('uses the configured preview callback origin from a production build with sandbox credentials', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('APP_BASE_URL', 'https://cons-catch-carlos-cape.trycloudflare.com')
+    const { checkout, blinkPay } = service()
+    await checkout.start({ ...context, submission: baseSubmission })
+    expect(blinkPay.createQuickPayment.mock.calls[0][0].flow.detail.redirect_uri).toBe('https://cons-catch-carlos-cape.trycloudflare.com/give/return')
   })
 
   it('records an ambiguous create as unknown and never issues a blind second create', async () => {
@@ -238,7 +336,7 @@ describe('giving checkout orchestration', () => {
     expect(first).toMatchObject({ outcome: 'unknown', retryAllowed: false, reused: false })
     const second = await checkout.start({ ...context, submission: baseSubmission })
     expect(second).toMatchObject({ outcome: 'unknown', retryAllowed: false, reused: true })
-    await expect(checkout.status(second.statusToken)).resolves.toEqual({ state: 'unknown', retryAllowed: false, kind: 'one-off' })
+    await expect(checkout.status(second.statusToken)).resolves.toMatchObject({ state: 'unknown', retryAllowed: false, kind: 'one-off' })
     expect(createQuickPayment).toHaveBeenCalledTimes(1)
   })
 
@@ -324,7 +422,7 @@ describe('giving checkout orchestration', () => {
     const { checkout } = service(repository(), { getQuickPayment: vi.fn(async () => { throw new Error('provider unavailable') }) })
     const started = await checkout.start({ ...context, submission: baseSubmission })
     const returned = await checkout.consumeReturn(returnToken(started))
-    expect(await checkout.status(returned.statusToken)).toEqual({ state: 'processing', retryAllowed: false, kind: 'one-off' })
+    expect(await checkout.status(returned.statusToken)).toMatchObject({ state: 'processing', retryAllowed: false, kind: 'one-off' })
   })
 
   it('returns the persisted status capability when recovery setProcessing also fails', async () => {
@@ -343,9 +441,36 @@ describe('giving checkout orchestration', () => {
     const { checkout } = service(repo, { getQuickPayment })
     const started = await checkout.start({ ...context, submission: baseSubmission })
     const returned = await checkout.consumeReturn(returnToken(started))
-    expect(await checkout.status(returned.statusToken)).toEqual({ state: 'verified', retryAllowed: false, kind: 'one-off' })
-    expect(await checkout.status(returned.statusToken)).toEqual({ state: 'verified', retryAllowed: false, kind: 'one-off' })
+    expect(await checkout.status(returned.statusToken)).toMatchObject({ state: 'verified', retryAllowed: false, kind: 'one-off' })
+    expect(await checkout.status(returned.statusToken)).toMatchObject({ state: 'verified', retryAllowed: false, kind: 'one-off' })
     expect(completeOneOff).toHaveBeenCalledTimes(1)
+  })
+
+  it('treats a rejected one-off payment as terminal when its consent is consumed', async () => {
+    const rejected = {
+      quick_payment_id: 'quick-1',
+      consent: {
+        consent_id: 'consent-1',
+        status: 'Consumed',
+        creation_timestamp: '2026-08-15T00:00:00Z',
+        status_updated_timestamp: '2026-08-15T00:00:01Z',
+        detail: {},
+        payments: [{
+          payment_id: 'payment-1',
+          type: 'single',
+          status: 'Rejected',
+          creation_timestamp: '2026-08-15T00:00:00Z',
+          status_updated_timestamp: '2026-08-15T00:00:01Z',
+          detail: {},
+          refunds: [],
+        }],
+      },
+    }
+    const { checkout } = service(repository(), { getQuickPayment: vi.fn(async () => rejected) })
+    const started = await checkout.start({ ...context, submission: baseSubmission })
+    const returned = await checkout.consumeReturn(returnToken(started))
+
+    expect(await checkout.status(returned.statusToken)).toMatchObject({ state: 'rejected', retryAllowed: true, kind: 'one-off' })
   })
 
   it('rejects a mismatched callback alias without consuming the return capability', async () => {
@@ -363,6 +488,8 @@ describe('giving checkout orchestration', () => {
     await checkout.consumeReturn(returnToken(started))
     await checkout.verify(1)
     expect(blinkPay.createFixedRecurringPayment).toHaveBeenCalledTimes(1)
+    expect(blinkPay.createEnduringConsent.mock.calls[0][0].maximum_amount_period).toEqual({ total: '25.50', currency: 'NZD' })
+    expect(blinkPay.createFixedRecurringPayment.mock.calls[0][0].amount).toEqual({ total: '25.50', currency: 'NZD' })
     expect(blinkPay.createFixedRecurringPayment.mock.calls[0][0].pcr).toEqual({ particulars: 'GEN', code: 'ALOVELACE', reference: 'EV123' })
     expect(blinkPay.getEnduringConsent).toHaveBeenCalled()
     expect(blinkPay.getFixedRecurringPayment).toHaveBeenCalled()
@@ -373,7 +500,23 @@ describe('giving checkout orchestration', () => {
     const { checkout } = service(repository(), { createFixedRecurringPayment })
     const started = await checkout.start({ ...context, submission: { ...baseSubmission, frequency: 'monthly', firstPaymentDate: '2026-09-01' } })
     const returned = await checkout.consumeReturn(returnToken(started))
-    expect(await checkout.status(returned.statusToken)).toEqual({ state: 'rejected', retryAllowed: true, kind: 'recurring' })
+    expect(await checkout.status(returned.statusToken)).toMatchObject({ state: 'rejected', retryAllowed: true, kind: 'recurring' })
+  })
+
+  it('treats a revoked recurring consent as a cancelled gift', async () => {
+    const getEnduringConsent = vi.fn(async () => ({
+      consent_id: 'consent-1',
+      status: 'Revoked',
+      creation_timestamp: '2026-08-15T00:00:00Z',
+      status_updated_timestamp: '2026-08-15T00:00:01Z',
+      detail: {},
+      payments: [],
+    }))
+    const { checkout } = service(repository(), { getEnduringConsent })
+    const started = await checkout.start({ ...context, submission: { ...baseSubmission, frequency: 'weekly', firstPaymentDate: '2026-09-01' } })
+    const returned = await checkout.consumeReturn(returnToken(started))
+
+    expect(await checkout.status(returned.statusToken)).toMatchObject({ state: 'cancelled', retryAllowed: true, kind: 'recurring' })
   })
 
   it('marks an ambiguous schedule exception unknown and does not retry it', async () => {
@@ -381,7 +524,7 @@ describe('giving checkout orchestration', () => {
     const { checkout } = service(repository(), { createFixedRecurringPayment })
     const started = await checkout.start({ ...context, submission: { ...baseSubmission, frequency: 'monthly', firstPaymentDate: '2026-09-01' } })
     const returned = await checkout.consumeReturn(returnToken(started))
-    expect(await checkout.status(returned.statusToken)).toEqual({ state: 'unknown', retryAllowed: false, kind: 'recurring' })
+    expect(await checkout.status(returned.statusToken)).toMatchObject({ state: 'unknown', retryAllowed: false, kind: 'recurring' })
     await checkout.verify(1)
     expect(createFixedRecurringPayment).toHaveBeenCalledTimes(1)
   })

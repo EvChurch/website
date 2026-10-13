@@ -18,7 +18,7 @@ tags: [rock-rms, volunteer-scheduling, decline-reasons, members-area]
 
 ## Problem
 
-EV's Serving Team group type requires a reason when a volunteer declines. Rock's stock `ScheduledPersonDecline` REST action accepts only an attendance ID, so calling it from the website cannot preserve the configured reason requirement.
+Ev's Serving Team group type requires a reason when a volunteer declines. Rock's stock `ScheduledPersonDecline` REST action accepts only an attendance ID, so calling it from the website cannot preserve the configured reason requirement.
 
 ## Symptoms
 

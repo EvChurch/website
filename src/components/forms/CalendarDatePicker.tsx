@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { HiCalendarDays, HiChevronLeft, HiChevronRight } from 'react-icons/hi2'
 
 function dateParts(value: string) {
@@ -33,6 +33,7 @@ function currentDate() {
 }
 
 export function CalendarDatePicker({
+  clearable = false,
   endDate = '',
   id,
   isOpen,
@@ -46,6 +47,7 @@ export function CalendarDatePicker({
   required = false,
   startDate,
 }: {
+  clearable?: boolean
   endDate?: string
   id: string
   isOpen: boolean
@@ -64,7 +66,13 @@ export function CalendarDatePicker({
     const { year, month } = dateParts(initial)
     return { year, month }
   })
+  const calendarRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (isOpen) calendarRef.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+  }, [isOpen, visibleMonth])
   const minParts = min ? dateParts(min) : null
+  const firstYear = minParts?.year ?? Math.min(1900, visibleMonth.year)
+  const lastYear = Math.max(dateParts(currentDate()).year + 10, visibleMonth.year, firstYear)
   const daysInMonth = new Date(Date.UTC(visibleMonth.year, visibleMonth.month, 0)).getUTCDate()
   const firstWeekday = (new Date(Date.UTC(visibleMonth.year, visibleMonth.month - 1, 1)).getUTCDay() + 6) % 7
   const monthLabel = new Intl.DateTimeFormat('en-NZ', {
@@ -78,6 +86,13 @@ export function CalendarDatePicker({
   function moveMonth(offset: number) {
     const date = new Date(Date.UTC(visibleMonth.year, visibleMonth.month - 1 + offset, 1))
     setVisibleMonth({ year: date.getUTCFullYear(), month: date.getUTCMonth() + 1 })
+  }
+
+  function jumpToMonth(year: number, month: number) {
+    setVisibleMonth(minParts && (year < minParts.year ||
+      (year === minParts.year && month < minParts.month))
+      ? { year: minParts.year, month: minParts.month }
+      : { year, month })
   }
 
   function open() {
@@ -129,12 +144,14 @@ export function CalendarDatePicker({
         )}
         <HiCalendarDays aria-hidden="true" className="h-5 w-5 shrink-0 text-rich-red" />
       </button>
-      {required && <input className="sr-only" value={startDate} required readOnly />}
+      {required && <input className="sr-only" aria-label={label} tabIndex={-1} value={startDate} required onChange={() => {}}
+        onInvalid={(event) => { event.preventDefault(); document.getElementById(id)?.focus() }} />}
       {isOpen && (
         <div
+          ref={calendarRef}
           role="dialog"
           aria-label={mode === 'range' ? 'Date range calendar' : `${label} calendar`}
-          className="absolute left-0 top-full z-20 mt-2 w-[min(20rem,calc(100vw-4rem))] max-w-full rounded-xl border border-warm-grey bg-white p-4 shadow-xl"
+          className="mt-2 w-80 max-w-full rounded-xl border border-warm-grey bg-white p-4 shadow-xl"
         >
           <div className="flex items-center justify-between">
             <button
@@ -146,7 +163,7 @@ export function CalendarDatePicker({
             >
               <HiChevronLeft aria-hidden="true" className="h-5 w-5" />
             </button>
-            <p className="font-bold text-brand-black">{monthLabel}</p>
+            <p aria-live="polite" className="font-bold text-brand-black">{monthLabel}</p>
             <button
               type="button"
               aria-label="Next month"
@@ -155,6 +172,35 @@ export function CalendarDatePicker({
             >
               <HiChevronRight aria-hidden="true" className="h-5 w-5" />
             </button>
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <select
+              aria-label="Month"
+              value={visibleMonth.month}
+              onChange={(event) => jumpToMonth(visibleMonth.year, Number(event.target.value))}
+              className="min-h-11 min-w-0 rounded-lg border border-warm-grey bg-white px-2 text-brand-black focus-visible:outline-2 focus-visible:outline-rich-red"
+            >
+              {Array.from({ length: 12 }, (_, index) => (
+                <option
+                  key={index}
+                  value={index + 1}
+                  disabled={Boolean(minParts && visibleMonth.year === minParts.year && index + 1 < minParts.month)}
+                >
+                  {new Intl.DateTimeFormat('en-NZ', { month: 'long', timeZone: 'UTC' })
+                    .format(new Date(Date.UTC(2000, index, 1)))}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Year"
+              value={visibleMonth.year}
+              onChange={(event) => jumpToMonth(Number(event.target.value), visibleMonth.month)}
+              className="min-h-11 min-w-0 rounded-lg border border-warm-grey bg-white px-2 text-brand-black focus-visible:outline-2 focus-visible:outline-rich-red"
+            >
+              {Array.from({ length: lastYear - firstYear + 1 }, (_, index) => (
+                <option key={firstYear + index} value={firstYear + index}>{firstYear + index}</option>
+              ))}
+            </select>
           </div>
           <div className="mt-2 grid grid-cols-7 text-center text-xs font-bold text-mid-grey" aria-hidden="true">
             {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => <span key={`${day}-${index}`} className="py-2">{day}</span>)}
@@ -195,7 +241,7 @@ export function CalendarDatePicker({
                     inRange && column === 0 ? 'rounded-l-full' : inRange && column === 6 ? 'rounded-r-full' : ''
                   }`}
                 >
-                  <span className={`flex h-9 w-9 items-center justify-center rounded-full transition ${
+                  <span className={`flex aspect-square w-full max-w-9 items-center justify-center rounded-full transition ${
                     rangeStart || rangeEnd
                       ? 'bg-rich-red font-bold text-white shadow-sm'
                       : inRange
@@ -208,6 +254,10 @@ export function CalendarDatePicker({
               )
             })}
           </div>
+          {clearable && startDate && (
+            <button type="button" className="mt-2 min-h-11 w-full rounded-lg text-sm font-semibold text-rich-red hover:bg-warm-white focus-visible:outline-2 focus-visible:outline-rich-red"
+              onClick={() => { onChange('', ''); onComplete() }}>Clear date</button>
+          )}
         </div>
       )}
     </div>

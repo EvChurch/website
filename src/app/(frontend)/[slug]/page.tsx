@@ -5,8 +5,10 @@ import { getPayloadClient } from '@/lib/payload'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import { trackedNotFound } from '@/lib/tracked-not-found'
 import { isRetiredPageSlug } from '@/lib/public-pages'
+import { applyExplainingChristianityAction, getExplainingChristianityAction } from '@/lib/explaining-christianity'
 import { DEFAULT_OPEN_GRAPH_IMAGES, truncateMetaDescription } from '@/lib/seo-metadata'
 import { RenderBlocks } from '@/components/blocks/RenderBlocks'
+import { SimpleContentPage } from '@/components/pages/SimpleContentPage'
 import { BreadcrumbJsonLd, buildBreadcrumbs } from '@/components/seo/BreadcrumbJsonLd'
 
 export const revalidate = 86400
@@ -106,8 +108,32 @@ export default async function DynamicPage({
   if (!page) trackedNotFound(slug)
 
 
-  const blocks = (page.layout ?? []) as any[]
+  const layout = page.layout ?? []
+  const blocks = (slug === 'explaining-christianity'
+    ? applyExplainingChristianityAction(layout, await getExplainingChristianityAction())
+    : layout) as any[]
   const breadcrumbs = buildBreadcrumbs(`/${slug}`, page.title)
+
+  if (page.template === 'simple-content') {
+    const sections = blocks
+      .filter((block) => block.blockType === 'content')
+      .map((block) => ({
+        id: block.id,
+        heading: block.heading,
+        body: block.body,
+      }))
+
+    return (
+      <>
+        <BreadcrumbJsonLd items={breadcrumbs} />
+        <SimpleContentPage
+          title={page.title}
+          updatedAt={page.updatedAt}
+          sections={sections}
+        />
+      </>
+    )
+  }
 
   // Generate FAQPage JSON-LD from accordion blocks on the FAQ page
   let faqJsonLd: React.ReactNode = null

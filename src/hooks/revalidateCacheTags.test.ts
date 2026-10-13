@@ -27,6 +27,14 @@ describe('createCacheInvalidationHook', () => {
     expect(revalidateTag).toHaveBeenNthCalledWith(2, CACHE_TAGS.siteSettings, { expire: 0 })
   })
 
+  it('lets standalone workers defer invalidation to the website endpoint', () => {
+    const invalidate = createCacheInvalidationHook(CACHE_TAGS.pages)
+
+    invalidate({ context: { skipCacheInvalidation: true } })
+
+    expect(revalidateTag).not.toHaveBeenCalled()
+  })
+
   it('is wired to editorial collection and global writes', async () => {
     const pageChange = Pages.hooks?.afterChange?.[0]
     const pageDelete = Pages.hooks?.afterDelete?.[0]

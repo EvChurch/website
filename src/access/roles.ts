@@ -1,7 +1,7 @@
 import type { Access, FieldAccess } from 'payload'
 import type { User } from '@/payload-types'
 
-export const payloadAdminRoles = ['admin', 'content-lead', 'editor'] as const
+export const payloadAdminRoles = ['admin', 'content-lead', 'editor', 'sermon-manager'] as const
 
 export function hasPayloadAdminRole(user: Pick<User, 'roles'> | null | undefined) {
   return Boolean(user?.roles?.some((role) => payloadAdminRoles.includes(role)))
@@ -27,15 +27,23 @@ export const contentLeadOnlyField: FieldAccess = ({ req: { user } }) => {
   return Boolean(u?.roles?.includes('admin') || u?.roles?.includes('content-lead'))
 }
 
-export const isEditor: Access = ({ req: { user } }) => {
-  return hasPayloadAdminRole(user as User | null)
+export function hasEditorialRole(user: Pick<User, 'roles'> | null | undefined) {
+  return Boolean(user?.roles?.some((role) => ['admin', 'content-lead', 'editor'].includes(role)))
 }
+
+export function hasSermonManagerRole(user: Pick<User, 'roles'> | null | undefined) {
+  return Boolean(user?.roles?.some((role) => role === 'admin' || role === 'sermon-manager'))
+}
+
+export const isSermonManager: Access = ({ req: { user } }) => hasSermonManagerRole(user as User | null)
+
+export const isEditor: Access = ({ req: { user } }) => hasEditorialRole(user as User | null)
 
 /** Prevent request-scoped writes to collections mirrored from an external source of truth. */
 export const denyExternalMutation: Access = () => false
 
 export const publishedOnly: Access = ({ req: { user } }) => {
-  if (hasPayloadAdminRole(user as User | null)) return true
+  if (hasEditorialRole(user as User | null)) return true
   return { _status: { equals: 'published' } }
 }
 

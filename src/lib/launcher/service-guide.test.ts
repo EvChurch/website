@@ -161,6 +161,20 @@ describe('Service Guide launcher data', () => {
     ).toEqual({ type: 'content', html: '<p>Hello <a>there</a></p>' })
   })
 
+  it('drops nested dangerous containers and strips attributes from allowed markup', () => {
+    expect(
+      resolveLauncherAction(
+        record({
+          content:
+            '<script><script>alert(1)</script></script><svg><text>hidden</text></svg><section><p onclick="bad()">Safe <strong style="color:red">content</strong></p></section>',
+        }),
+      ),
+    ).toEqual({
+      type: 'content',
+      html: '<p>Safe <strong>content</strong></p>',
+    })
+  })
+
   it('retains CTA intent without retaining Rock classes or inline styles', () => {
     expect(
       resolveLauncherAction(
@@ -351,6 +365,135 @@ describe('Service Guide launcher data', () => {
           action: { type: 'workflow', workflowTypeGuid: workflowGuid },
         },
       ],
+    })
+  })
+
+  it('uses the managed Rock form when the service guide contains the same Connection Opportunity', async () => {
+    find.mockImplementation(async (args: { collection: string }) => {
+      if (args.collection === 'campuses') return { docs: [] }
+      if (args.collection === 'rock-forms') {
+        return {
+          docs: [{
+            title: 'Newish Connect',
+            slug: 'newish-connect',
+            formType: 'connectionOpportunity',
+            connectionBlockGuid: connectionGuid,
+            published: true,
+          }],
+        }
+      }
+      return {
+        docs: [
+          record({ title: 'Newish Connect (NS)', connectionBlockGuid: connectionGuid }),
+          record({ rockId: 11, title: 'Other item', directLink: '/other' }),
+        ],
+      }
+    })
+
+    await expect(loadLauncherData()).resolves.toMatchObject({
+      items: [
+        { id: '11', title: 'Other item' },
+        {
+          id: 'newish-connect',
+          title: 'Newish Connect',
+          action: { type: 'connection', blockGuid: connectionGuid },
+        },
+      ],
+    })
+  })
+
+  it('publishes a Connection Opportunity managed only by a Rock Form record', async () => {
+    find.mockImplementation(async (args: { collection: string }) => {
+      if (args.collection === 'rock-forms') {
+        return {
+          docs: [{ connectionBlockGuid: connectionGuid, published: true }],
+        }
+      }
+      return { docs: [] }
+    })
+
+    await expect(isPublishedLauncherConnection(connectionGuid)).resolves.toBe(true)
+  })
+
+  it('loads a Registration site page from a published Rock Form record', async () => {
+    const body = {
+      root: {
+        type: 'root',
+        children: [{ type: 'paragraph', children: [{ type: 'text', text: 'Welcome.' }] }],
+      },
+    }
+    findGlobal.mockResolvedValue({ lastSuccessfulSyncAt: null })
+    find.mockImplementation(async (args: { collection: string }) => {
+      if (args.collection === 'campuses') return { docs: [] }
+      if (args.collection === 'rock-forms') {
+        return {
+          docs: [{
+            title: 'Kids Enrolment',
+            slug: 'kids-enrolment',
+            formType: 'registrationPage',
+            registrationPath: 'kids',
+            body,
+            image: { url: '/api/media/file/kids.jpg' },
+            published: true,
+          }],
+        }
+      }
+      return { docs: [] }
+    })
+
+    await expect(loadLauncherData()).resolves.toMatchObject({
+      available: true,
+      items: [{
+        id: 'kids-enrolment',
+        title: 'Kids Enrolment',
+        action: {
+          type: 'registrationPage',
+          href: 'https://registration.ev.church/kids',
+          imageUrl: '/api/media/file/kids.jpg',
+          body,
+        },
+      }],
+    })
+  })
+
+  it('loads a Connection Opportunity from a published Rock Form record', async () => {
+    const body = {
+      root: {
+        type: 'root',
+        children: [{ type: 'paragraph', children: [{ type: 'text', text: 'Come along.' }] }],
+      },
+    }
+    findGlobal.mockResolvedValue({ lastSuccessfulSyncAt: null })
+    find.mockImplementation(async (args: { collection: string }) => {
+      if (args.collection === 'campuses') return { docs: [] }
+      if (args.collection === 'rock-forms') {
+        return {
+          docs: [{
+            title: 'Newish Connect',
+            slug: 'newish-connect',
+            formType: 'connectionOpportunity',
+            connectionBlockGuid: connectionGuid.toUpperCase(),
+            body,
+            image: { url: '/api/media/file/newish.jpg' },
+            published: true,
+          }],
+        }
+      }
+      return { docs: [] }
+    })
+
+    await expect(loadLauncherData()).resolves.toMatchObject({
+      available: true,
+      items: [{
+        id: 'newish-connect',
+        title: 'Newish Connect',
+        action: {
+          type: 'connection',
+          blockGuid: connectionGuid,
+          imageUrl: '/api/media/file/newish.jpg',
+          body,
+        },
+      }],
     })
   })
 

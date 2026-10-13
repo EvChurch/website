@@ -29,6 +29,7 @@ type FormEmbedBlockProps = Omit<
   >,
   'sourceType'
 > & {
+  id?: string | null
   // Rows created before the discriminator migration still render as Workflow.
   sourceType?: 'workflow' | 'connectionOpportunity' | null
 }
@@ -106,6 +107,7 @@ async function EmbeddedRockForm({
 }
 
 export async function FormEmbedBlockComponent({
+  id,
   eyebrow,
   heading,
   description,
@@ -127,7 +129,7 @@ export async function FormEmbedBlockComponent({
   })
 
   return (
-    <section className="bg-warm-white px-5 py-16 lg:px-8 lg:py-24">
+    <section id={id ?? undefined} className="scroll-mt-20 bg-warm-white px-5 py-16 lg:px-8 lg:py-24">
       <div className="mx-auto max-w-[80rem] px-5 lg:px-8">
         {/* Optional header */}
         {(eyebrow || heading || description) && (

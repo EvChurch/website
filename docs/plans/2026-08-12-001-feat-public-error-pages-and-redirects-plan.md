@@ -50,10 +50,10 @@ The solution must not become a general observability platform, link-management s
 
 ### Public error experiences
 
-- **R1.** An unresolved missing public page must return a branded EV Church 404 experience within the normal public-site visual context.
+- **R1.** An unresolved missing public page must return a branded Ev Church 404 experience within the normal public-site visual context.
 - **R2.** The 404 experience must explain in plain language that the requested page could not be found.
 - **R3.** The 404 experience must offer exactly one recovery action, labelled **Return home**, which takes the visitor to the main page.
-- **R4.** An unexpected crash affecting a public page must present a branded EV Church error experience rather than raw framework or technical error details.
+- **R4.** An unexpected crash affecting a public page must present a branded Ev Church error experience rather than raw framework or technical error details.
 - **R5.** The unexpected-crash experience must offer **Try again** as its primary action and **Return home** as its fallback action.
 - **R6.** **Try again** must retry the failed public experience without requiring the visitor to understand or change the URL.
 - **R7.** Neither public error experience may expose stack traces, internal identifiers, configuration details, or other diagnostic data.
@@ -168,7 +168,7 @@ The solution must not become a general observability platform, link-management s
 
 - The website continues to have a stable main-page destination at `/`.
 - Payload administrators are trusted to manage the optional redirect destination.
-- The existing public layout and EV Church design language remain available to both error experiences.
+- The existing public layout and Ev Church design language remain available to both error experiences.
 - The existing PostHog configuration and route privacy policy remain the source of truth for eligible browser exception collection.
 - The website can distinguish public page requests from member, admin, API, and asset requests consistently enough to enforce the stated boundary.
 - Path comparison uses the same normalized representation for aggregation and redirect validation, including query removal and trailing-slash merging.
@@ -264,7 +264,7 @@ flowchart TB
 - `not-found.tsx` receives no pathname prop. It may read the trusted header during render and pass the normalized value into `after()`; request APIs must not be called from inside the callback.
 - `after()` is available on the repository's Node.js deployment, but migration and browser verification must confirm graceful completion under Railway shutdown behavior.
 - A missing-path write failure is observable through sanitized server logging and is non-fatal to the public response. No visitor, session, query, referrer, or form data may enter the log or collection.
-- Database-backed acceptance work begins only after the implementer confirms that `DATABASE_URL` targets an intended disposable or development EV Church database.
+- Database-backed acceptance work begins only after the implementer confirms that `DATABASE_URL` targets an intended disposable or development Ev Church database.
 
 ### Sequencing
 
@@ -352,7 +352,7 @@ flowchart TB
 - **Goal:** Render the exact settled 404 and unexpected-error actions inside the existing public visual context.
 - **Requirements:** R1-R7, R27; Flow D; A1, A10.
 - **Files:** `src/components/errors/PublicErrorExperience.tsx`, `src/components/errors/PublicErrorExperience.test.tsx`, `src/app/(frontend)/not-found.tsx`, `src/app/(frontend)/not-found.test.tsx`, `src/app/(frontend)/error.tsx`, and `src/app/(frontend)/error.test.tsx`.
-- **Approach:** Reuse the existing `Button` component and EV Church brand tokens. Keep the 404 server-rendered with one home action. Keep the unexpected-error boundary client-side, render `Try again` as primary and home as fallback, call the Next.js 16 `retry()` callback, and never display the error object or digest per KTD1.
+- **Approach:** Reuse the existing `Button` component and Ev Church brand tokens. Keep the 404 server-rendered with one home action. Keep the unexpected-error boundary client-side, render `Try again` as primary and home as fallback, call the Next.js 16 `retry()` callback, and never display the error object or digest per KTD1.
 - **Dependencies:** U1, U3.
 - **Test scenarios:**
   1. The 404 renders plain-language missing-page copy and exactly one actionable control labelled `Return home` with destination `/`.

@@ -28,12 +28,15 @@ describe('MemberPortalChrome', () => {
     expect(linkText).toBe('Connect Group')
     expect(markup).toContain('href="/members/daily-readings"')
     expect(markup).toContain('Daily Reading')
+    expect(markup).toContain('href="/members/giving"')
+    expect(markup).toContain('Giving')
     expect(markup).toContain('href="/members/my-service"')
     expect(markup).toContain('My Service')
     expect(markup).toContain('href="/members"')
     expect(markup).toContain('Overview')
+    expect(markup).toContain('Study Resources')
     expect(markup).not.toContain('Leader Resources')
-    expect(markup.match(/rel="nofollow"/gu)).toHaveLength(4)
+    expect(markup.match(/rel="nofollow"/gu)).toHaveLength(6)
   })
 
   it('marks My Service active only for the service section', () => {
@@ -50,7 +53,7 @@ describe('MemberPortalChrome', () => {
 
     expect(markup).toMatch(/<a[^>]+aria-current="page"[^>]+href="\/members\/my-service"/u)
     expect(markup).not.toMatch(/<a[^>]+aria-current="page"[^>]+href="\/members"/u)
-    expect(markup).toContain('Leader Resources')
+    expect(markup).toContain('Study Resources')
 
     const labels = [...markup.matchAll(/<a[^>]*rel="nofollow"[^>]*>([\s\S]*?)<\/a>/gu)]
       .map((match) => match[1]?.replace(/<[^>]+>/gu, ''))
@@ -58,8 +61,9 @@ describe('MemberPortalChrome', () => {
       'Overview',
       'Daily Reading',
       'Connect Group',
-      'Leader Resources',
+      'Study Resources',
       'My Service',
+      'Giving',
     ])
   })
 })

@@ -5,7 +5,7 @@ import type { Payload } from 'payload'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import { getPayloadClient } from '@/lib/payload'
 import {
-  isEligiblePublicPath,
+  isEligibleRedirectPath,
   isTrackableMissingPath,
   normalizePublicPath,
   parseInternalRedirectDestination,
@@ -42,7 +42,7 @@ export async function findMissingPathRedirect(
   payload?: Payload,
 ): Promise<string | null> {
   const path = normalizePublicPath(input)
-  if (!path || !isEligiblePublicPath(path)) return null
+  if (!path || !isEligibleRedirectPath(path)) return null
   return payload
     ? queryMissingPathRedirect(path, payload)
     : getCachedMissingPathRedirect(path)

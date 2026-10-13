@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { HeroBlockComponent } from './HeroBlockComponent'
 import { ContentBlockComponent } from './ContentBlockComponent'
 import { CTABlockComponent } from './CTABlockComponent'
@@ -11,6 +12,7 @@ import { StatsGridBlockComponent } from './StatsGridBlockComponent'
 import { BlockquoteBlockComponent } from './BlockquoteBlockComponent'
 import { FormEmbedBlockComponent } from './FormEmbedBlockComponent'
 import { ManualCardGridBlockComponent } from './ManualCardGridBlockComponent'
+import { SupportProfilesBlockComponent } from './SupportProfilesBlockComponent'
 import { PhotoStripBlockComponent } from './PhotoStripBlockComponent'
 import { PageHeaderBlockComponent } from './PageHeaderBlockComponent'
 import { GospelStepperBlockComponent } from './GospelStepperBlockComponent'
@@ -18,6 +20,7 @@ import { LatestSermonBlockComponent } from './LatestSermonBlockComponent'
 import { UpcomingEventsBlockComponent } from './UpcomingEventsBlockComponent'
 import { ServiceTimesBlockComponent } from './ServiceTimesBlockComponent'
 import { DailyReadingBlockComponent } from './DailyReadingBlockComponent'
+import { ConnectGroupsBlockComponent } from './ConnectGroupsBlockComponent'
 import type {
   FormEmbedBlock as PayloadFormEmbedBlock,
   UpcomingEventsBlock as PayloadUpcomingEventsBlock,
@@ -39,6 +42,7 @@ type Media = MediaRef | string
 
 interface HeroBlock extends BaseBlock {
   blockType: 'hero'
+  actionDescription?: string
   image: Media
   eyebrow?: string | null
   heading: string
@@ -67,6 +71,7 @@ interface ContentBlock extends BaseBlock {
 
 interface CTABlock extends BaseBlock {
   blockType: 'cta'
+  actionDescription?: string
   heading: string
   text?: string | null
   buttons?: Array<{
@@ -172,6 +177,8 @@ type FormEmbedBlock = Omit<PayloadFormEmbedBlock, 'sourceType'> & {
 
 interface ManualCardGridBlock extends BaseBlock {
   blockType: 'manualCardGrid'
+  dataSource?: 'manual' | 'support-profiles' | null
+  supportGroup?: 'apprentices' | 'student-ministers' | null
   eyebrow?: string | null
   heading?: string | null
   description?: string | null
@@ -254,6 +261,13 @@ interface ServiceTimesBlockType extends BaseBlock {
   }>
 }
 
+interface ConnectGroupsBlockType extends BaseBlock {
+  blockType: 'connectGroups'
+  eyebrow?: string | null
+  heading?: string | null
+  description?: string | null
+}
+
 export type RenderableBlock =
   | HeroBlock
   | ContentBlock
@@ -274,6 +288,7 @@ export type RenderableBlock =
   | LatestSermonBlockType
   | DailyReadingBlockType
   | ServiceTimesBlockType
+  | ConnectGroupsBlockType
   | PayloadUpcomingEventsBlock
   | BaseBlock
 
@@ -307,6 +322,7 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
                 highlightedText={b.highlightedText}
                 subtitle={b.subtitle}
                 supportingText={b.supportingText}
+                actionDescription={b.actionDescription}
                 buttons={b.buttons}
                 keyColor={b.keyColor}
                 overlayStyle={b.overlayStyle}
@@ -323,6 +339,18 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
                 key={key}
                 heading={b.heading}
                 services={b.services}
+              />
+            )
+          }
+
+          case 'connectGroups': {
+            const b = block as ConnectGroupsBlockType
+            return (
+              <ConnectGroupsBlockComponent
+                key={key}
+                eyebrow={b.eyebrow}
+                heading={b.heading}
+                description={b.description}
               />
             )
           }
@@ -349,6 +377,7 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
                 heading={b.heading}
                 text={b.text}
                 buttons={b.buttons}
+                actionDescription={b.actionDescription}
                 colorPreset={b.colorPreset}
                 backgroundImage={b.backgroundImage}
               />
@@ -446,33 +475,44 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
           case 'formEmbed': {
             const b = block as FormEmbedBlock
             return (
-              <FormEmbedBlockComponent
-                key={key}
-                eyebrow={b.eyebrow}
-                heading={b.heading}
-                description={b.description}
-                fallbackContactLabel={b.fallbackContactLabel}
-                fallbackContactHref={b.fallbackContactHref}
-                sourceType={b.sourceType}
-                rockWorkflowGuid={b.rockWorkflowGuid}
-                rockConnectionBlockGuid={b.rockConnectionBlockGuid}
-                layout={b.layout}
-              />
+              <Suspense key={key} fallback={
+                <section id={b.id ?? undefined} className="scroll-mt-20 bg-warm-white px-5 py-16 lg:px-8 lg:py-24">
+                  <div className="mx-auto max-w-2xl">
+                    {b.heading && <h2 className="text-h2 text-brand-black">{b.heading}</h2>}
+                    <p role="status" className="mt-4 text-dark-grey">Loading form…</p>
+                  </div>
+                </section>
+              }>
+                <FormEmbedBlockComponent
+                  id={b.id}
+                  eyebrow={b.eyebrow}
+                  heading={b.heading}
+                  description={b.description}
+                  fallbackContactLabel={b.fallbackContactLabel}
+                  fallbackContactHref={b.fallbackContactHref}
+                  sourceType={b.sourceType}
+                  rockWorkflowGuid={b.rockWorkflowGuid}
+                  rockConnectionBlockGuid={b.rockConnectionBlockGuid}
+                  layout={b.layout}
+                />
+              </Suspense>
             )
           }
 
           case 'manualCardGrid': {
             const b = block as ManualCardGridBlock
+            if (b.dataSource === 'support-profiles') return <SupportProfilesBlockComponent key={key} id={b.id} group={b.supportGroup} heading={b.heading} description={b.description} />
             return (
               <ManualCardGridBlockComponent
                 key={key}
+                id={b.id}
                 eyebrow={b.eyebrow}
                 heading={b.heading}
                 description={b.description}
                 cardStyle={b.cardStyle}
                 columns={b.columns}
                 cards={b.cards}
-                priority={aboveFold}
+                priority={aboveFold && !blocks.slice(0, index).some((preceding) => preceding.blockType === 'hero')}
               />
             )
           }

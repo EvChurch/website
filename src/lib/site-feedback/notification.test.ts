@@ -67,7 +67,7 @@ describe('site feedback notification message', () => {
 
   it('calls Resend with a stable idempotency key and bounded request', async () => {
     vi.stubEnv('RESEND_API_KEY', 're_test_key')
-    vi.stubEnv('SITE_FEEDBACK_EMAIL_FROM', 'EV Church <website@ev.church>')
+    vi.stubEnv('SITE_FEEDBACK_EMAIL_FROM', 'Ev Church <website@ev.church>')
     const fetch = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ id: 'resend-message-id' }), {
         status: 200,
@@ -89,7 +89,7 @@ describe('site feedback notification message', () => {
       'Idempotency-Key': 'site-feedback/42',
     })
     expect(JSON.parse(String(init.body))).toEqual({
-      from: 'EV Church <website@ev.church>',
+      from: 'Ev Church <website@ev.church>',
       to: ['tataihono@ev.church'],
       reply_to: 'visitor@example.com',
       subject: 'New ev.church site feedback',

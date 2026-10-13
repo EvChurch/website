@@ -1,6 +1,8 @@
+import { authorSermonMetadata } from '@/hooks/authorSermonMetadata'
+import { createCacheInvalidationHook } from '@/hooks/revalidateCacheTags'
 import type { CollectionConfig } from 'payload'
 
-import { isAdmin, adminOnlyField } from '@/access/roles'
+import { hasSermonManagerRole, isSermonManager, isAdmin, adminOnlyField } from '@/access/roles'
 
 export const Sermons: CollectionConfig = {
   slug: 'sermons',
@@ -9,12 +11,20 @@ export const Sermons: CollectionConfig = {
     defaultColumns: ['title', 'publishedAt', 'pipelineStatus', 'isPublished'],
   },
   access: {
-    read: () => true,
-    create: isAdmin,
-    update: isAdmin,
+    read: ({ req }) => hasSermonManagerRole(req.user && 'roles' in req.user ? req.user : null) ? true : { isPublished: { equals: true } },
+    create: isSermonManager,
+    update: isSermonManager,
     delete: isAdmin,
   },
+  hooks: {
+    beforeValidate: [authorSermonMetadata],
+    afterChange: [createCacheInvalidationHook('sermons')],
+    afterDelete: [createCacheInvalidationHook('sermons')],
+  },
   fields: [
+    { name: 'audioTranscript', type: 'json', access: { create: () => false, update: () => false }, admin: { readOnly: true, description: 'Timestamped transcript of the currently published audio.' } },
+    { name: 'generatedTopics', type: 'json', access: { create: () => false, update: () => false }, admin: { hidden: true } },
+    { name: 'topicSuggestions', type: 'json', access: { read: ({ req }) => hasSermonManagerRole(req.user && 'roles' in req.user ? req.user : null), create: () => false, update: () => false }, admin: { readOnly: true, description: 'New topics awaiting approval in Sermon Manager.' } },
     {
       name: 'title',
       type: 'text',
@@ -30,7 +40,6 @@ export const Sermons: CollectionConfig = {
     {
       name: 'resourceId',
       type: 'text',
-      required: true,
       unique: true,
       index: true,
       admin: {
@@ -100,8 +109,9 @@ export const Sermons: CollectionConfig = {
     {
       name: 'isPublished',
       type: 'checkbox',
-      defaultValue: true,
+      defaultValue: false,
     },
+    { name: 'audioCampus', type: 'relationship', relationTo: 'campuses' },
     // YouTube video references (per campus)
     {
       name: 'videos',

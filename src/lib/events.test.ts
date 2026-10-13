@@ -13,14 +13,19 @@ vi.mock('@/lib/payload', () => ({
 }))
 
 import {
+  formatEventDate,
+  formatEventDay,
+  formatEventTime,
   filterUpcomingEvents,
   filterEventsByCampus,
   getCampusSlug,
   getDisplayLocation,
+  getEmbeddedRegistrationHref,
   getEventBySlug,
   getRegistrationHref,
   isPastEvent,
   prepareEventsListing,
+  resolveEventContent,
   selectFeaturedEvent,
   toPlainText,
   type PublicEvent,
@@ -69,6 +74,21 @@ describe('event helpers', () => {
     await expect(getEventBySlug('missing')).resolves.toBeNull()
   })
 
+  it('keeps Payload-owned event fields after Rock refreshes its source fields', () => {
+    const websiteSummary = { root: { children: [{ type: 'paragraph', children: [{ type: 'text', text: 'Website programme' }] }] } }
+    const rockRefresh = {
+      ...baseEvent,
+      summary: { root: { children: [{ type: 'paragraph', children: [{ type: 'text', text: 'Rock summary' }] }] } },
+      websiteSummary,
+    }
+
+    expect(resolveEventContent(rockRefresh)).toMatchObject({
+      summary: websiteSummary,
+      startDate: baseEvent.startDate,
+      endDate: baseEvent.endDate,
+    })
+  })
+
   it('orders upcoming and currently-running events chronologically', () => {
     const now = new Date('2026-08-10T07:00:00.000Z')
     const later = { ...baseEvent, id: 2, slug: 'later', startDate: '2026-08-11T06:00:00.000Z' }
@@ -107,6 +127,15 @@ describe('event helpers', () => {
   it('uses the end date to classify a past event', () => {
     expect(isPastEvent(baseEvent, new Date('2026-08-10T09:00:00.000Z'))).toBe(true)
     expect(isPastEvent(baseEvent, new Date('2026-08-10T07:00:00.000Z'))).toBe(false)
+  })
+
+  it.each([
+    ['summer', '2026-01-11T21:00:00.000Z', '2026-01-12T10:59:59.000Z', '2026-01-12T11:00:00.000Z'],
+    ['winter', '2026-08-09T22:00:00.000Z', '2026-08-10T11:59:59.000Z', '2026-08-10T12:00:00.000Z'],
+  ])('keeps events with no finish time through their Auckland day in %s', (_, startDate, beforeMidnight, midnight) => {
+    const event = { ...baseEvent, startDate, endDate: null }
+    expect(filterUpcomingEvents([event], new Date(beforeMidnight))).toEqual([event])
+    expect(isPastEvent(event, new Date(midnight))).toBe(true)
   })
 
   it('extracts a campus slug only from a populated relationship', () => {
@@ -177,7 +206,32 @@ describe('event helpers', () => {
       getRegistrationHref({
         ...baseEvent,
         registrationStatus: 'open',
+        registrationUrl: 'https://registration.ev.church/registration/example',
+      }),
+    ).toBe('https://registration.ev.church/registration/example')
+
+    expect(
+      getRegistrationHref({
+        ...baseEvent,
+        registrationStatus: 'open',
         registrationUrl: 'https://example.com/phishing',
+      }),
+    ).toBeNull()
+  })
+
+  it('enables embedding only for the dedicated registration site', () => {
+    expect(
+      getEmbeddedRegistrationHref({
+        ...baseEvent,
+        registrationStatus: 'open',
+        registrationUrl: 'https://registration.ev.church/registration/example',
+      }),
+    ).toBe('https://registration.ev.church/registration/example')
+    expect(
+      getEmbeddedRegistrationHref({
+        ...baseEvent,
+        registrationStatus: 'open',
+        registrationUrl: 'https://rock.ev.church/page/404',
       }),
     ).toBeNull()
   })
@@ -193,5 +247,30 @@ describe('event helpers', () => {
         },
       }),
     ).toBe('Come and join us for dinner.')
+  })
+})
+
+
+describe('multi-day event dates', () => {
+  it('shows both dates and Auckland daylight-saving times', () => {
+    expect(formatEventDate({ ...baseEvent, startDate: '2026-11-06T06:00:00.000Z', endDate: '2026-11-08T02:00:00.000Z' }))
+      .toBe('Friday, 6 November 2026, 7:00 pm – Sunday, 8 November 2026, 3:00 pm')
+  })
+  it('preserves same-day and unknown-date formatting', () => {
+    expect(formatEventDate(baseEvent)).toBe('Monday, 10 August 2026, 6:00 pm–8:00 pm')
+    expect(formatEventDate({ ...baseEvent, startDate: null })).toBe('Date to be confirmed')
+  })
+
+  it('keeps listings concise while the event page shows the full multi-day range', () => {
+    const multiDay = {
+      ...baseEvent,
+      startDate: '2026-11-06T06:00:00.000Z',
+      endDate: '2026-11-08T02:00:00.000Z',
+    }
+
+    expect(formatEventDay(multiDay)).toBe('Fri, 6 November 2026')
+    expect(formatEventTime(multiDay)).toBe('7:00 pm')
+    expect(formatEventDate(multiDay))
+      .toBe('Friday, 6 November 2026, 7:00 pm – Sunday, 8 November 2026, 3:00 pm')
   })
 })

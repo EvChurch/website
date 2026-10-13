@@ -10,7 +10,9 @@ import { createGivingIdentityRepository, resolveGivingIdentity } from '@/lib/giv
 import { createPostgresGivingRateLimitStore, enforceGivingRateLimits, GivingRateLimitError, trustedGivingClientAddress, type GivingRateLimitStore } from '@/lib/giving/rate-limit'
 import { requireGivingPostgresPool } from '@/lib/giving/postgres'
 import { boundedGivingJson, GIVING_PRIVATE_HEADERS, InvalidGivingRequestError, isGivingJson, trustedGivingMutation } from '@/lib/giving/request-boundary'
+import { givingReturnDestinationFromRequest, givingReturnToCookieName } from '@/lib/giving/return-destination'
 import { createGivingCheckoutService, createPostgresGivingCheckoutRepository, GivingCheckoutError, validateGivingCheckoutSubmission, type GivingCheckoutStartResult, type GivingCheckoutSubmission } from '@/lib/giving/service'
+import { getGivingTransactionFeeMinor } from '@/lib/giving/settings'
 import { getPayloadClient } from '@/lib/payload'
 import { verifyTurnstileToken } from '@/lib/turnstile'
 
@@ -27,6 +29,7 @@ export function configuredGivingCheckoutAuthority(config: ReturnType<typeof load
 }
 export interface GivingCheckoutRouteDependencies {
   authority(request: NextRequest): Promise<Authority>
+  transactionFeeMinor(request: NextRequest): Promise<number>
   rateLimitStore: GivingRateLimitStore
   verifyTurnstile(input: { token: string; remoteIp: string; expectedHostname: string | null; expectedAction: string }): Promise<void>
   memberSubject?(request: NextRequest): Promise<string | null>
@@ -38,6 +41,16 @@ function response(value: unknown, status: number, retryAfter?: number) {
     status,
     headers: { ...GIVING_PRIVATE_HEADERS, ...(retryAfter ? { 'Retry-After': String(retryAfter) } : {}) },
   })
+}
+function expectedTurnstileHostname() {
+  if (process.env.NODE_ENV !== 'production') return null
+  try {
+    if (process.env.APP_BASE_URL) return new URL(process.env.APP_BASE_URL).hostname
+    if (process.env.RAILWAY_PUBLIC_DOMAIN) return process.env.RAILWAY_PUBLIC_DOMAIN
+  } catch {
+    return 'www.ev.church'
+  }
+  return 'www.ev.church'
 }
 async function defaultAuthority(_request: NextRequest): Promise<Authority> {
   return resolveGivingCheckoutAuthority({
@@ -85,6 +98,9 @@ async function defaultStart(authority: GivingContext, submission: GivingCheckout
 
 const defaults: GivingCheckoutRouteDependencies = {
   authority: defaultAuthority,
+  async transactionFeeMinor() {
+    return getGivingTransactionFeeMinor()
+  },
   rateLimitStore: {
     async increment(input) {
       const payload = await getPayloadClient()
@@ -103,8 +119,9 @@ export async function handleGivingCheckoutPost(request: NextRequest, dependencie
     if (!trustedGivingMutation(request, GIVING_REQUEST_MARKERS.checkout)) return response({ error: 'Giving unavailable' }, 403)
     if (!isGivingJson(request)) return response({ error: 'Giving unavailable' }, 415)
     const submission = validateGivingCheckoutSubmission(await boundedGivingJson(request))
+    if (submission.transactionFeeMinor !== await dependencies.transactionFeeMinor(request)) throw new GivingCheckoutError('invalid')
     const address = trustedGivingClientAddress(request.headers)
-    await dependencies.verifyTurnstile({ token: submission.turnstileToken, remoteIp: address, expectedHostname: process.env.NODE_ENV === 'production' ? 'www.ev.church' : null, expectedAction: GIVING_CHECKOUT_TURNSTILE_ACTION })
+    await dependencies.verifyTurnstile({ token: submission.turnstileToken, remoteIp: address, expectedHostname: expectedTurnstileHostname(), expectedAction: GIVING_CHECKOUT_TURNSTILE_ACTION })
     const memberSubject = await dependencies.memberSubject?.(request) ?? null
     await enforceGivingRateLimits({ address, email: submission.email, memberSubject, store: dependencies.rateLimitStore })
     const result = await dependencies.startCheckout(authority, submission, request)
@@ -114,6 +131,9 @@ export async function handleGivingCheckoutPost(request: NextRequest, dependencie
     output.cookies.set('__Host-ev_giving_checkout', result.statusToken, { httpOnly: true, secure: true, sameSite: 'strict', path: '/', maxAge: 30 * 60 })
     if (result.outcome === 'redirect') {
       output.cookies.set('__Host-ev_giving_return', result.returnToken, {
+        httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 30 * 60,
+      })
+      output.cookies.set(givingReturnToCookieName(), givingReturnDestinationFromRequest(request), {
         httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 30 * 60,
       })
     }

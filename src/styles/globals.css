@@ -214,6 +214,37 @@ html[data-route-transition='true'] .route-animate-fade-in-up {
   }
 }
 
+@keyframes minimise-control-in {
+  from {
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(2.75rem);
+  }
+  1% {
+    visibility: visible;
+  }
+  to {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mobile-player-marquee {
+  0%,
+  15% {
+    transform: translateX(0);
+  }
+  45%,
+  55% {
+    transform: translateX(var(--mobile-player-offset));
+  }
+  85%,
+  100% {
+    transform: translateX(0);
+  }
+}
+
 /*
  * Base styles — outside @theme so they apply globally
  */
@@ -331,8 +362,14 @@ html[data-route-transition='true'] .route-animate-fade-in-up {
     transform: translateY(0);
   }
 }
-body:has([data-audio-player]) .mobile-action-bar {
-  bottom: 5.5rem;
+@media (max-width: 639px) {
+  body:has([data-audio-player]) .mobile-action-bar {
+    bottom: 7.5rem;
+  }
+
+  body:has([data-audio-player]) [data-launcher-control-surface] {
+    padding-bottom: max(12rem, calc(env(safe-area-inset-bottom) + 12rem));
+  }
 }
 
 /* Public error pages have no hero background. Match the dark controls used by

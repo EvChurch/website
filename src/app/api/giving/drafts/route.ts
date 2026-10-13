@@ -81,8 +81,18 @@ export async function DELETE(request: NextRequest) {
   if (!isSameOriginRequest(request)) return response({ error: 'Draft unavailable' }, 403)
   const { names } = cookiePolicy(request)
   const token = request.cookies.get(names.resume)?.value
-  if (token) await (await service()).revokeSession(token).catch(() => undefined)
+  if (token) {
+    try {
+      await (await service()).revokeSession(token)
+    } catch {
+      // Expiring the browser capability still prevents the discarded flow from reopening.
+    }
+  }
   const result = response({ ok: true })
   result.cookies.delete(names.resume)
+  if (request.nextUrl.searchParams.get('scope') === 'flow') {
+    result.cookies.delete('__Host-ev_giving_checkout')
+    result.cookies.delete('__Host-ev_giving_return')
+  }
   return result
 }

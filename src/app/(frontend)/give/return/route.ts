@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { getBlinkPayRuntimeClient } from '@/lib/giving/blinkpay/runtime-client'
+import { isGivingCapabilityToken } from '@/lib/giving/contracts'
 import { requireGivingPostgresPool } from '@/lib/giving/postgres'
 import { GIVING_PRIVATE_HEADERS } from '@/lib/giving/request-boundary'
+import { givingReturnToCookieName, safeGivingReturnDestination } from '@/lib/giving/return-destination'
 import { createGivingCheckoutService, createPostgresGivingCheckoutRepository } from '@/lib/giving/service'
 import { getPayloadClient } from '@/lib/payload'
 
@@ -10,6 +12,7 @@ export const dynamic = 'force-dynamic'
 
 export interface GivingReturnDependencies {
   consume(token: string, expectedProviderId: string | null): Promise<{ statusToken: string; checkoutId: number }>
+  validateStatus(token: string): Promise<void>
   completionUrl?(): URL
 }
 
@@ -31,43 +34,93 @@ function givingCompletionUrl() {
   return new URL('/?giving=return', base)
 }
 
-function callbackAlias(url: URL): string | false {
-  if (url.searchParams.size === 0) return false
-  if (url.searchParams.size !== 1) return false
-  const [key, value] = url.searchParams.entries().next().value!
-  return ['cid', 'consent_id'].includes(key) && value.length > 0 && value.length <= 128 ? value : false
+function givingCompletionUrlForRequest(request: NextRequest) {
+  const base = givingCompletionUrl()
+  const stored = request.cookies.get(givingReturnToCookieName())?.value
+  if (!stored) return base
+  let decoded: string
+  try {
+    decoded = decodeURIComponent(stored)
+  } catch {
+    return base
+  }
+  const destination = safeGivingReturnDestination(decoded, [base.origin])
+  return destination ? new URL(destination, base) : base
 }
 
-async function defaultConsume(token: string, expectedProviderId: string | null) {
+function completionRedirect(completionUrl: URL) {
+  const response = NextResponse.redirect(completionUrl, 303)
+  for (const [key, value] of Object.entries(GIVING_PRIVATE_HEADERS)) response.headers.set(key, value)
+  return response
+}
+
+function callbackAlias(url: URL): true | false {
+  if (url.searchParams.size === 0) return false
+  const cid = url.searchParams.getAll('cid')
+  const consentId = url.searchParams.getAll('consent_id')
+  const errors = url.searchParams.getAll('error')
+  if (cid.length + consentId.length !== 1) return false
+  if (errors.length > 1) return false
+  for (const key of url.searchParams.keys()) {
+    if (!['cid', 'consent_id', 'error'].includes(key)) return false
+  }
+  const value = cid[0] ?? consentId[0] ?? ''
+  const error = errors[0] ?? null
+  return value.length > 0 && value.length <= 128 && (error === null || error.length <= 512) ? true : false
+}
+
+async function givingService() {
   const payload = await getPayloadClient()
   const pool = requireGivingPostgresPool(payload)
   const noIdentity = async () => { throw new Error('Identity unavailable') }
-  const service = createGivingCheckoutService({
+  return createGivingCheckoutService({
     repository: createPostgresGivingCheckoutRepository(pool),
     digestSecret: process.env.GIVING_CHECKOUT_DIGEST_SECRET ?? '',
     resolveIdentity: noIdentity,
     blinkPay: getBlinkPayRuntimeClient,
   })
-  return service.consumeReturn(token, expectedProviderId)
+}
+
+async function defaultConsume(token: string, expectedProviderId: string | null) {
+  return (await givingService()).consumeReturn(token, expectedProviderId)
+}
+
+async function defaultValidateStatus(token: string) {
+  await (await givingService()).status(token)
 }
 
 export async function handleGivingReturnGet(
   request: NextRequest,
-  dependencies: GivingReturnDependencies = { consume: defaultConsume },
+  dependencies: GivingReturnDependencies = { consume: defaultConsume, validateStatus: defaultValidateStatus },
 ) {
   try {
     const alias = callbackAlias(request.nextUrl)
     if (alias === false) return unavailable()
+    const completionUrl = dependencies.completionUrl?.() ?? givingCompletionUrlForRequest(request)
+    const statusToken = request.cookies.get('__Host-ev_giving_checkout')?.value
+    if (statusToken && isGivingCapabilityToken(statusToken)) {
+      try {
+        await dependencies.validateStatus(statusToken)
+        const response = completionRedirect(completionUrl)
+        response.cookies.set(givingReturnToCookieName(), '', {
+          httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 0,
+        })
+        return response
+      } catch {
+        // A stale status capability can still accompany the first provider return.
+      }
+    }
     const token = request.cookies.get('__Host-ev_giving_return')?.value
     if (!token) return unavailable()
-    const completionUrl = dependencies.completionUrl?.() ?? givingCompletionUrl()
-    const result = await dependencies.consume(token, alias)
-    const response = NextResponse.redirect(completionUrl, 303)
-    for (const [key, value] of Object.entries(GIVING_PRIVATE_HEADERS)) response.headers.set(key, value)
+    const result = await dependencies.consume(token, null)
+    const response = completionRedirect(completionUrl)
     response.cookies.set('__Host-ev_giving_checkout', result.statusToken, {
       httpOnly: true, secure: true, sameSite: 'strict', path: '/', maxAge: 30 * 60,
     })
     response.cookies.set('__Host-ev_giving_return', '', {
+      httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 0,
+    })
+    response.cookies.set(givingReturnToCookieName(), '', {
       httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 0,
     })
     return response

@@ -48,20 +48,15 @@ export async function verifyTurnstileToken({
   if (!result.success) {
     invalidTurnstile('The bot check expired or could not be verified')
   }
+  const usingTestKey = secret === TURNSTILE_TEST_SECRET_KEY
   if (
     expectedHostname &&
-    result.hostname?.toLowerCase() !== expectedHostname.toLowerCase()
+    result.hostname?.toLowerCase() !== expectedHostname.toLowerCase() &&
+    !usingTestKey
   ) {
     invalidTurnstile('The bot check was issued for a different website')
   }
-  const usingDevelopmentTestKey =
-    process.env.NODE_ENV !== 'production' &&
-    secret === TURNSTILE_TEST_SECRET_KEY
-  if (
-    expectedAction &&
-    result.action !== expectedAction &&
-    !usingDevelopmentTestKey
-  ) {
+  if (expectedAction && result.action !== expectedAction && !usingTestKey) {
     invalidTurnstile('The bot check was issued for a different action')
   }
 }
