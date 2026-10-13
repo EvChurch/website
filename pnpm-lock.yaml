@@ -123,6 +123,9 @@ importers:
       zod:
         specifier: 4.6.5
         version: 4.6.5
+      zod-v3:
+        specifier: npm:zod@3.25.76
+        version: zod@3.25.76
       zustand:
         specifier: 5.0.15
         version: 5.0.15(@types/react@19.2.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))

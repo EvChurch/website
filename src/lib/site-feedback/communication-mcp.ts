@@ -1,6 +1,6 @@
 import type { MCPPluginConfig } from '@payloadcms/plugin-mcp'
 import type { PayloadRequest } from 'payload'
-import { z } from 'zod/v3'
+import { z } from 'zod-v3'
 
 import { communicationInput } from './communication'
 import { deliverFeedbackCommunication, feedbackCommunicationHistory, prepareFeedbackCommunication } from './communication-store'
