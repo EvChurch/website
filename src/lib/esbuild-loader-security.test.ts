@@ -34,7 +34,7 @@ const compiler: Compiler = fromCore('esbuild')
 
 describe('Payload deprecated loader security compatibility', () => {
   it('uses the specifically qualified compiler in the vulnerable child path', () => {
-    expect(compiler.version).toBe('0.28.1')
+    expect(compiler.version).toBe('0.28.2')
   })
 
   it('does not permit arbitrary cross-origin reads of its localhost server', async () => {
