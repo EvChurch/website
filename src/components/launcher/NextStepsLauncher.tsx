@@ -44,6 +44,8 @@ import {
   CONNECT_CARD_WORKFLOW_GUID,
   GIVING_LAUNCHER_HREF,
   LAUNCHER_CAMPUS_STORAGE_KEY,
+  MEMBERSHIP_APPLICATION_URL,
+  MEMBERSHIP_LAUNCHER_TARGET,
   PLAN_A_VISIT_WORKFLOW_GUID,
   CONNECT_GROUP_WORKFLOW_GUID,
 } from "@/lib/launcher/constants";
@@ -475,11 +477,23 @@ export function NextStepsLauncher({
 
   const selectedCampusItems = useMemo(() => {
     if (!items || !state.campusSlug) return [];
-    return items.filter(
-      (item) =>
-        item.campusSlugs.length === 0 ||
-        item.campusSlugs.includes(state.campusSlug!),
-    );
+    return items
+      .filter(
+        (item) =>
+          item.campusSlugs.length === 0 ||
+          item.campusSlugs.includes(state.campusSlug!),
+      )
+      .map((item) =>
+        item.id === MEMBERSHIP_LAUNCHER_TARGET
+          ? {
+              ...item,
+              action: {
+                type: "directLink" as const,
+                href: MEMBERSHIP_APPLICATION_URL,
+              },
+            }
+          : item,
+      );
   }, [items, state.campusSlug]);
 
   const openLauncherTarget = useCallback(
@@ -500,6 +514,11 @@ export function NextStepsLauncher({
         target.length > MAX_LAUNCHER_TARGET_LENGTH
       ) {
         return false;
+      }
+
+      if (target === MEMBERSHIP_LAUNCHER_TARGET) {
+        window.location.assign(MEMBERSHIP_APPLICATION_URL);
+        return true;
       }
 
       if (target === "give") {

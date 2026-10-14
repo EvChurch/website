@@ -12,6 +12,9 @@ export const LAUNCHER_CAMPUS_STORAGE_KEY = 'ev-next-steps-campus'
 
 export const GIVING_LAUNCHER_HREF = '?launcher=give'
 
+export const MEMBERSHIP_APPLICATION_URL = 'https://forms.ev.church/member'
+export const MEMBERSHIP_LAUNCHER_TARGET = 'membership'
+
 export const KIDS_ENROLMENT_LAUNCHER_HREF =
   '/kids?launcher=kids-enrolment'
 
