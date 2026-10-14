@@ -444,6 +444,51 @@ describe('GivingFlow', () => {
     expect(container.textContent).toContain('You’re giving $25.00 plus a $0.50 transaction fee to General just this once. BlinkPay will charge $25.50.')
   })
 
+  it.each(['enabled', 'disabled', 'unresolved', 'failed'] as const)('keeps a fresh direct bank entry in manual mode with rollout %s', async (flagState) => {
+    givingContext.flagState = flagState
+    givingContext.blinkPayEnabled = flagState === 'enabled'
+    window.history.replaceState(null, '', '/give/bank-transfer?giving=return')
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (init?.method === 'PUT' || init?.method === 'DELETE') return new Response(null, { status: 204 })
+      if (String(input) === '/api/giving/bank-transfer') return new Response(JSON.stringify({
+        accountName: 'Auckland Evangelical Church Trust', accountNumber: '01-1845-0008260-05',
+        particulars: 'MISSIONS', code: 'ALOVELACE', reference: 'EV123', acknowledgementToken: 'A'.repeat(43),
+      }), { status: 201 })
+      if (String(input) === '/api/giving/bank-transfer/acknowledge') return new Response(JSON.stringify({ acknowledged: true, verified: false }), { status: 200 })
+      throw new Error('Unexpected request')
+    })
+    await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} bankTransferOnly resumeRequested />))
+    expect(fetch).not.toHaveBeenCalled()
+    expect(container.querySelector<HTMLInputElement>('input')?.value).toBe('')
+    expect(container.textContent).not.toContain('transaction fee')
+    await act(async () => change(container.querySelector('input')!, '25'))
+    await act(async () => button(container, 'Continue')!.click())
+    await act(async () => button(container, 'Just this once')!.click())
+    await act(async () => button(container, 'Missions')!.click())
+    for (const value of ['Ada', 'Lovelace', 'ada@example.com']) {
+      await act(async () => change(container.querySelector('input')!, value))
+      await act(async () => button(container, 'Continue')!.click())
+    }
+    expect(container.textContent).toContain('Bank transfer details')
+    expect(container.textContent).not.toContain('EV123')
+    await act(async () => { expect(givingContext.back?.()).toBe(true) })
+    await act(async () => button(container, 'Continue')!.click())
+    expect(container.textContent).not.toContain('BlinkPay')
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-turnstile]')!.click())
+    expect(container.textContent).toContain('EV123')
+    const preparation = vi.mocked(fetch).mock.calls.find(([input]) => String(input) === '/api/giving/bank-transfer')!
+    expect(JSON.parse(String(preparation[1]?.body))).toMatchObject({
+      amountMinor: 2500, fundId: 1, frequency: 'one-off', transactionFeeMinor: 0,
+      firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.com',
+    })
+    expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input).includes('/checkouts'))).toBe(false)
+    expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input).includes('/acknowledge'))).toBe(false)
+    await act(async () => button(container, "I've set this up")!.click())
+    expect(container.textContent).toContain('Ev hasn’t verified a payment yet')
+    expect(vi.mocked(fetch).mock.calls.filter(([input]) => String(input).includes('/acknowledge'))).toHaveLength(1)
+    expect(givingContext.flagState).toBe(flagState)
+  })
+
   it('shows direct bank-transfer details when the BlinkPay rollout flag is off', async () => {
     givingContext.flagState='disabled'
     givingContext.blinkPayEnabled=false

@@ -46,6 +46,8 @@ vi.mock("@/components/events/RegistrationFrame", () => ({
   ),
 }));
 
+import BankTransferPage from '@/app/(frontend)/give/bank-transfer/page';
+
 import {
   launcherShareHref,
   launcherShareTarget,
@@ -202,6 +204,26 @@ const supportProfiles = [{ id: 1, name: 'Liz Halliday', slug: 'liz-halliday', gr
 describe("NextStepsLauncher", () => {
   let container: HTMLDivElement;
   let root: Root;
+
+  it.each([false, true])('opens the direct bank route on fresh load and client navigation (mobile %s)', async (mobile) => {
+    mockMobileViewport(mobile);
+    const renderRoute = () => <GivingExperienceProvider serverEligibility="production" givingExperience={<GivingActiveProbe />}>
+      {navigation.pathname === '/give/bank-transfer' && <BankTransferPage />}
+      <NextStepsLauncher campuses={campuses} items={items} />
+    </GivingExperienceProvider>;
+    navigation.pathname = '/give/bank-transfer';
+    window.history.replaceState(null, '', navigation.pathname);
+    await act(async () => root.render(renderRoute()));
+    expect(container.querySelector('[data-giving-active]')?.textContent).toBe('true');
+    navigation.pathname = '/about';
+    window.history.replaceState(null, '', navigation.pathname);
+    await act(async () => root.render(renderRoute()));
+    expect(container.querySelector('[data-giving-active]')?.textContent).not.toBe('true');
+    navigation.pathname = '/give/bank-transfer';
+    window.history.replaceState(null, '', navigation.pathname);
+    await act(async () => root.render(renderRoute()));
+    expect(container.querySelector('[data-giving-active]')?.textContent).toBe('true');
+  });
 
   it('opens a shared mini profile and then its directed giving flow', async () => {
     window.history.replaceState(null, '', '/about?launcher=give-liz-halliday');

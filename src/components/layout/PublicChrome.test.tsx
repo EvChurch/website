@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act } from 'react'
+import { act, isValidElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -33,13 +33,20 @@ vi.mock('@/components/giving/GivingExperienceProvider', () => ({
     serverEligibility,
     blinkPayEligibilityResolved,
     blinkPayEligible,
+    givingExperience,
+    resumeRequested,
   }: {
     children: React.ReactNode
+    givingExperience?: React.ReactNode
+    resumeRequested?: boolean
     serverEligibility: string | null
     blinkPayEligibilityResolved?: boolean
     blinkPayEligible?: boolean
   }) => (
     <div
+      data-bank-transfer-only={isValidElement<{ bankTransferOnly?: boolean }>(givingExperience) && givingExperience.props.bankTransferOnly ? 'true' : 'false'}
+      data-flow-resume={isValidElement<{ resumeRequested?: boolean }>(givingExperience) && givingExperience.props.resumeRequested ? 'true' : 'false'}
+      data-provider-resume={resumeRequested ? 'true' : 'false'}
       data-giving-eligibility={serverEligibility ?? 'disabled'}
       data-blinkpay-eligibility-resolved={blinkPayEligibilityResolved ? 'true' : 'false'}
       data-blinkpay-eligible={blinkPayEligible ? 'true' : 'false'}
@@ -77,6 +84,30 @@ describe('PublicChrome', () => {
     delete document.documentElement.dataset.routeTransition
     vi.unstubAllGlobals()
     document.body.innerHTML = ''
+  })
+
+  it('isolates the direct route from ordinary giving, saved returns and the token confirmation route', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
+      memberProfile: null, memberCampusSlug: null, adminHref: null, impersonation: null,
+      givingResumeRequested: true, givingTurnstileSiteKey: 'test-site-key', postHogIdentity: null,
+    }), { status: 200 }))
+    const container = document.createElement('div')
+    document.body.append(container)
+    const root = createRoot(container)
+    for (const path of ['/give', '/give/bank-transfer', '/give/bank-transfer/confirm', '/about', '/give/bank-transfer']) {
+      mocks.pathname = path
+      await act(async () => root.render(<PublicChrome {...givingProps} givingFunds={publicGivingFunds}
+        givingRuntime={{ eligibility: 'production', gatewayOrigins: ['https://secure.blinkpay.co.nz'] }}
+        launcher={launcher} feedback={null} announcement={null} footer={null}><p>Page</p></PublicChrome>))
+      const provider = container.querySelector('[data-giving-eligibility]')!
+      const direct = path === '/give/bank-transfer'
+      expect(provider.getAttribute('data-bank-transfer-only')).toBe(String(direct))
+      expect(provider.getAttribute('data-flow-resume')).toBe(String(!direct))
+      expect(provider.getAttribute('data-provider-resume')).toBe(String(!direct))
+      expect(provider.getAttribute('data-blinkpay-eligible')).toBe('true')
+      expect(provider.getAttribute('data-giving-eligibility')).toBe('production')
+    }
+    await act(async () => root.unmount())
   })
 
   it('keeps anonymous HTML signed out and contains no private member data', () => {
