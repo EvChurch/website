@@ -457,6 +457,7 @@ describe('GivingFlow', () => {
     await act(async()=>button(container,'Continue')?.click())
     await act(async()=>button(container,'Just this once')?.click())
     await act(async()=>button(container,'General')?.click())
+    expect(button(container, 'Use bank transfer instead')).toBeUndefined()
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
     await act(async()=>Promise.resolve())
     expect(container.textContent).toContain('Use these details in your banking app')
@@ -503,6 +504,34 @@ describe('GivingFlow', () => {
     await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
     expect(container.textContent).toContain('Continue with BlinkPay')
     expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input) === '/api/giving/bank-transfer')).toBe(false)
+  })
+
+  it('offers bank transfer beneath BlinkPay without starting a checkout', async () => {
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      if (String(input) === '/api/giving/bank-transfer') return new Response(JSON.stringify({
+        accountName: 'Auckland Evangelical Church Trust',
+        accountNumber: '01-1845-0008260-05',
+        particulars: 'GENERAL',
+        code: 'ALOVELACE',
+        reference: 'EV123',
+        acknowledgementToken: 'A'.repeat(43),
+      }), { status: 200, headers: { 'content-type': 'application/json' } })
+      return new Response(null, { status: 204 })
+    })
+    await reachSignedInReview(container, root)
+    const primary = button(container, 'Continue to BlinkPay')!
+    const secondary = button(container, 'Use bank transfer instead')!
+    expect(primary.nextElementSibling).toBe(secondary)
+    expect(primary.className).toContain('bg-rich-red')
+    expect(secondary.className).toContain('bg-white')
+    expect(secondary.className).toContain('text-dark-grey')
+
+    await act(async () => secondary.click())
+    expect(container.textContent).toContain('Bank transfer details')
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    expect(container.textContent).toContain('EV123')
+    expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input) === '/api/giving/checkouts')).toBe(false)
+    expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input) === '/api/giving/bank-transfer/acknowledge')).toBe(false)
   })
 
   it('resolves the real Rock reference before displaying production bank-transfer instructions', async () => {
