@@ -161,7 +161,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   const [paymentMode, setPaymentMode] = useState<'blinkpay' | 'bank-transfer' | null>(null)
   const [identityReady, setIdentityReady] = useState(!identity.signedIn || (['firstName','lastName','email'] as const).every((field) => Boolean(known[field])))
   const [savingProgress, setSavingProgress] = useState(false)
-  const applicableTransactionFeeMinor = giving.blinkPayEnabled ? transactionFeeMinor : 0
+  const applicableTransactionFeeMinor = giving.blinkPayEnabled && paymentMode !== 'bank-transfer' ? transactionFeeMinor : 0
   const flowRef = useRef<HTMLElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const scrollIntent = useRef<GivingScrollIntent | null>(null)
@@ -267,7 +267,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   if (!flowSubmissionKey.current) flowSubmissionKey.current = submissionKey()
   useEffect(() => {
     if (checkout.type !== 'configuring' || state.step === 'review') headingRef.current?.focus()
-  }, [state.step, checkout.type])
+  }, [state.step, checkout.type, paymentMode])
   useEffect(() => {
     if (state.step !== 'starting-date') setCustomDateOpen(false)
   }, [state.step])
@@ -481,6 +481,13 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   }, [cancelAsyncWork])
 
   const next = () => { scrollIntent.current = 'forward'; setError(undefined); saveCompletedStep([{ type: 'next' }]) }
+  const chooseBankTransfer = () => {
+    verifiedFingerprint.current = null
+    setTurnstileToken('')
+    setTurnstileReset((value) => value + 1)
+    setError(undefined)
+    setPaymentMode('bank-transfer')
+  }
   const submit = async () => {
     if (!turnstileToken || state.step !== 'review' || verifiedFingerprint.current !== answerFingerprint || !state.answers.amountMinor || !state.answers.fund || !state.answers.frequency) return
     const operation = currentOperation()
@@ -664,7 +671,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
       if (paymentMode === null) {
         content = <p role="status" className="text-sm text-dark-grey">Preparing your payment options…</p>
       } else if (paymentMode === 'blinkpay') {
-        content = <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-warm-grey/60"><p className="text-lg leading-relaxed text-dark-grey">You’ll now be taken to BlinkPay to complete your payment setup with your bank. BlinkPay is a trusted third party that uses open banking technology.</p><div className="mt-6"><TurnstileWidget siteKey={turnstileSiteKey} action="giving-checkout" resetKey={turnstileReset} onToken={handleTurnstileToken} onError={setError} /><p className="mt-4 rounded-2xl bg-warm-grey/35 px-5 py-4 font-semibold text-brand-black">{givingHandoffSummary(state.answers, applicableTransactionFeeMinor)}</p><button type="button" disabled={!turnstileToken} onClick={() => void submit()} className="mt-4 min-h-14 w-full rounded-full bg-rich-red px-5 font-semibold text-white transition hover:bg-deep-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red focus-visible:ring-offset-2 disabled:opacity-50">Continue to BlinkPay</button></div></div>
+        content = <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-warm-grey/60"><p className="text-lg leading-relaxed text-dark-grey">You’ll now be taken to BlinkPay to complete your payment setup with your bank. BlinkPay is a trusted third party that uses open banking technology.</p><div className="mt-6"><TurnstileWidget siteKey={turnstileSiteKey} action="giving-checkout" resetKey={turnstileReset} onToken={handleTurnstileToken} onError={setError} /><p className="mt-4 rounded-2xl bg-warm-grey/35 px-5 py-4 font-semibold text-brand-black">{givingHandoffSummary(state.answers, applicableTransactionFeeMinor)}</p><button type="button" disabled={!turnstileToken} onClick={() => void submit()} className="mt-4 min-h-14 w-full rounded-full bg-rich-red px-5 font-semibold text-white transition hover:bg-deep-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red focus-visible:ring-offset-2 disabled:opacity-50">Continue to BlinkPay</button><button type="button" onClick={chooseBankTransfer} className="mt-2 min-h-11 w-full rounded-full px-5 text-sm text-dark-grey underline underline-offset-4 transition hover:text-brand-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red focus-visible:ring-offset-2">Use bank transfer instead</button></div></div>
       } else {
         content = bankTransfer
           ? bankAcknowledged
