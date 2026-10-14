@@ -33,23 +33,26 @@ vi.mock('@/components/giving/GivingExperienceProvider', () => ({
     serverEligibility,
     blinkPayEligibilityResolved,
     blinkPayEligible,
+    bankTransferEntryRequested,
   }: {
     children: React.ReactNode
     serverEligibility: string | null
     blinkPayEligibilityResolved?: boolean
     blinkPayEligible?: boolean
+    bankTransferEntryRequested?: boolean
   }) => (
     <div
       data-giving-eligibility={serverEligibility ?? 'disabled'}
       data-blinkpay-eligibility-resolved={blinkPayEligibilityResolved ? 'true' : 'false'}
       data-blinkpay-eligible={blinkPayEligible ? 'true' : 'false'}
+      data-bank-transfer-entry={bankTransferEntryRequested ? 'true' : 'false'}
     >
       {children}
     </div>
   ),
 }))
 vi.mock('@/components/giving/GivingFlow', () => ({
-  GivingFlow: ({ synthetic }: { synthetic: boolean }) => <div data-giving-flow={synthetic ? 'synthetic' : 'real'} />,
+  GivingFlow: ({ bankTransferEntryRequested }: { bankTransferEntryRequested?: boolean }) => <div data-giving-flow data-bank-transfer-entry={bankTransferEntryRequested ? 'true' : 'false'} />,
 }))
 vi.mock('@/components/giving/GivingUnavailable', () => ({ GivingUnavailable: () => <div data-giving-unavailable /> }))
 vi.mock('@/components/launcher/NextStepsLauncher', () => ({
@@ -313,5 +316,36 @@ describe('PublicChrome', () => {
 
     await act(async () => root.unmount())
     vi.useRealTimers()
+  })
+
+  it('maps only the canonical bank-transfer route to the direct bank-transfer experience', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
+      memberProfile: null,
+      memberCampusSlug: null,
+      adminHref: null,
+      impersonation: null,
+      givingResumeRequested: false,
+      givingTurnstileSiteKey: 'turnstile-key',
+      postHogIdentity: null,
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    const container = document.createElement('div')
+    document.body.append(container)
+    const root = createRoot(container)
+    const renderChrome = () => <PublicChrome
+      {...givingProps}
+      launcher={launcher}
+      feedback={null}
+      announcement={null}
+      footer={null}
+    ><p>Page</p></PublicChrome>
+
+    mocks.pathname = '/give/bank-transfer'
+    await act(async () => root.render(renderChrome()))
+    expect(container.querySelector('[data-giving-eligibility]')?.getAttribute('data-bank-transfer-entry')).toBe('true')
+
+    mocks.pathname = '/give'
+    await act(async () => root.render(renderChrome()))
+    expect(container.querySelector('[data-giving-eligibility]')?.getAttribute('data-bank-transfer-entry')).toBe('false')
+    await act(async () => root.unmount())
   })
 })

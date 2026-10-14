@@ -70,6 +70,28 @@ describe('GivingExperienceProvider', () => {
     expect(container.querySelector('output')?.textContent).toBe('1:0')
   })
 
+  it('opens a fresh bank-transfer entry once per visit and reopens after navigation', async () => {
+    const renderProvider = (bankTransferEntryRequested: boolean) => (
+      <GivingExperienceProvider
+        serverEligibility="production"
+        givingExperience={<div>Giving flow</div>}
+        bankTransferEntryRequested={bankTransferEntryRequested}
+      >
+        <Probe />
+      </GivingExperienceProvider>
+    )
+
+    await act(async () => root.render(renderProvider(true)))
+    expect(container.querySelector('output')?.textContent).toBe('1:0')
+
+    await act(async () => root.render(renderProvider(true)))
+    expect(container.querySelector('output')?.textContent).toBe('1:0')
+
+    await act(async () => root.render(renderProvider(false)))
+    await act(async () => root.render(renderProvider(true)))
+    expect(container.querySelector('output')?.textContent).toBe('2:0')
+  })
+
   it('leaves ordinary /give links to normal navigation', async () => {
     await act(async () => root.render(
       <GivingExperienceProvider serverEligibility={null} givingExperience={<div>Giving flow</div>}>

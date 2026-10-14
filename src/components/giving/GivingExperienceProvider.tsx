@@ -70,6 +70,7 @@ export function GivingExperienceProvider({
   serverEligibility,
   blinkPayEligibilityResolved = true,
   blinkPayEligible = false,
+  bankTransferEntryRequested = false,
   resumeRequested = false,
   supportProfiles = [],
 }: {
@@ -78,6 +79,7 @@ export function GivingExperienceProvider({
   serverEligibility: GivingServerEligibility
   blinkPayEligibilityResolved?: boolean
   blinkPayEligible?: boolean
+  bankTransferEntryRequested?: boolean
   resumeRequested?: boolean
   supportProfiles?: PublicSupportProfile[]
 }) {
@@ -88,6 +90,7 @@ export function GivingExperienceProvider({
   const [givingViewActive, setGivingViewActive] = useState(false)
   const consumedRequestId = useRef(0)
   const consumedDismissRequestId = useRef(0)
+  const bankTransferEntryOpened = useRef(false)
   const resumedFromCleanUrl = useRef(false)
   const givingBackHandler = useRef<(() => boolean) | null>(null)
   const givingCloseHandler = useRef<(() => boolean) | null>(null)
@@ -110,11 +113,22 @@ export function GivingExperienceProvider({
   }, [givingViewActive])
 
   useEffect(() => {
+    if (!bankTransferEntryRequested) {
+      bankTransferEntryOpened.current = false
+      return
+    }
+    if (!rendererReady || bankTransferEntryOpened.current) return
+    bankTransferEntryOpened.current = true
+    setGivingRequestId((requestId) => requestId + 1)
+  }, [bankTransferEntryRequested, rendererReady])
+
+  useEffect(() => {
     if (!rendererReady || resumedFromCleanUrl.current) return
+    if (bankTransferEntryRequested) return
     if (!resumeRequested) return
     resumedFromCleanUrl.current = true
     setGivingRequestId((requestId) => requestId + 1)
-  }, [rendererReady, resumeRequested])
+  }, [bankTransferEntryRequested, rendererReady, resumeRequested])
 
   const handleGivingBack = useCallback(() => givingBackHandler.current?.() ?? false, [])
   const registerGivingBackHandler = useCallback((handler: () => boolean) => {

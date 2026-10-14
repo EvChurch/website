@@ -142,7 +142,7 @@ function submissionKey() {
   return btoa(binary).replace(/\+/gu, '-').replace(/\//gu, '_').replace(/=+$/gu, '')
 }
 
-export function GivingFlow({ funds, identity = { signedIn: false }, resumeRequested = false, transactionFeeMinor = DEFAULT_GIVING_TRANSACTION_FEE_MINOR, turnstileSiteKey, gatewayOrigins }: { funds: PublicGivingFund[]; identity?: GivingFlowIdentity; resumeRequested?: boolean; transactionFeeMinor?: number; turnstileSiteKey: string; gatewayOrigins: readonly string[] }) {
+export function GivingFlow({ funds, identity = { signedIn: false }, bankTransferEntryRequested = false, resumeRequested = false, transactionFeeMinor = DEFAULT_GIVING_TRANSACTION_FEE_MINOR, turnstileSiteKey, gatewayOrigins }: { funds: PublicGivingFund[]; identity?: GivingFlowIdentity; bankTransferEntryRequested?: boolean; resumeRequested?: boolean; transactionFeeMinor?: number; turnstileSiteKey: string; gatewayOrigins: readonly string[] }) {
   const giving = useGivingExperience()
   const directedFundId = giving.directedFundId ?? null
   const known = useMemo(() => ({ firstName: identity.firstName ?? '', lastName: identity.lastName ?? '', email: identity.email ?? '' }), [identity.email, identity.firstName, identity.lastName])
@@ -161,7 +161,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   const [paymentMode, setPaymentMode] = useState<'blinkpay' | 'bank-transfer' | null>(null)
   const [identityReady, setIdentityReady] = useState(!identity.signedIn || (['firstName','lastName','email'] as const).every((field) => Boolean(known[field])))
   const [savingProgress, setSavingProgress] = useState(false)
-  const applicableTransactionFeeMinor = giving.blinkPayEnabled ? transactionFeeMinor : 0
+  const applicableTransactionFeeMinor = bankTransferEntryRequested ? 0 : giving.blinkPayEnabled ? transactionFeeMinor : 0
   const flowRef = useRef<HTMLElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const scrollIntent = useRef<GivingScrollIntent | null>(null)
@@ -212,10 +212,10 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
       setPaymentMode(null)
       return
     }
-    if (state.step === 'review' && paymentMode === null && giving.flagState !== 'unresolved') {
-      setPaymentMode(giving.blinkPayEnabled ? 'blinkpay' : 'bank-transfer')
+    if (state.step === 'review' && paymentMode === null && (bankTransferEntryRequested || giving.flagState !== 'unresolved')) {
+      setPaymentMode(bankTransferEntryRequested ? 'bank-transfer' : giving.blinkPayEnabled ? 'blinkpay' : 'bank-transfer')
     }
-  }, [giving.blinkPayEnabled, giving.flagState, giving.givingViewActive, paymentMode, state.step])
+  }, [bankTransferEntryRequested, giving.blinkPayEnabled, giving.flagState, giving.givingViewActive, paymentMode, state.step])
   const currentOperation = useCallback(() => ({ generation: asyncGeneration.current, signal: asyncAbort.current.signal }), [])
   const operationIsCurrent = useCallback((operation: { generation: number; signal: AbortSignal }) => operation.generation === asyncGeneration.current && !operation.signal.aborted, [])
   const cancelAsyncWork = useCallback(() => {

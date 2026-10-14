@@ -57,6 +57,7 @@ export function PublicChrome({
 }) {
   const pathname = usePathname()
   const sharedResource = matchesPathPrefix(pathname, '/shared/leader-resources')
+  const bankTransferEntryRequested = pathname === '/give/bank-transfer'
   const initialRoute = useRef(true)
   const [memberChrome, setMemberChrome] = useState<MemberChromeState>(ANONYMOUS_MEMBER_CHROME)
   const [givingResumeRequested, setGivingResumeRequested] = useState(false)
@@ -124,6 +125,7 @@ export function PublicChrome({
   const givingExperience = givingFunds.length > 0
     ? <GivingFlow
         funds={givingFunds}
+        bankTransferEntryRequested={bankTransferEntryRequested}
         transactionFeeMinor={givingTransactionFeeMinor}
         identity={{ signedIn: memberChrome.memberProfile !== null }}
         resumeRequested={givingResumeRequested}
@@ -138,6 +140,7 @@ export function PublicChrome({
       serverEligibility={givingRuntime?.eligibility ?? null}
       blinkPayEligibilityResolved={memberChromeResolved}
       blinkPayEligible={blinkPayEligible}
+      bankTransferEntryRequested={bankTransferEntryRequested}
       resumeRequested={givingResumeRequested}
       givingExperience={givingExperience}
       supportProfiles={supportProfiles}

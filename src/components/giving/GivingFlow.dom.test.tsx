@@ -484,6 +484,40 @@ describe('GivingFlow', () => {
     expect(container.querySelector('[data-turnstile]')).toBeNull()
   })
 
+  it.each([
+    ['enabled', true],
+    ['disabled', false],
+  ] as const)('uses bank transfer from the direct entry when BlinkPay is %s', async (flagState, blinkPayEnabled) => {
+    givingContext.flagState = flagState
+    givingContext.blinkPayEnabled = blinkPayEnabled
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (String(input) === '/api/giving/bank-transfer') return new Response(JSON.stringify({
+        accountName: 'Auckland Evangelical Church Trust',
+        accountNumber: '01-1845-0008260-05',
+        particulars: 'GENERAL',
+        code: 'ALOVELACE',
+        reference: 'EV123',
+        acknowledgementToken: 'A'.repeat(43),
+      }), { status: 201, headers: { 'content-type': 'application/json' } })
+      if (String(input) === '/api/giving/drafts' && init?.method === 'PUT') return new Response(null, { status: 204 })
+      return new Response(null, { status: 204 })
+    })
+
+    await act(async () => root.render(<GivingFlow bankTransferEntryRequested funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{ signedIn: true, firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.com' }} />))
+    expect(container.textContent).not.toContain('transaction fee')
+    await act(async () => change(container.querySelector('input')!, '25'))
+    await act(async () => button(container, 'Continue')?.click())
+    await act(async () => button(container, 'Just this once')?.click())
+    await act(async () => button(container, 'General')?.click())
+
+    expect(container.textContent).toContain('Preparing your bank details')
+    expect(container.textContent).not.toContain('Continue to BlinkPay')
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    expect(container.textContent).toContain('EV123')
+    expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input) === '/api/giving/checkouts')).toBe(false)
+    expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input) === '/api/giving/bank-transfer/acknowledge')).toBe(false)
+  })
+
   it('waits for the rollout decision and freezes one payment method for the flow', async () => {
     givingContext.flagState='unresolved'
     givingContext.blinkPayEnabled=false

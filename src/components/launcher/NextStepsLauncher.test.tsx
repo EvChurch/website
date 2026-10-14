@@ -539,6 +539,30 @@ describe("NextStepsLauncher", () => {
     expect(container.textContent).toContain("Take your next step here");
   });
 
+  it.each([
+    ["desktop", false, true],
+    ["mobile", true, false],
+  ] as const)("opens a fresh direct bank-transfer entry on %s", async (_viewport, mobile, hasFullscreenControl) => {
+    mockMobileViewport(mobile);
+
+    await act(async () => {
+      root.render(
+        <GivingExperienceProvider
+          serverEligibility="production"
+          givingExperience={<section>Bank transfer renderer seam</section>}
+          bankTransferEntryRequested
+        >
+          <NextStepsLauncher campuses={campuses} items={items} />
+        </GivingExperienceProvider>,
+      );
+    });
+
+    expect(container.querySelector("[data-giving-private]")?.textContent).toContain(
+      "Bank transfer renderer seam",
+    );
+    expect(Boolean(button(container, "Open full screen"))).toBe(hasFullscreenControl);
+  });
+
   it("clears a URL-owned target when the launcher closes", async () => {
     window.history.replaceState(null, "", "/?launcher=connect");
 
