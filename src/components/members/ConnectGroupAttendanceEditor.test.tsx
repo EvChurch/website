@@ -4,12 +4,11 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ load: vi.fn(), save: vi.fn(), push: vi.fn() }))
+const mocks = vi.hoisted(() => ({ load: vi.fn(), save: vi.fn() }))
 vi.mock('@/app/(frontend)/members/connect-groups/[rockGroupId]/attendance/actions', () => ({
   loadAttendanceMeetingAction: mocks.load,
   saveAttendanceAction: mocks.save,
 }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
 
 import { ConnectGroupAttendanceEditor } from './ConnectGroupAttendanceEditor'
 
@@ -35,7 +34,7 @@ describe('ConnectGroupAttendanceEditor', () => {
   })
   afterEach(async () => { await act(async () => root.unmount()); container.remove() })
 
-  it('renders accessible explicit marks, totals, notes, and immediate save', async () => {
+  it('renders accessible explicit marks, totals, notes, and autosave status', async () => {
     await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first, second]} initialMeeting={selected} people={people} />))
     expect(container.querySelectorAll('[role="radiogroup"]')).toHaveLength(2)
     expect(container.querySelector<HTMLImageElement>('img[alt="Aroha\'s profile"]')?.src).toContain('/members/people/1/avatar')
@@ -43,7 +42,9 @@ describe('ConnectGroupAttendanceEditor', () => {
     expect(container.querySelector('[role="radiogroup"]')?.getAttribute('aria-label')).toContain('Aroha')
     expect(container.textContent).toContain('2 present')
     expect(container.querySelector('textarea')?.labels?.[0]?.textContent).toContain('Meeting notes')
-    expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent).toBe('Save')
+    expect(container.querySelector('button[type="submit"]')).toBeNull()
+    expect(Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'No changes to save')).toBeTruthy()
+    expect(Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(button => button.textContent === 'Mark remaining Present')?.disabled).toBe(true)
     expect(container.querySelector('textarea')?.getAttribute('rows')).toBe('3')
   })
 
@@ -65,14 +66,20 @@ describe('ConnectGroupAttendanceEditor', () => {
     await act(async () => Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Clear attendance')?.click())
     expect(Array.from(container.querySelectorAll<HTMLInputElement>('input[type="radio"]')).every((input) => input.closest('fieldset')?.disabled && input.closest('fieldset')?.classList.contains('disabled:opacity-50'))).toBe(true)
     expect(container.querySelector('#attendance-summary')?.textContent).toBe('No individual attendance')
+    expect(Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(button => button.textContent === 'Mark remaining Present')?.disabled).toBe(true)
   })
 
-  it('defaults unrecorded roster members to present', async () => {
+  it('leaves unrecorded roster members neutral without warning or writing', async () => {
     await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first]} initialMeeting={{ ...selected, marks: { 1: 'present', 2: 'unrecorded' } }} people={people} />))
-    expect(container.querySelector<HTMLInputElement>('input[name="person-2"][value="present"]')?.checked).toBe(true)
-    expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false)
+    const neutralGroup = container.querySelectorAll('[role="radiogroup"]')[1]!
+    expect(neutralGroup.querySelector<HTMLInputElement>('input[value="present"]')?.checked).toBe(false)
+    expect(neutralGroup.querySelector<HTMLInputElement>('input[value="absent"]')?.checked).toBe(false)
+    expect(neutralGroup.querySelector('span[aria-hidden="true"]')).toBeNull()
     expect(container.textContent).toContain('1 present')
-    expect(container.textContent).toContain('Not saved')
+    expect(container.textContent).toContain('1 unrecorded')
+    expect(container.textContent).not.toContain('Not saved')
+    expect(Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(button => button.textContent === 'Mark remaining Present')?.disabled).toBe(false)
+    expect(Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'No changes to save')).toBeTruthy()
     expect(mocks.save).not.toHaveBeenCalled()
   })
 
@@ -80,7 +87,7 @@ describe('ConnectGroupAttendanceEditor', () => {
     mocks.load.mockResolvedValue({ ...selected, identity: second, marks: { 1: 'unrecorded', 2: 'unrecorded' } })
     await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first, second]} initialMeeting={selected} people={people} />))
     await act(async () => { container.querySelector<HTMLSelectElement>('select')!.value = '1'; container.querySelector('select')!.dispatchEvent(new Event('change', { bubbles: true })) })
-    expect(container.textContent).toContain('2 not saved')
+    expect(container.textContent).toContain('2 unrecorded')
     expect(mocks.save).not.toHaveBeenCalled()
   })
 
@@ -93,12 +100,58 @@ describe('ConnectGroupAttendanceEditor', () => {
     expect(mocks.save).not.toHaveBeenCalled()
   })
 
-  it('routes to the group overview after Rock confirms the save', async () => {
-    mocks.save.mockResolvedValue({ status: 'saved', state: { ...selected, notes: 'Saved in Rock' } })
-    await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first]} initialMeeting={selected} people={people} />))
-    await act(async () => container.querySelector<HTMLFormElement>('form')!.requestSubmit())
-    expect(mocks.save).toHaveBeenCalledTimes(1)
-    await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/members/connect-groups/10?attendance=saved'))
+  it('marks only remaining unrecorded people present and reports save progress', async () => {
+    let finish!: (result: unknown) => void
+    mocks.save.mockReturnValue(new Promise(resolve => { finish = resolve }))
+    const initialMeeting = { ...selected, marks: { 1: 'absent' as const, 2: 'unrecorded' as const } }
+    await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first]} initialMeeting={initialMeeting} people={people} />))
+
+    await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(button => button.textContent === 'Mark remaining Present')!.click())
+    await vi.waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1))
+    expect(mocks.save.mock.calls[0][1].edits.marks).toEqual({ 2: 'present' })
+    expect(container.querySelector<HTMLInputElement>('input[name="person-1"][value="absent"]')?.checked).toBe(true)
+    expect(Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Saving…')).toBeTruthy()
+
+    await act(async () => finish({ status: 'saved', state: { ...initialMeeting, marks: { 1: 'absent', 2: 'present' } } }))
+    await vi.waitFor(() => expect(Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'All changes saved')).toBeTruthy())
+    expect(container.querySelector<HTMLInputElement>('input[name="person-2"][value="present"]')?.checked).toBe(true)
+    expect(Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(button => button.textContent === 'Mark remaining Present')?.disabled).toBe(true)
+  })
+
+  it('shows an accessible rejected-save retry without adding untouched marks', async () => {
+    const initialMeeting = { ...selected, marks: { 1: 'present' as const, 2: 'unrecorded' as const } }
+    mocks.save.mockResolvedValueOnce({ status: 'rejected', message: 'Try again' })
+      .mockResolvedValueOnce({ status: 'saved', state: { ...initialMeeting, marks: { 1: 'present', 2: 'absent' } } })
+    await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first]} initialMeeting={initialMeeting} people={people} />))
+
+    await act(async () => container.querySelector<HTMLInputElement>('input[name="person-2"][value="absent"]')!.click())
+    await vi.waitFor(() => expect(container.querySelector('[role="alert"]')?.textContent).toContain('Try again'))
+    const retry = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(button => button.textContent === 'Couldn’t save — Retry')!
+    expect(retry.className).toContain('underline')
+    expect(retry.className).toContain('text-rich-red')
+    expect(container.querySelector('[role="status"]')?.textContent).toBe('Couldn’t save — Retry')
+
+    await act(async () => retry.click())
+    await vi.waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(2))
+    expect(mocks.save.mock.calls[1][1].edits.marks).toEqual({ 2: 'absent' })
+    expect(Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'All changes saved')).toBeTruthy()
+  })
+
+  it('checks an uncertain save with the original request and no untouched marks', async () => {
+    const initialMeeting = { ...selected, marks: { 1: 'unrecorded' as const, 2: 'unrecorded' as const } }
+    mocks.save.mockResolvedValueOnce({ status: 'outcome-unknown', message: 'The save could not be confirmed.' })
+      .mockResolvedValueOnce({ status: 'saved', state: { ...initialMeeting, marks: { 1: 'absent', 2: 'unrecorded' } } })
+    await act(async () => root.render(<ConnectGroupAttendanceEditor rockGroupId={10} meetings={[first]} initialMeeting={initialMeeting} people={people} />))
+
+    await act(async () => container.querySelector<HTMLInputElement>('input[name="person-1"][value="absent"]')!.click())
+    await vi.waitFor(() => expect(Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Save unconfirmed — Check save status')).toBeTruthy())
+    await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(button => button.textContent === 'Save unconfirmed — Check save status')!.click())
+    await vi.waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(2))
+
+    expect(mocks.save.mock.calls[1][1].requestId).toBe(mocks.save.mock.calls[0][1].requestId)
+    expect(mocks.save.mock.calls[1][1].recoveryOnly).toBe(true)
+    expect(mocks.save.mock.calls[1][1].edits.marks).toEqual({ 1: 'absent' })
+    expect(container.querySelector<HTMLInputElement>('input[name="person-2"][value="present"]')?.checked).toBe(false)
   })
   it('waits for a pending edit before switching meetings', async () => {
     let finish!: (result: unknown) => void
@@ -122,7 +175,7 @@ describe('ConnectGroupAttendanceEditor', () => {
     await act(async () => Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Leave anyway')!.click())
     await vi.waitFor(() => expect(mocks.load).toHaveBeenCalled())
     mocks.save.mockResolvedValue({ status: 'saved', state: selected })
-    await act(async () => Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Retry')!.click())
+    await act(async () => Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Couldn’t save — Retry')!.click())
     await vi.waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(2))
   })
 

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { HiExclamationTriangle } from 'react-icons/hi2'
-import { useRouter } from 'next/navigation'
 
 import {
   loadAttendanceMeetingAction,
@@ -33,7 +32,6 @@ export function ConnectGroupAttendanceEditor({
   initialMeeting: ConnectGroupAttendanceMeeting
   people: AttendancePerson[]
 }) {
-  const router = useRouter()
   const [, render] = useState(0)
   const [meetingIndex, setMeetingIndex] = useState(() => Math.max(0, meetings.findIndex((meeting) => sameMeeting(meeting, initialMeeting.identity))))
   const [loading, setLoading] = useState(false)
@@ -56,7 +54,13 @@ export function ConnectGroupAttendanceEditor({
   const present = people.filter(person => meeting.marks[person.rockPersonId] === 'present').length
   const absent = people.filter(person => meeting.marks[person.rockPersonId] === 'absent').length
   const unrecorded = people.length - present - absent
-  const saveDisabled = loading || engine.failed !== null
+  const saveStatus = loading
+    ? 'Loading meeting…'
+    : engine.saving
+      ? 'Saving…'
+      : engine.failed
+        ? engine.uncertain ? 'Save unconfirmed — Check save status' : 'Couldn’t save — Retry'
+        : engine.dirty ? 'Changes pending…' : engine.saved ? 'All changes saved' : 'No changes to save'
 
   async function navigate(action: () => void) {
     const leave = async () => { await removeHistoryGuard(); action() }
@@ -161,20 +165,19 @@ export function ConnectGroupAttendanceEditor({
     engine.edit({ marks: {}, didNotMeet: checked })
   }
 
-  async function save() {
-    if (saveDisabled) return
+  function markRemainingPresent() {
+    if (meeting.didNotMeet || isPending || unrecorded === 0) return
     engine.edit({
-      marks: meeting.didNotMeet ? {} : Object.fromEntries(people.map(person => [person.rockPersonId, meeting.marks[person.rockPersonId] === 'absent' ? 'absent' : 'present'])),
-      notes: meeting.notes,
+      marks: Object.fromEntries(people.flatMap(person =>
+        meeting.marks[person.rockPersonId] === 'unrecorded'
+          ? [[person.rockPersonId, 'present' as const]]
+          : [],
+      )),
     })
-    if (await engine.flush()) {
-      await removeHistoryGuard()
-      router.push(`/members/connect-groups/${rockGroupId}?attendance=saved`)
-    }
   }
 
   return (
-    <form action={save} className="space-y-4">
+    <div className="space-y-4">
       <div>
         <select
           id="attendance-meeting"
@@ -207,15 +210,17 @@ export function ConnectGroupAttendanceEditor({
             <legend className="sr-only">Attendance for {person.name}</legend>
             <div className="flex min-w-0 items-center gap-2.5">
               <MemberAvatar name={person.name} src={person.avatarUrl} size="small" />
-              <span aria-hidden="true" className="truncate text-sm font-bold text-brand-black sm:text-base">{person.name}{meeting.marks[person.rockPersonId] === 'unrecorded' && !meeting.didNotMeet && <span className="block text-xs font-normal text-mid-grey">Not saved</span>}</span>
+              <span aria-hidden="true" className="truncate text-sm font-bold text-brand-black sm:text-base">{person.name}</span>
             </div>
             <div role="radiogroup" aria-label={`Attendance for ${person.name}`} className="relative grid grid-cols-2 rounded-lg bg-[#f2efeb] p-1">
-              <span
-                aria-hidden="true"
-                className={`absolute bottom-1 left-1 top-1 w-[calc(50%-0.25rem)] rounded-md bg-brand-black shadow-sm transition-transform duration-200 ease-out ${meeting.marks[person.rockPersonId] === 'absent' ? 'translate-x-full' : 'translate-x-0'}`}
-              />
+              {meeting.marks[person.rockPersonId] !== 'unrecorded' && (
+                <span
+                  aria-hidden="true"
+                  className={`absolute bottom-1 left-1 top-1 w-[calc(50%-0.25rem)] rounded-md bg-brand-black shadow-sm transition-transform duration-200 ease-out ${meeting.marks[person.rockPersonId] === 'absent' ? 'translate-x-full' : 'translate-x-0'}`}
+                />
+              )}
               {(['present', 'absent'] as const).map((state) => {
-                const checked = (meeting.marks[person.rockPersonId] === 'unrecorded' ? 'present' : meeting.marks[person.rockPersonId]) === state
+                const checked = meeting.marks[person.rockPersonId] === state
                 return (
                   <label key={state} className={`relative z-10 flex min-h-10 cursor-pointer items-center justify-center rounded-md px-2 text-xs font-bold focus-within:ring-2 focus-within:ring-brand-black focus-within:ring-offset-2 group-disabled:cursor-not-allowed transition-colors duration-200 sm:text-sm ${checked ? 'text-white' : 'text-brand-black'}`}>
                     <input className="sr-only" type="radio" name={`person-${person.rockPersonId}`} value={state} checked={checked} onChange={() => {}} onClick={() => setMark(person.rockPersonId, state)} />
@@ -240,16 +245,25 @@ export function ConnectGroupAttendanceEditor({
         </div>
       )}
 
-      <div aria-live="polite" className="flex flex-wrap items-center justify-between gap-3">
-        <p id="attendance-summary" className="text-sm font-bold text-brand-black">
-          {meeting.didNotMeet ? 'No individual attendance' : `${present} present · ${absent} absent${unrecorded ? ` · ${unrecorded} not saved` : ''}`}
-        </p>
-        <button type="submit" disabled={saveDisabled} className="min-h-12 rounded-lg bg-rich-red px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-black disabled:cursor-not-allowed disabled:opacity-50">
-          {engine.saving ? 'Saving…' : 'Save'}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <p id="attendance-summary" className="text-sm font-bold text-brand-black">
+            {meeting.didNotMeet ? 'No individual attendance' : `${present} present · ${absent} absent${unrecorded ? ` · ${unrecorded} unrecorded` : ''}`}
+          </p>
+          <button type="button" disabled={meeting.didNotMeet || isPending || unrecorded === 0} onClick={markRemainingPresent} className="min-h-11 rounded-lg border border-warm-grey bg-white px-3 py-2 text-sm font-bold text-brand-black transition-colors hover:border-brand-black disabled:cursor-not-allowed disabled:opacity-50">
+            Mark remaining Present
+          </button>
+        </div>
+        <button
+          type="button"
+          disabled={loading || engine.saving}
+          onClick={() => { void engine.retry() }}
+          className={`min-h-11 text-sm font-bold disabled:cursor-wait ${engine.failed ? 'text-rich-red underline underline-offset-4' : 'text-mid-grey'}`}
+        >
+          {saveStatus}
         </button>
       </div>
-      <p role="status" className="text-sm text-mid-grey">{engine.saving ? 'Saving…' : engine.message ? 'Couldn’t save' : engine.saved ? 'Saved' : ''}</p>
-      {engine.failed && <button type="button" onClick={() => { void engine.retry() }} className="min-h-11 font-bold text-rich-red">{engine.uncertain ? 'Check save status' : 'Retry'}</button>}
+      <p role="status" aria-live="polite" className="sr-only">{saveStatus}</p>
       {confirmClear && <AttendanceDialog label="Clear recorded attendance" onCancel={() => setConfirmClear(false)}>
         <p>Mark this meeting as not held and clear its attendance?</p>
         <button autoFocus type="button" className="min-h-11 mr-4 font-bold" onClick={() => setConfirmClear(false)}>Cancel</button>
@@ -261,7 +275,7 @@ export function ConnectGroupAttendanceEditor({
         <button type="button" className="min-h-11 mr-4 font-bold" onClick={async () => { if (await engine.retry()) { setDeparture(null); departure() } }}>{engine.uncertain ? 'Check save status' : 'Retry'}</button>
         <button type="button" className="min-h-11 font-bold text-rich-red" onClick={() => { engine.dispose(); setDeparture(null); departure() }}>Leave anyway</button>
       </AttendanceDialog>}
-    </form>
+    </div>
   )
 }
 
