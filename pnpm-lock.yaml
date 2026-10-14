@@ -155,8 +155,8 @@ importers:
         specifier: ^8.71.1
         version: 8.71.1(eslint@10.12.0(jiti@2.7.0))(typescript@5.9.3)
       dotenv:
-        specifier: 17.4.2
-        version: 17.4.2
+        specifier: 18.0.7
+        version: 18.0.7
       eslint:
         specifier: 10.12.0
         version: 10.12.0(jiti@2.7.0)
@@ -2611,6 +2611,11 @@ packages:
   dotenv@17.4.2:
     resolution: {integrity: sha512-nI4U3TottKAcAD9LLud4Cb7b2QztQMUEfHbvhTH09bqXTxnSie8WnjPALV/WMCrJZ6UV/qHJ6L03OqO3LcdYZw==}
     engines: {node: '>=12'}
+
+  dotenv@18.0.7:
+    resolution: {integrity: sha512-QEvMEF8ca3GNZJJnAbOgxpj5ULhBvnMcURp+XKrtvqFNPgjBvYoswQ0Jl2cO7JzCjxZjJhr9ZuIEhlrRxMft/Q==}
+    engines: {node: '>=12'}
+    hasBin: true
 
   drizzle-kit@0.31.7:
     resolution: {integrity: sha512-hOzRGSdyKIU4FcTSFYGKdXEjFsncVwHZ43gY3WU5Bz9j5Iadp6Rh6hxLSQ1IWXpKLBKt/d5y1cpSPcV+FcoQ1A==}
@@ -7179,6 +7184,8 @@ snapshots:
       '@types/trusted-types': 2.0.7
 
   dotenv@17.4.2: {}
+
+  dotenv@18.0.7: {}
 
   drizzle-kit@0.31.7:
     dependencies:
