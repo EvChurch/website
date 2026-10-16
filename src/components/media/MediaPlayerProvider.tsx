@@ -15,7 +15,7 @@ import {
   useListeningStore,
   type MediaPreference,
 } from '@/lib/listening-store'
-import type Player from 'video.js/dist/types/player'
+import type { YouTubePlayer as Player } from './youtube-player'
 
 export interface VideoOption {
   campusName: string

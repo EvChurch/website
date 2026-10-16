@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from 'zod-v3'
 
 import type { FeedbackSubmission } from '@/payload-types'
 import type { SiteFeedbackNotificationMessage } from './notification'

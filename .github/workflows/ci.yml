@@ -22,16 +22,26 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate Payload types and import map
+        env:
+          # Include storage fields without using an external bucket or credentials.
+          S3_BUCKET: synthetic-ci-typecheck
+          S3_ENDPOINT: http://127.0.0.1:57151
+        run: pnpm generate:types && pnpm generate:importmap
+
+      - name: Check TypeScript
+        run: pnpm typecheck
 
       - name: Run tests
         run: pnpm test
