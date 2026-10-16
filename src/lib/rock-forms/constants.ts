@@ -4,6 +4,12 @@ export const GUID_PATTERN =
 export const ROCK_ENTRY_FORM_COMPONENT_URL =
   '/Obsidian/Blocks/Workflow/WorkflowEntry/Actions/entryForm.obs'
 
+export const ROCK_SIGNATURE_COMPONENT_URL =
+  '/Obsidian/Blocks/Workflow/WorkflowEntry/Actions/electronicSignature.obs'
+
+export const MEMBERSHIP_WORKFLOW_TYPE_GUID =
+  '23c2fe1e-c030-4d65-a5e8-29a6c24ae441'
+
 export const ROCK_FORM_START_ACTION = 'rock_form_start'
 export const ROCK_FORM_SUBMIT_ACTION = 'rock_form_submit'
 

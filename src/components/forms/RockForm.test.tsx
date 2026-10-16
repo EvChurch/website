@@ -93,6 +93,66 @@ describe('RockForm', () => {
     turnstileMocks.onError = null
   })
 
+  it('submits a configured signature only after explicit signing', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        status: 'complete',
+        message: 'Signature accepted',
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const container = document.createElement('div')
+    document.body.append(container)
+    const root = createRoot(container)
+
+    try {
+      await act(async () =>
+        root.render(
+          <RockForm
+            workflowTypeGuid={workflowTypeGuid}
+            initialSchema={{
+              ...schema(),
+              fields: [],
+              contextToken: 'signature-action-context',
+              buttons: [{ action: 'complete', title: 'Complete' }],
+              signature: {
+                type: 'typed',
+                documentHtml: '<p>Test declaration</p>',
+                documentTerm: 'Application',
+                sendCopy: true,
+                legalName: 'Test Applicant',
+                email: 'test@example.test',
+              },
+            }}
+          />,
+        ),
+      )
+      expect(container.querySelector('button[type="submit"]')).toBeNull()
+      await act(async () =>
+        [...container.querySelectorAll('button')]
+          .find((button) => button.textContent === 'Sign')!
+          .click(),
+      )
+      expect(fetchMock).not.toHaveBeenCalled()
+      await act(async () => turnstileMocks.onToken?.('verified-token'))
+      await act(async () =>
+        container.querySelector<HTMLButtonElement>('button[type="submit"]')!.click(),
+      )
+
+      expect(fetchMock).toHaveBeenCalledOnce()
+      const body = fetchMock.mock.calls[0][1].body as FormData
+      expect(body.get('contextToken')).toBe('signature-action-context')
+      expect(body.get('signedByName')).toBe('Test Applicant')
+      expect(body.get('signedByEmail')).toBe('test@example.test')
+      expect(body.get('signatureData')).toBe('')
+      expect(body.get('button')).toBe('Complete')
+      expect(container.textContent).toContain('Signature accepted')
+    } finally {
+      await act(async () => root.unmount())
+      container.remove()
+    }
+  })
+
   it('shows an accessible retry and contact fallback when startup returns non-JSON', async () => {
     const fetchMock = vi
       .fn()

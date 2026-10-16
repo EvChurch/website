@@ -5,9 +5,42 @@ import type {
   RockInteractiveAction,
   RockPersonEntryConfiguration,
   RockPersonEntryValues,
+  RockSignatureConfiguration,
 } from './types'
-import { ROCK_ENTRY_FORM_COMPONENT_URL } from './constants'
+import {
+  ROCK_ENTRY_FORM_COMPONENT_URL,
+  ROCK_SIGNATURE_COMPONENT_URL,
+} from './constants'
 import { fromRockPersonEntryBag, type RockPersonEntryBag } from './person-entry'
+
+export function parseRockSignatureAction(
+  action: RockInteractiveAction,
+): RockSignatureConfiguration {
+  const configuration = action.actionData?.componentConfiguration
+
+  if (
+    action.actionData?.componentUrl !== ROCK_SIGNATURE_COMPONENT_URL ||
+    !action.actionTypeGuid ||
+    !action.actionStartDateTime ||
+    !configuration?.content ||
+    !['0', '1'].includes(configuration.signatureType)
+  ) {
+    throw new Error(
+      action.actionData?.exception ||
+        action.actionData?.message?.content ||
+        'Rock returned an invalid signature step',
+    )
+  }
+
+  return {
+    type: configuration.signatureType === '1' ? 'drawn' : 'typed',
+    documentHtml: configuration.content,
+    documentTerm: configuration.documentTerm || 'document',
+    sendCopy: configuration.sendCopy?.toLowerCase() === 'true',
+    legalName: configuration.legalName || '',
+    email: configuration.signedByEmail || '',
+  }
+}
 
 export function parseJson<T>(value: string | null | undefined, fallback: T): T {
   if (!value) return fallback

@@ -1,20 +1,27 @@
 import { CONNECT_GROUP_WORKFLOW_GUID, CONNECT_GROUP_FIELD_GUID } from '@/lib/connect-groups/constants'
 import { randomUUID } from 'node:crypto'
-import { rockFetch } from '@/lib/rock-api'
+import { RockAPIError, rockFetch } from '@/lib/rock-api'
 import {
   getTurnstileSiteKey,
   ROCK_FORM_BLOCK_GUID,
   ROCK_FORM_CONTEXT_TTL_SECONDS,
   ROCK_FORM_PAGE_GUID,
+  ROCK_SIGNATURE_BLOCK_GUID,
+  ROCK_SIGNATURE_PAGE_GUID,
 } from './config'
 export { verifyTurnstileToken } from '@/lib/turnstile'
 import { createRockFormContextToken } from './context-token'
-import { isGuid } from './constants'
+import {
+  isGuid,
+  MEMBERSHIP_WORKFLOW_TYPE_GUID,
+  ROCK_SIGNATURE_COMPONENT_URL,
+} from './constants'
 import { resolveRockBinaryFileTypeGuid } from './file-upload'
 import { toRockPersonEntryBag } from './person-entry'
 import {
   defaultPersonEntryValues,
   parseRockInteractiveAction,
+  parseRockSignatureAction,
   replaceApiPersonDefaults,
 } from './schema'
 import type {
@@ -22,6 +29,7 @@ import type {
   RockFormSchema,
   RockInteractiveAction,
   RockPersonEntryValues,
+  RockSignatureValues,
   RockListItem,
   RockWorkflowOption,
 } from './types'
@@ -114,6 +122,80 @@ async function callWorkflowEntry(
     },
     retries: 0,
   })
+}
+
+async function callPublicSignatureWorkflowEntry(
+  workflowTypeGuid: string,
+  request: WorkflowEntryRequest,
+): Promise<RockInteractiveAction> {
+  if (workflowTypeGuid.toLowerCase() !== MEMBERSHIP_WORKFLOW_TYPE_GUID) {
+    throw new Error('Electronic signatures are not enabled for this form')
+  }
+  // Intentionally omit Authorization-Token. Rock gives CurrentPerson priority
+  // over the workflow's Signed By Person, so the service account would be
+  // recorded as the signer. This membership-only block is public, rate-limited,
+  // and resumes an opaque workflow GUID held in our encrypted context token.
+  const endpoint = `v2/BlockActions/${ROCK_SIGNATURE_PAGE_GUID}/${ROCK_SIGNATURE_BLOCK_GUID}/GetNextInteractiveAction`
+  const rockApiUrl = (process.env.ROCK_API_URL || 'https://rock.ev.church/api')
+    .replace(/\/$/, '')
+  const response = await fetch(`${rockApiUrl}/${endpoint}`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      __context: {
+        pageParameters: {
+          ...request.pageParameters,
+          WorkflowTypeGuid: workflowTypeGuid,
+          ...(request.personId ? { PersonId: String(request.personId) } : {}),
+        },
+        ...request.context,
+      },
+      workflowGuid: request.workflowGuid ?? null,
+      actionTypeGuid: request.actionTypeGuid ?? null,
+      actionStartDateTime: request.actionStartDateTime ?? null,
+      componentData: request.componentData ?? null,
+    }),
+    cache: 'no-store',
+    signal: AbortSignal.timeout(15_000),
+  })
+
+  if (!response.ok) {
+    throw new RockAPIError(response.status, endpoint, await response.text())
+  }
+
+  return (await response.json()) as RockInteractiveAction
+}
+
+export async function resumeRockSignatureAction({
+  workflowTypeGuid,
+  workflowGuid,
+  sessionGuid,
+  interactionGuid,
+  personId,
+}: {
+  workflowTypeGuid: string
+  workflowGuid: string
+  sessionGuid: string
+  interactionGuid: string
+  personId?: number | null
+}): Promise<RockInteractiveAction> {
+  if (!isGuid(workflowGuid)) {
+    throw new Error('Rock did not return a workflow for the signature step')
+  }
+  const action = await callPublicSignatureWorkflowEntry(workflowTypeGuid, {
+    context: { sessionGuid, interactionGuid },
+    personId,
+    workflowGuid,
+  })
+
+  if (action.actionData?.componentUrl !== ROCK_SIGNATURE_COMPONENT_URL) {
+    throw new Error('Rock did not return the expected signature step')
+  }
+
+  return action
 }
 
 type RockPersonEntryBehavior = {
@@ -305,6 +387,41 @@ export async function buildRockFormSchema({
   clearPersonDefaults?: boolean
   connectGroupGuid?: string
 }): Promise<RockFormSchema> {
+  if (action.actionData?.componentUrl === ROCK_SIGNATURE_COMPONENT_URL) {
+    const signature = parseRockSignatureAction(action)
+    const context: RockFormContext = {
+      version: 1,
+      workflowTypeGuid: workflow.guid,
+      personId,
+      workflowGuid: action.workflowGuid || null,
+      sessionGuid,
+      interactionGuid,
+      actionTypeGuid: action.actionTypeGuid!,
+      actionStartDateTime: action.actionStartDateTime!,
+      initialFieldValues: {},
+      allowedFields: [],
+      buttonTitles: ['Complete'],
+      signatureType: signature.type,
+      expiresAt: Date.now() + ROCK_FORM_CONTEXT_TTL_SECONDS * 1000,
+    }
+
+    return {
+      workflowTypeGuid: workflow.guid,
+      workflowName: workflow.name,
+      headerHtml: '',
+      footerHtml: '',
+      sections: [],
+      fields: [],
+      personEntry: null,
+      initialFieldValues: {},
+      initialPersonEntryValues: null,
+      buttons: [{ action: 'complete', title: 'Complete' }],
+      contextToken: createRockFormContextToken(context),
+      turnstileSiteKey: getTurnstileSiteKey(),
+      signature,
+    }
+  }
+
   const parsed = parseRockInteractiveAction(action)
   if (parsed.buttons.length === 0) {
     throw new Error('Rock did not provide an action for this form')
@@ -436,11 +553,13 @@ export async function submitRockForm({
   fieldValues,
   personEntryValues,
   button,
+  signature,
 }: {
   context: RockFormContext
   fieldValues: Record<string, string>
   personEntryValues: RockPersonEntryValues | null
   button: string
+  signature?: RockSignatureValues
 }): Promise<{ action: RockInteractiveAction; workflow: RockWorkflowOption }> {
   const personEntryBag = toRockPersonEntryBag(personEntryValues)
   const workflow = await getPublicRockWorkflow(context.workflowTypeGuid)
@@ -448,7 +567,7 @@ export async function submitRockForm({
     throw new Error('This Rock form is no longer available')
   }
 
-  const action = await callWorkflowEntry(workflow.guid, {
+  const request: WorkflowEntryRequest = {
     context: {
       sessionGuid: context.sessionGuid,
       interactionGuid: context.interactionGuid,
@@ -457,12 +576,18 @@ export async function submitRockForm({
     workflowGuid: context.workflowGuid,
     actionTypeGuid: context.actionTypeGuid,
     actionStartDateTime: context.actionStartDateTime,
-    componentData: {
-      fieldValues: JSON.stringify(fieldValues),
-      personEntryValues: JSON.stringify(personEntryBag),
-      button,
-    },
-  })
+    componentData:
+      context.signatureType && signature
+        ? { ...signature }
+        : {
+            fieldValues: JSON.stringify(fieldValues),
+            personEntryValues: JSON.stringify(personEntryBag),
+            button,
+          },
+  }
+  const action = context.signatureType
+    ? await callPublicSignatureWorkflowEntry(workflow.guid, request)
+    : await callWorkflowEntry(workflow.guid, request)
 
   return { action, workflow }
 }
