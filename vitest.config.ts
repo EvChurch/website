@@ -3,6 +3,8 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
+    // Retain module-initialization call history when migrating from Vitest 4.
+    clearMocks: false,
     // Giving migration suites intentionally share one guarded disposable database.
     fileParallelism: !process.env.GIVING_MIGRATION_TEST_DATABASE_URL,
   },

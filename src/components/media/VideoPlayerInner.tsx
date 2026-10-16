@@ -1,10 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import videojs from 'video.js'
-import type Player from 'video.js/dist/types/player'
-import 'video.js/dist/video-js.css'
-import 'videojs-youtube'
+import { createYouTubePlayer, type YouTubePlayer as Player } from './youtube-player'
 
 export interface VideoSource {
   campusName: string
@@ -118,28 +115,9 @@ export default function VideoPlayerInner({ video, onReady }: VideoPlayerInnerPro
   useEffect(() => {
     if (!videoRef.current) return
 
-    const videoEl = document.createElement('video')
-    videoEl.className = 'video-js'
-    videoRef.current.appendChild(videoEl)
-
-    const player = videojs(videoEl, {
-      techOrder: ['youtube'],
-      sources: [
-        {
-          type: 'video/youtube',
-          src: `https://www.youtube.com/watch?v=${video.youtubeVideoId}`,
-        },
-      ],
-      youtube: {
-        customVars: {
-          start: hasSegment ? Math.round(startSec) : undefined,
-        },
-      },
-      controls: false,
-      autoplay: true,
-      preload: 'auto',
-      fluid: false,
-      responsive: false,
+    const player = createYouTubePlayer(videoRef.current, {
+      videoId: video.youtubeVideoId,
+      startSeconds: hasSegment ? Math.round(startSec) : undefined,
     })
 
     playerRef.current = player

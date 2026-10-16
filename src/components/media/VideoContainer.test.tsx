@@ -26,8 +26,8 @@ const player = vi.hoisted(() => ({
 }))
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/members' }))
-vi.mock('video.js', () => ({
-  default: () => ({
+vi.mock('./youtube-player', () => ({
+  createYouTubePlayer: () => ({
     on: vi.fn(),
     one: vi.fn(),
     ready: vi.fn(),
@@ -35,7 +35,6 @@ vi.mock('video.js', () => ({
     dispose: vi.fn(),
   }),
 }))
-vi.mock('videojs-youtube', () => ({}))
 vi.mock('./MediaPlayerProvider', () => ({ useMediaPlayer: () => player }))
 vi.mock('@/lib/listening-store', () => ({
   useListeningStore: (selector: (state: { markCompleted: () => void }) => unknown) => (

@@ -6,23 +6,19 @@ import { SiYoutube } from 'react-icons/si'
 import { useMediaPlayer } from './MediaPlayerProvider'
 import { useListeningStore } from '@/lib/listening-store'
 
-// Lazy-load video.js to avoid SSR issues and reduce bundle
-let videojsPromise: Promise<typeof import('video.js')> | null = null
-function getVideojs() {
-  if (!videojsPromise) {
-    videojsPromise = Promise.all([
-      import('video.js'),
-      import('videojs-youtube'),
-      import('video.js/dist/video-js.css'),
-    ]).then(([vjs]) => vjs).catch((error: unknown) => {
-      videojsPromise = null
+// Keep the browser-only Video.js media element out of server rendering.
+let playerPromise: Promise<typeof import('./youtube-player')> | null = null
+function getVideoPlayer() {
+  if (!playerPromise) {
+    playerPromise = import('./youtube-player').catch((error: unknown) => {
+      playerPromise = null
       throw error
     })
   }
-  return videojsPromise
+  return playerPromise
 }
 
-type VjsPlayer = import('video.js/dist/types/player').default
+type VjsPlayer = import('./youtube-player').YouTubePlayer
 
 export function VideoContainer() {
   const {
@@ -166,9 +162,8 @@ export function VideoContainer() {
     let cancelled = false
 
     const initPlayer = async () => {
-      const vjs = await getVideojs()
+      const { createYouTubePlayer } = await getVideoPlayer()
       if (cancelled) return
-      const videojs = vjs.default
 
       if (playerRef.current && !playerRef.current.isDisposed()) {
         try { playerRef.current.dispose() } catch { /* iframe may be detached */ }
@@ -180,48 +175,20 @@ export function VideoContainer() {
 
       prevVideoIdentityRef.current = videoIdentity
 
-      container.innerHTML = ''
-
-      const videoEl = document.createElement('video')
-      videoEl.className = 'video-js'
-      container.appendChild(videoEl)
-
       const startSec = activeVideo.startSeconds ?? 0
       const endSec = activeVideo.endSeconds ?? 0
       const hasSegment = startSec > 0 && endSec > startSec
 
       // Browsers block unmuted autoplay unless there's a synchronous user
-      // activation. Because we lazy-load video.js, the activation expires
+      // activation. Because we lazy-load the player, the activation expires
       // before the player is created. Start muted to guarantee autoplay,
       // then unmute once playback has begun.
-      const player = videojs(videoEl, {
-        techOrder: ['youtube'],
-        sources: [
-          {
-            type: 'video/youtube',
-            src: `https://www.youtube.com/watch?v=${activeVideo.youtubeVideoId}`,
-          },
-        ],
-        youtube: {
-          customVars: {
-            start: videoResumeTimeRef.current > 0
-              ? Math.round(videoResumeTimeRef.current)
-              : hasSegment ? Math.round(startSec) : undefined,
-            controls: 0,
-            showinfo: 0,
-            modestbranding: 1,
-            rel: 0,
-            iv_load_policy: 3,
-            disablekb: 1,
-          },
-          ytControls: 0,
-        },
-        controls: false,
-        autoplay: true,
+      const player = createYouTubePlayer(container, {
+        videoId: activeVideo.youtubeVideoId,
+        startSeconds: videoResumeTimeRef.current > 0
+          ? Math.round(videoResumeTimeRef.current)
+          : hasSegment ? Math.round(startSec) : undefined,
         muted: true,
-        preload: 'auto',
-        fluid: false,
-        responsive: false,
       })
 
       playerRef.current = player
