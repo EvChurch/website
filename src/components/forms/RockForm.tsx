@@ -14,6 +14,7 @@ import {
 import { CONNECT_GROUP_WORKFLOW_GUID } from '@/lib/connect-groups/constants'
 import { SafeRockHtml } from './SafeRockHtml'
 import { FormSelect } from './FormSelect'
+import { RockElectronicSignature } from './RockElectronicSignature'
 import { CalendarDatePicker } from './CalendarDatePicker'
 import { TurnstileWidget } from './TurnstileWidget'
 import { formInputClass as inputClass, formLabelClass as labelClass } from './form-styles'
@@ -43,6 +44,7 @@ import { trackSuccessfulFormSubmission } from '@/lib/analytics'
 import type {
   RockFormField,
   RockFormSchema,
+  RockSignatureValues,
   RockListItem,
   RockPersonBasicValues,
   RockPersonEntryConfiguration,
@@ -655,6 +657,12 @@ function WorkflowForm({
   personDefaults?: { name: string; email: string } | null
 }) {
   const [schema, setSchema] = useState<RockFormSchema | null>(initialSchema)
+  const [signatureReady, setSignatureReady] = useState(false)
+  const [signatureValues, setSignatureValues] = useState<RockSignatureValues>({
+    signatureData: '',
+    signedByName: initialSchema?.signature?.legalName || '',
+    signedByEmail: initialSchema?.signature?.email || '',
+  })
   const [startupSiteKey, setStartupSiteKey] = useState(
     initialSchema?.turnstileSiteKey || '',
   )
@@ -689,6 +697,12 @@ function WorkflowForm({
 
   const applySchema = useCallback((nextSchema: RockFormSchema) => {
     setSchema(nextSchema)
+    setSignatureReady(false)
+    setSignatureValues({
+      signatureData: '',
+      signedByName: nextSchema.signature?.legalName || '',
+      signedByEmail: nextSchema.signature?.email || '',
+    })
     setFieldValues(nextSchema.initialFieldValues)
     setPersonEntryValues(initialPersonEntryState(nextSchema, personDefaults))
     setFiles({})
@@ -699,6 +713,12 @@ function WorkflowForm({
   useEffect(() => {
     if (initialSchema) {
       setSchema(initialSchema)
+      setSignatureReady(false)
+      setSignatureValues({
+        signatureData: '',
+        signedByName: initialSchema.signature?.legalName || '',
+        signedByEmail: initialSchema.signature?.email || '',
+      })
       setStartupSiteKey(initialSchema.turnstileSiteKey)
       setFieldValues(initialSchema.initialFieldValues)
       setPersonEntryValues(initialPersonEntryState(initialSchema, personDefaults))
@@ -906,6 +926,7 @@ function WorkflowForm({
       className="@container/rock-form space-y-8"
       onSubmit={async (event) => {
         event.preventDefault()
+        if (schema.signature && !signatureReady) return
         if (!turnstileToken) {
           setError('Please complete the bot check before submitting.')
           return
@@ -923,6 +944,11 @@ function WorkflowForm({
           body.set('fieldValues', JSON.stringify(fieldValues))
           body.set('personEntryValues', JSON.stringify(personEntryValues))
           body.set('button', submitter?.value || '')
+          if (schema.signature) {
+            body.set('signatureData', signatureValues.signatureData)
+            body.set('signedByName', signatureValues.signedByName)
+            body.set('signedByEmail', signatureValues.signedByEmail)
+          }
           for (const [guid, file] of Object.entries(files)) {
             body.set(`file:${guid.toLowerCase()}`, file)
           }
@@ -973,6 +999,16 @@ function WorkflowForm({
     >
       <fieldset disabled={!contextReady} className="contents">
         <SafeRockHtml value={schema.headerHtml} />
+
+        {schema.signature && (
+          <RockElectronicSignature
+            key={schema.contextToken}
+            configuration={schema.signature}
+            value={signatureValues}
+            onChange={setSignatureValues}
+            onReadyChange={setSignatureReady}
+          />
+        )}
 
         {schema.personEntry && personEntryValues && (
           <section className="space-y-5 py-4">
@@ -1114,7 +1150,7 @@ function WorkflowForm({
         </p>
       )}
       <div className="flex flex-wrap gap-3">
-        {schema.buttons.map((button) => (
+        {(!schema.signature || signatureReady) && schema.buttons.map((button) => (
             <button
               key={button.title}
               className="rounded-full bg-rich-red px-7 py-3 font-semibold text-white transition hover:bg-rich-red/90 disabled:cursor-not-allowed disabled:opacity-60"

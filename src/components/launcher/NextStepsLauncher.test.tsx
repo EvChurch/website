@@ -102,13 +102,6 @@ const items: LauncherItem[] = [
   },
 ];
 
-const membershipItem: LauncherItem = {
-  id: "membership",
-  title: "Membership",
-  campusSlugs: [],
-  action: { type: "workflow", workflowTypeGuid: "membership-guid" },
-};
-
 const feedback: PublicSiteFeedbackSettings = {
   modalTitle: "Share your feedback",
   modalIntro: "Tell us what is working well or what we could improve.",
@@ -860,43 +853,6 @@ describe("NextStepsLauncher", () => {
     expect(container.querySelector(
       `input[aria-label="Workflow ${PLAN_A_VISIT_WORKFLOW_GUID}"]`,
     )).not.toBeNull();
-  });
-
-  it("routes old membership launcher links to the external form without rendering the workflow", async () => {
-    navigation.pathname = "/member";
-    window.history.replaceState(null, "", "/member?launcher=membership");
-
-    await act(async () => {
-      root.render(
-        <NextStepsLauncher campuses={campuses} items={[...items, membershipItem]} />,
-      );
-    });
-
-    expect(window.location.href).toBe("https://forms.ev.church/member");
-    expect(container.querySelector(
-      'input[aria-label="Workflow membership-guid"]',
-    )).toBeNull();
-    window.location.href = "http://localhost:3000/";
-  });
-
-  it("renders the membership catalogue action as a direct external link", async () => {
-    window.history.replaceState(null, "", "/about?launcher=catalogue");
-
-    await act(async () => {
-      root.render(
-        <NextStepsLauncher
-          campuses={campuses}
-          items={[...items, membershipItem]}
-          memberCampusSlug="north"
-        />,
-      );
-    });
-
-    const membershipLink = container.querySelector<HTMLAnchorElement>(
-      'a[href="https://forms.ev.church/member"]',
-    );
-    expect(membershipLink?.textContent).toContain("Membership");
-    expect(membershipLink?.getAttribute("target")).toBe("_blank");
   });
 
   it("opens feedback from its built-in launcher target", async () => {

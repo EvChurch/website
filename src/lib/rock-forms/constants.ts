@@ -4,6 +4,9 @@ export const GUID_PATTERN =
 export const ROCK_ENTRY_FORM_COMPONENT_URL =
   '/Obsidian/Blocks/Workflow/WorkflowEntry/Actions/entryForm.obs'
 
+export const ROCK_SIGNATURE_COMPONENT_URL =
+  '/Obsidian/Blocks/Workflow/WorkflowEntry/Actions/electronicSignature.obs'
+
 export const ROCK_FORM_START_ACTION = 'rock_form_start'
 export const ROCK_FORM_SUBMIT_ACTION = 'rock_form_submit'
 

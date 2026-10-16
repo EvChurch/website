@@ -102,6 +102,7 @@ export type RockFormButton = {
 }
 
 export type RockFormSchema = {
+  signature?: RockSignatureConfiguration
   workflowTypeGuid: string
   workflowName: string
   headerHtml: string
@@ -114,6 +115,21 @@ export type RockFormSchema = {
   buttons: RockFormButton[]
   contextToken: string
   turnstileSiteKey: string
+}
+
+export interface RockSignatureConfiguration {
+  type: 'typed' | 'drawn'
+  documentHtml: string
+  documentTerm: string
+  sendCopy: boolean
+  legalName: string
+  email: string
+}
+
+export interface RockSignatureValues {
+  signatureData: string
+  signedByName: string
+  signedByEmail: string
 }
 
 export type RockWorkflowOption = {
@@ -144,6 +160,7 @@ export type RockInteractiveAction = {
 
 export type RockFormContext = {
   connectGroupGuid?: string
+  signatureType?: 'typed' | 'drawn'
   version: 1
   workflowTypeGuid: string
   personId?: number | null

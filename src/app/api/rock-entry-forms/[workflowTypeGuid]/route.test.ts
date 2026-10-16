@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getSiteKey: vi.fn(),
   startForm: vi.fn(),
   submitForm: vi.fn(),
+  resumeSignature: vi.fn(),
   getSession: vi.fn(),
   getProfileState: vi.fn(),
   isPublicConnectGroupGuid: vi.fn(),
@@ -41,6 +42,7 @@ vi.mock('@/lib/rock-forms/config', () => ({
 
 vi.mock('@/lib/rock-forms/server', () => ({
   buildRockFormSchema: vi.fn(),
+  resumeRockSignatureAction: mocks.resumeSignature,
   startRockForm: mocks.startForm,
   submitRockForm: mocks.submitForm,
   uploadRockFormFile: vi.fn(),
@@ -49,6 +51,8 @@ vi.mock('@/lib/rock-forms/server', () => ({
 
 import { GET, POST } from './route'
 import { CONNECT_GROUP_WORKFLOW_GUID, CONNECT_GROUP_FIELD_GUID } from '@/lib/connect-groups/constants'
+import { buildRockFormSchema } from '@/lib/rock-forms/server'
+import { ROCK_SIGNATURE_COMPONENT_URL } from '@/lib/rock-forms/constants'
 
 const workflowTypeGuid = '874418b5-a477-4382-94dc-38060b005bfa'
 const routeContext = { params: Promise.resolve({ workflowTypeGuid }) }
@@ -80,6 +84,143 @@ describe('Rock form route', () => {
     delete process.env.ROCK_WORKFLOW_REDIRECT_ORIGINS
     vi.unstubAllEnvs()
     vi.restoreAllMocks()
+  })
+
+  it('continues through the anonymous applicant signature step', async () => {
+    const formContext = {
+      workflowTypeGuid,
+      workflowGuid: '6fb3a6dc-03fc-4b11-9db4-6f64e0544424',
+      sessionGuid: 'session',
+      interactionGuid: 'interaction',
+      initialFieldValues: {},
+      allowedFields: [],
+      buttonTitles: ['Submit'],
+    }
+    mocks.verifyContext.mockReturnValue(formContext)
+    const authenticatedAction = {
+      workflowGuid: formContext.workflowGuid,
+      actionData: { componentUrl: ROCK_SIGNATURE_COMPONENT_URL },
+    }
+    const anonymousAction = {
+      ...authenticatedAction,
+      actionTypeGuid: 'signature-action',
+      actionStartDateTime: '2026-10-17T00:00:00+13:00',
+      actionData: {
+        componentUrl: ROCK_SIGNATURE_COMPONENT_URL,
+        componentConfiguration: {
+          signatureType: '1',
+          content: '<p>Membership declaration</p>',
+        },
+      },
+    }
+    mocks.submitForm.mockResolvedValue({
+      workflow: { guid: workflowTypeGuid, name: 'Membership' },
+      action: authenticatedAction,
+    })
+    mocks.resumeSignature.mockResolvedValue(anonymousAction)
+    const form = {
+      signature: { type: 'drawn' },
+      contextToken: 'next-signature-context',
+    }
+    vi.mocked(buildRockFormSchema).mockResolvedValue(form as never)
+    const body = new FormData()
+    body.set('contextToken', 'signed-context')
+    body.set('turnstileToken', 'verified-token')
+    body.set('button', 'Submit')
+
+    const response = await POST(postRequest(body), routeContext)
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ status: 'next', form })
+    expect(mocks.resumeSignature).toHaveBeenCalledWith({
+      workflowTypeGuid,
+      workflowGuid: formContext.workflowGuid,
+      sessionGuid: 'session',
+      interactionGuid: 'interaction',
+      personId: undefined,
+    })
+    expect(buildRockFormSchema).toHaveBeenCalledWith(
+      expect.objectContaining({ action: anonymousAction }),
+    )
+  })
+
+  it('rejects incomplete drawn signatures before calling Rock', async () => {
+    mocks.verifyContext.mockReturnValue({
+      workflowTypeGuid,
+      signatureType: 'drawn',
+      initialFieldValues: {},
+      allowedFields: [],
+      buttonTitles: ['Complete'],
+    })
+    const body = new FormData()
+    body.set('contextToken', 'signature-context')
+    body.set('turnstileToken', 'verified-token')
+    body.set('button', 'Complete')
+    body.set('signedByName', 'Test Applicant')
+    body.set('signedByEmail', 'test@example.test')
+
+    const response = await POST(postRequest(body), routeContext)
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'Draw your signature.' })
+    expect(mocks.submitForm).not.toHaveBeenCalled()
+  })
+
+  it('does not show a Rock signing error as successful completion', async () => {
+    mocks.verifyContext.mockReturnValue({
+      workflowTypeGuid,
+      signatureType: 'typed',
+      initialFieldValues: {},
+      allowedFields: [],
+      buttonTitles: ['Complete'],
+    })
+    mocks.submitForm.mockResolvedValue({
+      workflow: { guid: workflowTypeGuid, name: 'Membership' },
+      action: {
+        actionData: {
+          message: { type: 0, content: 'PDF generation failed' },
+        },
+      },
+    })
+    const body = new FormData()
+    body.set('contextToken', 'signature-context')
+    body.set('turnstileToken', 'verified-token')
+    body.set('button', 'Complete')
+    body.set('signedByName', 'Test Applicant')
+    body.set('signedByEmail', 'test@example.test')
+
+    const response = await POST(postRequest(body), routeContext)
+
+    expect(response.status).toBe(502)
+    expect(await response.json()).toEqual({
+      error:
+        'Rock could not complete the signature. Your application is not complete.',
+    })
+  })
+
+  it('does not mark an unknown interactive workflow step as complete', async () => {
+    mocks.verifyContext.mockReturnValue({
+      workflowTypeGuid,
+      initialFieldValues: {},
+      allowedFields: [],
+      buttonTitles: ['Submit'],
+    })
+    mocks.submitForm.mockResolvedValue({
+      workflow: { guid: workflowTypeGuid, name: 'Membership' },
+      action: { actionData: { componentUrl: '/unsupported.obs' } },
+    })
+    const body = new FormData()
+    body.set('contextToken', 'signed-context')
+    body.set('turnstileToken', 'verified-token')
+    body.set('button', 'Submit')
+
+    const response = await POST(postRequest(body), routeContext)
+
+    expect(response.status).toBe(502)
+    expect(await response.json()).toEqual({
+      error:
+        'Rock returned an unsupported workflow step. Your application is not complete.',
+    })
   })
 
   it('does not start a Rock workflow until Turnstile is verified', async () => {

@@ -2,13 +2,42 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   defaultPersonEntryValues,
   parseRockInteractiveAction,
+  parseRockSignatureAction,
   replaceApiPersonDefaults,
 } from './schema'
 import { buildRockFormSchema } from './server'
+import { ROCK_SIGNATURE_COMPONENT_URL } from './constants'
 
 describe('Rock entry form schema', () => {
   afterEach(() => {
     delete process.env.ROCK_FORM_SIGNING_SECRET
+  })
+
+  it('preserves the document and drawn-signature requirements from Rock', () => {
+    expect(
+      parseRockSignatureAction({
+        actionTypeGuid: 'signature-action',
+        actionStartDateTime: '2026-10-17T00:00:00+13:00',
+        actionData: {
+          componentUrl: ROCK_SIGNATURE_COMPONENT_URL,
+          componentConfiguration: {
+            signatureType: '1',
+            content: '<p>Membership declaration</p>',
+            documentTerm: 'Application',
+            sendCopy: 'True',
+            legalName: 'Test Applicant',
+            signedByEmail: 'test@example.test',
+          },
+        },
+      }),
+    ).toEqual({
+      type: 'drawn',
+      documentHtml: '<p>Membership declaration</p>',
+      documentTerm: 'Application',
+      sendCopy: true,
+      legalName: 'Test Applicant',
+      email: 'test@example.test',
+    })
   })
 
   it('parses Rock serialized configuration and data', () => {

@@ -5,13 +5,16 @@ import { verifyRockFormContextToken } from '@/lib/rock-forms/context-token'
 import {
   isGuid,
   ROCK_ENTRY_FORM_COMPONENT_URL,
+  ROCK_SIGNATURE_COMPONENT_URL,
   ROCK_FORM_START_ACTION,
   ROCK_FORM_SUBMIT_ACTION,
 } from '@/lib/rock-forms/constants'
+import { validateRockSignature } from '@/lib/rock-forms/signature'
 import { ROCK_FIELD_TYPES } from '@/lib/rock-forms/field-types'
 import { isRockFormPublished } from '@/lib/rock-forms/published'
 import {
   buildRockFormSchema,
+  resumeRockSignatureAction,
   startRockForm,
   submitRockForm,
   uploadRockFormFile,
@@ -341,15 +344,43 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return jsonError('Choose a valid form action', 400)
     }
     const button = requestedButton
-    const { action: result, workflow } = await submitRockForm({
+    const signature = formContext.signatureType
+      ? {
+          signatureData: String(body.get('signatureData') || ''),
+          signedByName: String(body.get('signedByName') || '').trim(),
+          signedByEmail: String(body.get('signedByEmail') || '').trim(),
+        }
+      : undefined
+    if (signature && formContext.signatureType) {
+      const signatureError = validateRockSignature(
+        formContext.signatureType,
+        signature,
+      )
+      if (signatureError) return jsonError(signatureError, 400)
+    }
+
+    const { action: submittedAction, workflow } = await submitRockForm({
       context: formContext,
       fieldValues,
       personEntryValues,
       button,
+      signature,
     })
+    const result =
+      !formContext.signatureType &&
+      submittedAction.actionData?.componentUrl === ROCK_SIGNATURE_COMPONENT_URL
+        ? await resumeRockSignatureAction({
+            workflowTypeGuid: workflow.guid,
+            workflowGuid: submittedAction.workflowGuid || '',
+            sessionGuid: formContext.sessionGuid,
+            interactionGuid: formContext.interactionGuid,
+            personId: formContext.personId,
+          })
+        : submittedAction
 
     if (
-      result.actionData?.componentUrl === ROCK_ENTRY_FORM_COMPONENT_URL
+      result.actionData?.componentUrl === ROCK_ENTRY_FORM_COMPONENT_URL ||
+      result.actionData?.componentUrl === ROCK_SIGNATURE_COMPONENT_URL
     ) {
       return NextResponse.json({
         status: 'next',
@@ -365,7 +396,23 @@ export async function POST(request: NextRequest, context: RouteContext) {
       })
     }
 
+    if (result.actionData?.componentUrl) {
+      return jsonError(
+        'Rock returned an unsupported workflow step. Your application is not complete.',
+        502,
+      )
+    }
+
     const completionMessage = result.actionData?.message
+    if (
+      formContext.signatureType &&
+      [0, 1, 'Error', 'Warning'].includes(completionMessage?.type ?? '')
+    ) {
+      return jsonError(
+        'Rock could not complete the signature. Your application is not complete.',
+        502,
+      )
+    }
     const isRedirectAction =
       completionMessage?.type === 4 ||
       completionMessage?.type === 'Redirect'
