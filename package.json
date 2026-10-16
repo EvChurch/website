@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "next dev",
     "preview:giving-emails": "tsx watch scripts/preview-giving-emails.ts",
-    "build": "payload generate:types && payload generate:importmap && next build",
+    "build": "payload generate:types && payload generate:importmap && pnpm typecheck && next build",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:migration:postgres": "vitest run src/migration-tests",
     "seed": "tsx src/seed/seed-pages.ts",
