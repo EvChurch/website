@@ -52,10 +52,16 @@ vi.mock('@/lib/rock-forms/server', () => ({
 import { GET, POST } from './route'
 import { CONNECT_GROUP_WORKFLOW_GUID, CONNECT_GROUP_FIELD_GUID } from '@/lib/connect-groups/constants'
 import { buildRockFormSchema } from '@/lib/rock-forms/server'
-import { ROCK_SIGNATURE_COMPONENT_URL } from '@/lib/rock-forms/constants'
+import {
+  MEMBERSHIP_WORKFLOW_TYPE_GUID,
+  ROCK_SIGNATURE_COMPONENT_URL,
+} from '@/lib/rock-forms/constants'
 
 const workflowTypeGuid = '874418b5-a477-4382-94dc-38060b005bfa'
 const routeContext = { params: Promise.resolve({ workflowTypeGuid }) }
+const membershipRouteContext = {
+  params: Promise.resolve({ workflowTypeGuid: MEMBERSHIP_WORKFLOW_TYPE_GUID }),
+}
 
 function postRequest(
   body: FormData,
@@ -88,7 +94,7 @@ describe('Rock form route', () => {
 
   it('continues through the anonymous applicant signature step', async () => {
     const formContext = {
-      workflowTypeGuid,
+      workflowTypeGuid: MEMBERSHIP_WORKFLOW_TYPE_GUID,
       workflowGuid: '6fb3a6dc-03fc-4b11-9db4-6f64e0544424',
       sessionGuid: 'session',
       interactionGuid: 'interaction',
@@ -114,7 +120,7 @@ describe('Rock form route', () => {
       },
     }
     mocks.submitForm.mockResolvedValue({
-      workflow: { guid: workflowTypeGuid, name: 'Membership' },
+      workflow: { guid: MEMBERSHIP_WORKFLOW_TYPE_GUID, name: 'Membership' },
       action: authenticatedAction,
     })
     mocks.resumeSignature.mockResolvedValue(anonymousAction)
@@ -128,12 +134,19 @@ describe('Rock form route', () => {
     body.set('turnstileToken', 'verified-token')
     body.set('button', 'Submit')
 
-    const response = await POST(postRequest(body), routeContext)
+    const response = await POST(
+      postRequest(
+        body,
+        'http://localhost',
+        `http://localhost/api/rock-entry-forms/${MEMBERSHIP_WORKFLOW_TYPE_GUID}`,
+      ),
+      membershipRouteContext,
+    )
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ status: 'next', form })
     expect(mocks.resumeSignature).toHaveBeenCalledWith({
-      workflowTypeGuid,
+      workflowTypeGuid: MEMBERSHIP_WORKFLOW_TYPE_GUID,
       workflowGuid: formContext.workflowGuid,
       sessionGuid: 'session',
       interactionGuid: 'interaction',
@@ -146,8 +159,76 @@ describe('Rock form route', () => {
 
   it('rejects incomplete drawn signatures before calling Rock', async () => {
     mocks.verifyContext.mockReturnValue({
-      workflowTypeGuid,
+      workflowTypeGuid: MEMBERSHIP_WORKFLOW_TYPE_GUID,
       signatureType: 'drawn',
+      initialFieldValues: {},
+      allowedFields: [],
+      buttonTitles: ['Complete'],
+    })
+    const body = new FormData()
+    body.set('contextToken', 'signature-context')
+    body.set('turnstileToken', 'verified-token')
+    body.set('button', 'Complete')
+    body.set('signedByName', 'Test Applicant')
+    body.set('signedByEmail', 'test@example.test')
+
+    const response = await POST(
+      postRequest(
+        body,
+        'http://localhost',
+        `http://localhost/api/rock-entry-forms/${MEMBERSHIP_WORKFLOW_TYPE_GUID}`,
+      ),
+      membershipRouteContext,
+    )
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'Draw your signature.' })
+    expect(mocks.submitForm).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { actionData: { message: { type: 0, content: 'PDF generation failed' } } },
+    { actionData: { exception: 'Unexpected signing exception' } },
+    { actionData: {} },
+  ])('does not show a Rock signing error as successful completion', async (action) => {
+    mocks.verifyContext.mockReturnValue({
+      workflowTypeGuid: MEMBERSHIP_WORKFLOW_TYPE_GUID,
+      signatureType: 'typed',
+      initialFieldValues: {},
+      allowedFields: [],
+      buttonTitles: ['Complete'],
+    })
+    mocks.submitForm.mockResolvedValue({
+      workflow: { guid: MEMBERSHIP_WORKFLOW_TYPE_GUID, name: 'Membership' },
+      action,
+    })
+    const body = new FormData()
+    body.set('contextToken', 'signature-context')
+    body.set('turnstileToken', 'verified-token')
+    body.set('button', 'Complete')
+    body.set('signedByName', 'Test Applicant')
+    body.set('signedByEmail', 'test@example.test')
+
+    const response = await POST(
+      postRequest(
+        body,
+        'http://localhost',
+        `http://localhost/api/rock-entry-forms/${MEMBERSHIP_WORKFLOW_TYPE_GUID}`,
+      ),
+      membershipRouteContext,
+    )
+
+    expect(response.status).toBe(502)
+    expect(await response.json()).toEqual({
+      error:
+        'Rock could not complete the signature. Your application is not complete.',
+    })
+  })
+
+  it('does not send another workflow through the membership signature block', async () => {
+    mocks.verifyContext.mockReturnValue({
+      workflowTypeGuid,
+      signatureType: 'typed',
       initialFieldValues: {},
       allowedFields: [],
       buttonTitles: ['Complete'],
@@ -162,40 +243,10 @@ describe('Rock form route', () => {
     const response = await POST(postRequest(body), routeContext)
 
     expect(response.status).toBe(400)
-    expect(await response.json()).toEqual({ error: 'Draw your signature.' })
-    expect(mocks.submitForm).not.toHaveBeenCalled()
-  })
-
-  it('does not show a Rock signing error as successful completion', async () => {
-    mocks.verifyContext.mockReturnValue({
-      workflowTypeGuid,
-      signatureType: 'typed',
-      initialFieldValues: {},
-      allowedFields: [],
-      buttonTitles: ['Complete'],
-    })
-    mocks.submitForm.mockResolvedValue({
-      workflow: { guid: workflowTypeGuid, name: 'Membership' },
-      action: {
-        actionData: {
-          message: { type: 0, content: 'PDF generation failed' },
-        },
-      },
-    })
-    const body = new FormData()
-    body.set('contextToken', 'signature-context')
-    body.set('turnstileToken', 'verified-token')
-    body.set('button', 'Complete')
-    body.set('signedByName', 'Test Applicant')
-    body.set('signedByEmail', 'test@example.test')
-
-    const response = await POST(postRequest(body), routeContext)
-
-    expect(response.status).toBe(502)
     expect(await response.json()).toEqual({
-      error:
-        'Rock could not complete the signature. Your application is not complete.',
+      error: 'Electronic signatures are not enabled for this form',
     })
+    expect(mocks.submitForm).not.toHaveBeenCalled()
   })
 
   it('does not mark an unknown interactive workflow step as complete', async () => {

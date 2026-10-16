@@ -11,7 +11,11 @@ import {
 } from './config'
 export { verifyTurnstileToken } from '@/lib/turnstile'
 import { createRockFormContextToken } from './context-token'
-import { isGuid, ROCK_SIGNATURE_COMPONENT_URL } from './constants'
+import {
+  isGuid,
+  MEMBERSHIP_WORKFLOW_TYPE_GUID,
+  ROCK_SIGNATURE_COMPONENT_URL,
+} from './constants'
 import { resolveRockBinaryFileTypeGuid } from './file-upload'
 import { toRockPersonEntryBag } from './person-entry'
 import {
@@ -124,6 +128,9 @@ async function callPublicSignatureWorkflowEntry(
   workflowTypeGuid: string,
   request: WorkflowEntryRequest,
 ): Promise<RockInteractiveAction> {
+  if (workflowTypeGuid.toLowerCase() !== MEMBERSHIP_WORKFLOW_TYPE_GUID) {
+    throw new Error('Electronic signatures are not enabled for this form')
+  }
   // Intentionally omit Authorization-Token. Rock gives CurrentPerson priority
   // over the workflow's Signed By Person, so the service account would be
   // recorded as the signer. This membership-only block is public, rate-limited,

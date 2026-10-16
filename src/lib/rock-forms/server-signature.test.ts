@@ -28,11 +28,14 @@ import {
   resumeRockSignatureAction,
   submitRockForm,
 } from './server'
-import { ROCK_SIGNATURE_COMPONENT_URL } from './constants'
+import {
+  MEMBERSHIP_WORKFLOW_TYPE_GUID,
+  ROCK_SIGNATURE_COMPONENT_URL,
+} from './constants'
 import type { RockFormContext, RockInteractiveAction } from './types'
 
 const workflowGuid = '6fb3a6dc-03fc-4b11-9db4-6f64e0544424'
-const workflowTypeGuid = '23c2fe1e-c030-4d65-a5e8-29a6c24ae441'
+const workflowTypeGuid = MEMBERSHIP_WORKFLOW_TYPE_GUID
 const signatureAction: RockInteractiveAction = {
   workflowGuid,
   actionTypeGuid: 'signature-action',
@@ -110,6 +113,18 @@ describe('Rock signature workflow continuity', () => {
       actionTypeGuid: null,
       componentData: null,
     })
+  })
+
+  it('refuses to use the membership-only transport for another workflow', async () => {
+    await expect(
+      resumeRockSignatureAction({
+        workflowTypeGuid: '874418b5-a477-4382-94dc-38060b005bfa',
+        workflowGuid,
+        sessionGuid: 'session',
+        interactionGuid: 'interaction',
+      }),
+    ).rejects.toThrow('Electronic signatures are not enabled for this form')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('submits the signature without the service-account identity', async () => {

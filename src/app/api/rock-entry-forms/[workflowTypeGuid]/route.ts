@@ -4,6 +4,7 @@ import { getMemberProfileStateFromSession } from '@/auth/member-session'
 import { verifyRockFormContextToken } from '@/lib/rock-forms/context-token'
 import {
   isGuid,
+  MEMBERSHIP_WORKFLOW_TYPE_GUID,
   ROCK_ENTRY_FORM_COMPONENT_URL,
   ROCK_SIGNATURE_COMPONENT_URL,
   ROCK_FORM_START_ACTION,
@@ -351,6 +352,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
           signedByEmail: String(body.get('signedByEmail') || '').trim(),
         }
       : undefined
+    if (
+      formContext.signatureType &&
+      workflowTypeGuid.toLowerCase() !== MEMBERSHIP_WORKFLOW_TYPE_GUID
+    ) {
+      return jsonError('Electronic signatures are not enabled for this form', 400)
+    }
     if (signature && formContext.signatureType) {
       const signatureError = validateRockSignature(
         formContext.signatureType,
@@ -404,14 +411,28 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const completionMessage = result.actionData?.message
+    const signatureSuccessTypes = [
+      2,
+      4,
+      5,
+      6,
+      'Information',
+      'Redirect',
+      'Html',
+      'Success',
+    ]
     if (
       formContext.signatureType &&
-      [0, 1, 'Error', 'Warning'].includes(completionMessage?.type ?? '')
+      (result.actionData?.exception ||
+        !signatureSuccessTypes.includes(completionMessage?.type ?? ''))
     ) {
       return jsonError(
         'Rock could not complete the signature. Your application is not complete.',
         502,
       )
+    }
+    if (result.actionData?.exception) {
+      return jsonError('Rock could not complete this form.', 502)
     }
     const isRedirectAction =
       completionMessage?.type === 4 ||
