@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { HiExclamationTriangle } from 'react-icons/hi2'
+import { useRouter } from 'next/navigation'
 
 import {
   loadAttendanceMeetingAction,
@@ -32,12 +33,14 @@ export function ConnectGroupAttendanceEditor({
   initialMeeting: ConnectGroupAttendanceMeeting
   people: AttendancePerson[]
 }) {
+  const router = useRouter()
   const [, render] = useState(0)
   const [meetingIndex, setMeetingIndex] = useState(() => Math.max(0, meetings.findIndex((meeting) => sameMeeting(meeting, initialMeeting.identity))))
   const [loading, setLoading] = useState(false)
   const [loadMessage, setLoadMessage] = useState<string | null>(null)
   const [departure, setDeparture] = useState<(() => void) | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
+  const [confirmUnrecorded, setConfirmUnrecorded] = useState(false)
   const requestSequence = useRef(0)
   const engineRef = useRef<AttendanceAutosave | null>(null)
   function createEngine(state: ConnectGroupAttendanceMeeting) {
@@ -53,14 +56,9 @@ export function ConnectGroupAttendanceEditor({
   const loadFailed = loading
   const present = people.filter(person => meeting.marks[person.rockPersonId] === 'present').length
   const absent = people.filter(person => meeting.marks[person.rockPersonId] === 'absent').length
-  const unrecorded = people.length - present - absent
-  const saveStatus = loading
-    ? 'Loading meeting…'
-    : engine.saving
-      ? 'Saving…'
-      : engine.failed
-        ? engine.uncertain ? 'Save unconfirmed — Check save status' : 'Couldn’t save — Retry'
-        : engine.dirty ? 'Changes pending…' : engine.saved ? 'All changes saved' : 'No changes to save'
+  const unrecordedPeople = people.filter(person => meeting.marks[person.rockPersonId] === 'unrecorded')
+  const unrecorded = unrecordedPeople.length
+  const saveDisabled = loading || engine.failed !== null
 
   async function navigate(action: () => void) {
     const leave = async () => { await removeHistoryGuard(); action() }
@@ -165,19 +163,30 @@ export function ConnectGroupAttendanceEditor({
     engine.edit({ marks: {}, didNotMeet: checked })
   }
 
-  function markRemainingPresent() {
-    if (meeting.didNotMeet || isPending || unrecorded === 0) return
+  async function saveConfirmed() {
+    if (saveDisabled) return
+    setConfirmUnrecorded(false)
     engine.edit({
-      marks: Object.fromEntries(people.flatMap(person =>
-        meeting.marks[person.rockPersonId] === 'unrecorded'
-          ? [[person.rockPersonId, 'present' as const]]
-          : [],
-      )),
+      marks: meeting.didNotMeet ? {} : Object.fromEntries(people.map(person => [person.rockPersonId, meeting.marks[person.rockPersonId] === 'absent' ? 'absent' : 'present'])),
+      notes: meeting.notes,
     })
+    if (await engine.flush()) {
+      await removeHistoryGuard()
+      router.push(`/members/connect-groups/${rockGroupId}?attendance=saved`)
+    }
+  }
+
+  function save() {
+    if (saveDisabled) return
+    if (!meeting.didNotMeet && unrecorded > 0) {
+      setConfirmUnrecorded(true)
+      return
+    }
+    return saveConfirmed()
   }
 
   return (
-    <div className="space-y-4">
+    <form action={save} className="space-y-4">
       <div>
         <select
           id="attendance-meeting"
@@ -245,29 +254,28 @@ export function ConnectGroupAttendanceEditor({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <p id="attendance-summary" className="text-sm font-bold text-brand-black">
-            {meeting.didNotMeet ? 'No individual attendance' : `${present} present · ${absent} absent${unrecorded ? ` · ${unrecorded} unrecorded` : ''}`}
-          </p>
-          <button type="button" disabled={meeting.didNotMeet || isPending || unrecorded === 0} onClick={markRemainingPresent} className="min-h-11 rounded-lg border border-warm-grey bg-white px-3 py-2 text-sm font-bold text-brand-black transition-colors hover:border-brand-black disabled:cursor-not-allowed disabled:opacity-50">
-            Mark remaining Present
-          </button>
-        </div>
-        <button
-          type="button"
-          disabled={loading || engine.saving}
-          onClick={() => { void engine.retry() }}
-          className={`min-h-11 text-sm font-bold disabled:cursor-wait ${engine.failed ? 'text-rich-red underline underline-offset-4' : 'text-mid-grey'}`}
-        >
-          {saveStatus}
+      <div aria-live="polite" className="flex flex-wrap items-center justify-between gap-3">
+        <p id="attendance-summary" className="text-sm font-bold text-brand-black">
+          {meeting.didNotMeet ? 'No individual attendance' : `${present} present · ${absent} absent${unrecorded ? ` · ${unrecorded} unrecorded` : ''}`}
+        </p>
+        <button type="submit" disabled={saveDisabled} className="min-h-12 rounded-lg bg-rich-red px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-black disabled:cursor-not-allowed disabled:opacity-50">
+          {engine.saving ? 'Saving…' : 'Save'}
         </button>
       </div>
-      <p role="status" aria-live="polite" className="sr-only">{saveStatus}</p>
+      <p role="status" className="text-sm text-mid-grey">{engine.saving ? 'Saving…' : engine.message ? 'Couldn’t save' : engine.saved ? 'Saved' : ''}</p>
+      {engine.failed && <button type="button" onClick={() => { void engine.retry() }} className="min-h-11 font-bold text-rich-red">{engine.uncertain ? 'Check save status' : 'Retry'}</button>}
       {confirmClear && <AttendanceDialog label="Clear recorded attendance" onCancel={() => setConfirmClear(false)}>
         <p>Mark this meeting as not held and clear its attendance?</p>
         <button autoFocus type="button" className="min-h-11 mr-4 font-bold" onClick={() => setConfirmClear(false)}>Cancel</button>
         <button type="button" className="min-h-11 font-bold text-rich-red" onClick={() => { setConfirmClear(false); engine.edit({ marks: {}, didNotMeet: true, confirmClear: true }) }}>Clear attendance</button>
+      </AttendanceDialog>}
+      {confirmUnrecorded && <AttendanceDialog label="Mark remaining people present?" onCancel={() => setConfirmUnrecorded(false)}>
+        <h2 className="text-xl text-brand-black">Mark remaining people present?</h2>
+        <p className="mt-2">{unrecordedMessage(unrecordedPeople.map(person => person.name))}</p>
+        <div className="mt-5 flex justify-end gap-4">
+          <button autoFocus type="button" className="min-h-11 font-bold" onClick={() => setConfirmUnrecorded(false)}>Cancel</button>
+          <button type="button" className="min-h-11 font-bold text-rich-red" onClick={() => { void saveConfirmed() }}>Continue</button>
+        </div>
       </AttendanceDialog>}
       {departure && <AttendanceDialog label="Unsaved attendance" onCancel={() => setDeparture(null)}>
         <p>{engine.uncertain ? 'Some changes may already be saved, and a pending save may still complete.' : 'Some changes have not saved. Saved changes will remain.'}</p>
@@ -275,8 +283,15 @@ export function ConnectGroupAttendanceEditor({
         <button type="button" className="min-h-11 mr-4 font-bold" onClick={async () => { if (await engine.retry()) { setDeparture(null); departure() } }}>{engine.uncertain ? 'Check save status' : 'Retry'}</button>
         <button type="button" className="min-h-11 font-bold text-rich-red" onClick={() => { engine.dispose(); setDeparture(null); departure() }}>Leave anyway</button>
       </AttendanceDialog>}
-    </div>
+    </form>
   )
+}
+
+function unrecordedMessage(names: string[]) {
+  const subject = names.length > 3
+    ? `${names.slice(0, 3).join(', ')} and ${names.length - 3} ${names.length === 4 ? 'other' : 'others'}`
+    : new Intl.ListFormat('en-NZ', { style: 'long', type: 'conjunction' }).format(names)
+  return `${subject} ${names.length === 1 ? 'hasn’t' : 'haven’t'} been marked.`
 }
 
 function meetingKey(meeting: AttendanceMeetingIdentity) {
