@@ -457,6 +457,7 @@ describe('GivingFlow', () => {
     await act(async()=>button(container,'Continue')?.click())
     await act(async()=>button(container,'Just this once')?.click())
     await act(async()=>button(container,'General')?.click())
+    expect(button(container, 'Use bank transfer instead')).toBeUndefined()
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
     await act(async()=>Promise.resolve())
     expect(container.textContent).toContain('Use these details in your banking app')
@@ -503,6 +504,37 @@ describe('GivingFlow', () => {
     await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
     expect(container.textContent).toContain('Continue with BlinkPay')
     expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input) === '/api/giving/bank-transfer')).toBe(false)
+  })
+
+  it('offers a low-priority bank-transfer link below BlinkPay without starting a checkout', async () => {
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      if (String(input) === '/api/giving/bank-transfer') return new Response(JSON.stringify({
+        accountName: 'Auckland Evangelical Church Trust',
+        accountNumber: '01-1845-0008260-05',
+        particulars: 'GENERAL',
+        code: 'ALOVELACE',
+        reference: 'EV123',
+        acknowledgementToken: 'A'.repeat(43),
+      }), { status: 200, headers: { 'content-type': 'application/json' } })
+      return new Response(null, { status: 204 })
+    })
+    await reachSignedInReview(container, root)
+    const primary = button(container, 'Continue to BlinkPay')!
+    const secondary = button(container, 'use bank transfer instead')!
+    const blinkPayCard = Array.from(container.querySelectorAll('div')).find((element) => element.className.includes('rounded-[2rem]') && element.contains(primary))!
+    expect(primary.className).toContain('bg-rich-red')
+    expect(blinkPayCard.contains(secondary)).toBe(false)
+    expect(blinkPayCard.nextElementSibling?.contains(secondary)).toBe(true)
+    expect(secondary.className).toContain('underline')
+    expect(secondary.className).not.toContain('border')
+    expect(container.textContent).toContain('No credit or debit card needed. BlinkPay works with accounts from five major NZ banks: ANZ, ASB, BNZ, Kiwibank and Westpac.')
+
+    await act(async () => secondary.click())
+    expect(container.textContent).toContain('Bank transfer details')
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    expect(container.textContent).toContain('EV123')
+    expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input) === '/api/giving/checkouts')).toBe(false)
+    expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input) === '/api/giving/bank-transfer/acknowledge')).toBe(false)
   })
 
   it('resolves the real Rock reference before displaying production bank-transfer instructions', async () => {
