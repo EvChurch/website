@@ -506,7 +506,7 @@ describe('GivingFlow', () => {
     expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input) === '/api/giving/bank-transfer')).toBe(false)
   })
 
-  it('offers bank transfer beneath BlinkPay without starting a checkout', async () => {
+  it('offers a low-priority bank-transfer link below BlinkPay without starting a checkout', async () => {
     vi.mocked(fetch).mockImplementation(async (input) => {
       if (String(input) === '/api/giving/bank-transfer') return new Response(JSON.stringify({
         accountName: 'Auckland Evangelical Church Trust',
@@ -520,11 +520,14 @@ describe('GivingFlow', () => {
     })
     await reachSignedInReview(container, root)
     const primary = button(container, 'Continue to BlinkPay')!
-    const secondary = button(container, 'Use bank transfer instead')!
-    expect(primary.nextElementSibling).toBe(secondary)
+    const secondary = button(container, 'use bank transfer instead')!
+    const blinkPayCard = Array.from(container.querySelectorAll('div')).find((element) => element.className.includes('rounded-[2rem]') && element.contains(primary))!
     expect(primary.className).toContain('bg-rich-red')
-    expect(secondary.className).toContain('bg-white')
-    expect(secondary.className).toContain('text-dark-grey')
+    expect(blinkPayCard.contains(secondary)).toBe(false)
+    expect(blinkPayCard.nextElementSibling?.contains(secondary)).toBe(true)
+    expect(secondary.className).toContain('underline')
+    expect(secondary.className).not.toContain('border')
+    expect(container.textContent).toContain('No credit or debit card needed. BlinkPay works with accounts from five major NZ banks: ANZ, ASB, BNZ, Kiwibank and Westpac.')
 
     await act(async () => secondary.click())
     expect(container.textContent).toContain('Bank transfer details')
