@@ -33,12 +33,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Payload types
+      - name: Generate Payload types and import map
         env:
           # Include storage fields without using an external bucket or credentials.
           S3_BUCKET: synthetic-ci-typecheck
           S3_ENDPOINT: http://127.0.0.1:57151
-        run: pnpm generate:types
+        run: pnpm generate:types && pnpm generate:importmap
 
       - name: Check TypeScript
         run: pnpm typecheck
