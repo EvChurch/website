@@ -40,6 +40,7 @@ export function ConnectGroupAttendanceEditor({
   const [loadMessage, setLoadMessage] = useState<string | null>(null)
   const [departure, setDeparture] = useState<(() => void) | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
+  const [confirmUnrecorded, setConfirmUnrecorded] = useState(false)
   const requestSequence = useRef(0)
   const engineRef = useRef<AttendanceAutosave | null>(null)
   function createEngine(state: ConnectGroupAttendanceMeeting) {
@@ -55,7 +56,8 @@ export function ConnectGroupAttendanceEditor({
   const loadFailed = loading
   const present = people.filter(person => meeting.marks[person.rockPersonId] === 'present').length
   const absent = people.filter(person => meeting.marks[person.rockPersonId] === 'absent').length
-  const unrecorded = people.length - present - absent
+  const unrecordedPeople = people.filter(person => meeting.marks[person.rockPersonId] === 'unrecorded')
+  const unrecorded = unrecordedPeople.length
   const saveDisabled = loading || engine.failed !== null
 
   async function navigate(action: () => void) {
@@ -161,8 +163,9 @@ export function ConnectGroupAttendanceEditor({
     engine.edit({ marks: {}, didNotMeet: checked })
   }
 
-  async function save() {
+  async function saveConfirmed() {
     if (saveDisabled) return
+    setConfirmUnrecorded(false)
     engine.edit({
       marks: meeting.didNotMeet ? {} : Object.fromEntries(people.map(person => [person.rockPersonId, meeting.marks[person.rockPersonId] === 'absent' ? 'absent' : 'present'])),
       notes: meeting.notes,
@@ -171,6 +174,15 @@ export function ConnectGroupAttendanceEditor({
       await removeHistoryGuard()
       router.push(`/members/connect-groups/${rockGroupId}?attendance=saved`)
     }
+  }
+
+  function save() {
+    if (saveDisabled) return
+    if (!meeting.didNotMeet && unrecorded > 0) {
+      setConfirmUnrecorded(true)
+      return
+    }
+    return saveConfirmed()
   }
 
   return (
@@ -207,15 +219,17 @@ export function ConnectGroupAttendanceEditor({
             <legend className="sr-only">Attendance for {person.name}</legend>
             <div className="flex min-w-0 items-center gap-2.5">
               <MemberAvatar name={person.name} src={person.avatarUrl} size="small" />
-              <span aria-hidden="true" className="truncate text-sm font-bold text-brand-black sm:text-base">{person.name}{meeting.marks[person.rockPersonId] === 'unrecorded' && !meeting.didNotMeet && <span className="block text-xs font-normal text-mid-grey">Not saved</span>}</span>
+              <span aria-hidden="true" className="truncate text-sm font-bold text-brand-black sm:text-base">{person.name}</span>
             </div>
             <div role="radiogroup" aria-label={`Attendance for ${person.name}`} className="relative grid grid-cols-2 rounded-lg bg-[#f2efeb] p-1">
-              <span
-                aria-hidden="true"
-                className={`absolute bottom-1 left-1 top-1 w-[calc(50%-0.25rem)] rounded-md bg-brand-black shadow-sm transition-transform duration-200 ease-out ${meeting.marks[person.rockPersonId] === 'absent' ? 'translate-x-full' : 'translate-x-0'}`}
-              />
+              {meeting.marks[person.rockPersonId] !== 'unrecorded' && (
+                <span
+                  aria-hidden="true"
+                  className={`absolute bottom-1 left-1 top-1 w-[calc(50%-0.25rem)] rounded-md bg-brand-black shadow-sm transition-transform duration-200 ease-out ${meeting.marks[person.rockPersonId] === 'absent' ? 'translate-x-full' : 'translate-x-0'}`}
+                />
+              )}
               {(['present', 'absent'] as const).map((state) => {
-                const checked = (meeting.marks[person.rockPersonId] === 'unrecorded' ? 'present' : meeting.marks[person.rockPersonId]) === state
+                const checked = meeting.marks[person.rockPersonId] === state
                 return (
                   <label key={state} className={`relative z-10 flex min-h-10 cursor-pointer items-center justify-center rounded-md px-2 text-xs font-bold focus-within:ring-2 focus-within:ring-brand-black focus-within:ring-offset-2 group-disabled:cursor-not-allowed transition-colors duration-200 sm:text-sm ${checked ? 'text-white' : 'text-brand-black'}`}>
                     <input className="sr-only" type="radio" name={`person-${person.rockPersonId}`} value={state} checked={checked} onChange={() => {}} onClick={() => setMark(person.rockPersonId, state)} />
@@ -242,7 +256,7 @@ export function ConnectGroupAttendanceEditor({
 
       <div aria-live="polite" className="flex flex-wrap items-center justify-between gap-3">
         <p id="attendance-summary" className="text-sm font-bold text-brand-black">
-          {meeting.didNotMeet ? 'No individual attendance' : `${present} present · ${absent} absent${unrecorded ? ` · ${unrecorded} not saved` : ''}`}
+          {meeting.didNotMeet ? 'No individual attendance' : `${present} present · ${absent} absent${unrecorded ? ` · ${unrecorded} unrecorded` : ''}`}
         </p>
         <button type="submit" disabled={saveDisabled} className="min-h-12 rounded-lg bg-rich-red px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-black disabled:cursor-not-allowed disabled:opacity-50">
           {engine.saving ? 'Saving…' : 'Save'}
@@ -255,6 +269,14 @@ export function ConnectGroupAttendanceEditor({
         <button autoFocus type="button" className="min-h-11 mr-4 font-bold" onClick={() => setConfirmClear(false)}>Cancel</button>
         <button type="button" className="min-h-11 font-bold text-rich-red" onClick={() => { setConfirmClear(false); engine.edit({ marks: {}, didNotMeet: true, confirmClear: true }) }}>Clear attendance</button>
       </AttendanceDialog>}
+      {confirmUnrecorded && <AttendanceDialog label="Mark remaining people present?" onCancel={() => setConfirmUnrecorded(false)}>
+        <h2 className="text-xl text-brand-black">Mark remaining people present?</h2>
+        <p className="mt-2">{unrecordedMessage(unrecordedPeople.map(person => person.name))}</p>
+        <div className="mt-5 flex justify-end gap-4">
+          <button autoFocus type="button" className="min-h-11 font-bold" onClick={() => setConfirmUnrecorded(false)}>Cancel</button>
+          <button type="button" className="min-h-11 font-bold text-rich-red" onClick={() => { void saveConfirmed() }}>Continue</button>
+        </div>
+      </AttendanceDialog>}
       {departure && <AttendanceDialog label="Unsaved attendance" onCancel={() => setDeparture(null)}>
         <p>{engine.uncertain ? 'Some changes may already be saved, and a pending save may still complete.' : 'Some changes have not saved. Saved changes will remain.'}</p>
         <button autoFocus type="button" className="min-h-11 mr-4 font-bold" onClick={() => setDeparture(null)}>Stay</button>
@@ -263,6 +285,13 @@ export function ConnectGroupAttendanceEditor({
       </AttendanceDialog>}
     </form>
   )
+}
+
+function unrecordedMessage(names: string[]) {
+  const subject = names.length > 3
+    ? `${names.slice(0, 3).join(', ')} and ${names.length - 3} ${names.length === 4 ? 'other' : 'others'}`
+    : new Intl.ListFormat('en-NZ', { style: 'long', type: 'conjunction' }).format(names)
+  return `${subject} ${names.length === 1 ? 'hasn’t' : 'haven’t'} been marked.`
 }
 
 function meetingKey(meeting: AttendanceMeetingIdentity) {
