@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { HiArchiveBoxArrowDown, HiArrowUpTray, HiEllipsisVertical, HiEye, HiPlus, HiTrash, HiXMark } from 'react-icons/hi2'
+import { HiArchiveBoxArrowDown, HiArrowUturnLeft, HiArrowUpTray, HiEllipsisVertical, HiEye, HiPlus, HiTrash, HiXMark } from 'react-icons/hi2'
 import { FormSelect } from '@/components/forms/FormSelect'
 import type { overview } from '@/lib/reimbursements/store'
 import { actionLabels, canArchiveReport, isArchivedReport, isOlderReport, approvalPerson, hasPaymentSettings, gstMinor, money, parseMoney, reportNumber, statusLabels, type Draft, type ExpenseLine, type Settings } from '@/lib/reimbursements/model'
@@ -24,6 +24,11 @@ export async function reimbursementRequest<T>(path: string, method = 'GET', body
 }
 const dateToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
 function newLine(): ExpenseLine { return { id: crypto.randomUUID(), date: dateToday(), categoryId: null, description: '', amountMinor: null, hasGst: true, receiptHash: null } }
+
+function ArchiveIcon({ older }: { older: boolean }) {
+  const Icon = older ? HiArrowUturnLeft : HiArchiveBoxArrowDown
+  return <Icon aria-hidden="true" className="size-4" />
+}
 
 function ReportCard({ report, showClaimant, archivable, older, busy, payment, checked, onSelect, onView, onArchive }: {
   report: VisibleReport; showClaimant: boolean; archivable: boolean; older: boolean; busy: boolean; payment: boolean; checked: boolean
@@ -55,7 +60,7 @@ function ReportCard({ report, showClaimant, archivable, older, busy, payment, ch
       <button ref={trigger} type="button" aria-label={`Options for ${number}`} aria-expanded={menuOpen} aria-controls={`report-options-${report.id}`} onClick={() => setMenuOpen(open => !open)} className="flex size-10 items-center justify-center rounded-full border border-warm-grey text-brand-black transition hover:border-rich-red hover:text-rich-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red"><HiEllipsisVertical aria-hidden="true" className="size-5" /></button>
       {menuOpen && <div ref={menu} id={`report-options-${report.id}`} className="absolute right-0 top-12 z-10 w-48 rounded-lg border border-warm-grey bg-white p-2 shadow-xl shadow-brand-black/10" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget) && event.relatedTarget !== trigger.current) setMenuOpen(false) }}>
         <button type="button" className={optionClass} onClick={() => { setMenuOpen(false); onView() }}><HiEye aria-hidden="true" className="size-4" />View report</button>
-        {archivable && <button type="button" disabled={busy} className={optionClass} onClick={() => { setMenuOpen(false); onArchive() }}><HiArchiveBoxArrowDown aria-hidden="true" className="size-4" />{older ? 'Restore as draft' : 'Archive report'}</button>}
+        {archivable && <button type="button" disabled={busy} className={optionClass} onClick={() => { setMenuOpen(false); onArchive() }}><ArchiveIcon older={older} />{older ? 'Restore as draft' : 'Archive report'}</button>}
       </div>}
     </div>
   </article>
@@ -122,8 +127,8 @@ export function Reimbursements({ initialOverview, initialReportId }: { initialOv
               <td className="px-3 py-2"><span className="font-semibold">{isArchivedReport(report) ? 'Archived' : statusLabels[report.status]}</span>{report.status === 'rejected' && <p className="mt-1 max-w-sm text-xs text-rich-red">{[...report.history].reverse().find(item => ['reject', 'return'].includes(item.action))?.reason}</p>}</td>
               <td className="px-3 py-2 text-right font-semibold tabular-nums">{money(report.lines.reduce((sum, line) => sum + (line.amountMinor ?? 0), 0))}</td>
               <td className="px-3 py-2"><div className="flex items-start">
-                <button aria-label={`View ${reportNumber(report.number)}`} title="View report" className="ml-auto inline-flex min-h-11 min-w-11 items-center justify-center text-mid-grey lg:ml-0 lg:min-w-8 hover:bg-warm-white hover:text-rich-red focus:outline-none focus:ring-1 focus:ring-inset focus:ring-rich-red lg:min-h-5" onClick={() => setSelected(report.id)}><HiEye className="size-4" aria-hidden="true" /></button>
-                {report.claimantId === data.personId && (canArchiveReport(report) || isArchivedReport(report)) && <button className="ml-auto inline-flex min-h-11 min-w-11 items-center justify-center text-mid-grey lg:ml-0 lg:min-w-8 hover:bg-warm-white hover:text-rich-red focus:outline-none focus:ring-1 focus:ring-inset focus:ring-rich-red disabled:opacity-50 lg:min-h-5" title={older ? 'Restore as draft' : 'Archive report'} aria-label={`${older ? 'Restore' : 'Archive'} ${reportNumber(report.number)}`} disabled={busy} onClick={() => archiveOrRestore(report, older)}>{older ? 'Restore' : <HiArchiveBoxArrowDown className="size-4" aria-hidden="true" />}</button>}
+                <button aria-label={`View ${reportNumber(report.number)}`} title="View report" className="ml-auto inline-flex min-h-11 min-w-11 items-center justify-center text-mid-grey lg:ml-0 lg:min-w-7 hover:bg-warm-white hover:text-rich-red focus:outline-none focus:ring-1 focus:ring-inset focus:ring-rich-red lg:min-h-5" onClick={() => setSelected(report.id)}><HiEye className="size-4" aria-hidden="true" /></button>
+                {report.claimantId === data.personId && (canArchiveReport(report) || isArchivedReport(report)) && <button className="ml-auto inline-flex min-h-11 min-w-11 items-center justify-center text-mid-grey lg:ml-0 lg:min-w-7 hover:bg-warm-white hover:text-rich-red focus:outline-none focus:ring-1 focus:ring-inset focus:ring-rich-red disabled:opacity-50 lg:min-h-5" title={older ? 'Restore as draft' : 'Archive report'} aria-label={`${older ? 'Restore' : 'Archive'} ${reportNumber(report.number)}`} disabled={busy} onClick={() => archiveOrRestore(report, older)}><ArchiveIcon older={older} /></button>}
               </div></td>
             </tr>)}</tbody>
           </table>{!reports.length && <p className="p-5 text-center text-sm text-mid-grey">{tab === 'payments' ? 'No reports awaiting payment.' : awaitingApproval ? 'No reports awaiting your approval.' : older ? 'No older reports.' : 'No active reports.'}</p>}

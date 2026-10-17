@@ -58,4 +58,4 @@ Once finance approves the report, you cannot edit it. [Contact us](/contact) if 
 
 ## Stop an unfinished claim
 
-In **My reports**, use the three-dot menu on a mobile report card and choose **Archive report**. On a computer, use the archive icon. You can archive drafts, rejected reports, or reports awaiting approval. Confirming stops the reimbursement process and moves it under **Show older**. You can restore an archived report as a draft and submit it again later.
+In **My reports**, use the three-dot menu on a mobile report card and choose **Archive report**. On a computer, use the archive icon. You can archive drafts, rejected reports, or reports awaiting approval. Confirming stops the reimbursement process and moves it under **Show older**. You can restore an archived report as a draft using the restore-arrow icon on a computer, or **Restore as draft** in its mobile menu, and submit it again later.

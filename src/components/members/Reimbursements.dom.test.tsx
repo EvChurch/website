@@ -390,7 +390,11 @@ it('keeps paid and cancelled reports behind Show older and archives or restores 
   await act(async () => button('Show older (3)').click())
   expect(button('EXP-000002')).toBeDefined()
   fetchMock.mockResolvedValueOnce(response(3)).mockResolvedValueOnce({ ok: true, json: async () => data })
-  await act(async () => button('Restore').click())
+  const restore = container.querySelector<HTMLButtonElement>('button[aria-label="Restore EXP-000002"]')!
+  expect(restore.textContent).toBe('')
+  expect(restore.title).toBe('Restore as draft')
+  expect(restore.querySelector('svg')).not.toBeNull()
+  await act(async () => restore.click())
   expect(JSON.parse(fetchMock.mock.calls[2][1].body)).toEqual({ action: 'restore', version: 2 })
   expect(container.querySelector('table')!.textContent).toContain('EXP-000002')
 })
