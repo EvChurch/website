@@ -51,6 +51,15 @@ export const ManualCardGridBlock: Block = {
           relationTo: 'media',
         },
         {
+          name: 'imageBorder',
+          type: 'checkbox',
+          defaultValue: false,
+          label: 'Image border',
+          admin: {
+            description: 'Add a subtle border around the image area on Image on top and Profile cards.',
+          },
+        },
+        {
           name: 'title',
           type: 'text',
           required: true,

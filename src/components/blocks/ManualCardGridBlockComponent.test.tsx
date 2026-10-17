@@ -12,6 +12,22 @@ describe('ManualCardGridBlockComponent', () => {
     vi.unstubAllEnvs()
   })
 
+  it.each(['imageTop', 'profile'] as const)('only borders opted-in %s card image areas', (cardStyle) => {
+    const markup = renderToStaticMarkup(
+      <ManualCardGridBlockComponent
+        cardStyle={cardStyle}
+        cards={[
+          { title: 'Bordered logo', image: '/media/light-logo.png', description: 'Light background', imageBorder: true },
+          { title: 'Default logo', image: '/media/dark-logo.png', description: 'Dark background' },
+          { title: 'Disabled border', image: '/media/other-logo.png', description: 'No border', imageBorder: false },
+        ]}
+      />,
+    )
+
+    expect(markup.match(/pointer-events-none absolute inset-0 z-10 rounded-t-xl border border-warm-grey\/70/g)).toHaveLength(1)
+    expect(markup).toContain('aria-hidden="true"')
+  })
+
   it('renders an embeddable map for a card with a managed map URL', () => {
     const markup = renderToStaticMarkup(
       <ManualCardGridBlockComponent
