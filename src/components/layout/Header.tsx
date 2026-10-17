@@ -36,6 +36,7 @@ const navItems: NavItem[] = [
       { label: 'About Us', href: '/about' },
       { label: 'What We Believe', href: '/what-we-believe' },
       { label: 'Our Vision', href: '/vision' },
+      { label: 'Partners', href: '/partners' },
       { label: 'Contact', href: '/contact' },
     ],
   },
