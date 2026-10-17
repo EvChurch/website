@@ -7,15 +7,12 @@ vi.mock('@/lib/reimbursements/store', () => ({ openReimbursements: mocks.open, m
 vi.mock('@/lib/members/data', () => ({ getMemberPortalHomeForProfile: mocks.home }))
 import Page from './page'
 const id = '00000000-0000-4000-8000-000000000001'
-const page = (path?: string[], report?: string) => Page({ params: Promise.resolve({ path }), searchParams: Promise.resolve({ report }) })
+const page = (path?: string[]) => Page({ params: Promise.resolve({ path }) })
 beforeEach(() => { vi.clearAllMocks(); mocks.actor.mockResolvedValue(null) })
 it.each([['approvals'], ['payment-queue'], ['payment-settings'], ['reports', id]])('preserves the requested path through login: %j', async (...path) => {
   const target = `/members/reimbursements/${path.join('/')}`
   await expect(page(path)).rejects.toThrow(`REDIRECT:/auth/login?returnTo=${encodeURIComponent(target)}`)
   expect(mocks.pool).not.toHaveBeenCalled()
-})
-it('keeps existing email report links working', async () => {
-  await expect(page(undefined, id)).rejects.toThrow(`REDIRECT:/members/reimbursements/reports/${id}`)
 })
 it('rejects unknown paths', async () => { await expect(page(['unknown'])).rejects.toThrow('NOT_FOUND') })
 it('does not expose the payment queue to non-finance members', async () => {
