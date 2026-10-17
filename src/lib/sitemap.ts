@@ -109,7 +109,7 @@ async function fetchSitemapSections(): Promise<SitemapSection[]> {
       title: 'Pages',
       links: [
         ...pages.docs
-          .filter((page) => !isRetiredPageSlug(page.slug))
+          .filter((page) => !isRetiredPageSlug(page.slug) && page.slug !== 'help' && !page.slug.startsWith('help/'))
           .map((page) => link(page.title, page.slug === 'home' ? '/' : `/${page.slug}`, {
             lastModified: page.updatedAt,
             changeFrequency: 'monthly',

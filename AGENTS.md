@@ -53,6 +53,22 @@ assumptions and keep moving.
 - Keep ad hoc machine-local MCP overrides in `.codex/*.local.toml`, which are
   intentionally ignored by Git.
 
+## Help documentation
+
+- When adding, changing, or removing user-facing members, account/login, or
+  launcher functionality, create or update its guides in `content/help/` in the
+  same change. Check the implemented behaviour and visible labels before writing.
+- Register each Markdown guide in `content/help/articles.ts`. Keep task-focused
+  instructions, working links, and useful screenshots with sample data. Use
+  `access: 'members'` for internal information; public guides contain no personal
+  details, credentials, or private operational information.
+- Agents maintain these articles directly, including replacing human edits.
+  Articles publish with the feature's normal deployment; no separate editorial
+  approval or Payload content write is needed. Remove or rewrite obsolete guides
+  and update their links when functionality is removed.
+- Verify article routes, search results, access restrictions, and linked screens.
+  Keep help routes excluded from search indexing and sitemaps.
+
 ## Tech Stack
 
 - Framework: Next.js 16 App Router with embedded Payload CMS 3

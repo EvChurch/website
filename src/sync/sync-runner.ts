@@ -31,6 +31,7 @@ import { syncServiceGuideItems } from './service-guide-items'
 import { syncConnectGroups } from './connect-groups'
 import { syncConnectGroupLeaderResources } from './connect-group-leader-resources'
 import { syncDailyBibleReadings } from './daily-bible-readings'
+import { syncReimbursementDirectory } from './reimbursement-directory'
 
 export { syncConnectGroups } from './connect-groups'
 
@@ -57,6 +58,7 @@ export async function runFullSync(options?: { sermonLimit?: number }): Promise<S
   results.push(await syncConnectGroups())
   results.push(await syncConnectGroupLeaderResources())
   results.push(await syncDailyBibleReadings())
+  results.push(await syncReimbursementDirectory())
 
   // Sermon data from resources.ev.church GraphQL API
   const sermonResults = await runSermonSync(options?.sermonLimit)

@@ -108,7 +108,7 @@ export function getAuth0Client() {
         const payload = await getPayloadClient()
         const user = await provisionAuth0User(payload, identity)
         const returnTo = safeAdminReturnTo(context.returnTo)
-        if (!hasPayloadAdminRole(user)) {
+        if (!hasPayloadAdminRole(user) && !await (await import('@/lib/reimbursements/admin-access')).isReimbursementFinanceIdentity(payload, identity.subject)) {
           const pending = new URL('/auth/pending', config.appBaseUrl)
           pending.searchParams.set('returnTo', returnTo)
           return NextResponse.redirect(pending)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isAdmin, isContentLead, isEditor, publishedOnly } from './roles'
+import { canOperatePayloadJobs, isAdmin, isContentLead, isEditor, publishedOnly } from './roles'
 
 function args(roles?: string[]) {
   return { req: { user: roles === undefined ? null : { roles } } } as never
@@ -24,4 +24,11 @@ describe('Payload role access', () => {
     expect(isEditor(args())).toBe(false)
     expect(isEditor(args(['member']))).toBe(false)
   })
+})
+
+it('excludes finance-only Payload users from CMS job operations', () => {
+  expect(canOperatePayloadJobs({ req: { user: { collection: 'users', roles: [] } } })).toBe(false)
+  expect(canOperatePayloadJobs({ req: { user: { collection: 'users', roles: ['editor'] } } })).toBe(true)
+  expect(canOperatePayloadJobs({ req: { user: { collection: 'payload-mcp-api-keys' } } })).toBe(true)
+  expect(canOperatePayloadJobs({ req: { user: null } })).toBe(false)
 })

@@ -93,3 +93,20 @@
     }
   }
 }
+
+.reimbursement-settings {
+  max-width: 1000px;
+  display: grid;
+  gap: 20px;
+  padding-bottom: 40px;
+  label { display: block; }
+  h2, h3, p { margin: 0; }
+  &__input { display: block; width: 100%; padding: 10px; margin-top: 5px; border: 1px solid var(--theme-elevation-200); border-radius: 4px; background: var(--theme-input-bg); color: var(--theme-text); font: inherit; }
+  &__category { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 16px; padding-top: 12px; border-top: 1px solid var(--theme-elevation-150); }
+  &__archive { padding-bottom: 10px; white-space: nowrap; }
+  &__actions { display: flex; gap: 12px; }
+  &__button { padding: 10px 18px; border: 1px solid var(--theme-text); border-radius: 4px; background: var(--theme-text); color: var(--theme-bg); cursor: pointer; font: inherit; }
+  &__button--secondary { background: var(--theme-bg); color: var(--theme-text); }
+  button:disabled { opacity: .5; }
+  @media(max-width: 650px) { &__category { grid-template-columns: 1fr; } }
+}
