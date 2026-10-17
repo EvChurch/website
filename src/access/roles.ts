@@ -50,3 +50,7 @@ export const publishedOnly: Access = ({ req: { user } }) => {
 export const adminOnlyField: FieldAccess = ({ req: { user } }) => {
   return hasExactPayloadAdminRole(user as User | null)
 }
+
+/** Preserve CMS job access for existing staff roles and API identities, excluding finance-only logins. */
+export const canOperatePayloadJobs = ({ req: { user } }: { req: { user: { collection?: string; roles?: User['roles'] } | null } }) =>
+  Boolean(user && (user.collection !== 'users' || hasPayloadAdminRole(user)))

@@ -1,3 +1,6 @@
+import * as migration_20261017_030000_simplify_reimbursements from './20261017_030000_simplify_reimbursements';
+import * as migration_20261017_010000_reimbursement_directory from './20261017_010000_reimbursement_directory';
+import * as migration_20261017_020000_reimbursements from './20261017_020000_reimbursements';
 import * as migration_20261010_010000_payload_390_upload_keys from './20261010_010000_payload_390_upload_keys';
 import * as migration_20260910_070000_event_website_summary from './20260910_070000_event_website_summary';
 import * as migration_20260908_180000_sermon_transcripts_calendar from './20260908_180000_sermon_transcripts_calendar';
@@ -369,4 +372,7 @@ export const migrations = [
   { up: migration_20260910_010000_attendance_save_requests.up, down: migration_20260910_010000_attendance_save_requests.down, name: '20260910_010000_attendance_save_requests' },
   { up: migration_20261002_010000_support_profiles.up, down: migration_20261002_010000_support_profiles.down, name: '20261002_010000_support_profiles' },
   { up: migration_20261010_010000_payload_390_upload_keys.up, down: migration_20261010_010000_payload_390_upload_keys.down, name: '20261010_010000_payload_390_upload_keys' },
+  { up: migration_20261017_010000_reimbursement_directory.up, down: migration_20261017_010000_reimbursement_directory.down, name: '20261017_010000_reimbursement_directory' },
+  { up: migration_20261017_020000_reimbursements.up, down: migration_20261017_020000_reimbursements.down, name: '20261017_020000_reimbursements' },
+  { up: migration_20261017_030000_simplify_reimbursements.up, down: migration_20261017_030000_simplify_reimbursements.down, name: '20261017_030000_simplify_reimbursements' },
 ];

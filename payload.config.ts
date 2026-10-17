@@ -37,6 +37,8 @@ import { Registrations } from '@/collections/Registrations'
 import { ServiceGuideItems } from '@/collections/ServiceGuideItems'
 import { RockForms } from '@/collections/RockForms'
 import { ConnectGroupParticipants } from '@/collections/ConnectGroupParticipants'
+import { ResponsibilityCentres } from '@/collections/ResponsibilityCentres'
+import { ReimbursementFinanceMembers } from '@/collections/ReimbursementFinanceMembers'
 import { ConnectGroupComments } from '@/collections/ConnectGroupComments'
 import { ConnectGroupLeaderResources } from '@/collections/ConnectGroupLeaderResources'
 import { DailyBibleReadings } from '@/collections/DailyBibleReadings'
@@ -54,7 +56,7 @@ import { GivingProviderOperations } from '@/collections/GivingProviderOperations
 import { BlinkPayWebhookEvents } from '@/collections/BlinkPayWebhookEvents'
 import { GivingDrafts } from '@/collections/GivingDrafts'
 import { GivingCancellationFeedback } from '@/collections/GivingCancellationFeedback'
-import { isAdmin } from '@/access/roles'
+import { canOperatePayloadJobs, isAdmin } from '@/access/roles'
 
 // Globals
 import { Navigation } from '@/globals/Navigation'
@@ -67,6 +69,7 @@ import {
 } from '@/jobs/site-feedback-notification'
 import { givingJobConfigs, GIVING_LIFECYCLE_AUTO_RUN } from '@/jobs/giving'
 import { givingEmailJobConfigs } from '@/jobs/giving-emails'
+import { reimbursementEmailTask } from '@/jobs/reimbursements'
 import { feedbackCommunicationsTask } from '@/jobs/feedback-communications'
 import { feedbackCommunicationAuth, feedbackCommunicationTools } from '@/lib/site-feedback/communication-mcp'
 
@@ -111,6 +114,8 @@ export const applicationCollections: CollectionConfig[] = [
   Events,
   ConnectGroups,
   ConnectGroupParticipants,
+  ResponsibilityCentres,
+  ReimbursementFinanceMembers,
   ConnectGroupComments,
   ConnectGroupLeaderResources,
   DailyBibleReadings,
@@ -152,6 +157,8 @@ export const applicationGlobals: GlobalConfig[] = [
 ]
 
 export const mcpExcludedCollectionSlugs = new Set([
+  'responsibility-centres',
+  'reimbursement-finance-members',
   'sermon-articles',
   'sermon-transcripts',
   'sermon-productions',
@@ -208,12 +215,13 @@ export default buildConfig({
     },
     components: {
       beforeLogin: ['@/components/admin/Auth0BeforeLogin'],
-      afterNavLinks: ['@/components/admin/MemberImpersonationNavLink', '@/components/admin/SermonManagerNavLink'],
+      afterNavLinks: ['@/components/admin/MemberImpersonationNavLink', '@/components/admin/SermonManagerNavLink', '@/components/admin/ReimbursementSettingsNavLink'],
       beforeDashboard: ['@/components/admin/SermonManagerNavLink'],
       logout: {
         Button: '@/components/admin/Auth0LogoutButton',
       },
       views: {
+        reimbursementSettings: { Component: '@/components/admin/ReimbursementSettingsView#ReimbursementSettingsView', exact: true, path: '/reimbursement-settings' },
         sermonManager: { Component: '@/components/admin/SermonManagerView#SermonManagerView', exact: true, path: '/sermon-manager' },
         memberImpersonation: {
           Component: '@/components/admin/MemberImpersonationView#MemberImpersonationView',
@@ -273,6 +281,7 @@ export default buildConfig({
   ],
 
   jobs: {
+    access: { run: canOperatePayloadJobs, queue: canOperatePayloadJobs, cancel: canOperatePayloadJobs },
     tasks: [
       sermonAudioTask,
       ...sermonArticleTasks,
@@ -281,6 +290,7 @@ export default buildConfig({
       feedbackCommunicationsTask,
       ...givingJobConfigs,
       ...givingEmailJobConfigs,
+      reimbursementEmailTask,
       {
         slug: 'fullSermonSync',
         retries: 2,

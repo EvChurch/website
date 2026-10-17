@@ -36,3 +36,17 @@ describe('Payload Auth0 strategy', () => {
     expect(editor.user).toMatchObject({ id: 1, collection: 'users' })
   })
 })
+
+it('allows current Rock finance staff without granting an editorial or administrator role', async () => {
+  const user = { id: 2, email: identity.email, roles: [] }
+  const financeAccess = vi.fn().mockResolvedValue(true)
+  const result = await authenticateAuth0PayloadUser(new Headers(), {} as never, {
+    getIdentity: vi.fn().mockResolvedValue(identity), resolve: vi.fn().mockResolvedValue(user), financeAccess,
+  })
+  expect(financeAccess).toHaveBeenCalledWith({}, identity.subject)
+  expect(result.user).toMatchObject({ id: 2, roles: [], collection: 'users' })
+  financeAccess.mockResolvedValue(false)
+  expect((await authenticateAuth0PayloadUser(new Headers(), {} as never, {
+    getIdentity: vi.fn().mockResolvedValue(identity), resolve: vi.fn().mockResolvedValue(user), financeAccess,
+  })).user).toBeNull()
+})

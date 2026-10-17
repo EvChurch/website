@@ -123,7 +123,7 @@ describe.skipIf(!databaseUrl)('Payload S3 schema migration with in-memory storag
     const config = payload.collections[upload.collection].config
     expect(config.flattenedFields.map(field => field.name)).toContain('_objectKey')
     const legacy = (await payload.find({ collection: upload.collection, where: { filename: { equals: upload.filename } }, depth: 0 })).docs[0]
-    expect(legacy._objectKey).toBeNull()
+    expect('_objectKey' in legacy ? legacy._objectKey : undefined).toBeNull()
     const staticHandler = typeof config.upload === 'object' && config.upload.handlers?.[0]
     if (!staticHandler) throw new Error('Actual S3 handler missing')
     const read = async (doc: typeof legacy, body = bodies.get(upload.collection)) => {
@@ -145,8 +145,9 @@ describe.skipIf(!databaseUrl)('Payload S3 schema migration with in-memory storag
     await read(created)
     const putCount = storage.put.mock.calls.length
     const deleteCount = storage.remove.mock.calls.length
+    const tamperedData = { filename: 'forged.wav', mimeType: 'text/html', prefix: 'forged', _objectKey: 'forged' }
     const tampering = payload.update({ collection: upload.collection, id: created.id, context: { ...context }, overrideAccess: false, user,
-      data: { filename: 'forged.wav', mimeType: 'text/html', prefix: 'forged', _objectKey: 'forged' } })
+      data: tamperedData })
     if (upload.collection === 'sermon-work-files') await expect(tampering).rejects.toThrow()
     else {
       await expect(tampering).rejects.toThrow(/MIME Type/)
@@ -173,7 +174,7 @@ describe.skipIf(!databaseUrl)('Payload S3 schema migration with in-memory storag
       sizeKeys.push(key)
     }
     const keyed = await payload.findByID({ collection: upload.collection, id: created.id, depth: 0 })
-    expect(keyed._objectKey).toBe(objectKey)
+    expect('_objectKey' in keyed ? keyed._objectKey : undefined).toBe(objectKey)
     await read(keyed)
     if (upload.collection === 'media') {
       expect(sizeKeys.length).toBeGreaterThan(0)
@@ -195,7 +196,7 @@ describe.skipIf(!databaseUrl)('Payload S3 schema migration with in-memory storag
     expect(storage.remove).toHaveBeenCalledWith(payloadStorageKey(keyed, upload.prefix))
     for (const key of sizeKeys) expect(storage.remove).toHaveBeenCalledWith(key)
     const persisted = await payload.findByID({ collection: upload.collection, id: replaced.id, depth: 0 })
-    expect(persisted).toMatchObject({ filename: replaced.filename, _objectKey: replaced._objectKey, filesize: replacement.length })
+    expect(persisted).toMatchObject({ filename: replaced.filename, _objectKey: ('_objectKey' in replaced ? replaced._objectKey : undefined), filesize: replacement.length })
     await read(persisted, replacement)
     await payload.delete({ collection: upload.collection, id: replaced.id, context: { ...context } })
     expect(storage.remove).toHaveBeenCalledWith(payloadStorageKey(replaced, upload.prefix))

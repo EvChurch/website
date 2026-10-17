@@ -2,8 +2,9 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 
 import { MemberAvatar } from './MemberAvatar'
+import { ReimbursementMenuLink } from './ReimbursementMenuLink'
 
-export type MemberSection = 'overview' | 'service' | 'groups' | 'reading' | 'resources' | 'giving'
+export type MemberSection = 'overview' | 'service' | 'groups' | 'reading' | 'resources' | 'giving' | 'reimbursements' | 'help'
 
 export function memberConnectGroupHref(groups: Array<{ rockGroupId: number }>) {
   return groups.length === 1
@@ -79,6 +80,8 @@ export function MemberPortalChrome({
               )}
             </Link>
           ))}
+          <ReimbursementMenuLink active={active === 'reimbursements'} />
+          <Link href="/help" rel="nofollow" className="relative shrink-0 py-5 text-sm font-bold text-dark-grey transition-colors hover:text-rich-red">Help</Link>
         </div>
       </nav>
 

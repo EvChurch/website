@@ -22,6 +22,8 @@ describe('sitemap', () => {
       docs:
         collection === 'pages'
           ? [
+              { title: 'Help', slug: 'help' },
+              { title: 'Help article', slug: 'help/claim-an-expense' },
               { title: 'Home', slug: 'home', updatedAt: '2026-08-01T00:00:00.000Z' },
               { title: 'Next Steps', slug: 'next-steps', updatedAt: '2026-08-02T00:00:00.000Z' },
               { title: 'About', slug: 'about', updatedAt: '2026-08-03T00:00:00.000Z' },
@@ -43,6 +45,7 @@ describe('sitemap', () => {
     expect(urls).toContain('https://www.ev.church/privacy')
     expect(urls).toContain('https://www.ev.church/terms')
     expect(urls).not.toContain('https://www.ev.church/next-steps')
+    expect(urls.some(url => url.startsWith('https://www.ev.church/help'))).toBe(false)
     expect(urls).toContain('https://www.ev.church/give')
   })
 

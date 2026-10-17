@@ -6,6 +6,7 @@ import type { Auth0Identity } from './auth0-identity'
 
 interface StrategyDependencies {
   getIdentity(headers: Headers): Promise<Auth0Identity | null>
+  financeAccess?(payload: Payload, subject: string): Promise<boolean>
   resolve(payload: Payload, identity: Auth0Identity): Promise<User | null>
 }
 
@@ -21,6 +22,7 @@ export async function authenticateAuth0PayloadUser(
     deps = {
       getIdentity: getAuth0SessionFromHeaders,
       resolve: resolveAuth0User,
+      financeAccess: async (payload, subject) => (await import('@/lib/reimbursements/admin-access')).isReimbursementFinanceIdentity(payload, subject),
     }
   }
 
@@ -28,7 +30,8 @@ export async function authenticateAuth0PayloadUser(
   if (!identity) return { user: null }
 
   const user = await deps.resolve(payload, identity)
-  if (!user || !hasPayloadAdminRole(user)) return { user: null }
+  if (!user) return { user: null }
+  if (!hasPayloadAdminRole(user) && !await deps.financeAccess?.(payload, identity.subject)) return { user: null }
   return { user: { ...user, collection: 'users' as const } }
 }
 

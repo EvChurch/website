@@ -31,6 +31,8 @@ const state = vi.hoisted(() => ({
   rejectResolution: false,
 }))
 const provisionAuth0User = vi.hoisted(() => vi.fn())
+const financeAccess = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/reimbursements/admin-access', () => ({ isReimbursementFinanceIdentity: financeAccess }))
 
 vi.mock('@auth0/nextjs-auth0/server', () => ({
   Auth0Client: class {
@@ -80,6 +82,7 @@ function callback() {
 describe('Auth0 callback', () => {
   beforeEach(() => {
     provisionAuth0User.mockReset()
+    financeAccess.mockReset().mockResolvedValue(false)
     state.resolution.ok = true
     state.rejectResolution = false
   })
@@ -185,6 +188,14 @@ describe('Auth0 callback', () => {
     expect(response.headers.get('location')).toBe(
       'https://www.ev.church/auth/pending?returnTo=%2Fadmin%2Fpages',
     )
+  })
+
+  it('allows currently synced finance staff into Payload settings without assigning CMS roles', async () => {
+    provisionAuth0User.mockResolvedValue({ roles: [] })
+    financeAccess.mockResolvedValue(true)
+    const response = await callback()(null, { returnTo: '/admin/reimbursement-settings' }, verifiedSession)
+    expect(response.headers.get('location')).toBe('https://www.ev.church/admin/reimbursement-settings')
+    expect(financeAccess).toHaveBeenCalledOnce()
   })
 
   it('redirects an authorized user only to a safe admin path', async () => {

@@ -25,6 +25,7 @@ import {
 } from '@/lib/member-chrome'
 import { matchesPathPrefix } from '@/lib/public-paths'
 import type { PublicSiteFeedbackSettings } from '@/lib/site-feedback/settings'
+import { HelpHeader } from '@/components/help/HelpHeader'
 import { Header } from './Header'
 import { SiteHeader } from './SiteHeader'
 
@@ -56,6 +57,7 @@ export function PublicChrome({
   supportProfiles?: PublicSupportProfile[]
 }) {
   const pathname = usePathname()
+  const helpRoute = matchesPathPrefix(pathname, '/help')
   const sharedResource = matchesPathPrefix(pathname, '/shared/leader-resources')
   const initialRoute = useRef(true)
   const [memberChrome, setMemberChrome] = useState<MemberChromeState>(ANONYMOUS_MEMBER_CHROME)
@@ -144,12 +146,12 @@ export function PublicChrome({
     >
       <MediaPlayerProvider>
         <AnalyticsManager postHogIdentity={memberChromeResolved ? memberChrome.postHogIdentity : undefined} />
-        {announcement}
-        <SiteHeader
+        {!helpRoute && announcement}
+        {helpRoute ? <HelpHeader /> : <SiteHeader
           memberProfile={memberChrome.memberProfile}
           adminHref={memberChrome.adminHref ?? undefined}
           impersonation={memberChrome.impersonation}
-        />
+        />}
         <main>{children}</main>
         {footer}
         <AudioPlayerSpacer />

@@ -10,10 +10,12 @@ const allowedDevOrigins = process.env.NEXT_ALLOWED_DEV_ORIGINS
   .filter(Boolean)
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: { '/*': ['./src/lib/reimbursements/assets/DejaVuSans.ttf', './public/images/global/ev-church-logo.png'], '/help': ['./content/help/*.md'], '/help/*': ['./content/help/*.md'] },
   serverExternalPackages: ['ffmpeg-static'],
   ...(allowedDevOrigins?.length ? { allowedDevOrigins } : {}),
   async headers() {
     return [
+      { source: '/help/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }] },
       { source: '/api/sermon-work-files/file/:path*', headers: [
         { key: 'Cache-Control', value: 'private, no-store' },
         { key: 'Cloudflare-CDN-Cache-Control', value: 'no-store' },

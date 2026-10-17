@@ -53,6 +53,7 @@ describe('Payload MCP API key access', () => {
       'blinkpay-webhook-events', 'connect-group-comments', 'giving-cancellation-feedback', 'giving-checkouts', 'giving-consents', 'giving-drafts',
       'giving-funds', 'giving-gifts', 'giving-givers',
       'giving-provider-operations', 'giving-schedules', 'leader-resource-shares',
+      'reimbursement-finance-members', 'responsibility-centres',
       'sermon-articles', 'sermon-productions', 'sermon-transcripts', 'sermon-work-files',
     ])
     for (const slug of mcpExcludedCollectionSlugs) {

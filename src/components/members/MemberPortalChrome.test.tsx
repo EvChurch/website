@@ -36,7 +36,8 @@ describe('MemberPortalChrome', () => {
     expect(markup).toContain('Overview')
     expect(markup).toContain('Study Resources')
     expect(markup).not.toContain('Leader Resources')
-    expect(markup.match(/rel="nofollow"/gu)).toHaveLength(6)
+    expect(markup).toContain('href="/help"')
+    expect(markup.match(/rel="nofollow"/gu)).toHaveLength(7)
   })
 
   it('marks My Service active only for the service section', () => {
@@ -64,6 +65,7 @@ describe('MemberPortalChrome', () => {
       'Study Resources',
       'My Service',
       'Giving',
+      'Help',
     ])
   })
 })
