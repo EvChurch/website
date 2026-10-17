@@ -24,7 +24,7 @@ describe('reimbursement email presentation', () => {
   ])('renders %s with a link to the authenticated report, without performing the action', (kind, label) => {
     const message = build({ kind })
     expect(message.html).toContain(`>${label}</a>`)
-    expect(message.html).toContain(`href="https://www.ev.church/members/reimbursements?report=${report.id}"`)
+    expect(message.html).toContain(`href="https://www.ev.church/members/reimbursements/reports/${report.id}"`)
     expect(message.html).toContain('src="https://www.ev.church/images/global/ev-church-logo.png"')
     expect(message.html).not.toContain('>Reimbursements</p>')
     expect(message.html).toContain('Aroha &lt;Ngata&gt;')
@@ -51,7 +51,7 @@ describe('reimbursement email presentation', () => {
     expect(message.html).toContain(report.accountNumber)
     expect(message.text).toContain(`Account number: ${report.accountNumber}`)
     expect(message.html).toContain('Attached: expense report PDF')
-    expect(message.text).toBe(`Report summary\n\nAccount holder: Aroha account\nAccount number: 12-1234-1234567-000\nAmount: $115.00 NZD\n\nOpen report: https://www.ev.church/members/reimbursements?report=${report.id}\n\nEv Church website team`)
+    expect(message.text).toBe(`Report summary\n\nAccount holder: Aroha account\nAccount number: 12-1234-1234567-000\nAmount: $115.00 NZD\n\nOpen report: https://www.ev.church/members/reimbursements/reports/${report.id}\n\nEv Church website team`)
   })
 
   it('sends the HTML and plain-text alternatives alongside the existing attachment', async () => {

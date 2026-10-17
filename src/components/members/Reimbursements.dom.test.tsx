@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { AnchorHTMLAttributes } from 'react'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -6,6 +7,9 @@ import type { overview } from '@/lib/reimbursements/store'
 import { Reimbursements } from './Reimbursements'
 
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+const push = vi.hoisted(() => vi.fn())
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
+vi.mock('next/link', () => ({ default: ({ onNavigate, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { onNavigate?: () => void }) => <a {...props} onClick={event => { event.preventDefault(); onNavigate?.() }} /> }))
 const id = '00000000-0000-4000-8000-000000000001'
 const lineId = '00000000-0000-4000-8000-000000000002'
 function fixture(): Awaited<ReturnType<typeof overview>> { return {
@@ -22,12 +26,13 @@ let container: HTMLDivElement, root: Root
 const fetchMock = vi.fn()
 function input(label: string) { const field = [...container.querySelectorAll('label')].find(item => item.textContent?.startsWith(label))?.querySelector<HTMLInputElement | HTMLTextAreaElement>('input,textarea'); if (!field) throw Error(`Missing ${label}`); return field }
 async function type(label: string, value: string) { await act(async () => { const field = input(label); Object.getOwnPropertyDescriptor(field instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype, 'value')!.set!.call(field, value); field.dispatchEvent(new Event('input', { bubbles: true })) }) }
-function button(text: string) { return [...container.querySelectorAll('button')].find(item => item.textContent === text)! }
+function button(text: string) { return [...container.querySelectorAll<HTMLButtonElement>('button,a')].find(item => item.textContent === text)! }
 const response = (version: number) => ({ ok: true, json: async () => ({ version }) })
 beforeEach(async () => {
   Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value: function (this: HTMLDialogElement) { this.open = true } })
   Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value: function (this: HTMLDialogElement) { this.open = false } })
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
+  push.mockClear()
   vi.useFakeTimers(); vi.stubGlobal('fetch', fetchMock); fetchMock.mockReset(); fetchMock.mockResolvedValue(response(2))
   container = document.createElement('div'); document.body.appendChild(container); root = createRoot(container)
   await act(async () => root.render(<Reimbursements initialOverview={fixture()} initialReportId={id} />))
@@ -390,7 +395,11 @@ it('keeps paid and cancelled reports behind Show older and archives or restores 
   await act(async () => button('Show older (3)').click())
   expect(button('EXP-000002')).toBeDefined()
   fetchMock.mockResolvedValueOnce(response(3)).mockResolvedValueOnce({ ok: true, json: async () => data })
-  await act(async () => button('Restore').click())
+  const restore = container.querySelector<HTMLButtonElement>('button[aria-label="Restore EXP-000002"]')!
+  expect(restore.textContent).toBe('')
+  expect(restore.title).toBe('Restore as draft')
+  expect(restore.querySelector('svg')).not.toBeNull()
+  await act(async () => restore.click())
   expect(JSON.parse(fetchMock.mock.calls[2][1].body)).toEqual({ action: 'restore', version: 2 })
   expect(container.querySelector('table')!.textContent).toContain('EXP-000002')
 })
@@ -644,4 +653,25 @@ it('deletes a mobile expense card through its options and hides the menu during 
   await act(async () => root.render(<Reimbursements key="readonly-expense-cards" initialOverview={data} initialReportId={id} />))
   expect(container.querySelector('fieldset')).not.toBeNull()
   expect(container.querySelector('button[aria-label="Options for expense 1"]')).toBeNull()
+})
+
+it('links each view and opens reports using their own paths', async () => {
+  const data = fixture(); data.finance = true
+  await act(async () => root.render(<Reimbursements key="paths" initialOverview={data} />))
+  for (const [label, suffix] of [['My reports', ''], ['Approvals', '/approvals'], ['Payment queue', '/payment-queue'], ['Payment settings', '/payment-settings']]) {
+    expect(button(label).getAttribute('href')).toBe(`/members/reimbursements${suffix}`)
+  }
+  await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="View EXP-000001"]')!.click())
+  expect(push).toHaveBeenLastCalledWith(`/members/reimbursements/reports/${id}`)
+})
+
+it('follows route changes when returning through browser history', async () => {
+  const data = fixture(); data.finance = true
+  await act(async () => root.render(<Reimbursements key="history-paths" initialOverview={data} initialView="approvals" />))
+  expect(button('Approvals').getAttribute('aria-current')).toBe('page')
+  await act(async () => root.render(<Reimbursements key="history-paths" initialOverview={data} initialReportId={id} />))
+  expect(container.querySelector('h1')!.textContent).toBe('Expense Report')
+  await act(async () => root.render(<Reimbursements key="history-paths" initialOverview={data} initialView="approvals" />))
+  expect(button('Approvals').getAttribute('aria-current')).toBe('page')
+  expect(container.querySelector('h1')!.textContent).toBe('Reimbursements')
 })

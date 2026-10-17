@@ -1,7 +1,10 @@
 'use client'
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { HiArchiveBoxArrowDown, HiArrowUpTray, HiEllipsisVertical, HiEye, HiPlus, HiTrash, HiXMark } from 'react-icons/hi2'
+import { HiArchiveBoxArrowDown, HiArrowUturnLeft, HiArrowUpTray, HiEllipsisVertical, HiEye, HiPlus, HiTrash, HiXMark } from 'react-icons/hi2'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { reimbursementReportPath, reimbursementViewPaths, type ReimbursementView } from '@/lib/reimbursements/paths'
 import { FormSelect } from '@/components/forms/FormSelect'
 import type { overview } from '@/lib/reimbursements/store'
 import { actionLabels, canArchiveReport, isArchivedReport, isOlderReport, approvalPerson, hasPaymentSettings, gstMinor, money, parseMoney, reportNumber, statusLabels, type Draft, type ExpenseLine, type Settings } from '@/lib/reimbursements/model'
@@ -24,6 +27,11 @@ export async function reimbursementRequest<T>(path: string, method = 'GET', body
 }
 const dateToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
 function newLine(): ExpenseLine { return { id: crypto.randomUUID(), date: dateToday(), categoryId: null, description: '', amountMinor: null, hasGst: true, receiptHash: null } }
+
+function ArchiveIcon({ older }: { older: boolean }) {
+  const Icon = older ? HiArrowUturnLeft : HiArchiveBoxArrowDown
+  return <Icon aria-hidden="true" className="size-4" />
+}
 
 function ReportCard({ report, showClaimant, archivable, older, busy, payment, checked, onSelect, onView, onArchive }: {
   report: VisibleReport; showClaimant: boolean; archivable: boolean; older: boolean; busy: boolean; payment: boolean; checked: boolean
@@ -55,20 +63,24 @@ function ReportCard({ report, showClaimant, archivable, older, busy, payment, ch
       <button ref={trigger} type="button" aria-label={`Options for ${number}`} aria-expanded={menuOpen} aria-controls={`report-options-${report.id}`} onClick={() => setMenuOpen(open => !open)} className="flex size-10 items-center justify-center rounded-full border border-warm-grey text-brand-black transition hover:border-rich-red hover:text-rich-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red"><HiEllipsisVertical aria-hidden="true" className="size-5" /></button>
       {menuOpen && <div ref={menu} id={`report-options-${report.id}`} className="absolute right-0 top-12 z-10 w-48 rounded-lg border border-warm-grey bg-white p-2 shadow-xl shadow-brand-black/10" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget) && event.relatedTarget !== trigger.current) setMenuOpen(false) }}>
         <button type="button" className={optionClass} onClick={() => { setMenuOpen(false); onView() }}><HiEye aria-hidden="true" className="size-4" />View report</button>
-        {archivable && <button type="button" disabled={busy} className={optionClass} onClick={() => { setMenuOpen(false); onArchive() }}><HiArchiveBoxArrowDown aria-hidden="true" className="size-4" />{older ? 'Restore as draft' : 'Archive report'}</button>}
+        {archivable && <button type="button" disabled={busy} className={optionClass} onClick={() => { setMenuOpen(false); onArchive() }}><ArchiveIcon older={older} />{older ? 'Restore as draft' : 'Archive report'}</button>}
       </div>}
     </div>
   </article>
 }
 
-export function Reimbursements({ initialOverview, initialReportId }: { initialOverview: Overview; initialReportId?: string }) {
+export function Reimbursements({ initialOverview, initialReportId, initialView = 'mine' }: { initialOverview: Overview; initialReportId?: string; initialView?: ReimbursementView }) {
+  const router = useRouter()
   const [data, setData] = useState(initialOverview)
   const [selected, setSelected] = useState(initialReportId ?? '')
-  const [tab, setTab] = useState<'mine' | 'approvals' | 'payments' | 'settings'>('mine')
+  const [tab, setTab] = useState<ReimbursementView>(initialView)
+  useEffect(() => { setSelected(initialReportId ?? ''); setTab(initialView) }, [initialReportId, initialView])
   const [error, setError] = useState(''); const [busy, setBusy] = useState(false)
   const [paymentIds, setPaymentIds] = useState<string[]>([])
   const [showOlder, setShowOlder] = useState(false)
   const [archiveTarget, setArchiveTarget] = useState<VisibleReport | null>(null)
+  function openReport(id: string) { setSelected(id); router.push(reimbursementReportPath(id)) }
+  function backToReports() { setSelected(''); router.push(reimbursementViewPaths[tab]) }
   async function refresh() { setData(await reimbursementRequest<Overview>('')) }
   async function run(task: () => Promise<void>) {
     setError(''); setBusy(true)
@@ -94,7 +106,7 @@ export function Reimbursements({ initialOverview, initialReportId }: { initialOv
     return (<>
       <div className="space-y-4 lg:hidden">
         {tab === 'payments' && reports.length > 0 && <label className="flex min-h-11 items-center gap-3 text-sm font-semibold"><input type="checkbox" aria-label="Select all payments" className="size-5 accent-rich-red" disabled={busy} checked={selectedPayments.length === reports.length} ref={input => { if (input) input.indeterminate = selectedPayments.length > 0 && selectedPayments.length < reports.length }} onChange={event => setPaymentIds(event.target.checked ? reports.map(report => report.id) : [])} />Select all</label>}
-        {reports.map(report => <ReportCard key={report.id} report={report} showClaimant={tab !== 'mine'} archivable={report.claimantId === data.personId && (canArchiveReport(report) || isArchivedReport(report))} older={older} busy={busy} payment={tab === 'payments'} checked={paymentIds.includes(report.id)} onSelect={checked => setPaymentIds(ids => checked ? [...ids, report.id] : ids.filter(id => id !== report.id))} onView={() => setSelected(report.id)} onArchive={() => archiveOrRestore(report, older)} />)}
+        {reports.map(report => <ReportCard key={report.id} report={report} showClaimant={tab !== 'mine'} archivable={report.claimantId === data.personId && (canArchiveReport(report) || isArchivedReport(report))} older={older} busy={busy} payment={tab === 'payments'} checked={paymentIds.includes(report.id)} onSelect={checked => setPaymentIds(ids => checked ? [...ids, report.id] : ids.filter(id => id !== report.id))} onView={() => openReport(report.id)} onArchive={() => archiveOrRestore(report, older)} />)}
         {!reports.length && <p className="rounded-xl border border-warm-grey bg-white p-5 text-center text-sm text-mid-grey">{tab === 'payments' ? 'No reports awaiting payment.' : awaitingApproval ? 'No reports awaiting your approval.' : older ? 'No older reports.' : 'No active reports.'}</p>}
       </div>
       <div className="hidden overflow-x-auto rounded-lg border border-warm-grey bg-white lg:block">
@@ -116,14 +128,14 @@ export function Reimbursements({ initialOverview, initialReportId }: { initialOv
             </tr></thead>
             <tbody className="divide-y divide-warm-grey">{reports.map(report => <tr key={report.id} className="align-top hover:bg-warm-white/60">
               {tab === 'payments' && <td className="px-3 py-2"><input type="checkbox" aria-label={`Select ${reportNumber(report.number)}`} className="size-5 accent-rich-red" disabled={busy} checked={paymentIds.includes(report.id)} onChange={event => setPaymentIds(ids => event.target.checked ? [...ids, report.id] : ids.filter(id => id !== report.id))} /></td>}
-              <td className="px-3 py-2"><button onClick={() => setSelected(report.id)} className="block text-left font-semibold leading-5 text-rich-red underline underline-offset-4">{reportNumber(report.number)}</button></td>
+              <td className="px-3 py-2"><button onClick={() => openReport(report.id)} className="block text-left font-semibold leading-5 text-rich-red underline underline-offset-4">{reportNumber(report.number)}</button></td>
               {tab !== 'mine' && <td className="px-3 py-2">{report.claimantName}</td>}
               <td className="px-3 py-2">{report.centreName || 'Choose a purpose'}</td>
               <td className="px-3 py-2"><span className="font-semibold">{isArchivedReport(report) ? 'Archived' : statusLabels[report.status]}</span>{report.status === 'rejected' && <p className="mt-1 max-w-sm text-xs text-rich-red">{[...report.history].reverse().find(item => ['reject', 'return'].includes(item.action))?.reason}</p>}</td>
               <td className="px-3 py-2 text-right font-semibold tabular-nums">{money(report.lines.reduce((sum, line) => sum + (line.amountMinor ?? 0), 0))}</td>
               <td className="px-3 py-2"><div className="flex items-start">
-                <button aria-label={`View ${reportNumber(report.number)}`} title="View report" className="ml-auto inline-flex min-h-11 min-w-11 items-center justify-center text-mid-grey lg:ml-0 lg:min-w-8 hover:bg-warm-white hover:text-rich-red focus:outline-none focus:ring-1 focus:ring-inset focus:ring-rich-red lg:min-h-5" onClick={() => setSelected(report.id)}><HiEye className="size-4" aria-hidden="true" /></button>
-                {report.claimantId === data.personId && (canArchiveReport(report) || isArchivedReport(report)) && <button className="ml-auto inline-flex min-h-11 min-w-11 items-center justify-center text-mid-grey lg:ml-0 lg:min-w-8 hover:bg-warm-white hover:text-rich-red focus:outline-none focus:ring-1 focus:ring-inset focus:ring-rich-red disabled:opacity-50 lg:min-h-5" title={older ? 'Restore as draft' : 'Archive report'} aria-label={`${older ? 'Restore' : 'Archive'} ${reportNumber(report.number)}`} disabled={busy} onClick={() => archiveOrRestore(report, older)}>{older ? 'Restore' : <HiArchiveBoxArrowDown className="size-4" aria-hidden="true" />}</button>}
+                <button aria-label={`View ${reportNumber(report.number)}`} title="View report" className="ml-auto inline-flex min-h-11 min-w-11 items-center justify-center text-mid-grey lg:ml-0 lg:min-w-7 hover:bg-warm-white hover:text-rich-red focus:outline-none focus:ring-1 focus:ring-inset focus:ring-rich-red lg:min-h-5" onClick={() => openReport(report.id)}><HiEye className="size-4" aria-hidden="true" /></button>
+                {report.claimantId === data.personId && (canArchiveReport(report) || isArchivedReport(report)) && <button className="ml-auto inline-flex min-h-11 min-w-11 items-center justify-center text-mid-grey lg:ml-0 lg:min-w-7 hover:bg-warm-white hover:text-rich-red focus:outline-none focus:ring-1 focus:ring-inset focus:ring-rich-red disabled:opacity-50 lg:min-h-5" title={older ? 'Restore as draft' : 'Archive report'} aria-label={`${older ? 'Restore' : 'Archive'} ${reportNumber(report.number)}`} disabled={busy} onClick={() => archiveOrRestore(report, older)}><ArchiveIcon older={older} /></button>}
               </div></td>
             </tr>)}</tbody>
           </table>{!reports.length && <p className="p-5 text-center text-sm text-mid-grey">{tab === 'payments' ? 'No reports awaiting payment.' : awaitingApproval ? 'No reports awaiting your approval.' : older ? 'No older reports.' : 'No active reports.'}</p>}
@@ -137,10 +149,10 @@ export function Reimbursements({ initialOverview, initialReportId }: { initialOv
     {!report && <header className="mb-8 sm:mb-10"><h1 className="text-4xl leading-tight text-brand-black sm:text-5xl">Reimbursements</h1></header>}
     {error && <p role="alert" className="mb-4 whitespace-pre-line rounded-lg border border-rich-red bg-red-50 p-4 text-brand-black">{error}</p>}
     {data.manage && data.notificationFailures.length > 0 && <div role="alert" className="mb-4 rounded-lg border border-rich-red bg-red-50 p-4"><p>Some reimbursement emails could not be sent. Contact a website administrator. The reports are still available here.</p><ul className="mt-2 text-sm">{data.notificationFailures.map((item, index) => <li key={index}>{reportNumber(item.number)}: {item.subject}</li>)}</ul></div>}
-    {selected && !report && <p className="mb-4 rounded-lg bg-white p-4">This report is unavailable. <button className="underline" onClick={() => setSelected('')}>Back to reports</button></p>}
-    {report ? <ReportEditor key={`${report.id}:${report.status}:${report.version}`} report={report} data={data} onBack={() => setSelected('')} refresh={refresh} /> : <>
+    {selected && !report && <p className="mb-4 rounded-lg bg-white p-4">This report is unavailable. <button className="underline" onClick={backToReports}>Back to reports</button></p>}
+    {report ? <ReportEditor key={`${report.id}:${report.status}:${report.version}`} report={report} data={data} onBack={backToReports} refresh={refresh} /> : <>
       <nav aria-label="Expense report views" className="mb-8 flex gap-7 overflow-x-auto border-b border-warm-grey">
-        {(['mine', 'approvals', ...(data.finance ? ['payments'] as const : []), 'settings'] as const).map(item => <button key={item} aria-current={tab === item ? 'page' : undefined} className={`relative shrink-0 whitespace-nowrap py-5 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rich-red ${tab === item ? 'text-rich-red' : 'text-dark-grey hover:text-rich-red'}`} onClick={() => setTab(item)}>{({ mine: 'My reports', approvals: 'Approvals', payments: 'Payment queue', settings: 'Payment settings' })[item]}{tab === item && <span className="absolute inset-x-0 bottom-0 h-1 bg-rich-red" />}</button>)}
+        {(['mine', 'approvals', ...(data.finance ? ['payments'] as const : []), 'settings'] as const).map(item => <Link key={item} href={reimbursementViewPaths[item]} rel="nofollow" aria-current={tab === item ? 'page' : undefined} className={`relative shrink-0 whitespace-nowrap py-5 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rich-red ${tab === item ? 'text-rich-red' : 'text-dark-grey hover:text-rich-red'}`} onNavigate={() => setTab(item)}>{({ mine: 'My reports', approvals: 'Approvals', payments: 'Payment queue', settings: 'Payment settings' })[item]}{tab === item && <span className="absolute inset-x-0 bottom-0 h-1 bg-rich-red" />}</Link>)}
       </nav>
       {tab === 'settings' ? <PaymentSettings defaults={data.defaults} onSaved={defaults => setData(current => ({ ...current, defaults }))} /> : <>
         {tab === 'payments' ? <>
@@ -157,7 +169,7 @@ export function Reimbursements({ initialOverview, initialReportId }: { initialOv
             <h2 id="awaiting-approval-heading" className="mb-4 text-3xl leading-tight text-brand-black">Awaiting your approval</h2>
             {reportTable(list.filter(needsApproval), false, true)}
           </section>}
-          <div className="mb-4 flex items-center justify-between gap-3"><h2 className="text-3xl leading-tight text-brand-black">Active reports</h2>{tab === 'mine' && <button className={buttonClass} disabled={busy} onClick={() => run(async () => { const result = await reimbursementRequest<{ id: string }>('', 'POST'); await refresh(); setSelected(result.id) })}><HiPlus className="mr-2 size-5" aria-hidden="true" />Create</button>}</div>
+          <div className="mb-4 flex items-center justify-between gap-3"><h2 className="text-3xl leading-tight text-brand-black">Active reports</h2>{tab === 'mine' && <button className={buttonClass} disabled={busy} onClick={() => run(async () => { const result = await reimbursementRequest<{ id: string }>('', 'POST'); await refresh(); openReport(result.id) })}><HiPlus className="mr-2 size-5" aria-hidden="true" />Create</button>}</div>
           {reportTable(list.filter(report => !isOlderReport(report) && (tab !== 'approvals' || !needsApproval(report))).sort((a, b) => pathwayOrder[a.status] - pathwayOrder[b.status]))}
           {list.some(isOlderReport) && <div className="mt-5">
             <button className="min-h-11 text-sm font-semibold text-rich-red underline underline-offset-4" aria-expanded={showOlder} aria-controls="older-expense-reports" onClick={() => setShowOlder(value => !value)}>{showOlder ? 'Hide older' : 'Show older'} ({list.filter(isOlderReport).length})</button>
