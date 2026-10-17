@@ -6,11 +6,13 @@ Have your receipts and New Zealand bank account details ready. Claims are in NZD
 
 Older links using `?launcher=reimbursement` also open the members reimbursement page.
 
+Each expense report has its own address, which you can bookmark or share with someone who already has permission to view it.
+
 Choose **Help** at the end of the members navigation to open the help guides.
 
 ## Set up your payment details
 
-Enter the account holder and bank account number for reimbursements. To change these later, open **Payment settings**. The details used for a submitted report are kept with that submission, so changing your settings later does not change its payout account.
+Enter the account holder and bank account number for reimbursements. To change these later, open [**Payment settings**](/members/reimbursements/payment-settings). The details used for a submitted report are kept with that submission, so changing your settings later does not change its payout account.
 
 ## Create your report
 

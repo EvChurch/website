@@ -1,3 +1,4 @@
+import { reimbursementReportPath } from './paths'
 import { money, reportNumber, type Report } from './model'
 
 export interface ReimbursementEmailSource {
@@ -15,7 +16,7 @@ function escapeHtml(value: string) {
 
 /** Both email formats use the delivery snapshot; rendering never performs an approval or payment. */
 export function buildReimbursementEmail(source: ReimbursementEmailSource, report: Report, baseUrl: string) {
-  const url = new URL(`/members/reimbursements?report=${report.id}`, baseUrl).toString()
+  const url = new URL(reimbursementReportPath(report.id), baseUrl).toString()
   const total = `${money(report.lines.reduce((sum, line) => sum + (line.amountMinor ?? 0), 0))} NZD`
   const payment = source.include_payment ? `\n\nAccount holder: ${report.accountName}\nAccount number: ${report.accountNumber}\nAmount: ${total}` : ''
   const kind = source.kind.replace(/-reminder.*$/u, '')

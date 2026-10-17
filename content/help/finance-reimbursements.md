@@ -2,7 +2,7 @@
 
 [Open reimbursements](/reimbursement) and sign in with your finance account. Your finance access comes from the church's configured finance group. Complete personal payment settings on your first visit to access reports and reviews.
 
-Finance can see submitted reports across purposes. Choose **Approvals** to see **Awaiting your approval** first, followed by other **Active reports**. Older reports are available through **Show older**.
+Finance can see submitted reports across purposes. Open [**Approvals**](/members/reimbursements/approvals) to see **Awaiting your approval** first, followed by other **Active reports**. Older reports are available through **Show older**.
 
 ## Complete finance approval
 
@@ -16,6 +16,8 @@ Rejection returns the report to the claimant. After they edit and resubmit, it g
 Categories cannot be changed during finance review. If something needs correcting, reject the report with a clear explanation. Finance approval must be provided by someone other than the claimant and the person who gave purpose approval.
 
 ## Arrange payment
+
+Open the [**Payment queue**](/members/reimbursements/payment-queue) to see reports ready for payment.
 
 After finance approval, the report moves to **Awaiting payment**. Finance receives an email with payment details and a PDF expense summary. The purpose approver receives a summary without bank details. The PDF includes the expenses in a table, followed by the receipts. Shared receipts appear once. Receipt pages contain the uploaded image or original PDF pages, without added headings or branding. Receipts can also be viewed through the website.
 

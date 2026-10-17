@@ -2,7 +2,7 @@
 
 [Open reimbursements](/reimbursement) and sign in. On your first visit, complete your personal payment settings to enter the reimbursement section, even if you are only reviewing claims.
 
-Choose **Approvals**. **Awaiting your approval** appears first and contains reports you can review now. **Active reports** shows the other reports you can see for your purposes. Paid, cancelled, and archived reports are under **Show older**.
+Open [**Approvals**](/members/reimbursements/approvals). **Awaiting your approval** appears first and contains reports you can review now. **Active reports** shows the other reports you can see for your purposes. Paid, cancelled, and archived reports are under **Show older**.
 
 ## Review a report
 
