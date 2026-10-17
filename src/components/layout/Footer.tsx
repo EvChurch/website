@@ -17,6 +17,7 @@ const columns: FooterColumn[] = [
       { label: 'What We Believe', href: '/what-we-believe' },
       { label: 'The Good News', href: '/good-news' },
       { label: 'Our Vision', href: '/vision' },
+      { label: 'Partners', href: '/partners' },
       { label: 'FAQ', href: '/faq' },
       { label: 'Health & Safety', href: '/hs' },
     ],
