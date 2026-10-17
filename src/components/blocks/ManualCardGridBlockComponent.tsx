@@ -18,6 +18,7 @@ interface ManualCard {
   subtitle?: string | null
   description?: string | null
   image?: CardImage | string | null
+  imageBorder?: boolean | null
   mapUrl?: string | null
   href?: string | null
   linkLabel?: string | null
@@ -221,6 +222,12 @@ function ImageTopCard({
   const url = getImageUrl(card.image)
   const isTeamStyle = !isProfileStyle && !card.description && !card.linkLabel
   const isStaticLightStyle = !card.href && (isTeamStyle || isProfileStyle)
+  const imageBorder = card.imageBorder && url ? (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 z-10 rounded-t-xl border border-warm-grey/70"
+    />
+  ) : null
 
   const content = (
     <div
@@ -234,7 +241,7 @@ function ImageTopCard({
     >
       {/* Image */}
       {isTeamStyle ? (
-        <div className="overflow-hidden">
+        <div className="relative overflow-hidden">
           {url && card.image ? (
             <MediaImage
               media={card.image}
@@ -256,6 +263,7 @@ function ImageTopCard({
               </svg>
             </div>
           )}
+          {imageBorder}
         </div>
       ) : (
         <div className={`relative shrink-0 overflow-hidden ${isProfileStyle ? 'aspect-[4/5]' : 'aspect-[16/10]'}`}>
@@ -276,6 +284,7 @@ function ImageTopCard({
           ) : (
             <div className="h-full w-full bg-warm-grey/20" />
           )}
+          {imageBorder}
         </div>
       )}
 
