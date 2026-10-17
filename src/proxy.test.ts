@@ -125,10 +125,28 @@ describe('admin Auth0 proxy', () => {
     )
   })
 
+  it.each(['/reimbursement', '/reimbursement/', '/?launcher=reimbursement', '/?utm_source=email&launcher=reimbursement'])(
+    'opens member reimbursements from %s without following an outdated managed redirect', async (path) => {
+      findRedirect.mockResolvedValue('/?launcher=reimbursement')
+      const response = await proxy(new NextRequest(`https://www.ev.church${path}`))
+
+      expect(response.status).toBe(307)
+      expect(response.headers.get('location')).toBe('https://www.ev.church/members/reimbursements')
+      expect(findRedirect).not.toHaveBeenCalled()
+    },
+  )
+
+  it('preserves other homepage launchers', async () => {
+    const response = await proxy(new NextRequest('https://www.ev.church/?launcher=kids-enrolment'))
+    expect(response.status).toBe(200)
+    expect(response.headers.get('location')).toBeNull()
+    expect(findRedirect).toHaveBeenCalledWith('/')
+  })
+
   it('opens a validated launcher target from a missing path', async () => {
     findRedirect.mockResolvedValue('/?launcher=reimbursement')
     const response = await proxy(
-      new NextRequest('https://www.ev.church/reimbursement'),
+      new NextRequest('https://www.ev.church/old-reimbursement'),
     )
 
     expect(response.status).toBe(307)

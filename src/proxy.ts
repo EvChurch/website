@@ -48,6 +48,12 @@ export async function proxy(request: NextRequest) {
       requestHeaders.delete(PUBLIC_PATH_HEADER)
       return NextResponse.next({ request: { headers: requestHeaders } })
     }
+    if (
+      normalizedPath === '/reimbursement' ||
+      (normalizedPath === '/' && request.nextUrl.searchParams.get('launcher') === 'reimbursement')
+    ) {
+      return NextResponse.redirect(new URL('/members/reimbursements', request.url))
+    }
     if (LEGACY_KIDS_ENROLMENT_PATHS.has(normalizedPath)) {
       return NextResponse.redirect(
         new URL(KIDS_ENROLMENT_LAUNCHER_HREF, request.url),

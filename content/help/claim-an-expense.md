@@ -4,6 +4,8 @@ Have your receipts and New Zealand bank account details ready. Claims are in NZD
 
 [Open reimbursements](/reimbursement). Sign in if asked. The first time you visit, you must complete your payment settings before viewing reports or approvals. Opening reimbursements also adds it to your members menu.
 
+Older links using `?launcher=reimbursement` also open the members reimbursement page.
+
 Choose **Help** at the end of the members navigation to open the help guides.
 
 ## Set up your payment details
