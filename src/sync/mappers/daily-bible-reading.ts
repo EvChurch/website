@@ -5,6 +5,10 @@ import type { RockCommunication } from '@/lib/rock-api'
 
 export const DAILY_BIBLE_READING_LIST_GROUP_ID = 28916
 export const DAILY_BIBLE_READING_SUBJECT = 'A Word from God for you today'
+const DAILY_BIBLE_READING_SUBJECTS = new Set([
+  DAILY_BIBLE_READING_SUBJECT,
+  'A Word from God to you today',
+])
 export const ROCK_COMMUNICATION_SENT_STATUS = 3
 
 export type DailyBibleReadingRejection =
@@ -48,7 +52,7 @@ export function classifyDailyBibleReadingCommunication(
   if (communication.ListGroupId !== DAILY_BIBLE_READING_LIST_GROUP_ID) {
     return { eligible: false, reason: 'wrong-list' }
   }
-  if (normalizeText(communication.Subject) !== DAILY_BIBLE_READING_SUBJECT) {
+  if (!DAILY_BIBLE_READING_SUBJECTS.has(normalizeText(communication.Subject))) {
     return { eligible: false, reason: 'wrong-subject' }
   }
   if (communication.Status !== ROCK_COMMUNICATION_SENT_STATUS) {

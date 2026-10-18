@@ -13,7 +13,12 @@ import {
   type RockCommunication,
 } from '@/lib/rock-api'
 
-import { mapRockDailyBibleReading, type MappedDailyBibleReading } from './mappers/daily-bible-reading'
+import {
+  DAILY_BIBLE_READING_LIST_GROUP_ID,
+  ROCK_COMMUNICATION_SENT_STATUS,
+  mapRockDailyBibleReading,
+  type MappedDailyBibleReading,
+} from './mappers/daily-bible-reading'
 import type { SyncResult } from './sync-runner'
 
 type ReadingPayload = {
@@ -89,17 +94,42 @@ export async function syncDailyBibleReadings({
     const communications = await fetchCommunications()
     const mapped: MappedDailyBibleReading[] = []
     const validationErrors: string[] = []
+    const rejectedReadings: Array<{ rockId: number; sourceDate: string; code: string }> = []
     for (const communication of communications) {
       const parsed = mapRockDailyBibleReading(communication)
       if (!parsed.ok) {
         validationErrors.push(
           `Rock communication ${parsed.diagnostic.rockId} failed validation: ${parsed.diagnostic.code}`,
         )
+        const readingDate = /^DBR (\d{4})\/(\d{2})\/(\d{2})$/.exec(communication.Name.trim())
+        if (
+          readingDate && communication.ListGroupId === DAILY_BIBLE_READING_LIST_GROUP_ID &&
+          communication.Status === ROCK_COMMUNICATION_SENT_STATUS && communication.SendDateTime
+        ) {
+          rejectedReadings.push({
+            rockId: communication.Id,
+            sourceDate: readingDate.slice(1).join('-'),
+            code: parsed.diagnostic.code,
+          })
+        }
       } else {
         mapped.push(parsed.value)
       }
     }
     result.warnings?.push(...validationErrors)
+    // New sent readings must not silently leave the site on an older reading.
+    // Compare source dates so holidays and unrelated list announcements stay quiet.
+    const latestValidDate = mapped.reduce(
+      (latest, reading) => reading.sourceDate > latest ? reading.sourceDate : latest,
+      '',
+    )
+    for (const reading of rejectedReadings) {
+      if (reading.sourceDate > latestValidDate) {
+        result.errors.push(
+          `New Daily Bible Reading ${reading.rockId} could not be imported (${reading.code}); latest valid reading: ${latestValidDate || 'none'}`,
+        )
+      }
+    }
     if (mapped.length === 0) {
       if (validationErrors.length > 0) {
         result.errors.push('No valid Daily Bible Reading communications were available to import')

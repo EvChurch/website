@@ -16,6 +16,13 @@ const fixture = readFileSync(
 )
 
 describe('classifyDailyBibleReadingCommunication', () => {
+  it.each([
+    'A Word from God for you today',
+    'A Word from God to you today',
+  ])('accepts the reading subject %s', (Subject) => {
+    expect(mapRockDailyBibleReading(communication({ Subject }))).toMatchObject({ ok: true })
+  })
+
   it('accepts only a sent communication for the durable list and exact normalized subject', () => {
     expect(classifyDailyBibleReadingCommunication(communication())).toEqual({ eligible: true })
     expect(classifyDailyBibleReadingCommunication(communication({ ListGroupId: 1 }))).toEqual({
