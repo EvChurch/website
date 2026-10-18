@@ -42,7 +42,12 @@ describe('daily reading data cache', () => {
 
     expect(mocks.find).toHaveBeenNthCalledWith(
       1,
-      expect.objectContaining({ collection: 'daily-bible-readings', limit: 12 }),
+      expect.objectContaining({
+        collection: 'daily-bible-readings',
+        limit: 12,
+        where: { isPublished: { equals: true } },
+        sort: '-rockSentAt',
+      }),
     )
     expect(mocks.find).toHaveBeenNthCalledWith(
       2,
