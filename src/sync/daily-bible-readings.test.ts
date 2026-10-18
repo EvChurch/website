@@ -16,6 +16,48 @@ const fixture = readFileSync(
 )
 
 describe('syncDailyBibleReadings', () => {
+  it.each([
+    { Subject: 'A new reading subject' },
+    { Message: '<h1>Passage</h1>' },
+  ])('reports a newer rejected reading as an error: %j', async (overrides) => {
+    const result = await syncDailyBibleReadings({
+      fetchCommunications: vi.fn().mockResolvedValue([
+        communication(),
+        communication({
+          Id: 18190,
+          Name: 'DBR 2026/10/16',
+          SendDateTime: '2026-10-16T05:00:44.943',
+          ...overrides,
+        }),
+      ]),
+      fetchPassage: vi.fn().mockResolvedValue(apiBiblePassage()),
+      getPayload: vi.fn().mockResolvedValue(payloadStub([], vi.fn())),
+    })
+
+    expect(result.created).toBe(1)
+    expect(result.errors).toEqual([
+      expect.stringContaining('New Daily Bible Reading 18190 could not be imported'),
+    ])
+  })
+
+  it('does not alert for announcements or breaks in the reading schedule', async () => {
+    const result = await syncDailyBibleReadings({
+      fetchCommunications: vi.fn().mockResolvedValue([
+        communication(),
+        communication({
+          Id: 18142,
+          Name: 'DBR Booklet Announcement Term 4 2026',
+          Subject: 'Grab your daily Bible reading booklet at church tomorrow!',
+          SendDateTime: '2026-10-10T08:00:21.393',
+        }),
+      ]),
+      fetchPassage: vi.fn().mockResolvedValue(apiBiblePassage()),
+      getPayload: vi.fn().mockResolvedValue(payloadStub([], vi.fn())),
+    })
+
+    expect(result.errors).toEqual([])
+  })
+
   it('imports each Rock identity once while its API.Bible cache is fresh', async () => {
     const records: ReadingRecord[] = []
     const create = vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
