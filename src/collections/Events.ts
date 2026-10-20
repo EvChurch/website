@@ -88,6 +88,14 @@ export const Events: CollectionConfig = {
       },
     },
     {
+      name: 'scheduledOccurrences',
+      type: 'json',
+      admin: {
+        readOnly: true,
+        description: 'Complete explicit Rock schedule, including completed days. Recurring rules retain the next occurrence display.',
+      },
+    },
+    {
       name: 'campus',
       type: 'relationship',
       relationTo: 'campuses',

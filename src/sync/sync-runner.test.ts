@@ -131,12 +131,12 @@ describe('event sync during an occurrence', () => {
   })
   afterEach(() => vi.useRealTimers())
 
-  function source(nextStart: string | null, isPublic = true) {
+  function source(nextStart: string | null, isPublic = true, schedule = 'DTSTART:20261018T123000\nDTEND:20261018T143000') {
     mocks.rockFetch.mockImplementation(async ({ endpoint }: { endpoint: string }) => {
       switch (endpoint) {
         case 'EventItemOccurrences': return [{
           EventItemId: 9, CampusId: null, NextStartDateTime: nextStart,
-          Schedule: { EffectiveEndDate: '2026-11-08T00:00:00', iCalendarContent: 'DTSTART:20261018T123000\nDTEND:20261018T143000' },
+          Schedule: { EffectiveEndDate: '2026-11-08T00:00:00', iCalendarContent: schedule },
         }]
         case 'EventItems': return [{ Id: 9, Name: 'Course', IsActive: true }]
         case 'EventCalendars': return [{ Id: 1, Name: 'Website (Public)', IsActive: true }]
@@ -176,6 +176,26 @@ describe('event sync during an occurrence', () => {
     expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
       startDate: '2026-10-24T23:30:00.000Z', endDate: '2026-10-25T01:30:00.000Z',
     }) }))
+  })
+
+  it('persists the complete bounded schedule across refreshes and clears stale schedule data', async () => {
+    vi.setSystemTime(new Date('2026-10-18T01:30:00Z'))
+    const content = 'DTSTART:20261018T123000\nDTEND:20261018T143000\nRDATE:20261019T123000,20261021T123000'
+    source('2026-10-19T12:30:00', true, content)
+    await syncEvents()
+    await syncEvents()
+    for (const [call] of mocks.update.mock.calls) {
+      expect(call.data.scheduledOccurrences).toEqual([
+        { startDate: '2026-10-17T23:30:00.000Z', endDate: '2026-10-18T01:30:00.000Z' },
+        { startDate: '2026-10-18T23:30:00.000Z', endDate: '2026-10-19T01:30:00.000Z' },
+        { startDate: '2026-10-20T23:30:00.000Z', endDate: '2026-10-21T01:30:00.000Z' },
+      ])
+    }
+    expect(mocks.update).toHaveBeenCalledTimes(2)
+    source('2026-10-19T12:30:00', true, content + '\nRRULE:FREQ=WEEKLY')
+    await syncEvents()
+    expect(mocks.update.mock.lastCall?.[0].data.scheduledOccurrences).toBeNull()
+    expect(mocks.delete).not.toHaveBeenCalled()
   })
 
   it('honours removal from the public calendar even while an event is running', async () => {

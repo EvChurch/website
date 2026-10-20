@@ -122,6 +122,45 @@ export function getRockOccurrenceEndDate(
   return normalizeRockDateTime(new Date(localStart + duration).toISOString().slice(0, -1))
 }
 
+/** Rock's bounded programmes use DTSTART + RDATE, not a continuous date range.
+ * Do not expand RRULE series or infer attendance from EffectiveEndDate.
+ */
+export function getRockScheduledOccurrences(content?: string): Array<{
+  startDate: string
+  endDate: string | null
+}> | null {
+  if (!content) return null
+  const lines = content.replace(/\r?\n[ \t]/g, '').split(/\r?\n/)
+  // Only the explicit, single-VEVENT schedule contract observed in Rock is supported.
+  if (lines.some((line) => /^(RRULE|EXRULE)(;|:)/.test(line)) ||
+    lines.filter((line) => line === 'BEGIN:VEVENT').length > 1) return null
+  const values = (property: string): string[] => lines
+    .filter((line) => line.startsWith(`${property}:`) || line.startsWith(`${property};`))
+    .flatMap((line) => {
+      const [parameters, value] = [line.slice(0, line.indexOf(':')), line.slice(line.indexOf(':') + 1)]
+      // Floating Rock times are Auckland times. Never reinterpret a foreign TZID.
+      if (/TZID=/.test(parameters) && !/TZID=Pacific\/Auckland(?:;|$)/.test(parameters)) return ['']
+      return value.split(',')
+    })
+  const rawStarts = [...values('DTSTART'), ...values('RDATE')]
+  const rawExclusions = values('EXDATE')
+  const starts = rawStarts.map((value) => normalizeICalendarDateTime(value))
+  const exclusions = rawExclusions.map((value) => normalizeICalendarDateTime(value))
+  // Unsupported DATE/PERIOD values must not yield a partial schedule.
+  if (!starts.length || starts.some((value) => !value) || exclusions.some((value) => !value)) return null
+  const excluded = new Set(exclusions)
+  const seenDays = new Set<string>()
+  return starts.filter((value): value is string => value !== null && !excluded.has(value))
+    .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+    .filter((value) => {
+      const day = aucklandDate(value)
+      if (seenDays.has(day)) return false
+      seenDays.add(day)
+      return true
+    })
+    .map((startDate) => ({ startDate, endDate: getRockOccurrenceEndDate(startDate, content) }))
+}
+
 export function selectNextEventOccurrences(
   occurrences: RockEventItemOccurrence[],
   now = new Date(),
@@ -280,6 +319,7 @@ export function mapRockEvent(
     slug: slugify(eventItem.Name),
     rockEventId: eventItem.Id,
     startDate,
+    scheduledOccurrences: getRockScheduledOccurrences(rock.Schedule?.iCalendarContent),
     // EffectiveEndDate is the recurrence boundary. The iCalendar DTSTART/DTEND
     // pair provides this occurrence's duration, applied to its next start.
     endDate: getRockOccurrenceEndDate(

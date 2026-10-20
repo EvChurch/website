@@ -274,3 +274,61 @@ describe('multi-day event dates', () => {
       .toBe('Friday, 6 November 2026, 7:00 pm – Sunday, 8 November 2026, 3:00 pm')
   })
 })
+
+describe('bounded programme date display', () => {
+  const schedule = [19, 20, 21, 22].map((day) => ({
+    startDate: `2027-01-${day - 1}T19:45:00.000Z`, endDate: `2027-01-${day}T02:00:00.000Z`,
+  }))
+  const event = { ...baseEvent, startDate: schedule[0].startDate, endDate: schedule[0].endDate,
+    scheduledOccurrences: schedule }
+
+  it('shows every confirmed date consistently in detail and compact displays', () => {
+    expect(formatEventDay(event)).toBe('19–22 January 2027')
+    expect(formatEventDate(event)).toBe('19–22 January 2027, 8:45 am–3:00 pm')
+    expect(formatEventTime(event)).toBe('8:45 am–3:00 pm')
+  })
+
+  it.each([
+    [['2027-01-30', '2027-01-31', '2027-02-01'], '31 January–2 February 2027'],
+    [['2026-12-30', '2026-12-31', '2027-01-01'], '31 December 2026–2 January 2027'],
+    [['2027-01-18', '2027-01-20', '2027-01-21'], '19, 21, 22 January 2027'],
+    [['2027-01-30', '2027-02-01'], '31 January 2027; 2 February 2027'],
+    // Auckland's spring clock change is a 23-hour day, but still consecutive dates.
+    [['2026-09-25T21:00:00Z', '2026-09-26T20:00:00Z', '2026-09-27T20:00:00Z'], '26–28 September 2026'],
+  ])('formats only genuinely continuous Auckland dates as ranges: %s', (dates, expected) => {
+    const scheduledOccurrences = dates.map((date) => ({ startDate: date.includes('T') ? date : `${date}T20:00:00Z`, endDate: null }))
+    const boundaryEvent = { ...event, scheduledOccurrences }
+    expect(formatEventDay(boundaryEvent)).toBe(expected)
+    expect(formatEventDate(boundaryEvent)).toContain(expected)
+  })
+
+  it('retains completed programme days and leaves expiry and registration unchanged', () => {
+    const advanced = { ...event, startDate: schedule[2].startDate, endDate: schedule[2].endDate,
+      registrationUrl: 'https://registration.ev.church/?RegistrationInstanceId=79', registrationStatus: 'open' as const }
+    expect(formatEventDay(advanced)).toBe(formatEventDay(event))
+    expect(isPastEvent(advanced, new Date('2027-01-21T01:00:00Z'))).toBe(false)
+    expect(isPastEvent(advanced, new Date('2027-01-21T02:00:00Z'))).toBe(true)
+    expect(getRegistrationHref(advanced)).toBe(advanced.registrationUrl)
+  })
+
+  it('orders and deduplicates discontinuous dates across Auckland month/year boundaries', () => {
+    expect(formatEventDay({ ...event, scheduledOccurrences: [
+      { startDate: '2027-01-02T20:00:00Z', endDate: null },
+      { startDate: '2026-12-30T20:00:00Z', endDate: null },
+      { startDate: '2026-12-30T21:00:00Z', endDate: null },
+    ] })).toBe('31 December 2026; 3 January 2027')
+  })
+
+  it('keeps single-day and overnight fallback presentation', () => {
+    for (const fallback of [baseEvent, { ...baseEvent, endDate: '2026-08-10T20:00:00Z' }]) {
+      expect(formatEventDate({ ...fallback, scheduledOccurrences: [schedule[0]] })).toBe(formatEventDate(fallback))
+      expect(formatEventDay({ ...fallback, scheduledOccurrences: null })).toBe(formatEventDay(fallback))
+    }
+  })
+
+  it('shows individual times when scheduled days differ', () => {
+    const varied = { ...event, scheduledOccurrences: [schedule[0], { ...schedule[1], endDate: '2027-01-20T03:00:00Z' }] }
+    expect(formatEventTime(varied)).toBe('Times vary — see event details')
+    expect(formatEventDate(varied)).toContain('Wednesday, 20 January 2027, 8:45 am–4:00 pm')
+  })
+})

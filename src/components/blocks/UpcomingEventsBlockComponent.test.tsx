@@ -82,6 +82,15 @@ describe('UpcomingEventsBlockComponent', () => {
     expect(markup).toContain(EVENTS_BACKGROUND_CLASS)
   })
 
+  it('shows the same inclusive range on upcoming-event cards', async () => {
+    mocks.getUpcomingEvents.mockResolvedValue([{ ...baseEvent,
+      scheduledOccurrences: [19, 20, 21, 22].map((day) => ({
+        startDate: `2027-01-${day - 1}T19:45:00.000Z`, endDate: `2027-01-${day}T02:00:00.000Z`,
+      })),
+    }])
+    expect(renderToStaticMarkup(await UpcomingEventsBlockComponent({}))).toContain('19–22 January 2027')
+  })
+
   it('does not render an empty block', async () => {
     mocks.getUpcomingEvents.mockResolvedValue([])
 
