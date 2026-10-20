@@ -283,9 +283,23 @@ describe('bounded programme date display', () => {
     scheduledOccurrences: schedule }
 
   it('shows every confirmed date consistently in detail and compact displays', () => {
-    expect(formatEventDay(event)).toBe('19, 20, 21, 22 January 2027')
-    expect(formatEventDate(event)).toBe('19, 20, 21, 22 January 2027, 8:45 am–3:00 pm')
+    expect(formatEventDay(event)).toBe('19–22 January 2027')
+    expect(formatEventDate(event)).toBe('19–22 January 2027, 8:45 am–3:00 pm')
     expect(formatEventTime(event)).toBe('8:45 am–3:00 pm')
+  })
+
+  it.each([
+    [['2027-01-30', '2027-01-31', '2027-02-01'], '31 January–2 February 2027'],
+    [['2026-12-30', '2026-12-31', '2027-01-01'], '31 December 2026–2 January 2027'],
+    [['2027-01-18', '2027-01-20', '2027-01-21'], '19, 21, 22 January 2027'],
+    [['2027-01-30', '2027-02-01'], '31 January 2027; 2 February 2027'],
+    // Auckland's spring clock change is a 23-hour day, but still consecutive dates.
+    [['2026-09-25T21:00:00Z', '2026-09-26T20:00:00Z', '2026-09-27T20:00:00Z'], '26–28 September 2026'],
+  ])('formats only genuinely continuous Auckland dates as ranges: %s', (dates, expected) => {
+    const scheduledOccurrences = dates.map((date) => ({ startDate: date.includes('T') ? date : `${date}T20:00:00Z`, endDate: null }))
+    const boundaryEvent = { ...event, scheduledOccurrences }
+    expect(formatEventDay(boundaryEvent)).toBe(expected)
+    expect(formatEventDate(boundaryEvent)).toContain(expected)
   })
 
   it('retains completed programme days and leaves expiry and registration unchanged', () => {

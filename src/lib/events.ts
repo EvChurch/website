@@ -297,6 +297,24 @@ export function formatEventDay(event: PublicEvent): string {
       if (groups.at(-1)?.month === month) groups.at(-1)!.days.push(number)
       else groups.push({ month, days: [number] })
     }
+    // Compare Auckland calendar dates as UTC midnights so DST cannot create
+    // apparent gaps or turn a discontinuous attendance schedule into a range.
+    const calendarDays = days.map((day) => Date.parse(`${aucklandDate(day.startDate)}T00:00:00Z`))
+    const continuous = calendarDays.every((day, index) => index === 0 || day - calendarDays[index - 1] === 86_400_000)
+    if (continuous) {
+      if (groups.length === 1) return `${groups[0].days[0]}–${groups[0].days.at(-1)} ${groups[0].month}`
+      const first = days[0].startDate
+      const last = days.at(-1)!.startDate
+      const sameYear = aucklandDate(first).slice(0, 4) === aucklandDate(last).slice(0, 4)
+      const start = new Intl.DateTimeFormat('en-NZ', {
+        day: 'numeric', month: 'long', year: sameYear ? undefined : 'numeric',
+        timeZone: AUCKLAND_TIME_ZONE,
+      }).format(new Date(first))
+      const end = new Intl.DateTimeFormat('en-NZ', {
+        day: 'numeric', month: 'long', year: 'numeric', timeZone: AUCKLAND_TIME_ZONE,
+      }).format(new Date(last))
+      return `${start}–${end}`
+    }
     return groups.map((group) => `${group.days.join(', ')} ${group.month}`).join('; ')
   }
   if (!event.startDate) return 'Date to be confirmed'
