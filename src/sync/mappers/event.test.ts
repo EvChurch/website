@@ -4,6 +4,7 @@ import {
   eventCampusUpdate,
   getEventItemIdsWithUpcomingOccurrences,
   getRockOccurrenceEndDate,
+  getRockScheduledOccurrences,
   getEventItemIdsForCalendar,
   getRegistrationForOccurrence,
   mapRockEvent,
@@ -312,5 +313,55 @@ describe('getEventItemIdsWithUpcomingOccurrences', () => {
         new Date('2026-08-13T00:00:00.000Z'),
       ),
     ]).toEqual([21])
+  })
+})
+
+// Non-secret schedule shape confirmed by read-only Rock EventItemId 30, ScheduleId 282.
+const programme = [
+  'BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'DTSTART:20270119T084500', 'DTEND:20270119T150000',
+  'RDATE:20270120T084500,20270121T084500,20270122T084500', 'END:VEVENT', 'END:VCALENDAR',
+].join('\r\n')
+
+describe('explicit Rock programme schedules', () => {
+  it('preserves every confirmed programme date, even after the next start advances', () => {
+    const occurrence = { EventItemId: 30, CampusId: null, NextStartDateTime: '2027-01-21T08:45:00',
+      Schedule: { EffectiveEndDate: '2027-01-22T00:00:00', iCalendarContent: programme } }
+    const mapped = mapRockEvent(occurrence, { Id: 30, Name: 'Programme', IsActive: true, Summary: '', Description: '' })
+    expect(mapped.scheduledOccurrences).toEqual([19, 20, 21, 22].map((day) => ({
+      startDate: `2027-01-${day - 1}T19:45:00.000Z`, endDate: `2027-01-${day}T02:00:00.000Z`,
+    })))
+    expect(mapped.startDate).toBe('2027-01-20T19:45:00.000Z')
+    expect(mapped.endDate).toBe('2027-01-21T02:00:00.000Z')
+    expect(selectNextEventOccurrences([occurrence], new Date('2027-01-20T10:00:00Z'))).toEqual([occurrence])
+  })
+
+  it('unfolds, sorts and deduplicates actual Auckland days, honours exclusions, and leaves gaps', () => {
+    const content = 'DTSTART:20271231T090000\r\nDTEND:20271231T100000\r\n' +
+      'RDATE:20280103T090000,\r\n 20280101T090000,20271231T090000\r\nRDATE:20280101T100000\r\nEXDATE:20280103T090000'
+    expect(getRockScheduledOccurrences(content)?.map((day) => day.startDate)).toEqual([
+      '2027-12-30T20:00:00.000Z', '2027-12-31T20:00:00.000Z',
+    ])
+  })
+
+  it('does not turn an overnight duration into extra attendance days', () => {
+    expect(getRockScheduledOccurrences('DTSTART:20270119T230000\nDTEND:20270120T020000')).toEqual([
+      { startDate: '2027-01-19T10:00:00.000Z', endDate: '2027-01-19T13:00:00.000Z' },
+    ])
+  })
+
+  it.each([
+    undefined, programme + '\r\nRRULE:FREQ=WEEKLY;COUNT=4',
+    programme + '\r\nEXRULE:FREQ=WEEKLY',
+    'DTSTART;VALUE=DATE:20270119',
+    programme + '\r\nRDATE;VALUE=PERIOD:20270123T084500/20270123T150000',
+    programme + '\r\nRDATE;TZID=America/New_York:20270123T084500',
+    programme + '\r\nBEGIN:VEVENT\r\nDTSTART:20280101T090000',
+  ])('falls back rather than inventing or partially expanding an unsupported schedule', (content) => {
+    expect(getRockScheduledOccurrences(content)).toBeNull()
+  })
+
+  it('normalizes UTC and Auckland starts to one attendance day', () => {
+    expect(getRockScheduledOccurrences('DTSTART:20270118T194500Z\nRDATE;TZID=Pacific/Auckland:20270119T084500'))
+      .toEqual([{ startDate: '2027-01-18T19:45:00.000Z', endDate: null }])
   })
 })
