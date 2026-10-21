@@ -1,6 +1,6 @@
 ## Open the finance view
 
-[Open reimbursements](/reimbursement) and sign in with your finance account. Your finance access comes from the church's configured finance group. Complete personal payment settings on your first visit to access reports and reviews.
+[Open reimbursements](/members/reimbursements) and sign in with your finance account. Your finance access comes from the church's configured finance group. Complete personal payment settings on your first visit to access reports and reviews.
 
 Finance can see submitted reports across purposes. Open [**Approvals**](/members/reimbursements/approvals) to see **Awaiting your approval** first, followed by other **Active reports**. Older reports are available through **Show older**.
 
