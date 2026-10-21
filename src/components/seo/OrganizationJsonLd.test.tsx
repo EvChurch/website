@@ -12,6 +12,16 @@ describe('OrganizationJsonLd', () => {
     expect(json).toBeDefined()
     const data = JSON.parse(json!)
 
+    expect(data['@type']).toBe('Organization')
+    expect(data['@id']).toBe('https://www.ev.church/#organization')
+    expect(data.logo).toBe('https://www.ev.church/images/global/ev-church-logo.png')
+    expect(data).not.toHaveProperty('publicAccess')
+    expect(data).not.toHaveProperty('isAccessibleForFree')
+    expect(data.location).toEqual(['north', 'central', 'unichurch'].map((slug) => ({
+      '@type': 'Church',
+      '@id': `https://www.ev.church/campus/${slug}#church`,
+      url: `https://www.ev.church/campus/${slug}`,
+    })))
     expect(data).not.toHaveProperty('areaServed')
     expect(data.address[2]).toEqual(UNICHURCH_SCHEMA_ADDRESS)
     expect(data.sameAs).toEqual([

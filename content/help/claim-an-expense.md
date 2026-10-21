@@ -2,7 +2,7 @@
 
 Have your receipts and New Zealand bank account details ready. Claims are in NZD. You can claim part of a receipt, and you can use the same receipt on more than one expense line.
 
-[Open reimbursements](/reimbursement). Sign in if asked. The first time you visit, you must complete your payment settings before viewing reports or approvals. Opening reimbursements also adds it to your members menu.
+[Open reimbursements](/members/reimbursements). Sign in if asked. The first time you visit, you must complete your payment settings before viewing reports or approvals. Opening reimbursements also adds it to your members menu.
 
 Older links using `?launcher=reimbursement` also open the members reimbursement page.
 

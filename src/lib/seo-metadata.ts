@@ -19,3 +19,12 @@ export function truncateMetaDescription(value: string, maxLength = 160): string 
 
   return `${shortened.slice(0, boundary).replace(/[,:;.]$/u, '')}…`
 }
+
+/** Keep full subjects when possible by dropping the generic section suffix first. */
+export function buildSermonMetaTitle(title: string, section: 'Sermons' | 'Sermon Series'): string {
+  const fullTitle = `${title} | ${section} | Ev Church`
+  if (fullTitle.length <= 70) return fullTitle
+
+  const suffix = ' | Ev Church'
+  return `${truncateMetaDescription(title, 70 - suffix.length)}${suffix}`
+}

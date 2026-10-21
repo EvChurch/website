@@ -9,7 +9,7 @@ import { getPayloadMediaUrl, type PayloadMediaImage } from '@/lib/payload-media'
 import { getSermonPageData } from '@/lib/sermon-pages'
 import { getSeriesBannerUrl, getSermonAudioUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
-import { DEFAULT_OPEN_GRAPH_IMAGES, truncateMetaDescription } from '@/lib/seo-metadata'
+import { DEFAULT_OPEN_GRAPH_IMAGES, buildSermonMetaTitle, truncateMetaDescription } from '@/lib/seo-metadata'
 import { SermonPlayButton } from './SermonPlayButton'
 import { ListenedBadge } from '@/components/sermons/ListenedBadge'
 
@@ -40,11 +40,13 @@ export async function generateMetadata({
       : `Listen to "${sermon.title}" from Ev Church Auckland. Watch or listen online and explore related Bible teaching from our sermon library.`,
   )
 
+  const title = buildSermonMetaTitle(sermon.title, 'Sermons')
+
   return {
-    title: `${sermon.title} | Sermons`,
+    title: { absolute: title },
     description,
     openGraph: {
-      title: `${sermon.title} | Sermons | Ev Church`,
+      title,
       description,
       url: `https://www.ev.church/sermons/${sermon.slug}`,
       siteName: 'Ev Church',
@@ -180,8 +182,14 @@ export default async function SermonPage({
   const sermonJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'CreativeWork',
+    '@id': `https://www.ev.church/sermons/${sermon.slug}#sermon`,
     name: sermon.title,
     url: `https://www.ev.church/sermons/${sermon.slug}`,
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `https://www.ev.church/sermons/${sermon.slug}`,
+    },
+    dateModified: sermon.updatedAt,
     ...(sermon.publishedAt ? { datePublished: sermon.publishedAt } : {}),
     ...(allSpeakers.length > 0
       ? {
@@ -196,12 +204,14 @@ export default async function SermonPage({
           associatedMedia: {
             '@type': 'AudioObject',
             contentUrl: audioUrl,
-            ...(sermon.duration ? { duration: `PT${Math.round(sermon.duration / 60)}M` } : {}),
+            ...(sermon.publishedAt ? { uploadDate: sermon.publishedAt } : {}),
+            ...(sermon.duration ? { duration: `PT${Math.round(sermon.duration)}S` } : {}),
           },
         }
       : {}),
     publisher: {
       '@type': 'Organization',
+      '@id': 'https://www.ev.church/#organization',
       name: 'Ev Church',
       url: 'https://www.ev.church',
     },
@@ -216,7 +226,7 @@ export default async function SermonPage({
       <BreadcrumbJsonLd items={breadcrumbItems} />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(sermonJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(sermonJsonLd).replace(/</g, '\\u003c') }}
       />
 
       {/* Hero header with background image */}

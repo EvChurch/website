@@ -6,7 +6,8 @@ import { trackedNotFound } from '@/lib/tracked-not-found'
 import { getSermonAudioUrl, getSeriesBannerUrl, getSermonVideos } from '@/lib/sermon-utils'
 import { SermonCard } from '@/components/sermons/SermonCard'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
-import { DEFAULT_OPEN_GRAPH_IMAGES, truncateMetaDescription } from '@/lib/seo-metadata'
+import { SermonSeriesJsonLd } from '@/components/seo/SermonSeriesJsonLd'
+import { DEFAULT_OPEN_GRAPH_IMAGES, buildSermonMetaTitle, truncateMetaDescription } from '@/lib/seo-metadata'
 
 export const revalidate = 86400
 
@@ -24,14 +25,16 @@ export async function generateMetadata({
 
   if (!series) return {}
 
+  const title = buildSermonMetaTitle(series.title, 'Sermon Series')
+
   return {
-    title: `${series.title} | Sermon Series`,
+    title: { absolute: title },
     description: truncateMetaDescription(
       `Listen to sermons from the "${series.title}" series at Ev Church Auckland. Watch or listen to every message and explore related Bible teaching from our church.`,
     ),
     openGraph: {
       images: DEFAULT_OPEN_GRAPH_IMAGES,
-      title: `${series.title} | Sermon Series | Ev Church`,
+      title,
       description: `Listen to sermons from the "${series.title}" series at Ev Church Auckland.`,
       url: `https://www.ev.church/sermons/series/${series.slug}`,
       siteName: 'Ev Church',
@@ -78,6 +81,7 @@ export default async function SeriesPage({
   return (
     <main className="bg-brand-black min-h-screen">
       <BreadcrumbJsonLd items={breadcrumbItems} />
+      <SermonSeriesJsonLd series={series} sermons={sermonsResult.docs} />
 
       {/* Series header */}
       <section className="relative overflow-hidden">
