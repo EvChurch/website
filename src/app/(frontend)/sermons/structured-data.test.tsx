@@ -1,3 +1,4 @@
+import { JSDOM } from 'jsdom'
 import { Children, isValidElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
@@ -12,6 +13,11 @@ import { SermonSeriesJsonLd } from '@/components/seo/SermonSeriesJsonLd'
 const publishedAt = '2026-10-18T00:00:00.000Z'
 const updatedAt = '2026-10-20T00:00:00.000Z'
 
+function readJsonLd(markup: string) {
+  const document = new JSDOM(markup).window.document
+  return JSON.parse(document.querySelector('script[type="application/ld+json"]')!.textContent!)
+}
+
 describe('sermon structured data', () => {
   it('describes the actual recording with CMS authors and dates and a stable publisher', async () => {
     data.sermon.mockResolvedValue({
@@ -25,7 +31,7 @@ describe('sermon structured data', () => {
     const page = await SermonPage({ params: Promise.resolve({ slug: 'psalm-27' }) })
     const script = Children.toArray(page.props.children).find(child => isValidElement(child) && child.type === 'script')
     const markup = renderToStaticMarkup(<>{script}</>)
-    const json = JSON.parse(markup.match(/<script[^>]*>(.*)<\/script>/)![1])
+    const json = readJsonLd(markup)
     expect(json).toMatchObject({
       '@type': 'CreativeWork', '@id': 'https://www.ev.church/sermons/psalm-27#sermon',
       mainEntityOfPage: { '@type': 'WebPage', '@id': 'https://www.ev.church/sermons/psalm-27' },
@@ -43,7 +49,7 @@ describe('sermon structured data', () => {
     const page = await SermonPage({ params: Promise.resolve({ slug: 'video' }) })
     const script = Children.toArray(page.props.children).find(child => isValidElement(child) && child.type === 'script')
     const markup = renderToStaticMarkup(<>{script}</>)
-    const json = JSON.parse(markup.match(/<script[^>]*>(.*)<\/script>/)![1])
+    const json = readJsonLd(markup)
     expect(json).not.toHaveProperty('associatedMedia')
     expect(json).not.toHaveProperty('datePublished')
     expect(json).not.toHaveProperty('author')
@@ -56,7 +62,7 @@ describe('sermon structured data', () => {
     const page = await SeriesPage({ params: Promise.resolve({ slug: series.slug }) })
     const schema = Children.toArray(page.props.children).find(child => isValidElement(child) && child.type === SermonSeriesJsonLd)
     const markup = renderToStaticMarkup(<>{schema}</>)
-    const json = JSON.parse(markup.match(/<script[^>]*>(.*)<\/script>/)![1])
+    const json = readJsonLd(markup)
     expect(json).toMatchObject({
       '@type': 'CollectionPage', '@id': 'https://www.ev.church/sermons/series/living-hope',
       dateModified: updatedAt,
@@ -71,8 +77,8 @@ describe('sermon structured data', () => {
     const title = '</script><script>alert(1)</script>'
     const markup = renderToStaticMarkup(<SermonSeriesJsonLd
       series={{ title, slug: 'test', updatedAt }} sermons={[{ title, slug: 'test' }]} />)
-    expect(markup.match(/<script/g)).toHaveLength(1)
-    const json = JSON.parse(markup.match(/<script[^>]*>(.*)<\/script>/)![1])
+    expect(new JSDOM(markup).window.document.querySelectorAll('script')).toHaveLength(1)
+    const json = readJsonLd(markup)
     expect(json.name).toBe(title)
     expect(json.mainEntity.hasPart[0]).not.toHaveProperty('datePublished')
   })
