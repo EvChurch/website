@@ -28,6 +28,24 @@ describe('ManualCardGridBlockComponent', () => {
     expect(markup).toContain('aria-hidden="true"')
   })
 
+  it('fits opted-in logos on white with padding without changing photo crops', () => {
+    const markup = renderToStaticMarkup(
+      <ManualCardGridBlockComponent
+        cardStyle="imageTop"
+        cards={[
+          { title: 'Gospel Training Trust', image: '/media/gtt.png', description: 'Training', imageBorder: true },
+          { title: 'Photo', image: '/media/photo.jpg', description: 'Church life' },
+        ]}
+      />,
+    )
+
+    expect(markup).toContain('aspect-[16/10] bg-white')
+    expect(markup.match(/object-contain p-8/g)).toHaveLength(1)
+    expect(markup).toContain('aspect-[16/10] bg-brand-black')
+    expect(markup.match(/object-cover transform-gpu/g)).toHaveLength(1)
+    expect(markup.match(/group-hover:scale-105/g)).toHaveLength(2)
+  })
+
   it('renders an embeddable map for a card with a managed map URL', () => {
     const markup = renderToStaticMarkup(
       <ManualCardGridBlockComponent

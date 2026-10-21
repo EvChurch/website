@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const revalidateTag = vi.hoisted(() => vi.fn())
+const after = vi.hoisted(() => vi.fn())
 
 vi.mock('next/cache', () => ({ revalidateTag }))
+vi.mock('next/server', () => ({ after }))
 
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import { Announcements } from '@/collections/Announcements'
@@ -32,6 +34,29 @@ describe('createCacheInvalidationHook', () => {
 
     invalidate({ context: { skipCacheInvalidation: true } })
 
+    expect(revalidateTag).not.toHaveBeenCalled()
+  })
+
+  it('flushes MCP invalidation after the streaming response completes', async () => {
+    const invalidate = createCacheInvalidationHook(CACHE_TAGS.pages)
+
+    invalidate({ req: { payloadAPI: 'MCP' } })
+
+    expect(after).toHaveBeenCalledTimes(1)
+    expect(revalidateTag).not.toHaveBeenCalled()
+
+    await after.mock.calls[0][0]()
+
+    expect(revalidateTag).toHaveBeenCalledExactlyOnceWith(CACHE_TAGS.pages, { expire: 0 })
+  })
+
+  it('does not schedule MCP invalidation when explicitly skipped', () => {
+    createCacheInvalidationHook(CACHE_TAGS.pages)({
+      context: { skipCacheInvalidation: true },
+      req: { payloadAPI: 'MCP' },
+    })
+
+    expect(after).not.toHaveBeenCalled()
     expect(revalidateTag).not.toHaveBeenCalled()
   })
 

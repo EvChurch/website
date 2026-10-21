@@ -222,6 +222,7 @@ function ImageTopCard({
   const url = getImageUrl(card.image)
   const isTeamStyle = !isProfileStyle && !card.description && !card.linkLabel
   const isStaticLightStyle = !card.href && (isTeamStyle || isProfileStyle)
+  const isLightLogo = card.imageBorder && !isProfileStyle && !isTeamStyle
   const imageBorder = card.imageBorder && url ? (
     <span
       aria-hidden="true"
@@ -266,7 +267,7 @@ function ImageTopCard({
           {imageBorder}
         </div>
       ) : (
-        <div className={`relative shrink-0 overflow-hidden ${isProfileStyle ? 'aspect-[4/5]' : 'aspect-[16/10]'}`}>
+        <div className={`relative isolate shrink-0 overflow-hidden ${isProfileStyle ? 'aspect-[4/5]' : 'aspect-[16/10]'} ${isLightLogo || isProfileStyle ? 'bg-white' : 'bg-brand-black'}`}>
           {url && card.image ? (
             <MediaImage
               media={card.image}
@@ -275,10 +276,10 @@ function ImageTopCard({
               fill
               priority={priority}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              className={`object-cover ${
+              className={`${isLightLogo ? 'object-contain p-8' : 'object-cover'} ${
                 isStaticLightStyle
                   ? ''
-                  : 'transition-transform duration-700 group-hover:scale-105'
+                  : 'transform-gpu transition-transform duration-700 group-hover:scale-105'
               }`}
             />
           ) : (

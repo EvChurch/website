@@ -54,9 +54,9 @@ export const ManualCardGridBlock: Block = {
           name: 'imageBorder',
           type: 'checkbox',
           defaultValue: false,
-          label: 'Image border',
+          label: 'Light image background / border',
           admin: {
-            description: 'Add a subtle border around the image area on Image on top and Profile cards.',
+            description: 'On Image on top cards, show the full image with padding on white (ideal for logos), plus a subtle border. On Profile cards, add only the border.',
           },
         },
         {
