@@ -27,7 +27,7 @@ export default async function HelpArticlePage({ params }: { params: Promise<{ sl
           <Markdown skipHtml>{article.body}</Markdown>
         </div>
       </article>
-      <aside className="self-start rounded-xl border border-warm-grey bg-white p-5 lg:sticky lg:top-8"><h2 className="font-semibold">In reimbursements</h2><nav aria-label="Related help" className="mt-4 flex flex-col gap-4 text-sm">{helpArticles.filter(item => item.topic === article.topic && item.access === 'public').map(item => <Link key={item.slug} aria-current={item.slug === slug ? 'page' : undefined} className={item.slug === slug ? 'font-semibold text-rich-red' : 'text-dark-grey hover:text-rich-red'} href={`/help/${item.slug}`}>{item.title}</Link>)}<Link className="border-t border-warm-grey pt-4 font-semibold text-rich-red" href="/reimbursement">Open reimbursements <span aria-hidden="true">→</span></Link></nav></aside>
+      <aside className="self-start rounded-xl border border-warm-grey bg-white p-5 lg:sticky lg:top-8"><h2 className="font-semibold">In reimbursements</h2><nav aria-label="Related help" className="mt-4 flex flex-col gap-4 text-sm">{helpArticles.filter(item => item.topic === article.topic && item.access === 'public').map(item => <Link key={item.slug} aria-current={item.slug === slug ? 'page' : undefined} className={item.slug === slug ? 'font-semibold text-rich-red' : 'text-dark-grey hover:text-rich-red'} href={`/help/${item.slug}`}>{item.title}</Link>)}<Link className="border-t border-warm-grey pt-4 font-semibold text-rich-red" href="/members/reimbursements" rel="nofollow">Open reimbursements <span aria-hidden="true">→</span></Link></nav></aside>
     </div>
     <HelpSupport />
   </>
