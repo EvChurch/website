@@ -9,6 +9,7 @@ import { listHelpArticles, searchHelpArticles } from './content'
 
 const auth = vi.hoisted(() => ({ member: vi.fn() }))
 vi.mock('@/auth/member-session', () => ({ getCurrentMemberProfile: auth.member }))
+vi.mock('@/components/help/HelpSupport', () => ({ HelpSupport: () => null }))
 vi.mock('next/navigation', () => ({
   notFound: () => { throw new Error('NOT_FOUND') },
   redirect: (url: string) => { throw new Error(`REDIRECT:${url}`) },
@@ -36,6 +37,12 @@ describe('help content and access', () => {
         await expect(access(path.join(process.cwd(), 'public', image))).resolves.toBeUndefined()
       }
     }
+  })
+  it.each(helpArticles.filter(article => article.access === 'public'))('links directly to reimbursements throughout $slug', async ({ slug }) => {
+    const page = await HelpArticlePage({ params: Promise.resolve({ slug }) })
+    const markup = renderToStaticMarkup(page)
+    expect(markup).toContain('href="/members/reimbursements"')
+    expect(markup).not.toContain('href="/reimbursement"')
   })
   it('searches full article text and combines topic and audience filters', async () => {
     const articles = await listHelpArticles(false)

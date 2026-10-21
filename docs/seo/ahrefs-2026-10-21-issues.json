@@ -2273,11 +2273,12 @@
       "name": "Page has links to redirect",
       "status": "fixed",
       "count": 6,
-      "reason": "Three shared reimbursement guides now link directly to /members/reimbursements, correcting the six canonical/feedback-variant callers. The protected destination retains login and first-visit onboarding.",
+      "reason": "Three reimbursement guides and their shared Related help panel link directly to /members/reimbursements, correcting the six canonical/feedback-variant callers. The protected destination retains login and first-visit onboarding.",
       "locations": [
         "content/help/claim-an-expense.md",
         "content/help/approve-an-expense.md",
-        "content/help/finance-reimbursements.md"
+        "content/help/finance-reimbursements.md",
+        "src/app/(frontend)/help/[slug]/page.tsx"
       ],
       "verification": "help link/search/access tests; reimbursement route tests; live anonymous login flow and article links",
       "reportUrl": "https://app.ahrefs.com/site-audit/10225552/data-explorer?current=21-10-2026T041709&filterId=df4704d5db8cb70e20ea1a94ac82d4ec&issueId=7272a5c0-00b1-11e8-ae24-001e67ed4656",
