@@ -8,6 +8,8 @@ import type { PublicGivingFund } from '@/lib/giving/contracts'
 import { GIVING_SAFE_CLOSE_REASSURANCE_DELAY_MS, GIVING_STATUS_POLL_LIMIT, GivingFlow, givingCheckoutPresentation, givingProgress, givingStatusPollDelay, positionGivingSurface, safeGivingGatewayRedirect } from './GivingFlow'
 
 vi.mock('@/components/forms/TurnstileWidget', () => ({ TurnstileWidget: ({ onToken }: { onToken: (token: string) => void }) => <button type="button" data-turnstile onClick={() => onToken('turnstile-token')}>Pass security check</button> }))
+const loadGivingSubmissionVersion=vi.hoisted(()=>vi.fn(async()=> 'V'.repeat(43)))
+vi.mock('@/lib/giving/submission-session',()=>({loadGivingSubmissionVersion}))
 const trackGivingEvent=vi.hoisted(()=>vi.fn())
 vi.mock('@/lib/giving/analytics',()=>({trackGivingEvent}))
 const givingContext=vi.hoisted(()=>({
@@ -95,7 +97,32 @@ describe('GivingFlow', () => {
     givingContext.dismiss.mockClear()
     window.history.replaceState(null, '', '/')
     trackGivingEvent.mockClear()
+    loadGivingSubmissionVersion.mockReset().mockResolvedValue('V'.repeat(43))
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn(async () => undefined) } })
+  })
+
+  it.each(['blinkpay', 'bank-transfer'] as const)('requires an explicit reload after a stale %s submission without retrying', async (mode) => {
+    givingContext.blinkPayEnabled=mode==='blinkpay'
+    const submissions: RequestInit[]=[]
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (String(input)==='/api/giving/checkouts' || String(input)==='/api/giving/bank-transfer') {
+        submissions.push(init!)
+        return Response.json({restartRequired:true},{status:409})
+      }
+      return new Response(null,{status:204})
+    })
+    await reachSignedInReview(container,root)
+    if (mode==='blinkpay') await act(async()=>button(container,'Continue with BlinkPay')?.click())
+    await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    if (mode==='blinkpay') await act(async()=>button(container,'Continue to BlinkPay')?.click())
+    expect(submissions).toHaveLength(1)
+    expect(new Headers(submissions[0].headers).get('x-ev-giving-version')).toBe('V'.repeat(43))
+    expect(container.textContent).toContain('This giving form has expired')
+    expect(button(container,'Reload giving form')).toBeTruthy()
+    await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    await act(async()=>button(container,'Continue to BlinkPay')?.click())
+    expect(submissions).toHaveLength(1)
+    expect(loadGivingSubmissionVersion).toHaveBeenCalledOnce()
   })
 
   it('labels the locked fund above amount and never offers fund selection or editing', async () => {

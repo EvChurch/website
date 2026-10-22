@@ -1,7 +1,10 @@
+import { givingSubmissionVersion } from '@/lib/giving/submission-version'
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { handleGivingBankTransferPost, type GivingBankTransferRouteDependencies } from './route'
+
+vi.mock('@/lib/payload', () => ({ getPayloadClient: vi.fn() }))
 
 const body = {
   submissionKey: 'A'.repeat(43),
@@ -24,6 +27,7 @@ function request(value: unknown = body, headers: Record<string, string> = {}) {
       'sec-fetch-site': 'same-origin',
       'x-ev-giving-request': 'bank-transfer-v1',
       'content-type': 'application/json',
+      'x-ev-giving-version': givingSubmissionVersion('s'.repeat(32))!,
       ...headers,
     },
     body: JSON.stringify(value),
@@ -48,7 +52,24 @@ function dependencies(): GivingBankTransferRouteDependencies {
 }
 
 describe('POST giving bank transfer', () => {
-  beforeEach(() => vi.stubEnv('GIVING_RATE_LIMIT_SECRET', 'r'.repeat(32)))
+  it.each(['', givingSubmissionVersion('o'.repeat(32))!])('rejects missing or retired form versions before any side effects', async (version) => {
+    const deps=dependencies()
+    const result=await handleGivingBankTransferPost(request(body,{'x-ev-giving-version':version}),deps)
+    expect(result.status).toBe(409)
+    expect(await result.json()).toMatchObject({restartRequired:true})
+    expect(deps.verifyTurnstile).not.toHaveBeenCalled()
+    expect(deps.rateLimitStore.increment).not.toHaveBeenCalled()
+    expect(deps.prepare).not.toHaveBeenCalled()
+  })
+  it('pauses new acquisition before any identity or provider work', async () => {
+    vi.stubEnv('GIVING_ACQUISITION_PAUSED','true')
+    const deps=dependencies()
+    const result=await handleGivingBankTransferPost(request(),deps)
+    expect(result.status).toBe(503)
+    expect(deps.verifyTurnstile).not.toHaveBeenCalled()
+    expect(deps.prepare).not.toHaveBeenCalled()
+  })
+  beforeEach(() => {vi.stubEnv('GIVING_RATE_LIMIT_SECRET', 'r'.repeat(32));vi.stubEnv('GIVING_CHECKOUT_DIGEST_SECRET','s'.repeat(32));vi.stubEnv('GIVING_ACQUISITION_PAUSED','false')})
 
   it('applies the same abuse controls and returns private exact bank instructions', async () => {
     const deps = dependencies()
