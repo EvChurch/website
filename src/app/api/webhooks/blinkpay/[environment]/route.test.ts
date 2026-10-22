@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createBlinkPayWebhookHandler } from './route'
 
 const secret = 'whsec_test_secret'
@@ -19,7 +19,16 @@ function request(overrides: { body?: string; contentType?: string; signature?: s
 }
 
 describe('BlinkPay webhook route', () => {
+  beforeEach(() => { vi.spyOn(console, 'info').mockImplementation(() => undefined) })
+  afterEach(() => { vi.restoreAllMocks() })
   const contract = { contractVersion: 'blinkpay-debit-1.0.49', signatureHeader: 'x-signature', signatureFormat: 'timestamp-sha256-v1', eventFormat: 'fixed-recurring-payment-event-v1', secrets: [secret], acknowledgementStatus: 204 as const }
+
+  it.each([0, 1])('logs only the accepted key position %i without credential or payment data', async (signingKeyIndex) => {
+    const secrets = signingKeyIndex === 0 ? [secret, 'whsec_other_secret'] : ['whsec_other_secret', secret]
+    const handler = createBlinkPayWebhookHandler({ now: () => new Date('2026-08-15T12:00:00Z'), contract: () => ({ ...contract, secrets }), record: vi.fn().mockResolvedValue({ outcome: 'duplicate', eventId: 7 }), queue: vi.fn() })
+    expect((await handler(request(), { environment: 'production' })).status).toBe(204)
+    expect(console.info).toHaveBeenCalledExactlyOnceWith({ category: 'blinkpay-webhook-accepted', environment: 'production', signingKeyIndex })
+  })
 
   it('requests a provider retry when durable storage fails', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
@@ -29,6 +38,7 @@ describe('BlinkPay webhook route', () => {
       expect((await handler(request(), {environment:'production'})).status).toBe(503)
       expect(queue).not.toHaveBeenCalled()
       expect(log).toHaveBeenCalledWith({category:'blinkpay-webhook-storage-failed',environment:'production'})
+      expect(console.info).not.toHaveBeenCalled()
     } finally { log.mockRestore() }
   })
 
@@ -44,11 +54,13 @@ describe('BlinkPay webhook route', () => {
     ['unknown environment', 'other', request()],
     ['wrong content type', 'sandbox', request({ contentType: 'text/plain' })],
     ['bad signature', 'sandbox', request({ signature: 'bad' })],
+    ['invalid signed payload', 'sandbox', request({ body: '{}' })],
   ])('fails closed for %s before persistence', async (_label, environment, input) => {
     const record = vi.fn()
     const handler = createBlinkPayWebhookHandler({ now: () => new Date('2026-08-15T12:00:00Z'), contract: vi.fn().mockReturnValue(contract), record, queue: vi.fn() })
     expect((await handler(input, { environment })).status).toBeGreaterThanOrEqual(400)
     expect(record).not.toHaveBeenCalled()
+    expect(console.info).not.toHaveBeenCalled()
   })
 
   it('does not activate without a tenant-proven contract', async () => {

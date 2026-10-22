@@ -44,9 +44,11 @@ export function createBlinkPayWebhookHandler(dependencies: Dependencies) {
     try { contract = dependencies.contract(environment) } catch { return new Response(null, { status: 503, headers: PRIVATE_HEADERS }) }
     let rawBody: Buffer
     let event: ReturnType<typeof parseWebhookEvent>
+    let signingKeyIndex: number
     try {
       rawBody = await readBoundedRawBody(request)
-      verifyBlinkPayWebhook({ rawBody, signature: request.headers.get(contract.signatureHeader), now: (dependencies.now ?? (() => new Date()))(), secrets: contract.secrets, contractVersion: contract.contractVersion, signatureFormat: contract.signatureFormat })
+      const verified = verifyBlinkPayWebhook({ rawBody, signature: request.headers.get(contract.signatureHeader), now: (dependencies.now ?? (() => new Date()))(), secrets: contract.secrets, contractVersion: contract.contractVersion, signatureFormat: contract.signatureFormat })
+      signingKeyIndex = verified.signingKeyIndex
       event = parseWebhookEvent(rawBody, contract.eventFormat)
     } catch {
       console.warn({ category: 'blinkpay-webhook-validation-failed', environment })
@@ -54,6 +56,7 @@ export function createBlinkPayWebhookHandler(dependencies: Dependencies) {
     }
     try {
       const recorded = await dependencies.record({ environment, ...event, payloadDigest: webhookPayloadDigest(rawBody), now: (dependencies.now ?? (() => new Date()))() })
+      console.info({ category: 'blinkpay-webhook-accepted', environment, signingKeyIndex })
       if (recorded.outcome === 'inserted') await dependencies.queue(recorded.eventId).catch(() => undefined)
       return new Response(null, { status: contract.acknowledgementStatus, headers: PRIVATE_HEADERS })
     } catch {
