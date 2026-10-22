@@ -4,6 +4,14 @@ import { describe, expect, it } from 'vitest'
 import { Footer } from './Footer'
 
 describe('Footer social links', () => {
+  it('links the live Safe Ministry badge directly to the safeguarding statement', () => {
+    const markup = renderToStaticMarkup(<Footer />)
+
+    expect(markup).toContain('href="https://aev.safeministrycheck.com.au/statement.php" target="_blank" rel="noopener noreferrer"')
+    expect(markup).toContain('src="https://aev.safeministrycheck.com.au/verify/church_badge.php?x=OHNuWHRocFRwNUU1eTdZbVg0a3Z4UT09&amp;c=092136"')
+    expect(markup).toContain('alt="Safe Ministry Check — safeguarding policy and reporting contacts (opens in a new tab)"')
+  })
+
   it('uses the Ev Church logo and gives the tagline the full desktop width', () => {
     const markup = renderToStaticMarkup(<Footer />)
 

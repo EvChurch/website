@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { SiFacebook, SiInstagram, SiYoutube, SiSpotify, SiApplepodcasts } from 'react-icons/si'
 
 import { SOCIAL_LINKS } from '@/lib/social-links'
+import { SAFE_MINISTRY_BADGE_URL, SAFE_MINISTRY_STATEMENT_URL } from '@/lib/safe-ministry'
 
 type FooterColumn = {
   title: string
@@ -131,6 +132,25 @@ export function Footer() {
                     </FooterLink>
                   </li>
                 ))}
+                {col.title === 'Campuses' && (
+                  <li>
+                    <a
+                      href={SAFE_MINISTRY_STATEMENT_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-[160px] max-w-full rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-rich-red"
+                    >
+                      <Image
+                        src={SAFE_MINISTRY_BADGE_URL}
+                        alt="Safe Ministry Check — safeguarding policy and reporting contacts (opens in a new tab)"
+                        width={1200}
+                        height={261}
+                        unoptimized
+                        className="h-auto w-full"
+                      />
+                    </a>
+                  </li>
+                )}
               </ul>
             </div>
           ))}

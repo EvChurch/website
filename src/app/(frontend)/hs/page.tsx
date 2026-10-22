@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 import { Button } from '@/components/ui/Button'
 import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
+import { SAFE_MINISTRY_STATEMENT_URL } from '@/lib/safe-ministry'
 
 export const metadata: Metadata = {
   title: 'Health & Safety | Ev Church Auckland',
@@ -148,6 +149,20 @@ export default function HealthSafetyPage() {
                   </h3>
                   <p className="mt-3 text-[0.9375rem] leading-relaxed text-mid-grey">
                     {item.description}
+                    {item.title === 'Child safety' && (
+                      <>
+                        {' '}Read our{' '}
+                        <a
+                          href={SAFE_MINISTRY_STATEMENT_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-deep-red underline underline-offset-4 hover:text-brand-black"
+                        >
+                          Safe Ministry policy and reporting contacts
+                          <span className="sr-only"> (opens in a new tab)</span>
+                        </a>.
+                      </>
+                    )}
                   </p>
                 </div>
               </ScrollReveal>
