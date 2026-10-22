@@ -1,5 +1,7 @@
 'use client'
 
+import { loadGivingSubmissionVersion } from '@/lib/giving/submission-session'
+
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
 
 import { TurnstileWidget } from '@/components/forms/TurnstileWidget'
@@ -148,6 +150,20 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   const known = useMemo(() => ({ firstName: identity.firstName ?? '', lastName: identity.lastName ?? '', email: identity.email ?? '' }), [identity.email, identity.firstName, identity.lastName])
   const [state, dispatch] = useReducer(givingReducer, undefined, () => createGivingState(funds, known, directedFundId))
   const [error, setError] = useState<string>()
+  const [submissionVersion, setSubmissionVersion] = useState<string | null>(null)
+  const [submissionExpired, setSubmissionExpired] = useState(false)
+  useEffect(() => {
+    const controller = new AbortController()
+    void loadGivingSubmissionVersion(controller.signal).then((version) => {
+      if (!controller.signal.aborted) setSubmissionVersion(version)
+    }).catch(() => {
+      if (!controller.signal.aborted) {
+        setSubmissionExpired(true)
+        setError('Giving is temporarily unavailable. Reload the page before trying again.')
+      }
+    })
+    return () => controller.abort()
+  }, [])
   const [restoring, setRestoring] = useState(false)
   const [customDateOpen, setCustomDateOpen] = useState(false)
   const [checkout, setCheckout] = useState<CheckoutView>({ type: 'configuring' })
@@ -482,7 +498,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
 
   const next = () => { scrollIntent.current = 'forward'; setError(undefined); saveCompletedStep([{ type: 'next' }]) }
   const submit = async () => {
-    if (!turnstileToken || state.step !== 'review' || verifiedFingerprint.current !== answerFingerprint || !state.answers.amountMinor || !state.answers.fund || !state.answers.frequency) return
+    if (!submissionVersion || submissionExpired || !turnstileToken || state.step !== 'review' || verifiedFingerprint.current !== answerFingerprint || !state.answers.amountMinor || !state.answers.fund || !state.answers.frequency) return
     const operation = currentOperation()
     const submitAbort = new AbortController()
     const abortSubmit = () => submitAbort.abort()
@@ -497,11 +513,18 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
       await pendingDraftSave.current.catch(() => undefined)
       await persistDraft(state.answers, state.fundConfirmed, submitAbort.signal)
       if (!operationIsCurrent(operation)) return
-      const response = await fetch('/api/giving/checkouts', { method:'POST',headers:{'content-type':'application/json','x-ev-giving-request':'checkout-v1'},body:JSON.stringify({submissionKey:flowSubmissionKey.current,amountMinor:state.answers.amountMinor,transactionFeeMinor:applicableTransactionFeeMinor,fundId:state.answers.fund.id,frequency:state.answers.frequency,firstPaymentDate:state.answers.frequency==='one-off'?null:state.answers.startDate,firstName:state.answers.firstName,lastName:state.answers.lastName,email:state.answers.email,turnstileToken}),signal:submitAbort.signal })
-      const value = await response.json() as { outcome?: unknown; retryAllowed?: unknown; gatewayRedirectUri?: unknown }
+      const response = await fetch('/api/giving/checkouts', { method:'POST',headers:{'content-type':'application/json','x-ev-giving-request':'checkout-v1','x-ev-giving-version':submissionVersion},body:JSON.stringify({submissionKey:flowSubmissionKey.current,amountMinor:state.answers.amountMinor,transactionFeeMinor:applicableTransactionFeeMinor,fundId:state.answers.fund.id,frequency:state.answers.frequency,firstPaymentDate:state.answers.frequency==='one-off'?null:state.answers.startDate,firstName:state.answers.firstName,lastName:state.answers.lastName,email:state.answers.email,turnstileToken}),signal:submitAbort.signal })
+      const value = await response.json() as { outcome?: unknown; retryAllowed?: unknown; gatewayRedirectUri?: unknown; restartRequired?: unknown }
       rotateSubmissionKey = response.status >= 500 && value.retryAllowed === true
       if (!operationIsCurrent(operation)) return
       if (submitAbort.signal.aborted) throw new DOMException('Checkout timed out', 'TimeoutError')
+      if (response.status === 409 && value.restartRequired === true) {
+        leavingFlow.current = false
+        setSubmissionExpired(true)
+        setCheckout({ type: 'configuring' })
+        setError('This giving form has expired. Reload the page before trying again.')
+        return
+      }
       if(response.status===202&&value.outcome==='unknown'&&value.retryAllowed===false){
         setCheckout({type:'status',status:{state:'unknown',retryAllowed:false,kind:state.answers.frequency==='one-off'?'one-off':'recurring'},delayed:true})
         return
@@ -519,7 +542,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   }
   const prepareBankTransfer = useCallback(async () => {
     if (state.step !== 'review' || !state.answers.amountMinor || !state.answers.fund || !state.answers.frequency) return
-    if (!turnstileToken || verifiedFingerprint.current !== answerFingerprint) return
+    if (!submissionVersion || submissionExpired || !turnstileToken || verifiedFingerprint.current !== answerFingerprint) return
     const operation = currentOperation()
     const submitAbort = new AbortController()
     const abortSubmit = () => submitAbort.abort()
@@ -530,7 +553,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     try {
       const response = await fetch('/api/giving/bank-transfer', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-ev-giving-request': GIVING_REQUEST_MARKERS.bankTransfer },
+        headers: { 'content-type': 'application/json', 'x-ev-giving-request': GIVING_REQUEST_MARKERS.bankTransfer, 'x-ev-giving-version': submissionVersion },
         body: JSON.stringify({
           submissionKey: flowSubmissionKey.current,
           amountMinor: state.answers.amountMinor,
@@ -545,8 +568,14 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
         }),
         signal: submitAbort.signal,
       })
-      const value = await response.json() as Partial<GivingBankTransferPreparation>
+      const value = await response.json() as Partial<GivingBankTransferPreparation> & { restartRequired?: unknown }
       if (!operationIsCurrent(operation)) return
+      if (response.status === 409 && value.restartRequired === true) {
+        setSubmissionExpired(true)
+        setCheckout({ type: 'configuring' })
+        setError('This giving form has expired. Reload the page before trying again.')
+        return
+      }
       if (!response.ok ||
           value.accountName !== GIVING_BANK_ACCOUNT.accountName ||
           value.accountNumber !== GIVING_BANK_ACCOUNT.accountNumber ||
@@ -571,7 +600,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
       clearTimeout(submitTimer)
       operation.signal.removeEventListener('abort', abortSubmit)
     }
-  }, [answerFingerprint, currentOperation, operationIsCurrent, state.answers, turnstileToken])
+  }, [answerFingerprint, currentOperation, operationIsCurrent, state.answers, submissionVersion, submissionExpired, turnstileToken])
   useEffect(() => {
     if (paymentMode !== 'bank-transfer' || state.step !== 'review' || checkout.type !== 'configuring' || bankTransfer || bankPreparationRetryRequired || !turnstileToken) return
     void prepareBankTransfer()
@@ -664,7 +693,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
       if (paymentMode === null) {
         content = <p role="status" className="text-sm text-dark-grey">Preparing your payment options…</p>
       } else if (paymentMode === 'blinkpay') {
-        content = <><div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-warm-grey/60"><p className="text-lg leading-relaxed text-dark-grey">You’ll now be taken to BlinkPay to complete your payment setup with your bank. BlinkPay is a trusted third party that uses open banking technology.</p><div className="mt-6"><TurnstileWidget siteKey={turnstileSiteKey} action="giving-checkout" resetKey={turnstileReset} onToken={handleTurnstileToken} onError={setError} /><p className="mt-4 rounded-2xl bg-warm-grey/35 px-5 py-4 font-semibold text-brand-black">{givingHandoffSummary(state.answers, applicableTransactionFeeMinor)}</p><button type="button" disabled={!turnstileToken} onClick={() => void submit()} className="mt-4 min-h-14 w-full rounded-full bg-rich-red px-5 font-semibold text-white transition hover:bg-deep-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red focus-visible:ring-offset-2 disabled:opacity-50">Continue to BlinkPay</button><p className="mt-3 text-center text-sm leading-relaxed text-dark-grey">No credit or debit card needed. BlinkPay works with accounts from five major NZ banks: ANZ, ASB, BNZ, Kiwibank and Westpac.</p></div></div><p className="mt-4 text-center text-sm text-mid-grey">Or <button type="button" onClick={() => { setError(undefined);setPaymentMode('bank-transfer') }} className="min-h-11 px-1 underline underline-offset-4 transition hover:text-brand-black focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red focus-visible:ring-offset-2">use bank transfer instead</button></p></>
+        content = <><div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-warm-grey/60"><p className="text-lg leading-relaxed text-dark-grey">You’ll now be taken to BlinkPay to complete your payment setup with your bank. BlinkPay is a trusted third party that uses open banking technology.</p><div className="mt-6"><TurnstileWidget siteKey={turnstileSiteKey} action="giving-checkout" resetKey={turnstileReset} onToken={handleTurnstileToken} onError={setError} /><p className="mt-4 rounded-2xl bg-warm-grey/35 px-5 py-4 font-semibold text-brand-black">{givingHandoffSummary(state.answers, applicableTransactionFeeMinor)}</p><button type="button" disabled={!turnstileToken || !submissionVersion || submissionExpired} onClick={() => void submit()} className="mt-4 min-h-14 w-full rounded-full bg-rich-red px-5 font-semibold text-white transition hover:bg-deep-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red focus-visible:ring-offset-2 disabled:opacity-50">Continue to BlinkPay</button><p className="mt-3 text-center text-sm leading-relaxed text-dark-grey">No credit or debit card needed. BlinkPay works with accounts from five major NZ banks: ANZ, ASB, BNZ, Kiwibank and Westpac.</p></div></div><p className="mt-4 text-center text-sm text-mid-grey">Or <button type="button" onClick={() => { setError(undefined);setPaymentMode('bank-transfer') }} className="min-h-11 px-1 underline underline-offset-4 transition hover:text-brand-black focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red focus-visible:ring-offset-2">use bank transfer instead</button></p></>
       } else {
         content = bankTransfer
           ? bankAcknowledged
@@ -689,5 +718,5 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   )
   const showProgress = heading !== 'Giving complete'
   const hideHeading = heading === 'Giving complete'
-  return <section aria-labelledby="giving-step-heading" aria-busy={savingProgress} inert={savingProgress} className="relative mx-auto flex h-full min-h-0 w-full flex-col py-2 [overflow-anchor:none]" data-giving-private ref={flowRef}><div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" data-giving-scroll><div className={`mx-auto flex w-full max-w-lg flex-col px-4 sm:px-6 ${showProgress ? 'pb-24' : 'pb-4'}`}>{checkout.type === 'configuring' && directedFundId !== null && state.answers.fund && <GivingFundBubble name={state.answers.fund.name} />}{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} transactionFeeMinor={applicableTransactionFeeMinor} currentStep={state.step} visitedSteps={state.history} placement="before" directedFundId={directedFundId} onEdit={editAnswer} />}<div key={transitionKey} data-giving-step data-question-panel={highlightedQuestion ? 'highlighted' : undefined} className={`animate-fade-in-up motion-reduce:animate-none ${highlightedQuestion ? 'rounded-[2rem] bg-warm-grey/35 p-5 shadow-sm ring-1 ring-warm-grey/50' : ''}`}><h3 ref={headingRef} tabIndex={-1} id="giving-step-heading" className={hideHeading ? 'sr-only outline-none' : 'mb-6 text-2xl font-semibold text-brand-black outline-none'}>{heading}</h3><div>{content}{error && (checkout.type !== 'configuring' || state.step !== 'amount') && <p role="alert" className="mt-4 text-sm text-rich-red">{error}</p>}</div></div>{previewStep && !previewHasEditableAnswer && <GivingStepPreview step={previewStep} label={titles[previewStep]} />}{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} transactionFeeMinor={applicableTransactionFeeMinor} currentStep={state.step} visitedSteps={state.history} placement="after" directedFundId={directedFundId} onEdit={editAnswer} />}</div></div>{showProgress && <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 w-full bg-gradient-to-b from-warm-white/0 from-0% via-warm-white via-30% to-warm-white to-100% px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-12 sm:px-6 sm:pb-4" data-giving-progress><div className="mx-auto max-w-lg"><div role="progressbar" aria-label="Giving progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} className="h-5 overflow-hidden rounded-full bg-warm-grey/55"><div className="h-full rounded-full bg-rich-red transition-[width] duration-500 ease-out motion-reduce:transition-none" style={{ width: `${progress}%` }} /></div></div></div>}</section>
+  return <section aria-labelledby="giving-step-heading" aria-busy={savingProgress} inert={savingProgress} className="relative mx-auto flex h-full min-h-0 w-full flex-col py-2 [overflow-anchor:none]" data-giving-private ref={flowRef}><div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" data-giving-scroll><div className={`mx-auto flex w-full max-w-lg flex-col px-4 sm:px-6 ${showProgress ? 'pb-24' : 'pb-4'}`}>{checkout.type === 'configuring' && directedFundId !== null && state.answers.fund && <GivingFundBubble name={state.answers.fund.name} />}{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} transactionFeeMinor={applicableTransactionFeeMinor} currentStep={state.step} visitedSteps={state.history} placement="before" directedFundId={directedFundId} onEdit={editAnswer} />}<div key={transitionKey} data-giving-step data-question-panel={highlightedQuestion ? 'highlighted' : undefined} className={`animate-fade-in-up motion-reduce:animate-none ${highlightedQuestion ? 'rounded-[2rem] bg-warm-grey/35 p-5 shadow-sm ring-1 ring-warm-grey/50' : ''}`}><h3 ref={headingRef} tabIndex={-1} id="giving-step-heading" className={hideHeading ? 'sr-only outline-none' : 'mb-6 text-2xl font-semibold text-brand-black outline-none'}>{heading}</h3><div>{content}{error && (checkout.type !== 'configuring' || state.step !== 'amount') && <p role="alert" className="mt-4 text-sm text-rich-red">{error}</p>}{submissionExpired && <button type="button" onClick={() => window.location.reload()} className="mt-4 min-h-11 rounded-full bg-rich-red px-5 font-semibold text-white">Reload giving form</button>}</div></div>{previewStep && !previewHasEditableAnswer && <GivingStepPreview step={previewStep} label={titles[previewStep]} />}{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} transactionFeeMinor={applicableTransactionFeeMinor} currentStep={state.step} visitedSteps={state.history} placement="after" directedFundId={directedFundId} onEdit={editAnswer} />}</div></div>{showProgress && <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 w-full bg-gradient-to-b from-warm-white/0 from-0% via-warm-white via-30% to-warm-white to-100% px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-12 sm:px-6 sm:pb-4" data-giving-progress><div className="mx-auto max-w-lg"><div role="progressbar" aria-label="Giving progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} className="h-5 overflow-hidden rounded-full bg-warm-grey/55"><div className="h-full rounded-full bg-rich-red transition-[width] duration-500 ease-out motion-reduce:transition-none" style={{ width: `${progress}%` }} /></div></div></div>}</section>
 }

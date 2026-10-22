@@ -1,14 +1,34 @@
+import { givingSubmissionVersion } from '@/lib/giving/submission-version'
 import { NextRequest } from 'next/server'
 import { afterEach,beforeEach,describe,expect,it,vi } from 'vitest'
 import { configuredGivingCheckoutAuthority,handleGivingCheckoutPost,resolveGivingCheckoutAuthority,type GivingCheckoutRouteDependencies } from './route'
 import type { BlinkPayConfig } from '@/lib/giving/blinkpay/types'
 
+vi.mock('@/lib/payload', () => ({ getPayloadClient: vi.fn() }))
+
 const body={submissionKey:'A'.repeat(43),amountMinor:2500,transactionFeeMinor:50,fundId:1,frequency:'one-off',firstPaymentDate:null,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com',turnstileToken:'token'}
-function request(value:unknown=body,headers:Record<string,string>={}){return new NextRequest('https://www.ev.church/api/giving/checkouts',{method:'POST',headers:{origin:'https://www.ev.church','sec-fetch-site':'same-origin','x-ev-giving-request':'checkout-v1','content-type':'application/json',...headers},body:JSON.stringify(value)})}
+function request(value:unknown=body,headers:Record<string,string>={}){return new NextRequest('https://www.ev.church/api/giving/checkouts',{method:'POST',headers:{origin:'https://www.ev.church','sec-fetch-site':'same-origin','x-ev-giving-request':'checkout-v1','content-type':'application/json','x-ev-giving-version':givingSubmissionVersion('s'.repeat(32))!,...headers},body:JSON.stringify(value)})}
 function dependencies():GivingCheckoutRouteDependencies{ return {authority:vi.fn(async()=>({contextKey:'production',environment:'production' as const,synthetic:false})),transactionFeeMinor:vi.fn(async()=>50),rateLimitStore:{increment:vi.fn(async()=>1)},verifyTurnstile:vi.fn(async()=>undefined),startCheckout:vi.fn(async()=>({outcome:'redirect' as const,gatewayRedirectUri:'https://secure.blinkpay.co.nz/gateway',statusToken:'S'.repeat(43),returnToken:'R'.repeat(43),correlationKey:'correlation',reused:false}))} }
 
 describe('POST giving checkout',()=>{
-  beforeEach(()=>vi.stubEnv('GIVING_RATE_LIMIT_SECRET','r'.repeat(32)))
+  it.each(['', givingSubmissionVersion('o'.repeat(32))!])('rejects missing or retired form versions before any side effects', async (version) => {
+    const deps=dependencies()
+    const result=await handleGivingCheckoutPost(request(body,{'x-ev-giving-version':version}),deps)
+    expect(result.status).toBe(409)
+    expect(await result.json()).toMatchObject({restartRequired:true})
+    expect(deps.verifyTurnstile).not.toHaveBeenCalled()
+    expect(deps.rateLimitStore.increment).not.toHaveBeenCalled()
+    expect(deps.startCheckout).not.toHaveBeenCalled()
+  })
+  it('pauses new acquisition before any identity or provider work', async () => {
+    vi.stubEnv('GIVING_ACQUISITION_PAUSED','true')
+    const deps=dependencies()
+    const result=await handleGivingCheckoutPost(request(),deps)
+    expect(result.status).toBe(503)
+    expect(deps.verifyTurnstile).not.toHaveBeenCalled()
+    expect(deps.startCheckout).not.toHaveBeenCalled()
+  })
+  beforeEach(()=>{vi.stubEnv('GIVING_RATE_LIMIT_SECRET','r'.repeat(32));vi.stubEnv('GIVING_CHECKOUT_DIGEST_SECRET','s'.repeat(32));vi.stubEnv('GIVING_ACQUISITION_PAUSED','false')})
   afterEach(()=>vi.unstubAllEnvs())
   it('checks server authority and Turnstile before rate limiting or provider side effects',async()=>{const deps=dependencies();const response=await handleGivingCheckoutPost(request(),deps);expect(response.status).toBe(201);expect(deps.authority).toHaveBeenCalled();expect(vi.mocked(deps.verifyTurnstile).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(deps.rateLimitStore.increment).mock.invocationCallOrder[0]);expect(deps.startCheckout).toHaveBeenCalled();const cookies=response.headers.get('set-cookie')??'';expect(cookies).toContain('__Host-ev_giving_checkout=');expect(cookies).toContain('__Host-ev_giving_return=');expect(cookies.toLowerCase()).toContain('samesite=lax')})
   it('stores the safe current page for the hosted BlinkPay return', async () => {
@@ -21,8 +41,8 @@ describe('POST giving checkout',()=>{
     const cookies = response.headers.get('set-cookie') ?? ''
     expect(cookies).toContain('__Host-ev_giving_return_to=%2Fabout%3Fgiving%3Dreturn')
   })
-  it('accepts configured tunnel origins in development',async()=>{vi.stubEnv('NODE_ENV','development');vi.stubEnv('APP_BASE_URL','https://cons-catch-carlos-cape.trycloudflare.com');const deps=dependencies();const response=await handleGivingCheckoutPost(new NextRequest('http://0.0.0.0:3001/api/giving/checkouts',{method:'POST',headers:{origin:'https://cons-catch-carlos-cape.trycloudflare.com','sec-fetch-site':'same-origin','x-ev-giving-request':'checkout-v1','content-type':'application/json'},body:JSON.stringify(body)}),deps);expect(response.status).toBe(201);expect(deps.startCheckout).toHaveBeenCalledOnce()})
-  it('verifies Turnstile against the configured app hostname in production previews',async()=>{vi.stubEnv('NODE_ENV','production');vi.stubEnv('APP_BASE_URL','https://cons-catch-carlos-cape.trycloudflare.com');vi.stubEnv('GIVING_TRUST_CF_CONNECTING_IP','true');const deps=dependencies();const response=await handleGivingCheckoutPost(new NextRequest('http://0.0.0.0:3001/api/giving/checkouts',{method:'POST',headers:{origin:'https://cons-catch-carlos-cape.trycloudflare.com','sec-fetch-site':'same-origin','x-ev-giving-request':'checkout-v1','content-type':'application/json','cf-connecting-ip':'192.0.2.1'},body:JSON.stringify(body)}),deps);expect(response.status).toBe(201);expect(deps.verifyTurnstile).toHaveBeenCalledWith(expect.objectContaining({expectedHostname:'cons-catch-carlos-cape.trycloudflare.com'}))})
+  it('accepts configured tunnel origins in development',async()=>{vi.stubEnv('NODE_ENV','development');vi.stubEnv('APP_BASE_URL','https://cons-catch-carlos-cape.trycloudflare.com');const deps=dependencies();const response=await handleGivingCheckoutPost(new NextRequest('http://0.0.0.0:3001/api/giving/checkouts',{method:'POST',headers:{origin:'https://cons-catch-carlos-cape.trycloudflare.com','sec-fetch-site':'same-origin','x-ev-giving-request':'checkout-v1','content-type':'application/json','x-ev-giving-version':givingSubmissionVersion('s'.repeat(32))!},body:JSON.stringify(body)}),deps);expect(response.status).toBe(201);expect(deps.startCheckout).toHaveBeenCalledOnce()})
+  it('verifies Turnstile against the configured app hostname in production previews',async()=>{vi.stubEnv('NODE_ENV','production');vi.stubEnv('APP_BASE_URL','https://cons-catch-carlos-cape.trycloudflare.com');vi.stubEnv('GIVING_TRUST_CF_CONNECTING_IP','true');const deps=dependencies();const response=await handleGivingCheckoutPost(new NextRequest('http://0.0.0.0:3001/api/giving/checkouts',{method:'POST',headers:{origin:'https://cons-catch-carlos-cape.trycloudflare.com','sec-fetch-site':'same-origin','x-ev-giving-request':'checkout-v1','content-type':'application/json','x-ev-giving-version':givingSubmissionVersion('s'.repeat(32))!,'cf-connecting-ip':'192.0.2.1'},body:JSON.stringify(body)}),deps);expect(response.status).toBe(201);expect(deps.verifyTurnstile).toHaveBeenCalledWith(expect.objectContaining({expectedHostname:'cons-catch-carlos-cape.trycloudflare.com'}))})
   it('returns typed no-retry 202 and sets only the status cookie for an ambiguous provider start',async()=>{const deps=dependencies();vi.mocked(deps.startCheckout).mockResolvedValue({outcome:'unknown',retryAllowed:false,statusToken:'U'.repeat(43),correlationKey:'correlation',reused:false});const response=await handleGivingCheckoutPost(request(),deps);expect(response.status).toBe(202);expect(await response.json()).toEqual({outcome:'unknown',retryAllowed:false,correlationKey:'correlation',reused:false});const cookies=response.headers.get('set-cookie')??'';expect(cookies).toContain('U'.repeat(43));expect(cookies).not.toContain('__Host-ev_giving_return=')})
   it('does not spend a rate-limit attempt when Turnstile rejects the request',async()=>{const deps=dependencies();vi.mocked(deps.verifyTurnstile).mockRejectedValue(new Error('turnstile unavailable'));const response=await handleGivingCheckoutPost(request(),deps);expect(response.status).toBe(503);expect(deps.rateLimitStore.increment).not.toHaveBeenCalled();expect(deps.startCheckout).not.toHaveBeenCalled()})
   it('rejects a client-supplied fee that does not match the current global setting',async()=>{const deps=dependencies();const response=await handleGivingCheckoutPost(request({...body,transactionFeeMinor:0}),deps);expect(response.status).toBe(400);expect(deps.verifyTurnstile).not.toHaveBeenCalled();expect(deps.startCheckout).not.toHaveBeenCalled()})

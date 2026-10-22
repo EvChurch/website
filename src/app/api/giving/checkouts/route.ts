@@ -13,6 +13,7 @@ import { boundedGivingJson, GIVING_PRIVATE_HEADERS, InvalidGivingRequestError, i
 import { givingReturnDestinationFromRequest, givingReturnToCookieName } from '@/lib/giving/return-destination'
 import { createGivingCheckoutService, createPostgresGivingCheckoutRepository, GivingCheckoutError, validateGivingCheckoutSubmission, type GivingCheckoutStartResult, type GivingCheckoutSubmission } from '@/lib/giving/service'
 import { getGivingTransactionFeeMinor } from '@/lib/giving/settings'
+import { GivingSubmissionAdmissionError, requireCurrentGivingSubmission } from '@/lib/giving/submission-version'
 import { getPayloadClient } from '@/lib/payload'
 import { verifyTurnstileToken } from '@/lib/turnstile'
 
@@ -118,6 +119,7 @@ export async function handleGivingCheckoutPost(request: NextRequest, dependencie
     if (!authority) return response({ error: 'Giving unavailable' }, 404)
     if (!trustedGivingMutation(request, GIVING_REQUEST_MARKERS.checkout)) return response({ error: 'Giving unavailable' }, 403)
     if (!isGivingJson(request)) return response({ error: 'Giving unavailable' }, 415)
+    requireCurrentGivingSubmission(request.headers)
     const submission = validateGivingCheckoutSubmission(await boundedGivingJson(request))
     if (submission.transactionFeeMinor !== await dependencies.transactionFeeMinor(request)) throw new GivingCheckoutError('invalid')
     const address = trustedGivingClientAddress(request.headers)
@@ -139,6 +141,9 @@ export async function handleGivingCheckoutPost(request: NextRequest, dependencie
     }
     return output
   } catch (error) {
+    if (error instanceof GivingSubmissionAdmissionError) return response(error.reason === 'restart'
+      ? { error: 'Giving form expired', restartRequired: true }
+      : { error: 'Giving temporarily unavailable' }, error.reason === 'restart' ? 409 : 503)
     if (error instanceof GivingRateLimitError) return response({ error: 'Giving unavailable' }, 429, error.retryAfterSeconds)
     if (error instanceof InvalidGivingRequestError || error instanceof GivingCheckoutError && error.code === 'invalid') return response({ error: 'Giving unavailable' }, 400)
     if (error instanceof GivingCheckoutError && error.code === 'unavailable') return response({ error: 'Giving unavailable', retryAllowed: true }, 503)

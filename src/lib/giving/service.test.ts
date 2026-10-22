@@ -147,6 +147,22 @@ function returnToken(result: GivingCheckoutStartResult) {
 }
 
 describe('giving checkout orchestration', () => {
+  it.each(['one-off','monthly'] as const)('keeps existing %s return capabilities and provider operation identity across digest rotation', async (frequency) => {
+    const {checkout,blinkPay,repo}=service()
+    const started=await checkout.start({...context,submission:{...baseSubmission,frequency,firstPaymentDate:frequency==='one-off'?null:'2026-09-01'}})
+    const originalOperation={...repo.operations[0]}
+    const replacement=createGivingCheckoutService({
+      repository:repo,blinkPay,digestSecret:'n'.repeat(32),now:()=>new Date('2026-08-15T00:00:01Z'),
+      resolveIdentity:vi.fn(async()=>{throw new Error('Existing returns must not resolve a new giver')}),
+    })
+    const returned=await replacement.consumeReturn(returnToken(started))
+    expect((await replacement.status(returned.statusToken)).state).toBe('verified')
+    expect(repo.checkouts).toHaveLength(1)
+    expect(repo.operations[0]).toMatchObject({id:originalOperation.id,idempotencyKey:originalOperation.idempotencyKey,requestId:originalOperation.requestId,requestDigest:originalOperation.requestDigest})
+    expect(frequency==='one-off'?blinkPay.createQuickPayment:blinkPay.createEnduringConsent).toHaveBeenCalledOnce()
+    if(frequency==='monthly')expect(blinkPay.createFixedRecurringPayment).toHaveBeenCalledOnce()
+  })
+
   afterEach(() => vi.unstubAllEnvs())
 
   it('prepares direct-bank references through the same Rock identity resolution without calling BlinkPay', async () => {

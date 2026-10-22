@@ -42,6 +42,10 @@ The server accepts BlinkPay checkouts when the selected environment configuratio
 
 BlinkPay OAuth credentials, BlinkPay webhook secrets and the shared Rock credential each require a named owner, new-secret provisioning, overlapping verification where supported, deployment, authoritative read/health checks, old-secret revocation and post-rotation monitoring. Never place secret values in this runbook, tickets, screenshots or test artifacts. If overlap is unsupported, schedule a controlled change window and preserve the last verified application release for rollback.
 
+For `GIVING_CHECKOUT_DIGEST_SECRET`, use a controlled acquisition pause. First deploy the submission-version guard from merged `main` with `GIVING_ACQUISITION_PAUSED=true` and the existing secret. Confirm all prior application instances have stopped before changing the secret. New submissions on both giving paths return 503 during the pause; existing return capabilities, provider operation IDs, reconciliation and bank-transfer capability acknowledgements remain unchanged. Do not replay unknown operations.
+
+Save the replacement secret while the pause remains enabled, restart the same successful image, and verify the active snapshot and new signatures. Rotating this secret immediately expires old bank-confirmation email links; agree that outcome before proceeding. Then set the pause to false, restart the same image, and verify new form sessions. A form retains its initial runtime version for its lifetime: stale or unversioned forms return 409 before identity, rate-limit or provider work and require a page reload. Never retry a stale submission automatically with a newly fetched version. Do not roll back to an image without the guard after rotation.
+
 ## Rollback and incidents
 
 Rollback has two independent planes:

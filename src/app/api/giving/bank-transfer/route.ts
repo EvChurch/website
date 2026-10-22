@@ -9,6 +9,7 @@ import { boundedGivingJson, GIVING_PRIVATE_HEADERS, InvalidGivingRequestError, i
 import { createGivingRockClient } from '@/lib/giving/rock-client'
 import { createGivingIdentityRepository, resolveGivingIdentity } from '@/lib/giving/rock-identity'
 import { createPostgresGivingCheckoutRepository, GivingCheckoutError, prepareGivingBankTransfer, validateGivingCheckoutSubmission, type GivingCheckoutSubmission } from '@/lib/giving/service'
+import { GivingSubmissionAdmissionError, requireCurrentGivingSubmission } from '@/lib/giving/submission-version'
 import { getPayloadClient } from '@/lib/payload'
 import { verifyTurnstileToken } from '@/lib/turnstile'
 import { SEND_GIVING_EMAIL_TASK } from '@/jobs/giving-emails'
@@ -79,6 +80,7 @@ export async function handleGivingBankTransferPost(request: NextRequest, depende
   try {
     if (!trustedGivingMutation(request, GIVING_REQUEST_MARKERS.bankTransfer)) return response({ error: 'Giving unavailable' }, 403)
     if (!isGivingJson(request)) return response({ error: 'Giving unavailable' }, 415)
+    requireCurrentGivingSubmission(request.headers)
     const submission = validateGivingCheckoutSubmission(await boundedGivingJson(request))
     if (submission.transactionFeeMinor !== 0) throw new GivingCheckoutError('invalid')
     const address = trustedGivingClientAddress(request.headers)
@@ -94,6 +96,9 @@ export async function handleGivingBankTransferPost(request: NextRequest, depende
     const { checkoutId: _checkoutId, emailDeliveryId: _emailDeliveryId, ...details } = prepared
     return response(details, 200)
   } catch (error) {
+    if (error instanceof GivingSubmissionAdmissionError) return response(error.reason === 'restart'
+      ? { error: 'Giving form expired', restartRequired: true }
+      : { error: 'Giving temporarily unavailable' }, error.reason === 'restart' ? 409 : 503)
     if (error instanceof GivingRateLimitError) return response({ error: 'Giving unavailable' }, 429, error.retryAfterSeconds)
     if (error instanceof InvalidGivingRequestError || error instanceof GivingCheckoutError && error.code === 'invalid') return response({ error: 'Giving unavailable' }, 400)
     return response({ error: 'Giving unavailable' }, 503)
