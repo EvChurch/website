@@ -23,7 +23,7 @@ export interface VerifyBlinkPayWebhookInput {
 
 function fail(message: string): never { throw new Error(message) }
 
-export function verifyBlinkPayWebhook(input: VerifyBlinkPayWebhookInput): { timestamp: number } {
+export function verifyBlinkPayWebhook(input: VerifyBlinkPayWebhookInput): { timestamp: number; signingKeyIndex: number } {
   if (!input.contractVersion) fail('Webhook contract is not configured')
   if (input.signatureFormat !== 'timestamp-sha256-v1') fail('Webhook signature format is not configured')
   if (!input.signature) fail('Webhook signature is missing')
@@ -38,13 +38,14 @@ export function verifyBlinkPayWebhook(input: VerifyBlinkPayWebhookInput): { time
   const nowSeconds = Math.floor(input.now.getTime() / 1000)
   if (timestamp < nowSeconds - (input.maximumAgeSeconds ?? 300) || timestamp > nowSeconds + (input.maximumFutureSkewSeconds ?? 30)) fail('Webhook signature is outside the accepted time window')
   const received = Buffer.from(match[2], 'hex')
-  let valid = false
-  for (const secret of input.secrets) {
+  let signingKeyIndex = -1
+  for (const [index, secret] of input.secrets.entries()) {
     const expected = createHmac('sha256', secret).update(`${timestamp}.`).update(input.rawBody).digest()
-    valid = (expected.length === received.length && timingSafeEqual(expected, received)) || valid
+    const matches = expected.length === received.length && timingSafeEqual(expected, received)
+    if (matches && signingKeyIndex === -1) signingKeyIndex = index
   }
-  if (!valid) fail('Webhook signature is invalid')
-  return { timestamp }
+  if (signingKeyIndex === -1) fail('Webhook signature is invalid')
+  return { timestamp, signingKeyIndex }
 }
 
 export type WebhookReferenceType = 'payment' | 'schedule' | 'consent'
