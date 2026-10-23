@@ -24,7 +24,7 @@
     "sync:daily-bible-readings": "tsx src/workers/daily-bible-reading-import.ts"
   },
   "engines": {
-    "node": ">=24.0.0"
+    "node": "24.22.1"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.135.0",
