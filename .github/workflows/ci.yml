@@ -45,3 +45,15 @@ jobs:
 
       - name: Run tests
         run: pnpm test
+
+  rock-sync-image:
+    name: Rock Sync production image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Build controlled worker image
+        run: docker build -f Dockerfile.rock-sync -t ev-rock-sync-security-ci .
+      - name: Verify runtime trust and isolated actual worker handlers
+        run: docker run --rm --entrypoint sh ev-rock-sync-security-ci scripts/verify-rock-sync-image.sh
