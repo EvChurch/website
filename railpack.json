@@ -1,0 +1,47 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "buildAptPackages": ["...", "ca-certificates"],
+  "steps": {
+    "build": {
+      "variables": {
+        "SSL_CERT_DIR": "/usr/local/share/security-ca/certs"
+      }
+    },
+    "install": {
+      "commands": [
+        {
+          "src": "scripts/update-security-ca.sh",
+          "dest": "/app/scripts/update-security-ca.sh"
+        },
+        "sh scripts/update-security-ca.sh",
+        "..."
+      ],
+      "variables": {
+        "SSL_CERT_DIR": "/usr/local/share/security-ca/certs"
+      }
+    },
+    "security-runtime-ca": {
+      "inputs": [
+        {
+          "image": "ghcr.io/railwayapp/railpack-runtime:mise-2026.10.14"
+        }
+      ],
+      "commands": [
+        {
+          "src": "scripts/update-security-ca.sh",
+          "dest": "/app/scripts/update-security-ca.sh"
+        },
+        "sh scripts/update-security-ca.sh"
+      ]
+    }
+  },
+  "deploy": {
+    "base": {
+      "step": "security-runtime-ca"
+    },
+    "aptPackages": ["...", "ca-certificates"],
+    "variables": {
+      "SSL_CERT_DIR": "/usr/local/share/security-ca/certs"
+    }
+  }
+}
