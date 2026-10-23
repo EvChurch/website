@@ -18,10 +18,11 @@ for(const options of [['-CAfile','/etc/ssl/certs/ca-certificates.crt','-no-CApat
 }
 const scratch=mkdtempSync('/tmp/rock-sync-registry-');
 try{
- writeFileSync(scratch+'/npmrc','');
+ writeFileSync(scratch+'/user.npmrc','');writeFileSync(scratch+'/global.npmrc','');
  for(const tool of ['npm','pnpm'])for(const host of [...hosts,'registry.npmjs.org']){
-  const r=spawnSync(tool,['view','is-number@7.0.0','version','--registry=https://'+host+'/'],{env:{PATH:process.env.PATH,HOME:scratch,SSL_CERT_DIR:process.env.SSL_CERT_DIR,NPM_CONFIG_USERCONFIG:scratch+'/npmrc',NPM_CONFIG_GLOBALCONFIG:scratch+'/npmrc',NPM_CONFIG_CACHE:scratch+'/cache',NPM_CONFIG_FETCH_RETRIES:'0',NPM_CONFIG_FETCH_TIMEOUT:'10000'},encoding:'utf8',timeout:20000});
+  const r=spawnSync(tool,['view','is-number@7.0.0','version','--registry=https://'+host+'/'],{env:{PATH:process.env.PATH,HOME:scratch,SSL_CERT_DIR:process.env.SSL_CERT_DIR,NPM_CONFIG_USERCONFIG:scratch+'/user.npmrc',NPM_CONFIG_GLOBALCONFIG:scratch+'/global.npmrc',NPM_CONFIG_CACHE:scratch+'/cache',NPM_CONFIG_FETCH_RETRIES:'0',NPM_CONFIG_FETCH_TIMEOUT:'10000'},encoding:'utf8',timeout:20000});
   const cert=/CERT_REVOKED|certificate revoked|UnknownIssuer|unable to get local issuer certificate|certificate verify failed/i.test(r.stdout+r.stderr);
+  console.log(JSON.stringify({client:tool,host,exit:r.status,certificateRejection:cert,validRegistryVersion:host==='registry.npmjs.org'&&/7\.0\.0/.test(r.stdout),spawnError:r.error?.code}));
   assert(!r.error&&(host==='registry.npmjs.org'?r.status===0&&/7\.0\.0/.test(r.stdout):r.status!==0&&cert));
  }
 }finally{rmSync(scratch,{recursive:true,force:true})}
