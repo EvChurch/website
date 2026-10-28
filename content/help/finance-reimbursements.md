@@ -48,7 +48,7 @@ Paid reports are read-only and appear under **Show older**. Activity records who
 
 ## Manage reimbursement settings
 
-Finance and website administrators manage reimbursement settings in the **Payload admin panel**. They can add, rename, or archive expense categories and configure the senior pastor, alternate approver, and finance notification email.
+Finance and website administrators manage reimbursement settings in the **Payload admin panel**. They can add, rename, or archive expense categories and configure the senior pastor, alternate approver, and finance notification email. **Minimum report amount (NZD)** sets the total including GST required to submit any report. It defaults to **$25**. Claimants can save drafts below the minimum, but cannot submit them. Changes apply to new submissions and resubmissions.
 
 Ordinary purposes and finance membership come from Rock. The shared Pastor Expense Account is managed by the website and remains available independently of Rock purpose assignments. Pending purpose approvals follow the current assignment in Rock; approvals already completed remain valid.
 

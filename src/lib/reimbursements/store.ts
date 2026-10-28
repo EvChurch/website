@@ -4,7 +4,7 @@ import { z } from 'zod-v3'
 import { buildReportPdf, loadReportReceipts } from './pdf'
 import { ReceiptValidationError, validateReceipt } from './receipts'
 
-import { approvalPerson, canArchiveReport, isArchivedReport, hasPaymentSettings, paymentProfileSchema, draftSchema, lineSchema, money, reportNumber, validateSubmission, type Actor, type Category, type Centre, type Report, type Settings } from './model'
+import { defaultMinimumReportAmountMinor, approvalPerson, canArchiveReport, isArchivedReport, hasPaymentSettings, paymentProfileSchema, draftSchema, lineSchema, money, reportNumber, validateSubmission, type Actor, type Category, type Centre, type Report, type Settings } from './model'
 
 type Database = Pick<Pool, 'query'>
 export class ReimbursementError extends Error {
@@ -36,7 +36,7 @@ export async function directory(db: Database) {
     db.query<{ data: Settings }>('SELECT data FROM reimbursement_settings WHERE id=1'),
   ])
   if (!settings.rows[0]) throw new ReimbursementError('Reimbursement settings are unavailable.', 503)
-  return { centres: centres.rows.map(row => ({ ...row, approverRockPersonId: row.approverRockPersonId ? Number(row.approverRockPersonId) : null })) satisfies Centre[], categories: categories.rows, settings: settings.rows[0].data }
+  return { centres: centres.rows.map(row => ({ ...row, approverRockPersonId: row.approverRockPersonId ? Number(row.approverRockPersonId) : null })) satisfies Centre[], categories: categories.rows, settings: { ...settings.rows[0].data, minimumReportAmountMinor: settings.rows[0].data.minimumReportAmountMinor ?? defaultMinimumReportAmountMinor } }
 }
 export async function isFinance(db: Database, personId: number) {
   return (await db.query(`SELECT 1 FROM reimbursement_finance_members WHERE rock_person_id=$1 AND last_synced_at>now()-interval '45 minutes' LIMIT 1`, [personId])).rowCount !== 0
@@ -72,6 +72,7 @@ export async function memberOverview(db: Database, actor: Actor): Promise<Awaite
   const defaults = await paymentProfile(db, actor.personId)
   if (hasPaymentSettings(defaults)) return overview(db, actor)
   return { reports: [], notificationFailures: [], centres: [], categories: [], settings: undefined,
+    minimumReportAmountMinor: defaultMinimumReportAmountMinor,
     approvalFallbacks: { seniorPersonId: null, seniorName: '', alternatePersonId: null, alternateName: '' },
     defaults, manage: actor.finance || actor.admin, finance: actor.finance, personId: actor.personId }
 }
@@ -93,6 +94,7 @@ export async function overview(db: Database, actor: Actor) {
   const defaults = await db.query<{ accountName: string; accountNumber: string }>('SELECT account_name AS "accountName",account_number AS "accountNumber" FROM reimbursement_profiles WHERE person_id=$1', [actor.personId])
   return { reports, notificationFailures: notifications.rows, centres: context.centres.map(({ approverEmail: _email, ...centre }) => centre), categories: context.categories,
     settings: actor.finance || actor.admin ? context.settings : undefined,
+    minimumReportAmountMinor: context.settings.minimumReportAmountMinor,
     approvalFallbacks: { seniorPersonId: context.settings.seniorPersonId, seniorName: context.settings.seniorName, alternatePersonId: context.settings.alternatePersonId, alternateName: context.settings.alternateName },
     defaults: defaults.rows[0] ?? { accountName: '', accountNumber: '' }, manage: actor.finance || actor.admin, finance: actor.finance, personId: actor.personId }
 }
@@ -212,7 +214,7 @@ export async function actOnReport(pool: Pool, actor: Actor, id: string, input: u
       const profile = (await db.query<{ account_name: string; account_number: string }>('SELECT account_name,account_number FROM reimbursement_profiles WHERE person_id=$1', [actor.personId])).rows[0]
       report.accountName = (report.payoutOverride?.accountName ?? profile?.account_name ?? '').trim()
       report.accountNumber = (report.payoutOverride?.accountNumber ?? profile?.account_number ?? '').trim()
-      const errors = validateSubmission(report, context.categories, report)
+      const errors = validateSubmission(report, context.categories, report, context.settings.minimumReportAmountMinor)
       const centre = context.centres.find(centre => centre.id === report.centreId)
       const approver = approvalPerson(centre, report.claimantId, context.settings)
       if (!centre) errors.push('Choose an active purpose before submission.')
@@ -293,6 +295,7 @@ export const settingsSchema = z.object({
   seniorPersonId: z.number().int().positive().nullable(), seniorName: z.string().max(200), seniorEmail: z.union([z.literal(''), z.string().email()]),
   alternatePersonId: z.number().int().positive().nullable(), alternateName: z.string().max(200), alternateEmail: z.union([z.literal(''), z.string().email()]),
   financeEmail: z.string().email(),
+  minimumReportAmountMinor: z.number().int().min(0).max(100_000_000).default(defaultMinimumReportAmountMinor),
 })
 export async function configure(pool: Pool, actor: Actor, input: unknown) {
   if (!actor.finance && !actor.admin) throw new ReimbursementError('Finance or administrator access required.', 403)

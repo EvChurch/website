@@ -12,7 +12,7 @@ vi.mock('next/link', () => ({ default: ({ onNavigate, ...props }: AnchorHTMLAttr
 const id = '00000000-0000-4000-8000-000000000001'
 const lineId = '00000000-0000-4000-8000-000000000002'
 function fixture(): ComponentProps<typeof Reimbursements>['initialOverview'] { return {
-  notificationFailures: [], personId: 1, finance: false, manage: false, defaults: { accountName: 'Aroha', accountNumber: '12-1234-1234567-000' }, settings: undefined,
+  minimumReportAmountMinor: 2500, notificationFailures: [], personId: 1, finance: false, manage: false, defaults: { accountName: 'Aroha', accountNumber: '12-1234-1234567-000' }, settings: undefined,
   approvalFallbacks: { seniorPersonId: null, seniorName: '', alternatePersonId: null, alternateName: '' },
   categories: [{ id: 1, name: 'Food & hospitality', archived: false }],
   centres: [{ id: 1, name: 'Hospitality', financeOnly: false, approverRockPersonId: 2, approverName: 'RC Approver' }],
@@ -171,6 +171,8 @@ it('blocks receipt retries during submission and restores editing after a reject
   const retry = button('Retry receipt upload')
   expect(retry.disabled).toBe(false)
   const upload = FailedUpload.current
+  await type('Amount', '25.00')
+  await act(async () => vi.advanceTimersByTimeAsync(650))
   let finishSubmit!: (value: { ok: boolean; json: () => Promise<{ error: string }> }) => void
   fetchMock.mockImplementationOnce(() => new Promise(resolve => { finishSubmit = resolve }))
   await act(async () => button('Submit').click())
@@ -876,4 +878,22 @@ it('does not save incomplete payment settings', async () => {
   expect(input('Bank account number').value).toBe('12-1234-1234567-0')
   await act(async () => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
   expect(fetchMock).not.toHaveBeenCalled()
+})
+
+it('allows saving below the configured minimum but only enables submission at the threshold', async () => {
+  const data = fixture()
+  data.minimumReportAmountMinor = 3000
+  await act(async () => root.render(<Reimbursements key="minimum" initialOverview={data} initialReportId={id} />))
+  await type('Amount', '29.99')
+  expect(button('Save').disabled).toBe(false)
+  expect(button('Submit').disabled).toBe(true)
+  expect(container.textContent).toContain('at least $30.00 including GST')
+  await act(async () => button('Save').click())
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body).draft.lines[0].amountMinor).toBe(2999)
+  await type('Amount', '30.00')
+  expect(button('Submit').disabled).toBe(false)
+  expect(container.querySelector('#report-minimum')).toBeNull()
+  expect(button('Submit').hasAttribute('aria-describedby')).toBe(false)
+  await type('Amount', '30.01')
+  expect(container.querySelector('#report-minimum')).toBeNull()
 })
