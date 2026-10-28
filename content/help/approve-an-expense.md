@@ -7,11 +7,15 @@ Open [**Approvals**](/members/reimbursements/approvals). **Awaiting your approva
 ## Review a report
 
 1. On mobile, open the report using its number or choose **View report** from its three-dot menu. On a computer, use its number or the eye icon.
-2. Check the purpose, expense dates, categories, descriptions, GST treatment, and amounts.
-3. Open each receipt using its eye icon and check it supports the amount claimed. Someone may claim part of a receipt or split it across categories.
+2. Check the purpose, expense dates, categories, descriptions, and amounts. Turn on the **Advanced** slider above the expenses to view Net, Gross, and each line's GST treatment.
+3. Open each receipt using **Show receipt** on mobile or its eye icon on a computer and check it supports the amount claimed. Someone may claim part of a receipt or split it across categories.
 4. Check **Activity** for the submission and any previous decisions.
 
+Turn **Advanced** off to return to the single **Amount** column. This changes only your view; it does not edit the claim. On mobile, the slider is below **Expenses** on the left; on a computer, it is on the right beside the heading. **Activity** is hidden when there is no history.
+
 Claimants see their own reports. Purpose approvers can see submitted reports for their assigned purposes. Bank details are available to finance, not purpose approvers.
+
+**Pastor Expense Account** is a shared purpose available to anyone submitting reimbursements. It goes directly to finance and does not require purpose approval.
 
 ![A sample report showing read-only expenses, receipt viewing icons, a rejection reason field, and Reject and Approve buttons.](/images/help/approve-expense.png)
 
