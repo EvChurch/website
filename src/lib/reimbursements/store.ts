@@ -15,22 +15,23 @@ interface ReportRow {
   status: Report['status']; version: number; revision: number; centre_id: number | null;
   centre_name: string; account_name: string; account_number: string; lines: Report['lines']; history: Report['history'];
   rc_approver_id: number | null;
+  payout_override: Report['payoutOverride'];
   created_at: Date; updated_at: Date;
 }
 function reportFromRow(row: ReportRow): Report {
   return {
     id: row.id, number: row.number, claimantId: row.claimant_id, claimantName: row.claimant_name,
     claimantEmail: row.claimant_email, centreId: row.centre_id, centreName: row.centre_name,
-    accountName: row.account_name, accountNumber: row.account_number, lines: row.lines.map(line => lineSchema.parse(line)), history: row.history,
+    accountName: row.account_name, accountNumber: row.account_number, payoutOverride: row.payout_override ?? null, lines: row.lines.map(line => lineSchema.parse(line)), history: row.history,
     status: row.status, version: row.version, revision: row.revision, rcApproverId: row.rc_approver_id,
     createdAt: row.created_at.toISOString(), updatedAt: row.updated_at.toISOString(),
   }
 }
 export async function directory(db: Database) {
   const [centres, categories, settings] = await Promise.all([
-    db.query<{ id: number; name: string; approverRockPersonId: string | null; approverName: string | null; approverEmail: string | null }>(
-      `SELECT id,name,approver_rock_person_id AS "approverRockPersonId",approver_name AS "approverName",approver_email AS "approverEmail"
-       FROM responsibility_centres WHERE is_active=true AND last_synced_at>now()-interval '45 minutes' ORDER BY sort_order,name`),
+    db.query<{ id: number; name: string; approverRockPersonId: string | null; approverName: string | null; approverEmail: string | null; financeOnly: boolean }>(
+      `SELECT id,name,approver_rock_person_id AS "approverRockPersonId",approver_name AS "approverName",approver_email AS "approverEmail",finance_only AS "financeOnly"
+       FROM responsibility_centres WHERE is_active=true AND (is_local=true OR last_synced_at>now()-interval '45 minutes') ORDER BY sort_order,name`),
     db.query<Category>('SELECT id,name,archived FROM reimbursement_categories ORDER BY id'),
     db.query<{ data: Settings }>('SELECT data FROM reimbursement_settings WHERE id=1'),
   ])
@@ -51,7 +52,7 @@ export function reportPermissions(actor: Actor, report: Report, centres: Centre[
   const owner = actor.personId === report.claimantId
   const approver = approvalPerson(centres.find(centre => centre.id === report.centreId), report.claimantId, settings)
   const centre = centres.find(centre => centre.id === report.centreId)
-  const visible = owner || (report.status !== 'draft' && (actor.finance || actor.admin || centre?.approverRockPersonId === actor.personId || approver?.id === actor.personId))
+  const visible = owner || (report.status !== 'draft' && (actor.finance || actor.admin || (!centre?.financeOnly && centre?.approverRockPersonId === actor.personId) || approver?.id === actor.personId))
   const active = !isArchivedReport(report)
   return {
     visible,
@@ -78,7 +79,7 @@ export async function memberOverview(db: Database, actor: Actor): Promise<Awaite
 export async function overview(db: Database, actor: Actor) {
   const context = await directory(db)
   // Filter in SQL before loading report bodies containing receipts and private banking data.
-  const ids = context.centres.filter(centre => centre.approverRockPersonId === actor.personId).map(centre => centre.id)
+  const ids = context.centres.filter(centre => !centre.financeOnly && centre.approverRockPersonId === actor.personId).map(centre => centre.id)
   const fallbackIds = context.centres.filter(centre => approvalPerson(centre, centre.approverRockPersonId ?? 0, context.settings)?.id === actor.personId).map(centre => centre.id)
   const rows = await db.query<ReportRow>(`SELECT * FROM reimbursement_reports WHERE claimant_id=$1 OR
     (status<>'draft' AND ($2::boolean OR centre_id=ANY($3::int[]) OR centre_id=ANY($4::int[]))) ORDER BY updated_at DESC`,
@@ -86,7 +87,7 @@ export async function overview(db: Database, actor: Actor) {
   const reports = rows.rows.map(reportFromRow).filter(report => reportPermissions(actor, report, context.centres, context.settings).visible)
     .map(report => {
       const permissions = reportPermissions(actor, report, context.centres, context.settings)
-      return { ...report, accountName: permissions.bank ? report.accountName : '', accountNumber: permissions.bank ? report.accountNumber : '', permissions }
+      return { ...report, accountName: permissions.bank ? report.accountName : '', accountNumber: permissions.bank ? report.accountNumber : '', payoutOverride: permissions.bank ? report.payoutOverride : null, permissions }
     })
   const notifications = actor.finance || actor.admin ? await db.query<{ number: number; subject: string }>(`SELECT r.number,d.subject FROM reimbursement_email_deliveries d JOIN reimbursement_reports r ON r.id=d.report_id WHERE d.state='failed' ORDER BY d.created_at DESC LIMIT 20`) : { rows: [] }
   const defaults = await db.query<{ accountName: string; accountNumber: string }>('SELECT account_name AS "accountName",account_number AS "accountNumber" FROM reimbursement_profiles WHERE person_id=$1', [actor.personId])
@@ -172,11 +173,11 @@ export async function saveDraft(pool: Pool, actor: Actor, id: string, version: n
       if (!(await db.query('SELECT 1 FROM reimbursement_receipt_owners WHERE hash=$1 AND person_id=$2', [hash, actor.personId])).rowCount) throw new ReimbursementError('Upload the receipt before attaching it.', 403)
     }
     const context = await directory(db)
-    const centre = context.centres.find(centre => centre.id === draft.centreId && centre.approverRockPersonId)
-    if (draft.centreId !== null && !centre) throw new ReimbursementError('Choose an active centre with an assigned approver.')
+    const centre = context.centres.find(centre => centre.id === draft.centreId && (centre.financeOnly || centre.approverRockPersonId))
+    if (draft.centreId !== null && !centre) throw new ReimbursementError('Choose an active purpose with an assigned approver or finance-only approval.')
     const lines = draft.lines.map(line => ({ ...line, categoryName: context.categories.find(category => category.id === line.categoryId)?.name ?? '' }))
-    await db.query(`UPDATE reimbursement_reports SET centre_id=$2,centre_name=$3,lines=$4::jsonb,version=version+1,updated_at=now() WHERE id=$1`,
-      [id, draft.centreId, centre?.name ?? '', JSON.stringify(lines)])
+    await db.query(`UPDATE reimbursement_reports SET centre_id=$2,centre_name=$3,lines=$4::jsonb,payout_override=$5::jsonb,version=version+1,updated_at=now() WHERE id=$1`,
+      [id, draft.centreId, centre?.name ?? '', JSON.stringify(lines), draft.payoutOverride ? JSON.stringify(draft.payoutOverride) : null])
     return version + 1
   })
 }
@@ -209,11 +210,13 @@ export async function actOnReport(pool: Pool, actor: Actor, id: string, input: u
     if (command.action === 'submit') {
       if (!access.edit) throw new ReimbursementError('You cannot submit this report.', 403)
       const profile = (await db.query<{ account_name: string; account_number: string }>('SELECT account_name,account_number FROM reimbursement_profiles WHERE person_id=$1', [actor.personId])).rows[0]
-      report.accountName = profile?.account_name ?? ''
-      report.accountNumber = profile?.account_number ?? ''
+      report.accountName = (report.payoutOverride?.accountName ?? profile?.account_name ?? '').trim()
+      report.accountNumber = (report.payoutOverride?.accountNumber ?? profile?.account_number ?? '').trim()
       const errors = validateSubmission(report, context.categories, report)
-      const approver = approvalPerson(context.centres.find(centre => centre.id === report.centreId), report.claimantId, context.settings)
-      if (!approver?.email) errors.push('An eligible purpose approver must be configured before submission.')
+      const centre = context.centres.find(centre => centre.id === report.centreId)
+      const approver = approvalPerson(centre, report.claimantId, context.settings)
+      if (!centre) errors.push('Choose an active purpose before submission.')
+      if (!centre?.financeOnly && !approver?.email) errors.push('An eligible purpose approver must be configured before submission.')
       if (!context.settings.financeEmail) errors.push('Finance must configure its notification email before submission.')
       if (errors.length) throw new ReimbursementError(errors.join('\n'))
       try {
@@ -223,7 +226,7 @@ export async function actOnReport(pool: Pool, actor: Actor, id: string, input: u
         if (error instanceof ReceiptValidationError) throw new ReimbursementError(error.message)
         throw new ReimbursementError('A receipt could not be included in the report PDF. Replace unreadable receipts and try submitting again.')
       }
-      status = 'rc-approval'; rcApproverId = null; report.revision++
+      status = centre?.financeOnly ? 'finance-approval' : 'rc-approval'; rcApproverId = null; report.revision++
     } else if (command.action === 'withdraw') {
       if (!access.withdraw) throw new ReimbursementError('You cannot withdraw this report.', 403)
       status = 'draft'; rcApproverId = null

@@ -1,3 +1,4 @@
+import * as migration_20261028_010000_reimbursement_payout_and_pastor_account from './20261028_010000_reimbursement_payout_and_pastor_account';
 import * as migration_20261021_010000_event_scheduled_occurrences from './20261021_010000_event_scheduled_occurrences';
 import * as migration_20261017_030000_simplify_reimbursements from './20261017_030000_simplify_reimbursements';
 import * as migration_20261017_010000_reimbursement_directory from './20261017_010000_reimbursement_directory';
@@ -379,4 +380,5 @@ export const migrations = [
   { up: migration_20261017_030000_simplify_reimbursements.up, down: migration_20261017_030000_simplify_reimbursements.down, name: '20261017_030000_simplify_reimbursements' },
   { up: migration_20261018_010000_card_image_border.up, down: migration_20261018_010000_card_image_border.down, name: '20261018_010000_card_image_border' },
   { up: migration_20261021_010000_event_scheduled_occurrences.up, down: migration_20261021_010000_event_scheduled_occurrences.down, name: '20261021_010000_event_scheduled_occurrences' },
+  { up: migration_20261028_010000_reimbursement_payout_and_pastor_account.up, down: migration_20261028_010000_reimbursement_payout_and_pastor_account.down, name: '20261028_010000_reimbursement_payout_and_pastor_account' },
 ];

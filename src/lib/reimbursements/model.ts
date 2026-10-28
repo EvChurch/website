@@ -23,6 +23,9 @@ export function hasPaymentSettings(profile: { accountName: string; accountNumber
 export const draftSchema = z.object({
   centreId: z.number().int().positive().nullable(),
   lines: z.array(lineSchema).max(100),
+  payoutOverride: z.object({
+    accountName: z.string().max(200), accountNumber: z.string().max(30),
+  }).nullable().optional(),
 }).superRefine((draft, ctx) => {
   if (new Set(draft.lines.map(line => line.id)).size !== draft.lines.length) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Line identifiers must be unique' })
@@ -32,7 +35,7 @@ export type ExpenseLine = z.infer<typeof lineSchema>
 export type Draft = z.infer<typeof draftSchema>
 export interface Actor { personId: number; name: string; email: string; admin: boolean; finance: boolean }
 export interface Category { id: number; name: string; archived: boolean }
-export interface Centre { id: number; name: string; approverRockPersonId: number | null; approverName: string | null; approverEmail: string | null }
+export interface Centre { id: number; name: string; approverRockPersonId: number | null; approverName: string | null; approverEmail: string | null; financeOnly?: boolean }
 export interface Settings { seniorPersonId: number | null; seniorName: string; seniorEmail: string; alternatePersonId: number | null; alternateName: string; alternateEmail: string; financeEmail: string }
 export interface Activity { at: string; personId: number; name: string; action: string; reason: string; revision: number; snapshot?: { centreName: string; lines: ExpenseLine[] } }
 export interface Report extends Draft {
@@ -62,6 +65,7 @@ export function parseMoney(value: string): number | null {
 }
 export function reportNumber(number: number) { return `EXP-${String(number).padStart(6, '0')}` }
 export function approvalPerson(centre: Centre | undefined, claimantId: number, settings: Settings) {
+  if (centre?.financeOnly) return null
   if (!centre?.approverRockPersonId) return null
   if (centre.approverRockPersonId !== claimantId) return { id: centre.approverRockPersonId, name: centre.approverName || '', email: centre.approverEmail || '' }
   const fallback = settings.seniorPersonId === claimantId
@@ -72,8 +76,8 @@ export function approvalPerson(centre: Centre | undefined, claimantId: number, s
 export function validateSubmission(draft: Draft, categories: Category[], profile: { accountName: string; accountNumber: string }): string[] {
   const errors: string[] = []
   if (!draft.centreId) errors.push('Choose a purpose.')
-  if (!profile.accountName.trim()) errors.push('Enter the bank account holder name in your payment settings.')
-  if (!/^\d{2}-?\d{4}-?\d{7}-?\d{2,3}$/.test(profile.accountNumber.trim())) errors.push('Enter a New Zealand bank account number in your payment settings.')
+  if (!profile.accountName.trim()) errors.push('Enter the payout bank account holder name.')
+  if (!/^\d{2}-?\d{4}-?\d{7}-?\d{2,3}$/.test(profile.accountNumber.trim())) errors.push('Enter a New Zealand payout bank account number.')
   if (!draft.lines.length) errors.push('Add at least one expense.')
   draft.lines.forEach((line, index) => {
     const prefix = `Line ${index + 1}: `

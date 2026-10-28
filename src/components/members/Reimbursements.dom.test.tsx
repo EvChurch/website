@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
-import type { AnchorHTMLAttributes } from 'react'
+import type { AnchorHTMLAttributes, ComponentProps } from 'react'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import type { overview } from '@/lib/reimbursements/store'
 import { Reimbursements } from './Reimbursements'
 
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -12,12 +11,12 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
 vi.mock('next/link', () => ({ default: ({ onNavigate, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { onNavigate?: () => void }) => <a {...props} onClick={event => { event.preventDefault(); onNavigate?.() }} /> }))
 const id = '00000000-0000-4000-8000-000000000001'
 const lineId = '00000000-0000-4000-8000-000000000002'
-function fixture(): Awaited<ReturnType<typeof overview>> { return {
+function fixture(): ComponentProps<typeof Reimbursements>['initialOverview'] { return {
   notificationFailures: [], personId: 1, finance: false, manage: false, defaults: { accountName: 'Aroha', accountNumber: '12-1234-1234567-000' }, settings: undefined,
   approvalFallbacks: { seniorPersonId: null, seniorName: '', alternatePersonId: null, alternateName: '' },
   categories: [{ id: 1, name: 'Food & hospitality', archived: false }],
-  centres: [{ id: 1, name: 'Hospitality', approverRockPersonId: 2, approverName: 'RC Approver' }],
-  reports: [{ id, number: 1, version: 1, revision: 0, claimantId: 1, claimantName: 'Aroha', claimantEmail: 'aroha@example.com', centreId: null, centreName: '', accountName: '', accountNumber: '', status: 'draft', history: [], rcApproverId: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  centres: [{ id: 1, name: 'Hospitality', financeOnly: false, approverRockPersonId: 2, approverName: 'RC Approver' }],
+  reports: [{ id, number: 1, version: 1, revision: 0, claimantId: 1, claimantName: 'Aroha', claimantEmail: 'aroha@example.com', centreId: null, centreName: '', accountName: '', accountNumber: '', payoutOverride: null, status: 'draft', history: [], rcApproverId: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     lines: [{ id: lineId, date: '', categoryId: null, description: '', amountMinor: null, hasGst: true, receiptHash: null }],
     permissions: { visible: true, bank: true, edit: true, withdraw: false, approveRC: false, approveFinance: false, payment: false },
   }],
@@ -48,7 +47,7 @@ it('autosaves incomplete lines and serializes newer keystrokes behind an in-flig
   await act(async () => { finish(response(2)); await Promise.resolve() })
   expect(fetchMock).toHaveBeenCalledTimes(2)
   const bodies = fetchMock.mock.calls.map(call => JSON.parse(call[1].body))
-  expect(Object.keys(bodies[0].draft).sort()).toEqual(['centreId', 'lines'])
+  expect(Object.keys(bodies[0].draft).sort()).toEqual(['centreId', 'lines', 'payoutOverride'])
   expect(bodies[0].draft.lines[0].description).toBe('First')
   expect(bodies[1].version).toBe(2)
   expect(bodies[1].draft.lines[0].description).toBe('Typed while saving')
@@ -69,6 +68,7 @@ it('calculates both GST fields and preserves line edits completed during an uplo
   await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Upload receipt for expense 1"]')!.click())
   expect(openPicker).toHaveBeenCalledOnce()
   expect(picker.className).toBe('hidden')
+  await act(async () => button('Advanced').click())
   await type('Net', '100.00')
   expect(input('Gross').value).toBe('115.00')
   await act(async () => {
@@ -102,6 +102,7 @@ it('retains edits after a failed autosave and retries the same version', async (
 
 it('locks expense editing through the final save, submission and refresh', async () => {
   const data = fixture()
+  data.reports[0].payoutOverride = { accountName: 'Custom holder', accountNumber: '12-1234-1234567-001' }
   data.reports[0].lines[0].receiptHash = 'a'.repeat(64)
   data.reports[0].lines.push({ ...data.reports[0].lines[0], id: crypto.randomUUID(), receiptHash: null })
   await act(async () => root.render(<Reimbursements key="submit-lock" initialOverview={data} initialReportId={id} />))
@@ -112,13 +113,14 @@ it('locks expense editing through the final save, submission and refresh', async
     .mockImplementationOnce(() => new Promise(resolve => { finishSave = resolve }))
     .mockImplementationOnce(() => new Promise(resolve => { finishSubmit = resolve }))
     .mockImplementationOnce(() => new Promise(resolve => { finishRefresh = resolve }))
+  await act(async () => button('Advanced').click())
   await type('Description', 'Final description')
   await type('Gross', '115.00')
   await act(async () => button('Submit').click())
 
   function expectLocked() {
     for (const field of container.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input,select,textarea')) expect(field.disabled).toBe(true)
-    expect(container.querySelector<HTMLButtonElement>('[role="switch"]')!.disabled).toBe(true)
+    expect(container.querySelector<HTMLButtonElement>('[role="switch"][aria-label^="Includes GST"]')!.disabled).toBe(true)
     expect(button('Add expense')).toBeUndefined()
     expect(container.querySelector('button[aria-label^="Remove receipt"]')).toBeNull()
     expect(container.querySelector('button[aria-label^="Remove expense"]')).toBeNull()
@@ -126,6 +128,9 @@ it('locks expense editing through the final save, submission and refresh', async
     expect(container.querySelector('button[aria-label^="Upload receipt"]')).toBeNull()
     expect(container.querySelector('input[type="file"]')).toBeNull()
     expect(button('Reimbursements').disabled).toBe(true)
+    expect(input('Use a different account for this report').disabled).toBe(true)
+    expect(input('Account holder').disabled).toBe(true)
+    expect(input('Bank account number').disabled).toBe(true)
     expect(input('Description').value).toBe('Final description')
     expect(input('Gross').value).toBe('115.00')
   }
@@ -144,7 +149,7 @@ it('locks expense editing through the final save, submission and refresh', async
   submitted.reports[0].lines = JSON.parse(fetchMock.mock.calls[0][1].body).draft.lines
   await act(async () => { finishRefresh({ ok: true, json: async () => submitted }) })
   expect(input('Description').disabled).toBe(true)
-  expect(input('Gross').value).toBe('115.00')
+  expect(input('Amount').value).toBe('115.00')
   expect(container.textContent).toContain('Awaiting purpose approval')
 })
 
@@ -196,12 +201,13 @@ it('keeps the editor open when a final save before member navigation fails', asy
 
 it('omits report titles and member settings, and labels the purpose', async () => {
   expect(container.textContent).not.toContain('Report title')
-  expect(container.textContent).not.toContain('Account holder')
+  expect(container.querySelector('input[autocomplete="off"]')).toBeNull()
   expect(container.textContent).not.toContain('Reason or note')
   expect(container.textContent).not.toContain('Download summary PDF')
   expect(container.textContent).not.toContain('Cancel report')
   expect(container.textContent).not.toContain('Delete draft')
-  expect(container.textContent).toContain('No activity yet.')
+  expect(container.textContent).not.toContain('Activity')
+  expect(container.textContent).not.toContain('No activity yet.')
   expect(container.querySelectorAll('[data-form-select]').length).toBe(2)
   expect(container.querySelector('[aria-label="Expense totals"]')).not.toBeNull()
   expect(container.textContent).toContain('Next approver')
@@ -240,8 +246,9 @@ it('grows and shrinks descriptions to fit wrapped content', async () => {
 })
 
 it('toggles GST using a switch while keeping the inclusive amount', async () => {
+  await act(async () => button('Advanced').click())
   await type('Gross', '115.00')
-  const toggle = container.querySelector<HTMLButtonElement>('[role="switch"]')!
+  const toggle = container.querySelector<HTMLButtonElement>('[role="switch"][aria-label^="Includes GST"]')!
   expect(toggle.getAttribute('aria-checked')).toBe('true')
   await act(async () => toggle.click())
   expect(toggle.getAttribute('aria-checked')).toBe('false')
@@ -249,6 +256,7 @@ it('toggles GST using a switch while keeping the inclusive amount', async () => 
   expect(input('Net').value).toBe('115.00')
   await act(async () => toggle.click())
   expect(input('Net').value).toBe('100.00')
+  expect(button('Advanced').getAttribute('aria-checked')).toBe('true')
 })
 
 it('saves personal payment settings separately from reports', async () => {
@@ -432,7 +440,7 @@ it('removes only the selected line’s receipt, autosaves the empty attachment a
   await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Remove receipt for expense 1"]')!.click())
   expect(container.querySelectorAll('fieldset')).toHaveLength(2)
   expect(input('Description').value).toBe('Keep this expense')
-  expect(input('Gross').value).toBe('115.00')
+  expect(input('Amount').value).toBe('115.00')
   expect(container.querySelector('a[aria-label="Show receipt for expense 1"]')).toBeNull()
   expect(container.querySelector('button[aria-label="Upload receipt for expense 1"]')).not.toBeNull()
   expect(container.querySelector('a[aria-label="Show receipt for expense 2"]')).not.toBeNull()
@@ -674,4 +682,172 @@ it('follows route changes when returning through browser history', async () => {
   await act(async () => root.render(<Reimbursements key="history-paths" initialOverview={data} initialView="approvals" />))
   expect(button('Approvals').getAttribute('aria-current')).toBe('page')
   expect(container.querySelector('h1')!.textContent).toBe('Reimbursements')
+})
+
+
+it('starts with a single inclusive Amount and retains no-GST amounts when GST controls are hidden', async () => {
+  expect(button('Advanced').getAttribute('aria-expanded')).toBe('false')
+  expect(button('Advanced').getAttribute('role')).toBe('switch')
+  expect(button('Advanced').getAttribute('aria-checked')).toBe('false')
+  expect(container.querySelector('[role="switch"][aria-label^="Includes GST"]')).toBeNull()
+  expect([...container.querySelectorAll('label')].some(label => label.textContent?.startsWith('Net'))).toBe(false)
+  expect(container.querySelector('[aria-label="Expense totals"]')!.textContent).not.toMatch(/Net|Gross/)
+  await type('Amount', '115.00')
+  await act(async () => button('Advanced').click())
+  expect(input('Net').value).toBe('100.00')
+  expect(button('Advanced').getAttribute('aria-checked')).toBe('true')
+  await act(async () => container.querySelector<HTMLButtonElement>('[role="switch"][aria-label^="Includes GST"]')!.click())
+  await act(async () => button('Advanced').click())
+  expect(input('Amount').value).toBe('115.00')
+  await type('Amount', '230.00')
+  await act(async () => button('Advanced').click())
+  expect(input('Net').value).toBe('230.00')
+  expect(input('Gross').value).toBe('230.00')
+  expect(container.querySelector('[role="switch"][aria-label^="Includes GST"]')!.getAttribute('aria-checked')).toBe('false')
+  await act(async () => button('Advanced').click())
+  await act(async () => vi.advanceTimersByTimeAsync(650))
+  expect(JSON.parse(fetchMock.mock.calls.at(-1)![1].body).draft.lines[0]).toMatchObject({ amountMinor: 23000, hasGst: false })
+})
+
+it('allows reviewers to reveal GST without editing or autosaving', async () => {
+  const data = fixture()
+  Object.assign(data.reports[0], { status: 'rc-approval', lines: [{ ...data.reports[0].lines[0], amountMinor: 11500, hasGst: false }] })
+  data.reports[0].permissions.edit = false
+  data.reports[0].permissions.approveRC = true
+  await act(async () => root.render(<Reimbursements key="review-gst" initialOverview={data} initialReportId={id} />))
+  expect(input('Amount').disabled).toBe(true)
+  await act(async () => button('Advanced').click())
+  expect(input('Net').value).toBe('115.00')
+  expect(input('Gross').disabled).toBe(true)
+  const toggle = container.querySelector<HTMLButtonElement>('[role="switch"][aria-label^="Includes GST"]')!
+  expect(toggle.disabled).toBe(true)
+  expect(toggle.getAttribute('aria-checked')).toBe('false')
+  await act(async () => button('Advanced').click())
+  await act(async () => vi.advanceTimersByTimeAsync(650))
+  expect(fetchMock).not.toHaveBeenCalled()
+})
+
+it('autosaves incomplete report account overrides serially and saves null when disabled without changing the profile', async () => {
+  expect(container.querySelector('[aria-label="Report bank account"]')!.hasAttribute('data-giving-private')).toBe(true)
+  expect(container.querySelector('[aria-label="Report bank account"]')!.textContent).toContain('Aroha')
+  expect(container.textContent).toContain('12-****-*****67-000')
+  expect(container.textContent).not.toContain('12-1234-1234567-000')
+  let finish!: (value: ReturnType<typeof response>) => void
+  fetchMock.mockImplementationOnce(() => new Promise(resolve => { finish = resolve })).mockResolvedValue(response(3))
+  await act(async () => input('Use a different account for this report').click())
+  await type('Account holder', 'Other holder')
+  await type('Bank account number', '12-')
+  await act(async () => vi.advanceTimersByTimeAsync(650))
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body).draft.payoutOverride).toEqual({ accountName: 'Other holder', accountNumber: '12-' })
+  await type('Bank account number', '12-1234-1234567-001')
+  expect(fetchMock).toHaveBeenCalledTimes(1)
+  await act(async () => finish(response(2)))
+  expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ version: 2, draft: { payoutOverride: { accountName: 'Other holder', accountNumber: '12-1234-1234567-001' } } })
+  await act(async () => input('Use a different account for this report').click())
+  expect(container.querySelector('input[autocomplete="off"]')).toBeNull()
+  await act(async () => vi.advanceTimersByTimeAsync(650))
+  expect(JSON.parse(fetchMock.mock.calls.at(-1)![1].body)).toMatchObject({ version: 3, draft: { payoutOverride: null } })
+  expect(container.querySelector('[aria-label="Report bank account"]')!.textContent).toContain('12-****-*****67-000')
+  expect(fetchMock.mock.calls.every(call => call[0] === `/api/reimbursements/report/${id}` && call[1].method === 'PATCH')).toBe(true)
+})
+
+it('restores an existing override on opening the report and can autosave an empty override', async () => {
+  const data = fixture()
+  data.reports[0].payoutOverride = { accountName: 'Saved holder', accountNumber: '12-1234-1234567-001' }
+  await act(async () => root.render(<Reimbursements key="existing-override" initialOverview={data} initialReportId={id} />))
+  const checkbox = input('Use a different account for this report')
+  if (!(checkbox instanceof HTMLInputElement)) throw Error('Expected an account override checkbox')
+  expect(checkbox.checked).toBe(true)
+  expect(input('Account holder').value).toBe('Saved holder')
+  expect(input('Bank account number').value).toBe('12-1234-1234567-001')
+  await act(async () => input('Use a different account for this report').click())
+  await act(async () => input('Use a different account for this report').click())
+  await act(async () => vi.advanceTimersByTimeAsync(650))
+  expect(JSON.parse(fetchMock.mock.calls.at(-1)![1].body).draft.payoutOverride).toEqual({ accountName: '', accountNumber: '' })
+})
+
+it.each([true, false])('shows only permitted report bank details for read-only viewers (bank: %s)', async bank => {
+  const data = fixture()
+  Object.assign(data.reports[0], { accountName: 'Report holder', accountNumber: '98-1234-1234567-000', payoutOverride: { accountName: 'Private override', accountNumber: '99-1234-1234567-000' } })
+  data.reports[0].permissions.edit = false
+  data.reports[0].permissions.bank = bank
+  await act(async () => root.render(<Reimbursements key={`bank-${bank}`} initialOverview={data} initialReportId={id} />))
+  expect(container.querySelector('[aria-label="Report bank account"]') !== null).toBe(bank)
+  if (bank) expect(container.querySelector('[aria-label="Report bank account"]')!.hasAttribute('data-giving-private')).toBe(true)
+  expect(container.textContent?.includes('Report holder')).toBe(bank)
+  expect(container.textContent?.includes('98-****-*****67-000')).toBe(bank)
+  expect(container.textContent).not.toContain('98-1234-1234567-000')
+  expect(container.textContent).not.toContain('12-1234-1234567-000')
+  expect(container.textContent).not.toContain('Private override')
+  expect(container.textContent).not.toContain('99-1234-1234567-000')
+  expect(container.textContent).not.toContain('Use a different account for this report')
+})
+
+it('hides saved bank details and override controls without bank permission even on an editable report', async () => {
+  const data = fixture()
+  data.reports[0].permissions.bank = false
+  await act(async () => root.render(<Reimbursements key="no-bank" initialOverview={data} initialReportId={id} />))
+  expect(container.querySelector('[aria-label="Report bank account"]')).toBeNull()
+  expect(container.textContent).not.toContain('12-1234-1234567-000')
+  expect(container.textContent).not.toContain('Use a different account for this report')
+})
+
+it.each(['draft', 'rejected'] as const)('includes the shared Pastor Expense Account and routes %s reports directly to Finance team', async status => {
+  const data = fixture()
+  data.reports[0].status = status
+  data.centres.push({ id: 2, name: 'Pastor Expense Account', financeOnly: true, approverRockPersonId: null, approverName: null })
+  data.centres.push({ id: 3, name: 'Unconfigured purpose', financeOnly: false, approverRockPersonId: null, approverName: null })
+  await act(async () => root.render(<Reimbursements key="finance-purpose" initialOverview={data} initialReportId={id} />))
+  const purpose = container.querySelector<HTMLSelectElement>('select')!
+  expect([...purpose.options].map(option => option.textContent)).toEqual(['Choose a purpose', 'Hospitality', 'Pastor Expense Account'])
+  await act(async () => { purpose.value = '2'; purpose.dispatchEvent(new Event('change', { bubbles: true })) })
+  const label = [...container.querySelectorAll('p')].find(item => item.textContent === 'Next approver')!
+  expect(label.nextElementSibling!.textContent).toBe('Finance team')
+  await act(async () => vi.advanceTimersByTimeAsync(650))
+  expect(JSON.parse(fetchMock.mock.calls.at(-1)![1].body).draft.centreId).toBe(2)
+  await act(async () => { purpose.value = '1'; purpose.dispatchEvent(new Event('change', { bubbles: true })) })
+  expect(label.nextElementSibling!.textContent).toBe('RC Approver')
+})
+
+
+it('reveals and hides the bank account number without autosaving or exposing it to recordings', async () => {
+  const toggle = () => container.querySelector<HTMLButtonElement>('button[aria-label$="bank account number"]')!
+  expect(toggle().getAttribute('aria-label')).toBe('Show bank account number')
+  expect(container.textContent).not.toContain('12-1234-1234567-000')
+  await act(async () => toggle().click())
+  expect(toggle().getAttribute('aria-label')).toBe('Hide bank account number')
+  expect(toggle().getAttribute('aria-pressed')).toBe('true')
+  expect(container.textContent).toContain('12-1234-1234567-000')
+  expect(toggle().closest('[data-giving-private]')).not.toBeNull()
+  await act(async () => toggle().click())
+  expect(toggle().getAttribute('aria-pressed')).toBe('false')
+  expect(container.textContent).not.toContain('12-1234-1234567-000')
+  await act(async () => vi.advanceTimersByTimeAsync(650))
+  expect(fetchMock).not.toHaveBeenCalled()
+})
+
+it('masks unformatted bank numbers as well as formatted bank numbers', async () => {
+  const data = fixture()
+  data.defaults.accountNumber = '1212341234567000'
+  await act(async () => root.render(<Reimbursements key="unformatted-bank" initialOverview={data} initialReportId={id} />))
+  expect(container.querySelector('[aria-label="Bank account number"]')!.textContent).toBe('12*********67000')
+  expect(container.textContent).not.toContain('1212341234567000')
+})
+
+
+it('shows a pencil link to saved bank settings only while the claimant reveals the number', async () => {
+  expect(container.querySelector('a[aria-label="Edit saved bank account"]')).toBeNull()
+  await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Show bank account number"]')!.click())
+  const link = container.querySelector('a[aria-label="Edit saved bank account"]')!
+  expect(link.getAttribute('href')).toBe('/members/reimbursements/payment-settings')
+  expect(link.textContent).toBe('')
+  expect(link.querySelector('svg')).not.toBeNull()
+  expect(link.parentElement?.querySelector('button[aria-label="Hide bank account number"]')).not.toBeNull()
+  await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Hide bank account number"]')!.click())
+  expect(container.querySelector('a[aria-label="Edit saved bank account"]')).toBeNull()
+  const data = fixture()
+  data.reports[0].permissions.edit = false
+  await act(async () => root.render(<Reimbursements key="review-bank-link" initialOverview={data} initialReportId={id} />))
+  await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Show bank account number"]')!.click())
+  expect(container.querySelector('a[aria-label="Edit saved bank account"]')).toBeNull()
 })

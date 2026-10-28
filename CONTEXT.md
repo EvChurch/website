@@ -49,3 +49,30 @@ An email to the apprentice or student minister for a designated fund when a dono
 
 **Support contact email**:
 The email address on a support profile, used for the person's published contact details and support notifications for their designated fund.
+
+# Reimbursements
+
+Language used when claiming expenses and reviewing them for payment.
+
+## Language
+
+**Purpose**:
+The responsibility centre (RC) charged for an expense report. It is distinct from the expense category assigned to each line.
+
+**Pastor Expense Account**:
+A single shared reimbursement purpose available to anyone who can submit a reimbursement. Claims against it require finance approval only.
+
+**Payout account**:
+The bank account holder name and number to which a report is to be reimbursed.
+
+**Payment settings**:
+A claimant's saved default payout account, used unless they specify a different account for an individual report.
+
+**Report payout override**:
+A payout account specified for one report without changing the claimant's payment settings.
+
+**Amount**:
+The total being claimed for an expense line, including GST where applicable; the figure entered from the receipt in the simplified form.
+
+**GST controls**:
+The optional form controls for viewing or entering net amounts and changing whether an expense includes GST.

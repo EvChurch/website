@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { NextRequest } from 'next/server'
 import { SIMPLIFY_REIMBURSEMENTS_UP_SQL } from '@/migrations/20261017_030000_simplify_reimbursements'
 import { REIMBURSEMENTS_UP_SQL } from '@/migrations/20261017_020000_reimbursements'
+import { REIMBURSEMENT_PAYOUT_AND_PASTOR_ACCOUNT_UP_SQL } from '@/migrations/20261028_010000_reimbursement_payout_and_pastor_account'
 import { actOnReport, configure, createReport, hasOpened, isFinance, markBatchPaid, openReimbursements, overview, saveDraft, saveProfile, uploadReceipt } from './store'
 import { approvalPerson, isArchivedReport, isOlderReport, gstMinor, parseMoney, type Actor, type Draft, type Settings } from './model'
 import { reconcileReimbursementEmails, type ReimbursementEmail } from './notifications'
@@ -41,19 +42,22 @@ describe.skipIf(!url)('Reimbursement PostgreSQL workflow and authenticated HTTP 
     await setup.end()
     pool = new Pool({ connectionString: url, options: `-c search_path=${schema}` })
     await pool.query(`CREATE TYPE enum_payload_jobs_task_slug AS ENUM ('inline'); CREATE TYPE enum_payload_jobs_log_task_slug AS ENUM ('inline');
-      CREATE TABLE responsibility_centres (id integer PRIMARY KEY, name text, approver_rock_person_id numeric, approver_name text, approver_email text, is_active boolean, last_synced_at timestamptz, sort_order integer);
+      CREATE TABLE responsibility_centres (id serial PRIMARY KEY, name text, approver_rock_person_id numeric, approver_name text, approver_email text, is_active boolean, last_synced_at timestamptz, sort_order integer, rock_id numeric, rock_guid varchar);
       CREATE TABLE reimbursement_finance_members (rock_person_id numeric, last_synced_at timestamptz);`)
     const client = await pool.connect()
     try { await client.query('BEGIN'); await client.query(REIMBURSEMENTS_UP_SQL); await client.query('COMMIT') } finally { client.release() }
     // The schema migration is repeatable without creating duplicate categories.
     await pool.query(REIMBURSEMENTS_UP_SQL)
+    await pool.query(REIMBURSEMENT_PAYOUT_AND_PASTOR_ACCOUNT_UP_SQL)
     runtime.pool.mockResolvedValue(pool)
     process.env.APP_BASE_URL = 'https://example.com'
   })
   afterAll(async () => { if (pool) { await pool.query(`DROP SCHEMA ${schema} CASCADE`); await pool.end() } })
   beforeEach(async () => {
     await pool.query(`TRUNCATE reimbursement_email_deliveries,reimbursement_reports,reimbursement_receipt_owners,reimbursement_receipts,reimbursement_profiles,responsibility_centres,reimbursement_finance_members CASCADE;
-      INSERT INTO responsibility_centres VALUES(1,'Hospitality',2,'RC Approver','person2@example.com',true,now(),1),(2,'Unassigned',NULL,NULL,NULL,true,now(),2);
+      INSERT INTO responsibility_centres(id,name,approver_rock_person_id,approver_name,approver_email,is_active,last_synced_at,sort_order)
+        VALUES(1,'Hospitality',2,'RC Approver','person2@example.com',true,now(),1),(2,'Unassigned',NULL,NULL,NULL,true,now(),2);
+      SELECT setval(pg_get_serial_sequence('responsibility_centres','id'),2);
       INSERT INTO reimbursement_finance_members VALUES(3,now()); UPDATE reimbursement_categories SET archived=false;`)
     await configure(pool, finance, { settings, categories: (await overview(pool, finance)).categories })
     const receipt = await PDFDocument.create()
@@ -90,6 +94,74 @@ describe.skipIf(!url)('Reimbursement PostgreSQL workflow and authenticated HTTP 
     await act(id, claimant, 'submit')
     expect((await read(id)).status).toBe('rc-approval')
     expect(await read(id)).not.toHaveProperty('title')
+  })
+  it('adds one shared finance-only purpose idempotently without changing existing reports', async () => {
+    const { id } = await validDraft()
+    const before = await read(id)
+    await pool.query(REIMBURSEMENT_PAYOUT_AND_PASTOR_ACCOUNT_UP_SQL)
+    await pool.query(REIMBURSEMENT_PAYOUT_AND_PASTOR_ACCOUNT_UP_SQL)
+    const centres = (await overview(pool, claimant)).centres.filter(centre => centre.name === 'Pastor Expense Account')
+    expect(centres).toHaveLength(1)
+    expect(centres[0]).toMatchObject({ financeOnly: true, approverRockPersonId: null })
+    expect(await read(id)).toEqual(before)
+    await pool.query("UPDATE responsibility_centres SET last_synced_at=now()-interval '1 day'")
+    expect((await overview(pool, stranger)).centres.map(centre => centre.id)).toEqual([centres[0].id])
+  })
+  it('routes shared Pastor Expense Account claims straight to finance, including resubmissions', async () => {
+    await pool.query(REIMBURSEMENT_PAYOUT_AND_PASTOR_ACCOUNT_UP_SQL)
+    const centre = (await overview(pool, claimant)).centres.find(centre => centre.financeOnly)!
+    const { id, draft } = await validDraft()
+    await saveDraft(pool, claimant, id, 2, { ...draft, centreId: centre.id })
+    await act(id, claimant, 'submit')
+    expect(await read(id)).toMatchObject({ status: 'finance-approval', rcApproverId: null })
+    expect(await read(id, rc)).toBeUndefined()
+    expect((await pool.query('SELECT kind FROM reimbursement_email_deliveries WHERE report_id=$1', [id])).rows).toEqual([{ kind: 'finance' }])
+    await act(id, finance, 'reject', 'Please clarify the description')
+    await act(id, claimant, 'submit')
+    expect((await read(id)).status).toBe('finance-approval')
+    await act(id, finance, 'approve')
+    expect((await read(id)).status).toBe('awaiting-payment')
+    expect((await pool.query("SELECT 1 FROM reimbursement_email_deliveries WHERE report_id=$1 AND kind='rc-payment'", [id])).rowCount).toBe(0)
+    await markBatchPaid(pool, finance, { reports: [{ id, version: (await read(id)).version }] })
+    expect((await read(id)).status).toBe('paid')
+  })
+  it('prevents finance claimants approving their own finance-only claims', async () => {
+    await pool.query(REIMBURSEMENT_PAYOUT_AND_PASTOR_ACCOUNT_UP_SQL)
+    await uploadReceipt(pool, finance, receiptBody, 'receipt.pdf', 'application/pdf')
+    const centre = (await overview(pool, finance)).centres.find(centre => centre.financeOnly)!
+    const { id, draft } = await validDraft(finance)
+    await saveDraft(pool, finance, id, 2, { ...draft, centreId: centre.id })
+    await act(id, finance, 'submit')
+    expect((await read(id, finance)).permissions.approveFinance).toBe(false)
+    await expect(act(id, finance, 'approve')).rejects.toMatchObject({ status: 403 })
+    await act(id, actor(8, true), 'approve')
+    expect((await read(id, finance)).status).toBe('awaiting-payment')
+  })
+  it('saves incomplete payout overrides but validates them before submission', async () => {
+    const { id, draft } = await validDraft()
+    await saveDraft(pool, claimant, id, 2, { ...draft, payoutOverride: { accountName: '', accountNumber: '12-' } })
+    expect((await read(id)).payoutOverride).toEqual({ accountName: '', accountNumber: '12-' })
+    await expect(act(id, claimant, 'submit')).rejects.toThrow('payout bank account')
+    expect((await read(id)).status).toBe('draft')
+  })
+  it('keeps report payout overrides private and independent of saved payment settings', async () => {
+    const { id, draft } = await validDraft()
+    const payoutOverride = { accountName: 'Custom reimbursement account', accountNumber: '98-7654-7654321-000' }
+    await saveDraft(pool, claimant, id, 2, { ...draft, payoutOverride })
+    await act(id, claimant, 'submit')
+    expect(await read(id)).toMatchObject({ ...payoutOverride, payoutOverride })
+    expect(await read(id, rc)).toMatchObject({ accountName: '', accountNumber: '', payoutOverride: null })
+    expect(await read(id, finance)).toMatchObject(payoutOverride)
+    expect((await overview(pool, claimant)).defaults.accountName).toBe('Claimant account')
+    await saveProfile(pool, claimant, { accountName: 'New default', accountNumber: '11-1111-1111111-111' })
+    expect(await read(id)).toMatchObject(payoutOverride)
+    await act(id, claimant, 'withdraw')
+    await act(id, claimant, 'submit')
+    expect(await read(id)).toMatchObject(payoutOverride)
+    await act(id, claimant, 'withdraw')
+    await saveDraft(pool, claimant, id, (await read(id)).version, { ...draft, payoutOverride: null })
+    await act(id, claimant, 'submit')
+    expect(await read(id)).toMatchObject({ accountName: 'New default', accountNumber: '11-1111-1111111-111', payoutOverride: null })
   })
   it('migrates legacy fields and snapshots without losing report or receipt history', async () => {
     const id = await approved()

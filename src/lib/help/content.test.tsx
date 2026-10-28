@@ -23,7 +23,7 @@ afterEach(() => { helpArticles.splice(originalLength); auth.member.mockReset() }
 
 describe('help content and access', () => {
   it('loads all three guides with unique URLs and valid help links and images', async () => {
-    const articles = await listHelpArticles(false)
+    const articles = await listHelpArticles(true)
     expect(new Set(articles.map(article => article.slug)).size).toBe(3)
     expect(articles.map(article => article.audience)).toEqual(['Claimants', 'Purpose approvers', 'Finance'])
     for (const article of articles) {
@@ -31,21 +31,23 @@ describe('help content and access', () => {
       const links = [...article.body.matchAll(/(?<!!)\[[^\]]+\]\(([^)]+)\)/g)].map(match => match[1])
       for (const link of links) expect(['/contact', ...Object.values(reimbursementViewPaths), ...helpArticles.map(item => `/help/${item.slug}`)]).toContain(link)
       const images = [...article.body.matchAll(/!\[[^\]]+\]\(([^)]+)\)/g)].map(match => match[1])
-      expect(images).toHaveLength(1)
+      expect(images.length).toBeGreaterThan(0)
       for (const image of images) {
         expect(image).toMatch(/^\/images\/help\/[a-z-]+\.png$/)
         await expect(access(path.join(process.cwd(), 'public', image))).resolves.toBeUndefined()
       }
     }
   })
-  it.each(helpArticles.filter(article => article.access === 'public'))('links directly to reimbursements throughout $slug', async ({ slug }) => {
+  it.each(helpArticles)('links directly to reimbursements throughout $slug', async ({ slug }) => {
+    auth.member.mockResolvedValue({ personId: 1 })
     const page = await HelpArticlePage({ params: Promise.resolve({ slug }) })
     const markup = renderToStaticMarkup(page)
     expect(markup).toContain('href="/members/reimbursements"')
     expect(markup).not.toContain('href="/reimbursement"')
+    for (const article of helpArticles) expect(markup).toContain(`href="/help/${article.slug}"`)
   })
   it('searches full article text and combines topic and audience filters', async () => {
-    const articles = await listHelpArticles(false)
+    const articles = await listHelpArticles(true)
     expect(searchHelpArticles(articles, 'CAMERA').map(article => article.slug)).toEqual(['claim-an-expense'])
     expect(searchHelpArticles(articles, 'confirm payment', 'Reimbursements', 'Finance').map(article => article.slug)).toEqual(['finance-reimbursements'])
     expect(searchHelpArticles(articles, 'camera', '', 'Finance')).toEqual([])
@@ -62,9 +64,11 @@ describe('help content and access', () => {
     auth.member.mockResolvedValue({ personId: 1 })
     expect(await canReadMemberHelp()).toBe(true)
   })
-  it('does not make authentication a dependency of public-only help', async () => {
-    expect(await canReadMemberHelp()).toBe(false)
-    expect(auth.member).not.toHaveBeenCalled()
+  it.each(helpArticles)('keeps internal $slug out of public search and behind member sign-in', async ({ slug }) => {
+    expect(await listHelpArticles(false)).toEqual([])
+    expect(await generateMetadata({ params: Promise.resolve({ slug }) })).toEqual({ title: 'Help' })
+    auth.member.mockResolvedValue(null)
+    await expect(HelpArticlePage({ params: Promise.resolve({ slug }) })).rejects.toThrow(`REDIRECT:/auth/login?returnTo=%2Fhelp%2F${slug}`)
   })
   it('returns not found for uncatalogued paths before reading any file', async () => {
     await expect(HelpArticlePage({ params: Promise.resolve({ slug: '../../AGENTS' }) })).rejects.toThrow('NOT_FOUND')

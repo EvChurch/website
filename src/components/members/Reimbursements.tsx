@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { HiArchiveBoxArrowDown, HiArrowUturnLeft, HiArrowUpTray, HiEllipsisVertical, HiEye, HiPlus, HiTrash, HiXMark } from 'react-icons/hi2'
+import { HiArchiveBoxArrowDown, HiArrowUturnLeft, HiArrowUpTray, HiEllipsisVertical, HiEye, HiEyeSlash, HiPencilSquare, HiPlus, HiTrash, HiXMark } from 'react-icons/hi2'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { reimbursementReportPath, reimbursementViewPaths, type ReimbursementView } from '@/lib/reimbursements/paths'
@@ -13,6 +13,7 @@ type Overview = Awaited<ReturnType<typeof overview>>
 type VisibleReport = Overview['reports'][number]
 const pathwayOrder: Record<VisibleReport['status'], number> = { draft: 0, rejected: 1, 'rc-approval': 2, 'finance-approval': 3, 'awaiting-payment': 4, paid: 5, cancelled: 6 }
 const inputClass = 'mt-1 w-full rounded-md border border-warm-grey bg-white px-2 py-2 text-base text-brand-black focus:outline-none focus:ring-2 focus:ring-rich-red'
+const expenseColumns = (showGst: boolean) => showGst ? 'lg:grid-cols-[8rem_1.3fr_1.8fr_6.5rem_6.5rem_7.5rem_9rem_2.75rem]' : 'lg:grid-cols-[8rem_1.3fr_1.8fr_7rem_9rem_2.75rem]'
 const expenseCellClass = 'block min-h-12 w-full min-w-0 rounded-lg border border-warm-grey bg-white px-3 py-3 text-base leading-7 text-brand-black focus:outline-none focus:ring-1 focus:ring-inset focus:ring-rich-red disabled:bg-warm-white lg:min-h-8 lg:rounded-none lg:border-0 lg:bg-transparent lg:px-2 lg:py-1 lg:text-sm lg:leading-6 lg:hover:bg-warm-white lg:focus:bg-warm-white lg:disabled:bg-transparent'
 const buttonClass = 'inline-flex min-h-11 items-center justify-center rounded-full bg-rich-red px-5 py-2 text-sm font-bold text-white transition hover:bg-deep-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red focus-visible:ring-offset-2 disabled:opacity-50'
 const secondaryClass = 'inline-flex min-h-11 items-center justify-center rounded-full border border-warm-grey bg-white px-5 py-2 text-sm font-bold text-brand-black transition hover:border-rich-red hover:text-rich-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red disabled:opacity-50'
@@ -27,6 +28,15 @@ export async function reimbursementRequest<T>(path: string, method = 'GET', body
 }
 const dateToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
 function newLine(): ExpenseLine { return { id: crypto.randomUUID(), date: dateToday(), categoryId: null, description: '', amountMinor: null, hasGst: true, receiptHash: null } }
+function maskAccountNumber(value: string) {
+  const count = value.replace(/\D/g, '').length
+  let index = 0
+  return value.replace(/\d/g, digit => {
+    const visible = count > 7 && (index < 2 || index >= count - 5)
+    index++
+    return visible ? digit : '*'
+  })
+}
 
 function ArchiveIcon({ older }: { older: boolean }) {
   const Icon = older ? HiArrowUturnLeft : HiArchiveBoxArrowDown
@@ -216,11 +226,13 @@ function PaymentSettings({ defaults, onSaved, requiredSetup = false }: { default
 }
 
 function ReportEditor({ report, data, onBack, refresh }: { report: VisibleReport; data: Overview; onBack: () => void; refresh: () => Promise<void> }) {
-  const [draft, setDraft] = useState<Draft>({ centreId: report.centreId, lines: report.lines })
+  const [draft, setDraft] = useState<Draft>({ centreId: report.centreId, lines: report.lines, payoutOverride: report.payoutOverride ?? null })
   const [error, setError] = useState(''); const [saveStatus, setSaveStatus] = useState('Saved')
   const [uploadIds, setUploadIds] = useState<string[]>([])
   const activeUploads = useRef(uploadIds); activeUploads.current = uploadIds
   const [showEditConfirmation, setShowEditConfirmation] = useState(false)
+  const [showGst, setShowGst] = useState(false)
+  const [showBankNumber, setShowBankNumber] = useState(false)
   const [busy, setBusy] = useState(false); const [reason, setReason] = useState('')
   const current = useRef(draft); const version = useRef(report.version); const edited = useRef(0); const saved = useRef(0)
   const queue = useRef<Promise<void>>(Promise.resolve())
@@ -278,13 +290,14 @@ function ReportEditor({ report, data, onBack, refresh }: { report: VisibleReport
   const fallback: Settings = { ...data.approvalFallbacks, seniorEmail: '', alternateEmail: '', financeEmail: '' }
   const approver = approvalPerson(centre ? { ...centre, approverEmail: null } : undefined, report.claimantId, fallback)
   const nextApprover = isArchivedReport(report) || report.status === 'cancelled' ? 'No pending approval'
-    : report.status === 'finance-approval' ? 'Finance team'
+    : report.status === 'finance-approval' || (report.permissions.edit && centre?.financeOnly) ? 'Finance team'
       : ['awaiting-payment', 'paid'].includes(report.status) ? 'No further approval needed'
         : approver?.name || 'No eligible approver configured'
   const total = draft.lines.reduce((sum, line) => sum + (line.amountMinor ?? 0), 0)
   const gst = draft.lines.reduce((sum, line) => sum + gstMinor(line.amountMinor ?? 0, line.hasGst), 0)
   const rejectionReason = report.status === 'rejected' ? [...report.history].reverse().find(item => ['reject', 'return'].includes(item.action))?.reason : undefined
   const editable = report.permissions.edit && !busy
+  const bankNumber = report.permissions.edit ? data.defaults.accountNumber : report.accountNumber
   return <section>
     {showEditConfirmation && <ReportConfirmation report={report} mode="edit" busy={busy} error={error} onClose={() => setShowEditConfirmation(false)} onConfirm={async () => { if (await action('withdraw')) setShowEditConfirmation(false) }} />}
     <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-2 text-sm"><div><button className="text-rich-red underline underline-offset-4 disabled:opacity-50" disabled={busy || uploadIds.length > 0} onClick={async () => { setBusy(true); try { await persist(); await refresh(); onBack() } catch (error) { setError(error instanceof Error ? error.message : 'Unable to return to reports. Please try again.') } finally { setBusy(false) } }}>Reimbursements</button><span className="mx-2" aria-hidden="true">/</span><span>{reportNumber(report.number)}</span></div></nav><div className="mb-6"><h1 className="text-3xl">Expense Report</h1></div><div className="mb-4"><p aria-live="polite" className="text-sm">{reportNumber(report.number)} · {isArchivedReport(report) ? 'Archived' : statusLabels[report.status]}{editable && ` · ${saveStatus}`}</p></div>
@@ -294,17 +307,39 @@ function ReportEditor({ report, data, onBack, refresh }: { report: VisibleReport
       <p className="mt-2 whitespace-pre-line break-words">{rejectionReason}</p>
     </section>}
     <div className="grid gap-5 rounded-xl border border-warm-grey bg-white p-5 sm:grid-cols-2">
-      <label>Purpose{editable ? <FormSelect value={draft.centreId ?? ''} onChange={event => update({ ...draft, centreId: event.target.value ? Number(event.target.value) : null })}><option value="">Choose a purpose</option>{data.centres.filter(centre => centre.approverRockPersonId).map(centre => <option key={centre.id} value={centre.id}>{centre.name}</option>)}</FormSelect> : <p className="mt-2 font-semibold">{report.centreName}</p>}</label>
+      <label>Purpose{editable ? <FormSelect value={draft.centreId ?? ''} onChange={event => update({ ...draft, centreId: event.target.value ? Number(event.target.value) : null })}><option value="">Choose a purpose</option>{data.centres.filter(centre => centre.financeOnly || centre.approverRockPersonId).map(centre => <option key={centre.id} value={centre.id}>{centre.name}</option>)}</FormSelect> : <p className="mt-2 font-semibold">{report.centreName}</p>}</label>
       <div><p>Next approver</p><p className={editable ? 'mt-2 border border-transparent py-3 font-semibold' : 'mt-2 font-semibold'}>{nextApprover}</p></div>
     </div>
-    <div className="mb-3 mt-6 flex items-start justify-between gap-3">
-      <div><h2 className="text-xl">Expenses</h2></div>
-      {editable && <button className={`${secondaryClass} shrink-0`} disabled={draft.lines.length >= 100} onClick={() => update({ ...draft, lines: [...draft.lines, newLine()] })}>Add expense</button>}
+    {report.permissions.bank && <section aria-label="Report bank account" data-giving-private="true" className="mt-4 rounded-lg border border-warm-grey bg-white px-4 py-3 text-sm">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <h2 className="text-sm font-semibold">Bank account</h2>
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="break-words">{report.permissions.edit ? data.defaults.accountName : report.accountName}</span>
+          <span className="inline-flex items-center gap-1">
+            <span aria-label="Bank account number" className="font-semibold tabular-nums">{showBankNumber ? bankNumber : maskAccountNumber(bankNumber)}</span>
+            <button type="button" aria-label={showBankNumber ? 'Hide bank account number' : 'Show bank account number'} aria-pressed={showBankNumber} className="flex size-8 items-center justify-center rounded-full text-mid-grey hover:text-rich-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red" onClick={() => setShowBankNumber(show => !show)}>{showBankNumber ? <HiEyeSlash className="size-4" aria-hidden="true" /> : <HiEye className="size-4" aria-hidden="true" />}</button>
+            {report.permissions.edit && showBankNumber && <Link href={reimbursementViewPaths.settings} aria-label="Edit saved bank account" title="Edit saved bank account" className="flex size-8 items-center justify-center rounded-full text-mid-grey hover:text-rich-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red"><HiPencilSquare className="size-4" aria-hidden="true" /></Link>}
+          </span>
+        </div>
+        {report.permissions.edit && <label className="flex min-h-8 items-center gap-2 text-sm sm:ml-auto"><input type="checkbox" className="size-4 shrink-0 accent-rich-red" disabled={!editable} checked={draft.payoutOverride != null} onChange={event => update({ ...current.current, payoutOverride: event.target.checked ? { accountName: '', accountNumber: '' } : null })} />Use a different account for this report</label>}
+      </div>
+      {report.permissions.edit && draft.payoutOverride && <div className="mt-3 grid gap-3 border-t border-warm-grey pt-3 sm:grid-cols-2">
+          <label>Account holder<input className={inputClass} disabled={!editable} maxLength={200} autoComplete="off" value={draft.payoutOverride.accountName} onChange={event => update({ ...current.current, payoutOverride: { accountName: event.target.value, accountNumber: current.current.payoutOverride?.accountNumber ?? '' } })} /></label>
+          <label>Bank account number<input className={inputClass} disabled={!editable} maxLength={30} inputMode="numeric" placeholder="12-1234-1234567-000" autoComplete="off" value={draft.payoutOverride.accountNumber} onChange={event => update({ ...current.current, payoutOverride: { accountName: current.current.payoutOverride?.accountName ?? '', accountNumber: event.target.value } })} /></label>
+        </div>}
+    </section>}
+    <div className="mb-3 mt-6 grid grid-cols-[1fr_auto] items-center gap-3 lg:grid-cols-[1fr_auto_auto]">
+      <h2 className="col-span-2 text-xl lg:col-span-1">Expenses</h2>
+      <button type="button" role="switch" aria-checked={showGst} aria-expanded={showGst} className="flex min-h-11 w-fit items-center gap-2 rounded-md text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red" onClick={() => setShowGst(show => !show)}>
+        <span>Advanced</span>
+        <span aria-hidden="true" className={`inline-flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors ${showGst ? 'bg-rich-red' : 'bg-mid-grey'}`}><span className={`size-4 rounded-full bg-white transition-transform ${showGst ? 'translate-x-4' : 'translate-x-0'}`} /></span>
+      </button>
+      {editable && <button className={`${secondaryClass} justify-self-end whitespace-nowrap`} disabled={draft.lines.length >= 100} onClick={() => update({ ...draft, lines: [...draft.lines, newLine()] })}>Add expense</button>}
     </div>
     <div className="space-y-4 lg:space-y-0 lg:rounded-lg lg:border lg:border-warm-grey lg:bg-white">
-      <div aria-hidden="true" className="hidden gap-0 border-b border-warm-grey bg-warm-white px-1 py-2 text-xs font-semibold [&>span]:px-2 lg:grid lg:grid-cols-[8rem_1.3fr_1.8fr_6.5rem_6.5rem_7.5rem_9rem_2.75rem]"><span>Date</span><span>Category</span><span>Description</span><span>Net</span><span>Gross</span><span>GST</span><span>Receipt</span><span /></div>
-      {draft.lines.map((line, index) => <ExpenseLineEditor key={line.id} line={line} index={index} editable={editable} data={data} onUploading={loading => setUploadIds(ids => loading ? [...new Set([...ids, line.id])] : ids.filter(id => id !== line.id))} shared={draft.lines.some(other => other.id !== line.id && other.receiptHash && other.receiptHash === line.receiptHash)} onChange={next => update({ ...current.current, lines: current.current.lines.map(item => item.id === line.id ? { ...item, ...next } : item) })} onRemove={() => update({ ...draft, lines: draft.lines.filter(item => item.id !== line.id) })} />)}
-      <div aria-label="Expense totals" className="grid grid-cols-2 gap-y-3 rounded-xl border border-warm-grey bg-white px-3 py-4 text-sm font-semibold tabular-nums lg:gap-y-1 lg:rounded-none lg:border-0 lg:border-t lg:bg-warm-white lg:px-1 lg:py-3 lg:grid-cols-[8rem_1.3fr_1.8fr_6.5rem_6.5rem_7.5rem_9rem_2.75rem]"><span className="col-span-2 px-2 lg:col-span-3">Total</span><span className="px-2 text-right"><span className="mr-2 lg:sr-only">Net</span>{money(total - gst)}</span><span className="px-2 text-right"><span className="mr-2 lg:sr-only">Gross</span>{money(total)}</span></div></div>
+      <div aria-hidden="true" className={`hidden gap-0 border-b border-warm-grey bg-warm-white px-1 py-2 text-xs font-semibold [&>span]:px-2 lg:grid ${expenseColumns(showGst)}`}><span>Date</span><span>Category</span><span>Description</span>{showGst && <span>Net</span>}<span>{showGst ? 'Gross' : 'Amount'}</span>{showGst && <span>GST</span>}<span>Receipt</span><span /></div>
+      {draft.lines.map((line, index) => <ExpenseLineEditor key={line.id} line={line} index={index} editable={editable} showGst={showGst} data={data} onUploading={loading => setUploadIds(ids => loading ? [...new Set([...ids, line.id])] : ids.filter(id => id !== line.id))} shared={draft.lines.some(other => other.id !== line.id && other.receiptHash && other.receiptHash === line.receiptHash)} onChange={next => update({ ...current.current, lines: current.current.lines.map(item => item.id === line.id ? { ...item, ...next } : item) })} onRemove={() => update({ ...draft, lines: draft.lines.filter(item => item.id !== line.id) })} />)}
+      <div aria-label="Expense totals" className={`grid grid-cols-2 gap-y-3 rounded-xl border border-warm-grey bg-white px-3 py-4 text-sm font-semibold tabular-nums lg:gap-y-1 lg:rounded-none lg:border-0 lg:border-t lg:bg-warm-white lg:px-1 lg:py-3 ${expenseColumns(showGst)}`}><span className={`px-2 lg:col-span-3 ${showGst ? 'col-span-2' : ''}`}>Total</span>{showGst && <span className="px-2 text-right"><span className="mr-2 lg:sr-only">Net</span>{money(total - gst)}</span>}<span className="px-2 text-right">{showGst && <span className="mr-2 lg:sr-only">Gross</span>}{money(total)}</span></div></div>
     {report.status !== 'paid' && <div className="mt-6 space-y-4 rounded-xl border border-warm-grey bg-white p-5">
       {(report.permissions.approveRC || report.permissions.approveFinance || !isArchivedReport(report) && data.finance && ['awaiting-payment', 'finance-approval'].includes(report.status)) && <label className="block">Reason or note <span className="text-sm text-mid-grey">(required for rejection)</span><textarea className={inputClass} value={reason} maxLength={2000} onChange={event => setReason(event.target.value)} /></label>}
       <div className="flex flex-wrap justify-end gap-3">
@@ -316,11 +351,11 @@ function ReportEditor({ report, data, onBack, refresh }: { report: VisibleReport
       {busy && <p role="status">Saving your changes…</p>}
       {report.status === 'awaiting-payment' && <p>Approved and awaiting payment. Finance can record payment from the payment queue.</p>}
     </div>}
-    <section className="mt-8"><h2 className="text-2xl">Activity</h2>{!report.history.length && <p className="mt-4 text-sm text-mid-grey">No activity yet.</p>}<ol className="mt-4 space-y-3">{report.history.map((item, index) => <li key={index} className="rounded-lg bg-white p-4 text-sm"><p><strong>{item.name}</strong> · {actionLabels[item.action] ?? item.action} · revision {item.revision}</p><p className="mt-1 text-mid-grey">{new Date(item.at).toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' })}</p>{item.reason && <p className="mt-2 whitespace-pre-line break-words">{item.reason}</p>}</li>)}</ol></section>
+    {report.history.length > 0 && <section className="mt-8"><h2 className="text-2xl">Activity</h2><ol className="mt-4 space-y-3">{report.history.map((item, index) => <li key={index} className="rounded-lg bg-white p-4 text-sm"><p><strong>{item.name}</strong> · {actionLabels[item.action] ?? item.action} · revision {item.revision}</p><p className="mt-1 text-mid-grey">{new Date(item.at).toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' })}</p>{item.reason && <p className="mt-2 whitespace-pre-line break-words">{item.reason}</p>}</li>)}</ol></section>}
   </section>
 }
 
-function ExpenseLineEditor({ line, index, editable, data, shared, onChange, onRemove, onUploading }: { line: ExpenseLine; index: number; editable: boolean; data: Overview; shared: boolean; onChange: (line: Partial<ExpenseLine>) => void; onRemove: () => void; onUploading: (loading: boolean) => void }) {
+function ExpenseLineEditor({ line, index, editable, showGst, data, shared, onChange, onRemove, onUploading }: { line: ExpenseLine; index: number; editable: boolean; showGst: boolean; data: Overview; shared: boolean; onChange: (line: Partial<ExpenseLine>) => void; onRemove: () => void; onUploading: (loading: boolean) => void }) {
   const [expenseMenuOpen, setExpenseMenuOpen] = useState(false)
   const expenseMenu = useRef<HTMLDivElement>(null)
   const expenseMenuTrigger = useRef<HTMLButtonElement>(null)
@@ -414,13 +449,13 @@ function ExpenseLineEditor({ line, index, editable, data, shared, onChange, onRe
     <div className="mb-5 flex items-center justify-between gap-3 lg:hidden"><h3 className="text-xl font-bold">Expense {index + 1}</h3>{editable && <div className="relative" ref={expenseMenu} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setExpenseMenuOpen(false) }}>
       <button ref={expenseMenuTrigger} type="button" aria-label={`Options for expense ${index + 1}`} aria-expanded={expenseMenuOpen} aria-controls={`expense-options-${line.id}`} className="flex size-10 items-center justify-center rounded-full border border-warm-grey text-brand-black transition hover:border-rich-red hover:text-rich-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red" onClick={() => setExpenseMenuOpen(open => !open)}><HiEllipsisVertical className="size-5" aria-hidden="true" /></button>
       {expenseMenuOpen && <div id={`expense-options-${line.id}`} className="absolute right-0 top-12 z-20 w-48 rounded-lg border border-warm-grey bg-white p-2 shadow-xl shadow-brand-black/10"><button ref={expenseDelete} type="button" disabled={uploading} className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm font-bold text-brand-black hover:bg-warm-grey/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rich-red disabled:opacity-50" onClick={onRemove}><HiTrash className="size-4" aria-hidden="true" />Delete expense</button></div>}
-    </div>}</div>{dragging && <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-warm-white/95 text-sm font-semibold text-rich-red"><HiArrowUpTray className="mr-2 size-5" aria-hidden="true" />{line.receiptHash ? 'Drop to replace receipt' : 'Drop receipt here'}</div>}<div className="grid grid-cols-2 items-start gap-x-4 gap-y-5 lg:gap-x-0 lg:gap-y-0 lg:grid-cols-[8rem_1.3fr_1.8fr_6.5rem_6.5rem_7.5rem_9rem_2.75rem] [&>label]:min-w-0 [&>label>span:first-child]:mb-2 [&>label>span:first-child]:block [&>label>span:first-child]:text-sm [&>label>span:first-child]:font-semibold [&>label>span:first-child]:lg:mb-0 [&>label>span:first-child]:lg:px-2 [&>label>span:first-child]:lg:text-xs [&>label>span:first-child]:lg:sr-only [&_input]:mt-0 [&_select]:mt-0 [&_textarea]:mt-0">
+    </div>}</div>{dragging && <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-warm-white/95 text-sm font-semibold text-rich-red"><HiArrowUpTray className="mr-2 size-5" aria-hidden="true" />{line.receiptHash ? 'Drop to replace receipt' : 'Drop receipt here'}</div>}<div className={`grid grid-cols-2 items-start gap-x-4 gap-y-5 lg:gap-x-0 lg:gap-y-0 ${expenseColumns(showGst)} [&>label]:min-w-0 [&>label>span:first-child]:mb-2 [&>label>span:first-child]:block [&>label>span:first-child]:text-sm [&>label>span:first-child]:font-semibold [&>label>span:first-child]:lg:mb-0 [&>label>span:first-child]:lg:px-2 [&>label>span:first-child]:lg:text-xs [&>label>span:first-child]:lg:sr-only [&_input]:mt-0 [&_select]:mt-0 [&_textarea]:mt-0`}>
     <label className="col-span-2 lg:col-span-1"><span>Date</span><input disabled={!editable} type="date" className={expenseCellClass} value={line.date} onChange={event => onChange({ ...line, date: event.target.value })} /></label>
     <label className="col-span-2 lg:col-span-1"><span>Category</span><FormSelect variant="cell" disabled={!editable} className={expenseCellClass} value={line.categoryId ?? ''} onChange={event => onChange({ ...line, categoryId: event.target.value ? Number(event.target.value) : null })}><option value="">Choose a category</option>{data.categories.filter(category => !category.archived || category.id === line.categoryId).map(category => <option key={category.id} value={category.id}>{category.name}{category.archived ? ' (archived)' : ''}</option>)}</FormSelect></label>
     <label className="col-span-2 lg:col-span-1"><span>Description</span><textarea ref={descriptionRef} rows={1} disabled={!editable} className={`${expenseCellClass} resize-none overflow-hidden whitespace-pre-wrap break-words`} value={line.description} maxLength={2000} onChange={event => onChange({ ...line, description: event.target.value })} /></label>
-    <label><span>Net</span><input disabled={!editable} className={`${expenseCellClass} text-right tabular-nums`} inputMode="decimal" placeholder="0.00" value={exclusive} onChange={event => amount(event.target.value, 'exclusive')} /></label>
-    <label><span>Gross</span><input disabled={!editable} className={`${expenseCellClass} text-right tabular-nums`} inputMode="decimal" placeholder="0.00" value={inclusive} onChange={event => amount(event.target.value, 'inclusive')} /></label>
-    <div className="col-span-2 min-w-0 lg:col-span-1"><button type="button" role="switch" aria-label={`Includes GST for expense ${index + 1}`} aria-checked={line.hasGst} disabled={!editable} className="flex min-h-11 w-full items-center gap-2 px-0 text-sm focus:outline-none lg:px-2 focus:ring-1 focus:ring-inset focus:ring-rich-red disabled:cursor-default lg:min-h-8" onClick={() => amount(inclusive, 'inclusive', !line.hasGst)}><span aria-hidden="true" className={`inline-flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors ${line.hasGst ? 'bg-rich-red' : 'bg-mid-grey'}`}><span className={`size-4 rounded-full bg-white transition-transform ${line.hasGst ? 'translate-x-4' : 'translate-x-0'}`} /></span><span className="lg:sr-only">GST</span></button></div>
+    {showGst && <label><span>Net</span><input disabled={!editable} className={`${expenseCellClass} text-right tabular-nums`} inputMode="decimal" placeholder="0.00" value={exclusive} onChange={event => amount(event.target.value, 'exclusive')} /></label>}
+    <label className={showGst ? undefined : 'col-span-2 lg:col-span-1'}><span>{showGst ? 'Gross' : 'Amount'}</span><input disabled={!editable} className={`${expenseCellClass} text-right tabular-nums`} inputMode="decimal" placeholder="0.00" value={inclusive} onChange={event => amount(event.target.value, 'inclusive')} /></label>
+    {showGst && <div className="col-span-2 min-w-0 lg:col-span-1"><button type="button" role="switch" aria-label={`Includes GST for expense ${index + 1}`} aria-checked={line.hasGst} disabled={!editable} className="flex min-h-11 w-full items-center gap-2 px-0 text-sm focus:outline-none lg:px-2 focus:ring-1 focus:ring-inset focus:ring-rich-red disabled:cursor-default lg:min-h-8" onClick={() => amount(inclusive, 'inclusive', !line.hasGst)}><span aria-hidden="true" className={`inline-flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors ${line.hasGst ? 'bg-rich-red' : 'bg-mid-grey'}`}><span className={`size-4 rounded-full bg-white transition-transform ${line.hasGst ? 'translate-x-4' : 'translate-x-0'}`} /></span><span className="lg:sr-only">GST</span></button></div>}
     <div className="col-span-2 flex min-w-0 items-start border-t border-warm-grey pt-4 lg:border-0 lg:pt-0">
       <div className="min-w-0 flex-1 lg:px-2">
         {line.receiptHash ? <span className="flex w-full items-center lg:w-auto"><a aria-label={`Show receipt for expense ${index + 1}`} title={shared ? 'View receipt (also used on another expense)' : 'View receipt'} className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 text-sm font-semibold text-rich-red hover:bg-warm-white focus:outline-none focus:ring-1 focus:ring-inset focus:ring-rich-red lg:min-h-8" href={`/api/reimbursements/receipt/${line.receiptHash}`} target="_blank" rel="noopener noreferrer"><HiEye className="size-5" aria-hidden="true" /><span className="lg:sr-only">Show receipt</span></a>{editable && <button type="button" aria-label={`Remove receipt for expense ${index + 1}`} title="Remove receipt" disabled={uploading} className="ml-auto inline-flex min-h-11 min-w-11 items-center justify-center text-mid-grey lg:ml-0 lg:min-w-8 hover:bg-warm-white hover:text-rich-red focus:outline-none focus:ring-1 focus:ring-inset focus:ring-rich-red disabled:opacity-50 lg:min-h-8" onClick={() => { if (uploadInProgress.current) return; setFile(null); setUpload(''); onChange({ receiptHash: null }) }}><HiTrash className="size-5 lg:hidden" aria-hidden="true" /><HiXMark className="hidden size-5 lg:block" aria-hidden="true" /></button>}</span> : editable ? <button type="button" aria-label={`Upload receipt for expense ${index + 1}`} title={uploading ? 'Uploading receipt…' : 'Upload receipt'} disabled={uploading} className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 text-sm font-semibold text-rich-red hover:bg-warm-white focus:outline-none focus:ring-1 focus:ring-inset focus:ring-rich-red disabled:opacity-50 lg:min-h-8" onClick={() => receiptInput.current?.click()}><HiArrowUpTray className="size-5" aria-hidden="true" /><span className="lg:sr-only">Upload receipt</span></button> : <span className="inline-flex min-h-8 items-center text-sm text-mid-grey">—</span>}
