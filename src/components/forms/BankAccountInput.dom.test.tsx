@@ -64,3 +64,18 @@ it('rejects letters and excess digits rather than silently saving a different co
   expect(field().value).toBe('')
   expect(field().checkValidity()).toBe(false)
 })
+
+it('replaces the browser validation popup with a message beneath the input and clears it when corrected', async () => {
+  await enter('12')
+  expect(field().nextElementSibling).toBeNull()
+  const invalid = new Event('invalid', { cancelable: true })
+  await act(async () => { field().dispatchEvent(invalid) })
+  expect(invalid.defaultPrevented).toBe(true)
+  const hint = field().nextElementSibling!
+  expect(hint.id).toBe(field().getAttribute('aria-describedby'))
+  expect(hint.textContent).toContain('00-0000-0000000-00')
+  expect(field().getAttribute('aria-invalid')).toBe('true')
+  await enter('121234123456700')
+  expect(field().nextElementSibling).toBeNull()
+  expect(field().hasAttribute('aria-invalid')).toBe(false)
+})
