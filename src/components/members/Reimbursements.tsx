@@ -5,6 +5,8 @@ import { HiArchiveBoxArrowDown, HiArrowUturnLeft, HiArrowUpTray, HiEllipsisVerti
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { reimbursementReportPath, reimbursementViewPaths, type ReimbursementView } from '@/lib/reimbursements/paths'
+import { BankAccountInput } from '@/components/forms/BankAccountInput'
+import { BANK_ACCOUNT_FORMAT_MESSAGE, formatBankAccountNumber, isBankAccountNumber } from '@/lib/bank-account'
 import { FormSelect } from '@/components/forms/FormSelect'
 import type { overview } from '@/lib/reimbursements/store'
 import { actionLabels, canArchiveReport, isArchivedReport, isOlderReport, approvalPerson, hasPaymentSettings, gstMinor, money, parseMoney, reportNumber, statusLabels, type Draft, type ExpenseLine, type Settings } from '@/lib/reimbursements/model'
@@ -208,7 +210,7 @@ function ReportConfirmation({ report, mode = 'archive', busy, error, onClose, on
 }
 
 function PaymentSettings({ defaults, onSaved, requiredSetup = false }: { defaults: Overview['defaults']; onSaved: (profile: Overview['defaults']) => void | Promise<void>; requiredSetup?: boolean }) {
-  const [profile, setProfile] = useState(defaults)
+  const [profile, setProfile] = useState({ ...defaults, accountNumber: formatBankAccountNumber(defaults.accountNumber) })
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -220,7 +222,7 @@ function PaymentSettings({ defaults, onSaved, requiredSetup = false }: { default
     finally { setBusy(false) }
   }}><h2 className="text-xl">Payment settings</h2><p className="text-sm text-mid-grey">{requiredSetup ? 'Add your payment details before viewing reports, reviewing claims or filing an expense report.' : 'Your reimbursements will be paid to this account. Changes apply when you next submit a report.'}</p>
     <label className="block">Account holder<input required className={inputClass} maxLength={200} autoComplete="off" value={profile.accountName} onChange={event => setProfile({ ...profile, accountName: event.target.value })} /></label>
-    <label className="block">Bank account number<input required className={inputClass} maxLength={30} inputMode="numeric" autoComplete="off" placeholder="00-0000-0000000-000" value={profile.accountNumber} onChange={event => setProfile({ ...profile, accountNumber: event.target.value })} /></label>
+    <label className="block">Bank account number<BankAccountInput required className={inputClass} placeholder="00-0000-0000000-000" value={profile.accountNumber} onValueChange={accountNumber => setProfile({ ...profile, accountNumber })} /></label>
     <button className={buttonClass} disabled={busy}>{requiredSetup ? 'Save and continue' : 'Save'}</button>{message && <p role="status">{message}</p>}{error && <p role="alert">{error}</p>}
   </form>
 }
@@ -243,6 +245,7 @@ function ReportEditor({ report, data, onBack, refresh }: { report: VisibleReport
         const snapshot = current.current; const sequence = edited.current
         setSaveStatus('Saving…')
         try {
+          if (snapshot.payoutOverride && !isBankAccountNumber(snapshot.payoutOverride.accountNumber)) throw new Error(BANK_ACCOUNT_FORMAT_MESSAGE)
           const result = await reimbursementRequest<{ version: number }>(`/report/${report.id}`, 'PATCH', { version: version.current, draft: snapshot })
           version.current = result.version; saved.current = sequence; setSaveStatus(saved.current === edited.current ? 'Saved' : 'Saving…'); setError('')
         } catch (error) { setSaveStatus('Not saved — retry'); setError(error instanceof Error ? error.message : 'Unable to save.'); throw error }
@@ -325,7 +328,7 @@ function ReportEditor({ report, data, onBack, refresh }: { report: VisibleReport
       </div>
       {report.permissions.edit && draft.payoutOverride && <div className="mt-3 grid gap-3 border-t border-warm-grey pt-3 sm:grid-cols-2">
           <label>Account holder<input className={inputClass} disabled={!editable} maxLength={200} autoComplete="off" value={draft.payoutOverride.accountName} onChange={event => update({ ...current.current, payoutOverride: { accountName: event.target.value, accountNumber: current.current.payoutOverride?.accountNumber ?? '' } })} /></label>
-          <label>Bank account number<input className={inputClass} disabled={!editable} maxLength={30} inputMode="numeric" placeholder="12-1234-1234567-000" autoComplete="off" value={draft.payoutOverride.accountNumber} onChange={event => update({ ...current.current, payoutOverride: { accountName: current.current.payoutOverride?.accountName ?? '', accountNumber: event.target.value } })} /></label>
+          <label>Bank account number<BankAccountInput required className={inputClass} disabled={!editable} placeholder="00-0000-0000000-000" aria-invalid={!isBankAccountNumber(draft.payoutOverride.accountNumber)} value={draft.payoutOverride.accountNumber} onValueChange={accountNumber => update({ ...current.current, payoutOverride: { accountName: current.current.payoutOverride?.accountName ?? '', accountNumber } })} /></label>
         </div>}
     </section>}
     <div className="mb-3 mt-6 grid grid-cols-[1fr_auto] items-center gap-3 lg:grid-cols-[1fr_auto_auto]">

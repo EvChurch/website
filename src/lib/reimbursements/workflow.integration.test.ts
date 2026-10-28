@@ -137,12 +137,19 @@ describe.skipIf(!url)('Reimbursement PostgreSQL workflow and authenticated HTTP 
     await act(id, actor(8, true), 'approve')
     expect((await read(id, finance)).status).toBe('awaiting-payment')
   })
-  it('saves incomplete payout overrides but validates them before submission', async () => {
+  it.each(['', '12-', '1212341234567000', '12-1234-1234567-0', '12-1234-1234567-0000', '12-1234-1234567-00x'])('rejects an invalid bank number before saving either profile or override: %s', async accountNumber => {
     const { id, draft } = await validDraft()
-    await saveDraft(pool, claimant, id, 2, { ...draft, payoutOverride: { accountName: '', accountNumber: '12-' } })
-    expect((await read(id)).payoutOverride).toEqual({ accountName: '', accountNumber: '12-' })
-    await expect(act(id, claimant, 'submit')).rejects.toThrow('payout bank account')
-    expect((await read(id)).status).toBe('draft')
+    await expect(saveProfile(pool, claimant, { accountName: 'Changed', accountNumber })).rejects.toThrow()
+    await expect(saveDraft(pool, claimant, id, 2, { ...draft, payoutOverride: { accountName: 'Other', accountNumber } })).rejects.toThrow()
+    expect((await read(id)).payoutOverride).toBeNull()
+    expect((await overview(pool, claimant)).defaults.accountNumber).toBe('12-1234-1234567-000')
+  })
+  it.each(['12-1234-1234567-00', '12-1234-1234567-000'])('saves and submits either bank suffix length: %s', async accountNumber => {
+    const { id, draft } = await validDraft()
+    await saveProfile(pool, claimant, { accountName: 'Claimant account', accountNumber })
+    await saveDraft(pool, claimant, id, 2, { ...draft, payoutOverride: { accountName: 'Other', accountNumber } })
+    await act(id, claimant, 'submit')
+    expect((await read(id)).accountNumber).toBe(accountNumber)
   })
   it('keeps report payout overrides private and independent of saved payment settings', async () => {
     const { id, draft } = await validDraft()
