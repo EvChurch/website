@@ -12,7 +12,7 @@ Choose **Help** at the end of the members navigation to open the help guides.
 
 ## Set up your payment details
 
-Enter the account holder and bank account number for reimbursements. To change these later, open [**Payment settings**](/members/reimbursements/payment-settings). The details used for a submitted report are kept with that submission, so changing your settings later does not change its payout account.
+Enter the account holder and bank account number for reimbursements. Type the digits and the form inserts the dashes, or paste the full number with dashes. The required format is **00-0000-0000000-00** or **00-0000-0000000-000**: the suffix can contain two or three digits. Incomplete or incorrectly formatted numbers cannot be saved. To change these later, open [**Payment settings**](/members/reimbursements/payment-settings). The details used for a submitted report are kept with that submission, so changing your settings later does not change its payout account.
 
 The compact **Bank account** row shows your saved account holder and a masked bank account number. Only the first two and last five digits are shown; choose the eye icon beside the number to show the full number, and the eye-with-a-slash icon to hide it again. With the number revealed, choose the pencil icon beside it to update your normal account in **Payment settings**. To use another account for one report, select **Use a different account for this report** and enter **Account holder** and **Bank account number**. This does not change your payment settings. Clear the option to use your saved account again. Check the payout details before submitting.
 
@@ -49,7 +49,7 @@ Each file can be up to 10 MB. Images must be still images of 40 megapixels or le
 
 ## Save or submit
 
-Your work saves automatically, even while a line is incomplete. **Save** also saves your current changes. You can return to an unfinished draft from **My reports**.
+Your work saves automatically, even while an expense line is incomplete. If **Use a different account for this report** is selected, report changes cannot save until its bank account number is complete and correctly formatted. Finish the number or clear the option to resume saving. **Save** also saves your current changes. You can return to an unfinished draft from **My reports**.
 
 Choose **Submit** when everything is ready. You must complete the required fields and attach a receipt to every line before submitting.
 

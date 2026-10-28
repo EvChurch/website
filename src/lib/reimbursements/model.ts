@@ -1,4 +1,5 @@
 import { z } from 'zod-v3'
+import { BANK_ACCOUNT_PATTERN, BANK_ACCOUNT_FORMAT_MESSAGE, isBankAccountNumber } from '@/lib/bank-account'
 
 export const statuses = ['draft', 'rc-approval', 'finance-approval', 'awaiting-payment', 'rejected', 'paid', 'cancelled'] as const
 export type ReportStatus = typeof statuses[number]
@@ -15,7 +16,7 @@ export const lineSchema = z.object({
 })
 export const paymentProfileSchema = z.object({
   accountName: z.string().trim().min(1).max(200),
-  accountNumber: z.string().trim().max(30).regex(/^\d{2}-?\d{4}-?\d{7}-?\d{2,3}$/),
+  accountNumber: z.string().regex(new RegExp(`^${BANK_ACCOUNT_PATTERN}$`), BANK_ACCOUNT_FORMAT_MESSAGE),
 })
 export function hasPaymentSettings(profile: { accountName: string; accountNumber: string }) {
   return paymentProfileSchema.safeParse(profile).success
@@ -24,7 +25,7 @@ export const draftSchema = z.object({
   centreId: z.number().int().positive().nullable(),
   lines: z.array(lineSchema).max(100),
   payoutOverride: z.object({
-    accountName: z.string().max(200), accountNumber: z.string().max(30),
+    accountName: z.string().max(200), accountNumber: paymentProfileSchema.shape.accountNumber,
   }).nullable().optional(),
 }).superRefine((draft, ctx) => {
   if (new Set(draft.lines.map(line => line.id)).size !== draft.lines.length) {
@@ -77,7 +78,7 @@ export function validateSubmission(draft: Draft, categories: Category[], profile
   const errors: string[] = []
   if (!draft.centreId) errors.push('Choose a purpose.')
   if (!profile.accountName.trim()) errors.push('Enter the payout bank account holder name.')
-  if (!/^\d{2}-?\d{4}-?\d{7}-?\d{2,3}$/.test(profile.accountNumber.trim())) errors.push('Enter a New Zealand payout bank account number.')
+  if (!isBankAccountNumber(profile.accountNumber)) errors.push(BANK_ACCOUNT_FORMAT_MESSAGE)
   if (!draft.lines.length) errors.push('Add at least one expense.')
   draft.lines.forEach((line, index) => {
     const prefix = `Line ${index + 1}: `

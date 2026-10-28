@@ -727,7 +727,7 @@ it('allows reviewers to reveal GST without editing or autosaving', async () => {
   expect(fetchMock).not.toHaveBeenCalled()
 })
 
-it('autosaves incomplete report account overrides serially and saves null when disabled without changing the profile', async () => {
+it('blocks incomplete bank numbers, autosaves valid overrides serially and clears them without changing the profile', async () => {
   expect(container.querySelector('[aria-label="Report bank account"]')!.hasAttribute('data-giving-private')).toBe(true)
   expect(container.querySelector('[aria-label="Report bank account"]')!.textContent).toContain('Aroha')
   expect(container.textContent).toContain('12-****-*****67-000')
@@ -738,8 +738,14 @@ it('autosaves incomplete report account overrides serially and saves null when d
   await type('Account holder', 'Other holder')
   await type('Bank account number', '12-')
   await act(async () => vi.advanceTimersByTimeAsync(650))
-  expect(JSON.parse(fetchMock.mock.calls[0][1].body).draft.payoutOverride).toEqual({ accountName: 'Other holder', accountNumber: '12-' })
+  expect(input('Bank account number').value).toBe('12')
+  expect(fetchMock).not.toHaveBeenCalled()
+  expect(container.textContent).toContain('00-0000-0000000-00')
+  await type('Bank account number', '121234123456700')
+  await act(async () => vi.advanceTimersByTimeAsync(650))
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body).draft.payoutOverride).toEqual({ accountName: 'Other holder', accountNumber: '12-1234-1234567-00' })
   await type('Bank account number', '12-1234-1234567-001')
+  await act(async () => vi.advanceTimersByTimeAsync(650))
   expect(fetchMock).toHaveBeenCalledTimes(1)
   await act(async () => finish(response(2)))
   expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ version: 2, draft: { payoutOverride: { accountName: 'Other holder', accountNumber: '12-1234-1234567-001' } } })
@@ -751,7 +757,7 @@ it('autosaves incomplete report account overrides serially and saves null when d
   expect(fetchMock.mock.calls.every(call => call[0] === `/api/reimbursements/report/${id}` && call[1].method === 'PATCH')).toBe(true)
 })
 
-it('restores an existing override on opening the report and can autosave an empty override', async () => {
+it('restores an existing override but does not save an empty replacement', async () => {
   const data = fixture()
   data.reports[0].payoutOverride = { accountName: 'Saved holder', accountNumber: '12-1234-1234567-001' }
   await act(async () => root.render(<Reimbursements key="existing-override" initialOverview={data} initialReportId={id} />))
@@ -763,7 +769,8 @@ it('restores an existing override on opening the report and can autosave an empt
   await act(async () => input('Use a different account for this report').click())
   await act(async () => input('Use a different account for this report').click())
   await act(async () => vi.advanceTimersByTimeAsync(650))
-  expect(JSON.parse(fetchMock.mock.calls.at(-1)![1].body).draft.payoutOverride).toEqual({ accountName: '', accountNumber: '' })
+  expect(fetchMock).not.toHaveBeenCalled()
+  expect(container.textContent).toContain('Not saved')
 })
 
 it.each([true, false])('shows only permitted report bank details for read-only viewers (bank: %s)', async bank => {
@@ -828,7 +835,8 @@ it('reveals and hides the bank account number without autosaving or exposing it 
 
 it('masks unformatted bank numbers as well as formatted bank numbers', async () => {
   const data = fixture()
-  data.defaults.accountNumber = '1212341234567000'
+  data.reports[0].permissions.edit = false
+  data.reports[0].accountNumber = '1212341234567000'
   await act(async () => root.render(<Reimbursements key="unformatted-bank" initialOverview={data} initialReportId={id} />))
   expect(container.querySelector('[aria-label="Bank account number"]')!.textContent).toBe('12*********67000')
   expect(container.textContent).not.toContain('1212341234567000')
@@ -850,4 +858,22 @@ it('shows a pencil link to saved bank settings only while the claimant reveals t
   await act(async () => root.render(<Reimbursements key="review-bank-link" initialOverview={data} initialReportId={id} />))
   await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Show bank account number"]')!.click())
   expect(container.querySelector('a[aria-label="Edit saved bank account"]')).toBeNull()
+})
+
+
+it.each(['121234123456700', '12-1234-1234567-000'])('formats payment settings input and saves a valid suffix: %s', async number => {
+  await act(async () => root.render(<Reimbursements key={number} initialOverview={fixture()} initialView="settings" />))
+  await type('Bank account number', number)
+  const formatted = number.includes('-') ? number : '12-1234-1234567-00'
+  expect(input('Bank account number').value).toBe(formatted)
+  await act(async () => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body).accountNumber).toBe(formatted)
+})
+
+it('does not save incomplete payment settings', async () => {
+  await act(async () => root.render(<Reimbursements key="incomplete-bank" initialOverview={fixture()} initialView="settings" />))
+  await type('Bank account number', '12123412345670')
+  expect(input('Bank account number').value).toBe('12-1234-1234567-0')
+  await act(async () => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+  expect(fetchMock).not.toHaveBeenCalled()
 })
