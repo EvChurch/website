@@ -1,14 +1,18 @@
 'use client'
 
-import { useLayoutEffect, useRef, type ComponentPropsWithoutRef } from 'react'
-import { BANK_ACCOUNT_PATTERN, BANK_ACCOUNT_FORMAT_MESSAGE, formatBankAccountNumber } from '@/lib/bank-account'
+import { useId, useLayoutEffect, useRef, useState, type ComponentPropsWithoutRef } from 'react'
+import { BANK_ACCOUNT_PATTERN, BANK_ACCOUNT_FORMAT_MESSAGE, formatBankAccountNumber, isBankAccountNumber } from '@/lib/bank-account'
 
 type Props = Omit<ComponentPropsWithoutRef<'input'>, 'value' | 'onChange' | 'type' | 'pattern' | 'maxLength'> & {
   value: string
   onValueChange: (value: string) => void
+  showValidation?: boolean
 }
 
-export function BankAccountInput({ value, onValueChange, ...props }: Props) {
+export function BankAccountInput({ value, onValueChange, showValidation = false, onBlur, ...props }: Props) {
+  const errorId = useId()
+  const [touched, setTouched] = useState(false)
+  const invalid = (touched || showValidation) && !isBankAccountNumber(value)
   const input = useRef<HTMLInputElement>(null)
   const caret = useRef<number | null>(null)
   useLayoutEffect(() => {
@@ -29,7 +33,11 @@ export function BankAccountInput({ value, onValueChange, ...props }: Props) {
     onValueChange(formatted)
   }
 
-  return <input {...props} ref={input} type="text" inputMode="numeric" autoComplete="off" pattern={BANK_ACCOUNT_PATTERN} title={BANK_ACCOUNT_FORMAT_MESSAGE} value={value}
+  return <><input {...props} ref={input} type="text" inputMode="numeric" autoComplete="off" pattern={BANK_ACCOUNT_PATTERN} title={BANK_ACCOUNT_FORMAT_MESSAGE} value={value}
+    aria-invalid={invalid || undefined}
+    aria-describedby={[props['aria-describedby'], invalid ? errorId : undefined].filter(Boolean).join(' ') || undefined}
+    onBlur={event => { setTouched(true); onBlur?.(event) }}
+    onInvalid={event => { event.preventDefault(); setTouched(true); input.current?.focus() }}
     onChange={event => change(event.target.value, event.target.value.slice(0, event.target.selectionStart ?? event.target.value.length).replace(/\D/g, '').length)}
     onKeyDown={event => {
       const field = event.currentTarget
@@ -44,5 +52,5 @@ export function BankAccountInput({ value, onValueChange, ...props }: Props) {
         change(value.slice(0, position) + value.slice(position + 2), value.slice(0, position).replace(/\D/g, '').length)
       }
     }}
-  />
+  />{invalid && <span id={errorId} aria-live="polite" className="mt-1 block text-sm font-normal text-rich-red">{BANK_ACCOUNT_FORMAT_MESSAGE}</span>}</>
 }

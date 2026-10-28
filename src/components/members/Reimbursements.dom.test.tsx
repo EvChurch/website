@@ -352,7 +352,7 @@ it.each([false, true])('requires payment setup before showing any report, includ
   expect(container.textContent).not.toContain('Create')
   await act(async () => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
   expect(fetchMock).not.toHaveBeenCalled()
-  expect(container.textContent).toContain('Enter an account holder')
+  expect(input('Bank account number').nextElementSibling?.textContent).toContain('Enter a bank account number as')
   await type('Account holder', 'Aroha')
   await type('Bank account number', '12-1234-1234567-000')
   fetchMock.mockImplementation(async (_url: string, options: { method: string }) => ({ ok: true, json: async () => options.method === 'GET' ? fixture() : { ok: true } }))
@@ -743,7 +743,15 @@ it('blocks incomplete bank numbers, autosaves valid overrides serially and clear
   expect(input('Bank account number').value).toBe('12')
   expect(fetchMock).not.toHaveBeenCalled()
   expect(container.textContent).toContain('00-0000-0000000-00')
+  const field = input('Bank account number')
+  const hint = document.getElementById(field.getAttribute('aria-describedby')!)!
+  expect(hint).toBe(field.nextElementSibling)
+  expect(hint.textContent).toContain('00-0000-0000000-00')
+  expect(container.querySelector('[role="alert"]')).toBeNull()
+  expect(container.textContent).not.toContain('Not saved — retry')
   await type('Bank account number', '121234123456700')
+  expect(field.hasAttribute('aria-describedby')).toBe(false)
+  expect(container.textContent).not.toContain('Enter a bank account number as')
   await act(async () => vi.advanceTimersByTimeAsync(650))
   expect(JSON.parse(fetchMock.mock.calls[0][1].body).draft.payoutOverride).toEqual({ accountName: 'Other holder', accountNumber: '12-1234-1234567-00' })
   await type('Bank account number', '12-1234-1234567-001')
@@ -772,7 +780,7 @@ it('restores an existing override but does not save an empty replacement', async
   await act(async () => input('Use a different account for this report').click())
   await act(async () => vi.advanceTimersByTimeAsync(650))
   expect(fetchMock).not.toHaveBeenCalled()
-  expect(container.textContent).toContain('Not saved')
+  expect(container.textContent).toContain('Unsaved changes')
 })
 
 it.each([true, false])('shows only permitted report bank details for read-only viewers (bank: %s)', async bank => {
@@ -878,6 +886,10 @@ it('does not save incomplete payment settings', async () => {
   expect(input('Bank account number').value).toBe('12-1234-1234567-0')
   await act(async () => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
   expect(fetchMock).not.toHaveBeenCalled()
+  const field = input('Bank account number')
+  expect(field.nextElementSibling?.id).toBe(field.getAttribute('aria-describedby'))
+  expect(field.nextElementSibling?.textContent).toContain('Enter a bank account number as')
+  expect(container.querySelector('[role="alert"]')).toBeNull()
 })
 
 it('allows saving below the configured minimum but only enables submission at the threshold', async () => {
