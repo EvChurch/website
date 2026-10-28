@@ -11,7 +11,7 @@ describe('event schedule migration', () => {
     const dialect = new PgDialect()
     expect(dialect.sqlToQuery(execute.mock.calls[0][0]).sql)
       .toBe('ALTER TABLE events ADD COLUMN IF NOT EXISTS scheduled_occurrences jsonb')
-    expect(migrations.at(-1)?.name).toBe('20261021_010000_event_scheduled_occurrences')
+    expect(migrations).toContainEqual({ name: '20261021_010000_event_scheduled_occurrences', up, down })
     execute.mockClear()
     await down(args)
     expect(dialect.sqlToQuery(execute.mock.calls[0][0]).sql).toBe('SELECT 1')
