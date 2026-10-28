@@ -51,6 +51,8 @@ Each file can be up to 10 MB. Images must be still images of 40 megapixels or le
 
 Your work saves automatically, even while an expense line is incomplete. If **Use a different account for this report** is selected, report changes cannot save until its bank account number is complete and correctly formatted. Finish the number or clear the option to resume saving. **Save** also saves your current changes. You can return to an unfinished draft from **My reports**.
 
+The report’s total **Amount** (including GST) must reach the minimum before you can submit. A note below the totals shows the requirement while your report is below the minimum. The default minimum is **$25 NZD**; finance can change it. You can save a draft below the minimum and add more expenses later.
+
 Choose **Submit** when everything is ready. You must complete the required fields and attach a receipt to every line before submitting.
 
 ## Follow your report

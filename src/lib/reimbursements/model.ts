@@ -37,7 +37,8 @@ export type Draft = z.infer<typeof draftSchema>
 export interface Actor { personId: number; name: string; email: string; admin: boolean; finance: boolean }
 export interface Category { id: number; name: string; archived: boolean }
 export interface Centre { id: number; name: string; approverRockPersonId: number | null; approverName: string | null; approverEmail: string | null; financeOnly?: boolean }
-export interface Settings { seniorPersonId: number | null; seniorName: string; seniorEmail: string; alternatePersonId: number | null; alternateName: string; alternateEmail: string; financeEmail: string }
+export const defaultMinimumReportAmountMinor = 2500
+export interface Settings { minimumReportAmountMinor: number; seniorPersonId: number | null; seniorName: string; seniorEmail: string; alternatePersonId: number | null; alternateName: string; alternateEmail: string; financeEmail: string }
 export interface Activity { at: string; personId: number; name: string; action: string; reason: string; revision: number; snapshot?: { centreName: string; lines: ExpenseLine[] } }
 export interface Report extends Draft {
   id: string; number: number; claimantId: number; claimantName: string; claimantEmail: string;
@@ -74,12 +75,15 @@ export function approvalPerson(centre: Centre | undefined, claimantId: number, s
     : { id: settings.seniorPersonId, name: settings.seniorName, email: settings.seniorEmail }
   return fallback.id && fallback.id !== claimantId ? { ...fallback, id: fallback.id } : null
 }
-export function validateSubmission(draft: Draft, categories: Category[], profile: { accountName: string; accountNumber: string }): string[] {
+export function validateSubmission(draft: Draft, categories: Category[], profile: { accountName: string; accountNumber: string }, minimumReportAmountMinor = defaultMinimumReportAmountMinor): string[] {
   const errors: string[] = []
   if (!draft.centreId) errors.push('Choose a purpose.')
   if (!profile.accountName.trim()) errors.push('Enter the payout bank account holder name.')
   if (!isBankAccountNumber(profile.accountNumber)) errors.push(BANK_ACCOUNT_FORMAT_MESSAGE)
   if (!draft.lines.length) errors.push('Add at least one expense.')
+  if (draft.lines.reduce((total, line) => total + (line.amountMinor ?? 0), 0) < minimumReportAmountMinor) {
+    errors.push(`The report total must be at least ${money(minimumReportAmountMinor)} to submit. You can save it as a draft and add more expenses later.`)
+  }
   draft.lines.forEach((line, index) => {
     const prefix = `Line ${index + 1}: `
     const date = new Date(`${line.date}T00:00:00Z`)

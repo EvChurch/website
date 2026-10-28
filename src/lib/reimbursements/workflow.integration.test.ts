@@ -17,7 +17,7 @@ import { handleReimbursementRequest } from './http'
 const url = process.env.REIMBURSEMENT_TEST_DATABASE_URL
 const actor = (personId: number, finance = false, admin = false): Actor => ({ personId, finance, admin, name: `Person ${personId}`, email: `person${personId}@example.com` })
 const claimant = actor(1), rc = actor(2), finance = actor(3, true), stranger = actor(9), senior = actor(4), alternate = actor(5)
-const settings: Settings = { seniorPersonId: 4, seniorName: 'Senior', seniorEmail: senior.email, alternatePersonId: 5, alternateName: 'Alternate', alternateEmail: alternate.email, financeEmail: 'finance@example.com' }
+const settings: Settings = { minimumReportAmountMinor: 2500, seniorPersonId: 4, seniorName: 'Senior', seniorEmail: senior.email, alternatePersonId: 5, alternateName: 'Alternate', alternateEmail: alternate.email, financeEmail: 'finance@example.com' }
 let pool: Pool
 const schema = `reimbursement_test_${randomUUID().replaceAll('-', '')}`
 let hash: string
@@ -87,6 +87,40 @@ describe.skipIf(!url)('Reimbursement PostgreSQL workflow and authenticated HTTP 
     await pool.query('UPDATE reimbursement_reports SET lines=$2::jsonb WHERE id=$1', [id, JSON.stringify(legacyLines)])
     expect((await read(id)).lines[0]).not.toHaveProperty('accountCode')
     expect((await overview(pool, finance)).categories[0]).not.toHaveProperty('accountCode')
+  })
+  it('saves below the minimum, blocks submission without side effects, and accepts the exact combined total', async () => {
+    const { id, draft } = await validDraft()
+    const below = { ...draft, lines: [{ ...draft.lines[0], amountMinor: 2499 }] }
+    await saveDraft(pool, claimant, id, 2, below)
+    await expect(act(id, claimant, 'submit')).rejects.toThrow('at least $25.00')
+    expect(await read(id)).toMatchObject({ status: 'draft', version: 3, history: [], lines: [{ amountMinor: 2499 }] })
+    expect((await pool.query('SELECT * FROM reimbursement_email_deliveries WHERE report_id=$1', [id])).rows).toHaveLength(0)
+    await saveDraft(pool, claimant, id, 3, { ...draft, lines: [{ ...draft.lines[0], amountMinor: 1250 }, { ...draft.lines[0], id: randomUUID(), amountMinor: 1250 }] })
+    await act(id, claimant, 'submit')
+    expect((await read(id)).status).toBe('rc-approval')
+  })
+  it('uses the current global minimum for submissions and resubmissions', async () => {
+    const { id, draft } = await validDraft()
+    const categories = (await overview(pool, finance)).categories
+    await configure(pool, finance, { settings: { ...settings, minimumReportAmountMinor: 12000 }, categories })
+    expect((await overview(pool, claimant)).minimumReportAmountMinor).toBe(12000)
+    await expect(act(id, claimant, 'submit')).rejects.toThrow('at least $120.00')
+    await configure(pool, finance, { settings: { ...settings, minimumReportAmountMinor: 11500 }, categories })
+    await act(id, claimant, 'submit')
+    await act(id, rc, 'reject', 'Please correct this report.')
+    await configure(pool, finance, { settings: { ...settings, minimumReportAmountMinor: 12000 }, categories })
+    await saveDraft(pool, claimant, id, (await read(id)).version, draft)
+    await expect(act(id, claimant, 'submit')).rejects.toThrow('at least $120.00')
+  })
+  it('defaults existing settings to $25 and validates minimum settings', async () => {
+    await pool.query("UPDATE reimbursement_settings SET data=data-'minimumReportAmountMinor' WHERE id=1")
+    expect((await overview(pool, claimant)).minimumReportAmountMinor).toBe(2500)
+    const categories = (await overview(pool, finance)).categories
+    for (const minimumReportAmountMinor of [-1, 0.5, 100_000_001]) {
+      await expect(configure(pool, finance, { settings: { ...settings, minimumReportAmountMinor }, categories })).rejects.toThrow()
+    }
+    await configure(pool, finance, { settings: { ...settings, minimumReportAmountMinor: 0 }, categories })
+    expect((await overview(pool, claimant)).minimumReportAmountMinor).toBe(0)
   })
   it('submits reports without a title', async () => {
     const { id, draft } = await validDraft()
