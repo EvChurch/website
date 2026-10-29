@@ -161,7 +161,7 @@ export const applicationGlobals: GlobalConfig[] = [
 
 export const mcpExcludedCollectionSlugs = new Set([
   'api-keys',
-  'api-audit',
+  'api-audit-events',
   'responsibility-centres',
   'reimbursement-finance-members',
   'sermon-articles',

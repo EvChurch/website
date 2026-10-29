@@ -41,10 +41,10 @@ describe.skipIf(!url)('Payload-managed API credentials', () => {
     await expect(authenticate(pool,`Bearer ${secret}`)).rejects.toThrow('revoked')
     await expect(payload.update({collection:'api-keys',id:key.id,overrideAccess:false,user:admin,data:{revoked:false}})).rejects.toThrow('reactivated')
     await expect(payload.delete({collection:'api-keys',id:key.id,overrideAccess:false,user:admin})).rejects.toThrow()
-    const events = await payload.find({collection:'api-audit',overrideAccess:false,user:admin,depth:0})
+    const events = await payload.find({collection:'api-audit-events',overrideAccess:false,user:admin,depth:0})
     expect(events.docs.map(event => event.action)).toEqual(expect.arrayContaining(['key.created','key.generated','key.updated','key.revoked']))
     expect(JSON.stringify(events)).not.toContain(secret)
-    await expect(payload.update({collection:'api-audit',id:events.docs[0].id,overrideAccess:false,user:admin,data:{action:'tampered'}})).rejects.toThrow()
+    await expect(payload.update({collection:'api-audit-events',id:events.docs[0].id,overrideAccess:false,user:admin,data:{action:'tampered'}})).rejects.toThrow()
   })
   it('protects the collection generate action with admin access and same-origin checks', async () => {
     const handler = (ApiKeys.endpoints || []).find(endpoint => endpoint.path === '/:id/generate')?.handler

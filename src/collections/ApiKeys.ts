@@ -45,7 +45,7 @@ export const ApiKeys: CollectionConfig = {
       }
     }],
     afterChange: [async ({doc, operation, req}) => {
-      await req.payload.create({collection:'api-audit', req, overrideAccess:true, data:{keyId:doc.id, adminId:Number(req.user?.id) || null,
+      await req.payload.create({collection:'api-audit-events', req, overrideAccess:true, data:{keyId:doc.id, adminId:Number(req.user?.id) || null,
         action: operation === 'create' ? 'key.created' : doc.revoked ? 'key.revoked' : 'key.updated', status:operation === 'create' ? 201 : 200,
         details:{name:doc.name, personId:doc.personId, scopes:doc.scopes, expiresAt:doc.expiresAt ?? null}}})
       return doc
@@ -70,7 +70,7 @@ export const ApiKeys: CollectionConfig = {
 }
 
 export const ApiAudit: CollectionConfig = {
-  slug:'api-audit', dbName:'api_audit', labels:{singular:'API audit event',plural:'API audit'},
+  slug:'api-audit-events', dbName:'api_audit', labels:{singular:'API audit event',plural:'API audit'},
   admin:{group:'API', useAsTitle:'action', defaultColumns:['createdAt','keyId','action','status'], hidden:({user}) => user?.collection !== 'users' || !(Array.isArray(user?.roles) && user.roles.includes('admin'))},
   access:{read:apiAdminOnly, create:()=>false, update:()=>false, delete:()=>false},
   fields:[{name:'keyId',type:'text'}, {name:'adminId',type:'number'}, {name:'action',type:'text',required:true}, {name:'status',type:'number',required:true}, {name:'details',type:'json'}],

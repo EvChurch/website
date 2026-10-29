@@ -173,7 +173,7 @@ export async function buildReportPdf(report: Report, categories: Category[], ban
     activityHead()
     for (const item of report.history) {
       const date = new Date(item.at).toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland', dateStyle: 'short', timeStyle: 'short' })
-      const columns = [wrap(date, 132, 8), wrap(item.name, 135, 8), wrap(`${(actionLabels[item.action] ?? item.action) + (item.apiKey ? ` via API — ${item.apiKey.name}` : '')}${item.reason ? `: ${item.reason}` : ''}${rejectedExpenseSummary(item) ? ` — ${rejectedExpenseSummary(item)}` : ''}`, 200, 8)]
+      const columns = [wrap(date, 132, 8), wrap(item.name, 135, 8), wrap(`${(actionLabels[item.action] ?? item.action) + (item.apiKey ? ` via API — ${item.apiKey.name} (${item.apiKey.id})` : '')}${item.reason ? `: ${item.reason}` : ''}${rejectedExpenseSummary(item) ? ` — ${rejectedExpenseSummary(item)}` : ''}`, 200, 8)]
       let offset = 0
       const length = Math.max(...columns.map(column => column.length))
       while (offset < length) {
