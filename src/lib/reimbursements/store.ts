@@ -10,7 +10,7 @@ type Database = Pick<Pool, 'query'>
 export class ReimbursementError extends Error {
   constructor(message: string, public status = 400) { super(message) }
 }
-interface ReportRow {
+export interface ReportRow {
   id: string; number: number; claimant_id: number; claimant_name: string; claimant_email: string;
   status: Report['status']; version: number; revision: number; centre_id: number | null;
   centre_name: string; account_name: string; account_number: string; lines: Report['lines']; history: Report['history'];
@@ -18,7 +18,7 @@ interface ReportRow {
   payout_override: Report['payoutOverride'];
   created_at: Date; updated_at: Date;
 }
-function reportFromRow(row: ReportRow): Report {
+export function reportFromRow(row: ReportRow): Report {
   return {
     id: row.id, number: row.number, claimantId: row.claimant_id, claimantName: row.claimant_name,
     campusId: row.campus_id ?? null, campusName: row.campus_name ?? '',
@@ -102,7 +102,7 @@ export async function overview(db: Database, actor: Actor) {
 }
 
 async function event(db: Database, report: Report, actor: Actor, action: string, reason = '', rejectedLineIds: string[] = []) {
-  const activity = { at: new Date().toISOString(), personId: actor.personId, name: actor.name, action, reason, revision: report.revision, ...(action === 'submit' ? { snapshot: { centreName: report.centreName, campusId: report.campusId, campusName: report.campusName, lines: report.lines } } : {}) }
+  const activity = { at: new Date().toISOString(), personId: actor.personId, name: actor.name, action, reason, revision: report.revision, ...(actor.apiKey ? { apiKey: actor.apiKey } : {}), ...(action === 'submit' ? { snapshot: { centreName: report.centreName, campusId: report.campusId, campusName: report.campusName, lines: report.lines } } : {}) }
   const rejectedLines = report.lines.flatMap((line, index) => rejectedLineIds.includes(line.id) ? [{ id: line.id, number: index + 1, description: line.description }] : [])
   await db.query(`UPDATE reimbursement_reports SET history=history || $2::jsonb WHERE id=$1`, [report.id, JSON.stringify([{ ...activity, ...(action === 'reject' ? { rejectedLines } : {}) }])])
 }
@@ -139,7 +139,7 @@ export async function queueStateNotifications(db: Database, report: Report, cont
   }
 }
 
-async function transaction<T>(pool: Pool, operation: (db: PoolClient) => Promise<T>) {
+export async function transaction<T>(pool: Pool, operation: (db: PoolClient) => Promise<T>) {
   const db = await pool.connect()
   try { await db.query('BEGIN'); const result = await operation(db); await db.query('COMMIT'); return result }
   catch (error) { await db.query('ROLLBACK'); throw error }
@@ -196,94 +196,96 @@ export const actionSchema = z.object({
   rejectedLineIds: z.array(z.string().uuid()).max(100).default([]),
 })
 export async function actOnReport(pool: Pool, actor: Actor, id: string, input: unknown) {
+  return transaction(pool, db => actOnReportInTransaction(db, actor, id, input))
+}
+export async function actOnReportInTransaction(db: PoolClient, actor: Actor, id: string, input: unknown) {
   const command = actionSchema.parse(input)
-  return transaction(pool, async db => {
-    const report = await lockedReport(db, id)
-    if (report.version !== command.version) throw new ReimbursementError('This report changed. Reload and review it again.', 409)
-    const context = await directory(db)
-    const access = reportPermissions(actor, report, context.centres, context.settings)
-    if (!access.visible) throw new ReimbursementError('Report not found.', 404)
-    if (command.rejectedLineIds.length && command.action !== 'reject') throw new ReimbursementError('Expense selection is only available when rejecting a report.')
-    if (new Set(command.rejectedLineIds).size !== command.rejectedLineIds.length || command.rejectedLineIds.some(id => !report.lines.some(line => line.id === id))) throw new ReimbursementError('Select expenses from this report only.')
-    if (command.action === 'archive' || command.action === 'restore') {
-      if (actor.personId !== report.claimantId) throw new ReimbursementError('Only the claimant can archive or restore this report.', 403)
-      if (command.action === 'archive' && !isArchivedReport(report) && !canArchiveReport(report)) throw new ReimbursementError('This report cannot be archived at this stage.', 403)
-      if (isArchivedReport(report) !== (command.action === 'restore')) throw new ReimbursementError('This report is already in that section.', 409)
-      await event(db, report, actor, command.action)
-      await db.query(`UPDATE reimbursement_reports SET status=CASE WHEN $2='restore' THEN 'draft' ELSE status END,
-        rc_approver_id=CASE WHEN $2='restore' THEN NULL ELSE rc_approver_id END,version=version+1,updated_at=now() WHERE id=$1`, [id, command.action])
-      await db.query(`UPDATE reimbursement_email_deliveries SET state='cancelled',lease_until=NULL,lease_token=NULL WHERE report_id=$1 AND state IN ('pending','failed','sending')`, [id])
-      return report.version + 1
-    }
-    if (isArchivedReport(report)) throw new ReimbursementError('Restore this archived report before making changes.', 403)
-    let status = report.status
-    let rcApproverId = report.rcApproverId
-    if (command.action === 'submit') {
-      if (!access.edit) throw new ReimbursementError('You cannot submit this report.', 403)
-      const profile = (await db.query<{ account_name: string; account_number: string }>('SELECT account_name,account_number FROM reimbursement_profiles WHERE person_id=$1', [actor.personId])).rows[0]
-      report.accountName = (report.payoutOverride?.accountName ?? profile?.account_name ?? '').trim()
-      report.accountNumber = (report.payoutOverride?.accountNumber ?? profile?.account_number ?? '').trim()
-      const errors = validateSubmission(report, context.categories, report, context.settings.minimumReportAmountMinor)
-      const centre = context.centres.find(centre => centre.id === report.centreId)
-      const approver = approvalPerson(centre, report.claimantId, context.settings)
-      if (!centre) errors.push('Choose an active purpose before submission.')
-      if (!context.campuses.some(campus => campus.id === report.campusId)) errors.push('Choose an active campus before submission.')
-      if (!centre?.financeOnly && !approver?.email) errors.push('An eligible purpose approver must be configured before submission.')
-      if (!context.settings.financeEmail) errors.push('Finance must configure its notification email before submission.')
-      if (errors.length) throw new ReimbursementError(errors.join('\n'))
-      try {
-        // Validate the complete, finance-sized attachment before entering approvals.
-        await buildReportPdf(report, context.categories, true, await loadReportReceipts(db, report), 'submission')
-      } catch (error) {
-        if (error instanceof ReceiptValidationError) throw new ReimbursementError(error.message)
-        throw new ReimbursementError('A receipt could not be included in the report PDF. Replace unreadable receipts and try submitting again.')
-      }
-      status = centre?.financeOnly ? 'finance-approval' : 'rc-approval'; rcApproverId = null; report.revision++
-    } else if (command.action === 'withdraw') {
-      if (!access.withdraw) throw new ReimbursementError('You cannot withdraw this report.', 403)
-      status = 'draft'; rcApproverId = null
-    } else if (command.action === 'approve' || command.action === 'reject') {
-      if (!access.approveRC && !access.approveFinance) throw new ReimbursementError('You are not the current approver.', 403)
-      if (command.action === 'reject') {
-        if (!command.reason.trim()) throw new ReimbursementError('Give a reason for rejection.')
-        status = 'rejected'; rcApproverId = null
-      } else if (access.approveRC) { status = 'finance-approval'; rcApproverId = actor.personId }
-      else status = 'awaiting-payment'
-    } else if (command.action === 'return') {
-      if (!actor.finance || report.status !== 'awaiting-payment') throw new ReimbursementError('You cannot return this report.', 403)
-      if (!command.reason.trim()) throw new ReimbursementError('Give a reason.')
-      status = 'rejected'; rcApproverId = null
-    }
-    const reason = command.action === 'submit'
-      ? `Submitted ${reportNumber(report.number)} for ${money(report.lines.reduce((sum, line) => sum + (line.amountMinor ?? 0), 0))}`
-      : command.reason.trim()
-    await event(db, report, actor, command.action, reason, command.rejectedLineIds)
-    await db.query(`UPDATE reimbursement_reports SET status=$2,rc_approver_id=$3,revision=$4,lines=$5::jsonb,account_name=$6,account_number=$7,version=version+1,updated_at=now() WHERE id=$1`,
-      [id, status, rcApproverId, report.revision, JSON.stringify(report.lines), report.accountName, report.accountNumber])
+  const report = await lockedReport(db, id)
+  if (report.version !== command.version) throw new ReimbursementError('This report changed. Reload and review it again.', 409)
+  const context = await directory(db)
+  const access = reportPermissions(actor, report, context.centres, context.settings)
+  if (!access.visible) throw new ReimbursementError('Report not found.', 404)
+  if (command.rejectedLineIds.length && command.action !== 'reject') throw new ReimbursementError('Expense selection is only available when rejecting a report.')
+  if (new Set(command.rejectedLineIds).size !== command.rejectedLineIds.length || command.rejectedLineIds.some(id => !report.lines.some(line => line.id === id))) throw new ReimbursementError('Select expenses from this report only.')
+  if (command.action === 'archive' || command.action === 'restore') {
+    if (actor.personId !== report.claimantId) throw new ReimbursementError('Only the claimant can archive or restore this report.', 403)
+    if (command.action === 'archive' && !isArchivedReport(report) && !canArchiveReport(report)) throw new ReimbursementError('This report cannot be archived at this stage.', 403)
+    if (isArchivedReport(report) !== (command.action === 'restore')) throw new ReimbursementError('This report is already in that section.', 409)
+    await event(db, report, actor, command.action)
+    await db.query(`UPDATE reimbursement_reports SET status=CASE WHEN $2='restore' THEN 'draft' ELSE status END,
+      rc_approver_id=CASE WHEN $2='restore' THEN NULL ELSE rc_approver_id END,version=version+1,updated_at=now() WHERE id=$1`, [id, command.action])
     await db.query(`UPDATE reimbursement_email_deliveries SET state='cancelled',lease_until=NULL,lease_token=NULL WHERE report_id=$1 AND state IN ('pending','failed','sending')`, [id])
-    const updated = await lockedReport(db, id)
-    await queueStateNotifications(db, updated, context)
-    return updated.version
-  })
+    return report.version + 1
+  }
+  if (isArchivedReport(report)) throw new ReimbursementError('Restore this archived report before making changes.', 403)
+  let status = report.status
+  let rcApproverId = report.rcApproverId
+  if (command.action === 'submit') {
+    if (!access.edit) throw new ReimbursementError('You cannot submit this report.', 403)
+    const profile = (await db.query<{ account_name: string; account_number: string }>('SELECT account_name,account_number FROM reimbursement_profiles WHERE person_id=$1', [actor.personId])).rows[0]
+    report.accountName = (report.payoutOverride?.accountName ?? profile?.account_name ?? '').trim()
+    report.accountNumber = (report.payoutOverride?.accountNumber ?? profile?.account_number ?? '').trim()
+    const errors = validateSubmission(report, context.categories, report, context.settings.minimumReportAmountMinor)
+    const centre = context.centres.find(centre => centre.id === report.centreId)
+    const approver = approvalPerson(centre, report.claimantId, context.settings)
+    if (!centre) errors.push('Choose an active purpose before submission.')
+    if (!context.campuses.some(campus => campus.id === report.campusId)) errors.push('Choose an active campus before submission.')
+    if (!centre?.financeOnly && !approver?.email) errors.push('An eligible purpose approver must be configured before submission.')
+    if (!context.settings.financeEmail) errors.push('Finance must configure its notification email before submission.')
+    if (errors.length) throw new ReimbursementError(errors.join('\n'))
+    try {
+      // Validate the complete, finance-sized attachment before entering approvals.
+      await buildReportPdf(report, context.categories, true, await loadReportReceipts(db, report), 'submission')
+    } catch (error) {
+      if (error instanceof ReceiptValidationError) throw new ReimbursementError(error.message)
+      throw new ReimbursementError('A receipt could not be included in the report PDF. Replace unreadable receipts and try submitting again.')
+    }
+    status = centre?.financeOnly ? 'finance-approval' : 'rc-approval'; rcApproverId = null; report.revision++
+  } else if (command.action === 'withdraw') {
+    if (!access.withdraw) throw new ReimbursementError('You cannot withdraw this report.', 403)
+    status = 'draft'; rcApproverId = null
+  } else if (command.action === 'approve' || command.action === 'reject') {
+    if (!access.approveRC && !access.approveFinance) throw new ReimbursementError('You are not the current approver.', 403)
+    if (command.action === 'reject') {
+      if (!command.reason.trim()) throw new ReimbursementError('Give a reason for rejection.')
+      status = 'rejected'; rcApproverId = null
+    } else if (access.approveRC) { status = 'finance-approval'; rcApproverId = actor.personId }
+    else status = 'awaiting-payment'
+  } else if (command.action === 'return') {
+    if (!actor.finance || report.status !== 'awaiting-payment') throw new ReimbursementError('You cannot return this report.', 403)
+    if (!command.reason.trim()) throw new ReimbursementError('Give a reason.')
+    status = 'rejected'; rcApproverId = null
+  }
+  const reason = command.action === 'submit'
+    ? `Submitted ${reportNumber(report.number)} for ${money(report.lines.reduce((sum, line) => sum + (line.amountMinor ?? 0), 0))}`
+    : command.reason.trim()
+  await event(db, report, actor, command.action, reason, command.rejectedLineIds)
+  await db.query(`UPDATE reimbursement_reports SET status=$2,rc_approver_id=$3,revision=$4,lines=$5::jsonb,account_name=$6,account_number=$7,version=version+1,updated_at=now() WHERE id=$1`,
+    [id, status, rcApproverId, report.revision, JSON.stringify(report.lines), report.accountName, report.accountNumber])
+  await db.query(`UPDATE reimbursement_email_deliveries SET state='cancelled',lease_until=NULL,lease_token=NULL WHERE report_id=$1 AND state IN ('pending','failed','sending')`, [id])
+  const updated = await lockedReport(db, id)
+  await queueStateNotifications(db, updated, context)
+  return updated.version
 }
 
 export async function markBatchPaid(pool: Pool, actor: Actor, input: unknown) {
+  return transaction(pool, db => markBatchPaidInTransaction(db, actor, input))
+}
+export async function markBatchPaidInTransaction(db: PoolClient, actor: Actor, input: unknown) {
   if (!actor.finance) throw new ReimbursementError('Only finance can record payments.', 403)
   const command = z.object({
     reports: z.array(z.object({ id: z.string().uuid(), version: z.number().int().positive() })).min(1).max(100),
   }).strict().parse(input)
   if (new Set(command.reports.map(report => report.id)).size !== command.reports.length) throw new ReimbursementError('Select each report only once.')
-  return transaction(pool, async db => {
-    const context = await directory(db)
-    for (const item of [...command.reports].sort((a, b) => a.id.localeCompare(b.id))) {
-      const report = await lockedReport(db, item.id)
-      if (report.status !== 'awaiting-payment' || report.version !== item.version) throw new ReimbursementError('A selected report changed or is no longer awaiting payment.', 409)
-      await event(db, report, actor, 'paid')
-      await db.query(`UPDATE reimbursement_reports SET status='paid',version=version+1,updated_at=now() WHERE id=$1`, [item.id])
-      await db.query(`UPDATE reimbursement_email_deliveries SET state='cancelled',lease_until=NULL,lease_token=NULL WHERE report_id=$1 AND state IN ('pending','failed','sending')`, [item.id])
-      await queueStateNotifications(db, await lockedReport(db, item.id), context)
-    }
-  })
+  const context = await directory(db)
+  for (const item of [...command.reports].sort((a, b) => a.id.localeCompare(b.id))) {
+    const report = await lockedReport(db, item.id)
+    if (report.status !== 'awaiting-payment' || report.version !== item.version) throw new ReimbursementError(`${reportNumber(report.number)} changed or is no longer awaiting payment.`, 409)
+    await event(db, report, actor, 'paid')
+    await db.query(`UPDATE reimbursement_reports SET status='paid',version=version+1,updated_at=now() WHERE id=$1`, [item.id])
+    await db.query(`UPDATE reimbursement_email_deliveries SET state='cancelled',lease_until=NULL,lease_token=NULL WHERE report_id=$1 AND state IN ('pending','failed','sending')`, [item.id])
+    await queueStateNotifications(db, await lockedReport(db, item.id), context)
+  }
 }
 
 export async function uploadReceipt(pool: Pool, actor: Actor, body: Buffer, filename: string, mediaType: string) {

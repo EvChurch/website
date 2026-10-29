@@ -9,6 +9,7 @@ allowBuilds:
   ffmpeg-static: true
   workerd: true
   core-js: false
+  '@scarf/scarf': false
 
 minimumReleaseAgeExclude:
   - '@asamuzakjp/css-color@7.1.6'

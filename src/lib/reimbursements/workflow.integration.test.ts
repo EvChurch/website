@@ -14,6 +14,11 @@ import { reconcileReimbursementEmails, type ReimbursementEmail } from './notific
 const runtime = vi.hoisted(() => ({ actor: vi.fn(), pool: vi.fn() }))
 vi.mock('./runtime', () => ({ reimbursementActor: runtime.actor, reimbursementPool: runtime.pool }))
 import { handleReimbursementRequest } from './http'
+import * as reimbursementApiV1 from '@/app/api/v1/reimbursements/[...path]/route'
+import { createKey, updateKey } from '@/lib/api/test-fixtures'
+import { API_UP_SQL } from '@/migrations/20261029_020000_api'
+const rock = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/rock-api', () => ({ rockFetch: rock }))
 
 const url = process.env.REIMBURSEMENT_TEST_DATABASE_URL
 const actor = (personId: number, finance = false, admin = false): Actor => ({ personId, finance, admin, name: `Person ${personId}`, email: `person${personId}@example.com` })
@@ -54,12 +59,15 @@ describe.skipIf(!url)('Reimbursement PostgreSQL workflow and authenticated HTTP 
     await pool.query(REIMBURSEMENT_PAYOUT_AND_PASTOR_ACCOUNT_UP_SQL)
     await pool.query(REIMBURSEMENT_CAMPUS_UP_SQL)
     await pool.query(REIMBURSEMENT_CAMPUS_UP_SQL)
+    await pool.query(API_UP_SQL)
+    await pool.query(API_UP_SQL)
     runtime.pool.mockResolvedValue(pool)
     process.env.APP_BASE_URL = 'https://example.com'
   })
   afterAll(async () => { if (pool) { await pool.query(`DROP SCHEMA ${schema} CASCADE`); await pool.end() } })
   beforeEach(async () => {
-    await pool.query(`TRUNCATE reimbursement_email_deliveries,reimbursement_reports,reimbursement_receipt_owners,reimbursement_receipts,reimbursement_profiles,responsibility_centres,reimbursement_finance_members CASCADE;
+    rock.mockImplementation(async ({endpoint}: {endpoint:string}) => { const id=Number(endpoint.split('/')[1]); return {Id:id,NickName:'Person',LastName:String(id),Email:`person${id}@example.com`} })
+    await pool.query(`TRUNCATE api_audit,api_operations,api_keys,reimbursement_email_deliveries,reimbursement_reports,reimbursement_receipt_owners,reimbursement_receipts,reimbursement_profiles,responsibility_centres,reimbursement_finance_members CASCADE;
       INSERT INTO responsibility_centres(id,name,approver_rock_person_id,approver_name,approver_email,is_active,last_synced_at,sort_order)
         VALUES(1,'Hospitality',2,'RC Approver','person2@example.com',true,now(),1),(2,'Unassigned',NULL,NULL,NULL,true,now(),2);
       SELECT setval(pg_get_serial_sequence('responsibility_centres','id'),2);
@@ -70,6 +78,124 @@ describe.skipIf(!url)('Reimbursement PostgreSQL workflow and authenticated HTTP 
     receiptBody = Buffer.from(await receipt.save())
     hash = await uploadReceipt(pool, claimant, receiptBody, 'receipt.pdf', 'application/pdf')
     runtime.actor.mockResolvedValue(claimant)
+  })
+
+  async function api(secret: string, path: string, method:'GET'|'POST'|'PATCH'|'PUT'|'DELETE'='GET', body?:unknown, operationId='operation-1', extraHeaders:Record<string,string>={}) {
+    return reimbursementApiV1[method](new NextRequest(`https://example.com/api/v1/reimbursements/${path}`,{method,headers:{Authorization:`Bearer ${secret}`,...(body?{'Content-Type':'application/json','Idempotency-Key':operationId}:{}),...extraHeaders},body:body?JSON.stringify(body):undefined}),{params:Promise.resolve({path:path.split('?')[0].split('/')})})
+  }
+  async function key(personId=3, scopes:string[]=['reimbursements:reports:read','reimbursements:receipts:read','reimbursements:bank:read','reimbursements:reports:review','reimbursements:payments:confirm']) {
+    return createKey(pool,99,{name:'Synthetic script',personId,scopes,expiresAt:null})
+  }
+  it('creates one-time hashed personal keys with configurable expiry and metadata-only audit', async()=>{
+    const created=await key()
+    expect(created.secret).toMatch(/^ev_api_[a-f0-9]{32}_[A-Za-z0-9_-]{43}$/)
+    const stored=(await pool.query('SELECT * FROM api_keys WHERE id=$1',[created.key.id])).rows[0]
+    expect(stored.secret_hash).toHaveLength(64);expect(stored.secret_hash).not.toContain(created.secret)
+    expect(stored.expires_at).toBeNull()
+    const defaultKey=await createKey(pool,99,{name:'Default expiry',personId:3,scopes:['reimbursements:reports:read']})
+    expect(Date.parse(defaultKey.key.expiresAt!)-Date.now()).toBeGreaterThan(364*86400000)
+    expect((await api('invalid','reports')).status).toBe(401)
+    await pool.query("UPDATE api_keys SET expires_at=now()-interval '1 second' WHERE id=$1",[created.key.id])
+    expect((await api(created.secret,'reports')).status).toBe(401)
+    await updateKey(pool,99,created.key.id,{name:'Renewed',scopes:['reimbursements:reports:read'],expiresAt:null})
+    expect((await api(created.secret,'reports')).status).toBe(200)
+    await updateKey(pool,99,created.key.id,null,true)
+    expect((await api(created.secret,'reports')).status).toBe(401)
+    const audit=JSON.stringify((await pool.query('SELECT * FROM api_audit')).rows)
+    expect(audit).not.toContain(created.secret);expect(audit).toContain('key.revoked')
+  })
+  it('paginates visible reports and gates bank details, receipts, PDFs, and history independently',async()=>{
+    const first=await validDraft();await act(first.id,claimant,'submit')
+    const second=await validDraft();await act(second.id,claimant,'submit')
+    const readOnly=await key(3,['reimbursements:reports:read'])
+    const page=await (await api(readOnly.secret,'reports?limit=1')).json()
+    expect(page.data).toHaveLength(1);expect(page.nextCursor).toBeTruthy()
+    expect(page.data[0].bankAccount).toBeNull();expect(page.data[0].pdfUrl).toBeNull();expect(page.data[0].expenses[0].receiptUrl).toBeNull()
+    expect(JSON.stringify(page)).not.toContain(hash);expect(JSON.stringify(page)).not.toContain('12-1234-1234567-000')
+    const next=await (await api(readOnly.secret,`reports?limit=1&cursor=${page.nextCursor}`)).json()
+    expect(next.data).toHaveLength(1);expect(next.data[0].id).not.toBe(page.data[0].id);expect(next.nextCursor).toBeNull();expect(next.syncUntil).toBe(page.syncUntil)
+    expect((await api(readOnly.secret,`reports?status=paid&cursor=${page.nextCursor}`)).status).toBe(400)
+    expect((await api(readOnly.secret,`reports/${first.id}/receipts/${first.draft.lines[0].id}`)).status).toBe(403)
+    expect((await api(readOnly.secret,`reports/${first.id}/pdf`)).status).toBe(403)
+    const all=await key(), detail=await api(all.secret,`reports/${first.id}`), data=await detail.json()
+    expect(data.bankAccount.number).toBe('12-1234-1234567-000')
+    expect(data.pdfUrl).toBe(`/api/v1/reimbursements/reports/${first.id}/pdf`)
+    expect(data.expenses[0].receiptUrl).toBe(`/api/v1/reimbursements/reports/${first.id}/receipts/${first.draft.lines[0].id}`)
+    expect((await api(all.secret,`reports/${first.id}/receipts/${first.draft.lines[0].id}`)).status).toBe(200)
+    expect((await api(all.secret,`reports/${first.id}/receipts/${randomUUID()}`)).status).toBe(404)
+    expect((await api(all.secret,`reports/${first.id}/pdf`)).headers.get('content-type')).toBe('application/pdf')
+    expect((await api(all.secret,`reports/${first.id}`,'GET',undefined,'unused',{'If-None-Match':detail.headers.get('etag')!})).status).toBe(304)
+    const outsider=await key(9)
+    expect((await api(outsider.secret,`reports/${first.id}`)).status).toBe(404)
+    expect((await api(outsider.secret,`reports/${first.id}/pdf`)).status).toBe(404)
+    const purpose=await key(2)
+    expect((await (await api(purpose.secret,`reports/${first.id}`)).json()).bankAccount).toBeNull()
+    await pool.query('DELETE FROM reimbursement_finance_members WHERE rock_person_id=3')
+    expect((await api(all.secret,`reports/${first.id}`)).status).toBe(404)
+  })
+  it('executes approvals safely under concurrent identical retries and rejects collisions and stale decisions',async()=>{
+    const {id}=await validDraft();await act(id,claimant,'submit')
+    const purpose=await key(2), own=await key(1)
+    const version=(await read(id)).version
+    expect((await api(own.secret,`reports/${id}/approve`,'POST',{version})).status).toBe(403)
+    expect((await api(purpose.secret,`reports/${id}/approve`,'POST',{version:version-1})).status).toBe(409)
+    const responses=await Promise.all([api(purpose.secret,`reports/${id}/approve`,'POST',{version},'same'),api(purpose.secret,`reports/${id}/approve`,'POST',{version},'same')])
+    expect(responses.map(response=>response.status)).toEqual([200,200]);expect(await responses[0].json()).toEqual(await responses[1].json())
+    let report=await read(id)
+    expect(report.history.filter(item=>item.action==='approve')).toHaveLength(1)
+    expect(report.history.at(-1)?.apiKey).toEqual({id:purpose.key.id,name:'Synthetic script'})
+    expect((await api(purpose.secret,`reports/${id}/reject`,'POST',{version,reason:'Different request'},'same')).status).toBe(409)
+    await updateKey(pool,99,purpose.key.id,{name:'Restricted',scopes:['reimbursements:reports:read'],expiresAt:null})
+    expect((await api(purpose.secret,`reports/${id}/approve`,'POST',{version},'same')).status).toBe(403)
+    const financeKey=await key()
+    expect((await api(financeKey.secret,`reports/${id}/approve`,'POST',{version:report.version})).status).toBe(200)
+    report=await read(id);expect(report.status).toBe('awaiting-payment')
+    expect((await pool.query("SELECT count(*)::int AS count FROM reimbursement_email_deliveries WHERE report_id=$1 AND kind='payment'",[id])).rows[0].count).toBe(1)
+  })
+  it('records individual and atomic batch payments with no duplicate history or notifications',async()=>{
+    const id=await approved(), second=await approved(), created=await key()
+    const a={id,version:(await read(id)).version},b={id:second,version:(await read(second)).version}
+    const before=(await pool.query('SELECT count(*)::int AS count FROM reimbursement_email_deliveries')).rows[0].count
+    expect((await api(created.secret,'payments/confirm','POST',{reports:[a,{...b,version:b.version-1}]},'batch')).status).toBe(409)
+    expect((await read(id)).status).toBe('awaiting-payment');expect((await read(second)).status).toBe('awaiting-payment')
+    expect((await pool.query('SELECT count(*)::int AS count FROM reimbursement_email_deliveries')).rows[0].count).toBe(before)
+    for(let attempt=0;attempt<2;attempt++) expect((await api(created.secret,'payments/confirm','POST',{reports:[a,b]},'batch')).status).toBe(200)
+    expect((await read(id)).history.filter(item=>item.action==='paid')).toHaveLength(1)
+    expect((await pool.query("SELECT count(*)::int AS count FROM reimbursement_email_deliveries WHERE kind='paid'")).rows[0].count).toBe(2)
+    const third=await approved()
+    expect((await api(created.secret,'payments/confirm','POST',{reports:[{id:third,version:(await read(third)).version}]},'single')).status).toBe(200)
+    await pool.query('DELETE FROM reimbursement_finance_members WHERE rock_person_id=3')
+    expect((await api(created.secret,'payments/confirm','POST',{reports:[a,b]},'batch')).status).toBe(403)
+  })
+  it('preserves whole-report rejection with flags and blocks payment before approval',async()=>{
+    const {id,draft}=await validDraft();await act(id,claimant,'submit')
+    const purpose=await key(2),financeKey=await key(),version=(await read(id)).version
+    expect((await api(purpose.secret,`reports/${id}/reject`,'POST',{version,reason:'Explain the event',rejectedLineIds:[draft.lines[0].id]})).status).toBe(200)
+    const report=await read(id);expect(report.status).toBe('rejected');expect(report.history.at(-1)?.rejectedLines?.[0].id).toBe(draft.lines[0].id)
+    expect((await api(financeKey.secret,'payments/confirm','POST',{reports:[{id,version:report.version}]})).status).toBe(409)
+    await act(id,claimant,'submit');expect((await read(id)).status).toBe('rc-approval')
+  })
+  it('rejects cookie-only access, oversized and malformed writes, and unexposed actions',async()=>{
+    const created=await key(),{id}=await validDraft();await act(id,claimant,'submit')
+    expect((await api('', 'reports','GET',undefined,'unused',{Authorization:'',Cookie:'session=browser-session'})).status).toBe(401)
+    expect((await api(created.secret,`reports/${id}/approve`,'POST',{version:3},'missing',{'Idempotency-Key':''})).status).toBe(400)
+    expect((await api(created.secret,`reports/${id}/approve`,'POST',{version:3},'bad-type',{'Content-Type':'text/plain'})).status).toBe(415)
+    expect((await api(created.secret,`reports/${id}/approve`,'POST',{version:3,reason:'x'.repeat(66000)},'too-large')).status).toBe(413)
+    expect((await api(created.secret,`reports/${id}/submit`,'POST',{version:3},'submit')).status).toBe(404)
+    expect((await api(created.secret,`reports/${id}`,'PATCH',{version:3,draft:{}},'edit')).status).toBe(404)
+    expect((await api(created.secret,'reports?limit=101')).status).toBe(400)
+    expect((await api(created.secret,'reports?limit=1&limit=2')).status).toBe(400)
+    expect((await api(created.secret,'reports?cursor=bad')).status).toBe(400)
+    expect((await read(id)).status).toBe('rc-approval')
+  })
+  it('enforces rate limits and fails closed on identity lookup failures',async()=>{
+    const created=await key()
+    await pool.query('UPDATE api_keys SET rate_count=120 WHERE id=$1',[created.key.id])
+    const limited=await api(created.secret,'reports');expect(limited.status).toBe(429);expect(limited.headers.get('retry-after')).toBe('60')
+    await pool.query("UPDATE api_keys SET rate_window=now()-interval '2 minutes' WHERE id=$1",[created.key.id])
+    expect((await api(created.secret,'reports')).status).toBe(200)
+    rock.mockRejectedValueOnce(new Error('Unavailable'))
+    expect((await api(created.secret,'reports')).status).toBe(503)
   })
   it('requires an active campus at submission and preserves historical campus names', async () => {
     const { id, draft } = await validDraft()
@@ -425,6 +551,8 @@ describe.skipIf(!url)('Reimbursement PostgreSQL workflow and authenticated HTTP 
     await saveProfile(pool, claimant, { accountName: 'Original', accountNumber: '12-1234-1234567-000' })
     await pool.query(REIMBURSEMENT_CAMPUS_UP_SQL)
     await pool.query(REIMBURSEMENT_CAMPUS_UP_SQL)
+    await pool.query(API_UP_SQL)
+    await pool.query(API_UP_SQL)
     runtime.pool.mockResolvedValue(pool)
     const profileRequest = (origin = 'https://ev.church') => new NextRequest('https://ev.church/api/reimbursements/profile', { method: 'PUT', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify({ accountName: 'Attempt', accountNumber: '' }) })
     runtime.actor.mockResolvedValue(null)

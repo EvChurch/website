@@ -35,12 +35,12 @@ export const draftSchema = z.object({
 })
 export type ExpenseLine = z.infer<typeof lineSchema>
 export type Draft = z.infer<typeof draftSchema>
-export interface Actor { personId: number; name: string; email: string; admin: boolean; finance: boolean }
+export interface Actor { apiKey?: { id: string; name: string }; personId: number; name: string; email: string; admin: boolean; finance: boolean }
 export interface Category { id: number; name: string; archived: boolean }
 export interface Centre { id: number; name: string; approverRockPersonId: number | null; approverName: string | null; approverEmail: string | null; financeOnly?: boolean }
 export const defaultMinimumReportAmountMinor = 2500
 export interface Settings { minimumReportAmountMinor: number; seniorPersonId: number | null; seniorName: string; seniorEmail: string; alternatePersonId: number | null; alternateName: string; alternateEmail: string; financeEmail: string }
-export interface Activity { at: string; personId: number; name: string; action: string; reason: string; revision: number; rejectedLines?: { id: string; number: number; description: string }[]; snapshot?: { centreName: string; campusId?: number | null; campusName?: string; lines: ExpenseLine[] } }
+export interface Activity { apiKey?: { id: string; name: string }; at: string; personId: number; name: string; action: string; reason: string; revision: number; rejectedLines?: { id: string; number: number; description: string }[]; snapshot?: { centreName: string; campusId?: number | null; campusName?: string; lines: ExpenseLine[] } }
 export interface Report extends Draft {
   id: string; number: number; claimantId: number; claimantName: string; claimantEmail: string;
   status: ReportStatus; version: number; revision: number; history: Activity[];

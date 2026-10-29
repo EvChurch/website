@@ -10,8 +10,8 @@ const allowedDevOrigins = process.env.NEXT_ALLOWED_DEV_ORIGINS
   .filter(Boolean)
 
 const nextConfig: NextConfig = {
-  outputFileTracingIncludes: { '/*': ['./src/lib/reimbursements/assets/DejaVuSans.ttf', './public/images/global/ev-church-logo.png'], '/help': ['./content/help/*.md'], '/help/*': ['./content/help/*.md'] },
-  serverExternalPackages: ['ffmpeg-static'],
+  outputFileTracingIncludes: { '/api/v1/docs/*': ['./node_modules/swagger-ui-dist/swagger-ui.css', './node_modules/swagger-ui-dist/swagger-ui-bundle.js', './node_modules/swagger-ui-dist/swagger-ui-standalone-preset.js'], '/*': ['./src/lib/reimbursements/assets/DejaVuSans.ttf', './public/images/global/ev-church-logo.png'], '/help': ['./content/help/*.md'], '/help/*': ['./content/help/*.md'] },
+  serverExternalPackages: ['ffmpeg-static', 'swagger-ui-dist'],
   ...(allowedDevOrigins?.length ? { allowedDevOrigins } : {}),
   async headers() {
     return [
