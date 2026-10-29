@@ -380,7 +380,7 @@ function ReportEditor({ report, data, onBack, refresh }: { report: VisibleReport
       {busy && <p role="status">Saving your changes…</p>}
       {report.status === 'awaiting-payment' && <p>Approved and awaiting payment. Finance can record payment from the payment queue.</p>}
     </div>}
-    {report.history.length > 0 && <section className="mt-8"><h2 className="text-2xl">Activity</h2><ol className="mt-4 space-y-3">{report.history.map((item, index) => <li key={index} className="rounded-lg bg-white p-4 text-sm"><p><strong>{item.name}</strong> · {actionLabels[item.action] ?? item.action} · revision {item.revision}</p><p className="mt-1 text-mid-grey">{new Date(item.at).toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' })}</p>{item.reason && <p className="mt-2 whitespace-pre-line break-words">{item.reason}</p>}{rejectedExpenseSummary(item) && <p className="mt-2 whitespace-pre-line break-words">{rejectedExpenseSummary(item)}</p>}</li>)}</ol></section>}
+    {report.history.length > 0 && <section className="mt-8"><h2 className="text-2xl">Activity</h2><ol className="mt-4 space-y-3">{report.history.map((item, index) => <li key={index} className="rounded-lg bg-white p-4 text-sm"><p><strong>{item.name}</strong> · {actionLabels[item.action] ?? item.action}{item.apiKey ? ` via API — ${item.apiKey.name}` : ''} · revision {item.revision}</p><p className="mt-1 text-mid-grey">{new Date(item.at).toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' })}</p>{item.reason && <p className="mt-2 whitespace-pre-line break-words">{item.reason}</p>}{rejectedExpenseSummary(item) && <p className="mt-2 whitespace-pre-line break-words">{rejectedExpenseSummary(item)}</p>}</li>)}</ol></section>}
   </section>
 }
 

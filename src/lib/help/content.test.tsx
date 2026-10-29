@@ -29,7 +29,7 @@ describe('help content and access', () => {
     for (const article of articles) {
       expect(article.body).toContain('## ')
       const links = [...article.body.matchAll(/(?<!!)\[[^\]]+\]\(([^)]+)\)/g)].map(match => match[1])
-      for (const link of links) expect(['/contact', ...Object.values(reimbursementViewPaths), ...helpArticles.map(item => `/help/${item.slug}`)]).toContain(link)
+      for (const link of links) expect(['/contact', '/api/v1/docs', '/api/v1/openapi.json', ...Object.values(reimbursementViewPaths), ...helpArticles.map(item => `/help/${item.slug}`)]).toContain(link)
       const images = [...article.body.matchAll(/!\[[^\]]+\]\(([^)]+)\)/g)].map(match => match[1])
       expect(images.length).toBeGreaterThan(0)
       for (const image of images) {

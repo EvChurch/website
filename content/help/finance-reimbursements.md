@@ -59,3 +59,40 @@ The Campus dropdown uses the active campuses configured on the website. Each sub
 Ordinary purposes and finance membership come from Rock. The shared Pastor Expense Account is managed by the website and remains available independently of Rock purpose assignments. Pending purpose approvals follow the current assignment in Rock; approvals already completed remain valid.
 
 [Contact us](/contact) if you cannot access finance functions or need help with a paid report.
+
+## API access
+
+Finance scripts can retrieve reports and receipts, approve or reject reports, and
+confirm payments through the reimbursement REST API v1. A Payload administrator
+must create a key for a named person in **API keys** in the admin
+panel. Finance access alone does not allow someone to create keys.
+
+Choose a descriptive name, enter the person’s Rock person ID, select the permissions the
+script needs, and choose an expiry date or **No expiry**. The default is one year.
+Save the record, choose **Generate API key**, save the displayed secret securely,
+then choose **Dismiss secret**. It cannot be displayed again. Admins can edit permissions and expiry,
+review last-used time and recent audit activity, or tick **Revoke key** and save. To
+replace a key, create another, update the script, then revoke the old one.
+
+Open **API → API audit** to review key changes and API activity.
+
+A key cannot do more than its named person currently may do. Report reading,
+receipt/PDF downloads, bank details, approval/rejection, and payment confirmation
+are separate permissions. Changes to permissions and revocation apply to subsequent
+requests. Scripts produce the normal emails and report history, with the API key
+recorded alongside the person who acted.
+
+Payment confirmation records payments made outside the website. Individual and
+batch confirmation use the same endpoint. Every report in a batch must be ready
+for payment; otherwise none are confirmed. Scripts must use report versions and
+unique operation IDs so retries cannot duplicate decisions or notifications.
+
+The [interactive Swagger documentation](/api/v1/docs) lets you browse endpoints and
+try requests with an API key. Choose **Authorize** and enter the key without
+`Bearer`. **Try it out** sends real requests, including approval and payment
+changes; entered keys are cleared when the page reloads.
+
+The [OpenAPI specification](/api/v1/openapi.json) describes the
+endpoints, permission requirements, filters, request bodies, and errors. Ask the
+website team for the developer guide and runnable examples when setting up a
+script. No additional API access has been enabled for anyone automatically.
