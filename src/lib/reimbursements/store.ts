@@ -4,7 +4,7 @@ import { z } from 'zod-v3'
 import { buildReportPdf, loadReportReceipts } from './pdf'
 import { ReceiptValidationError, validateReceipt } from './receipts'
 
-import { defaultMinimumReportAmountMinor, approvalPerson, canArchiveReport, isArchivedReport, hasPaymentSettings, paymentProfileSchema, draftSchema, lineSchema, money, reportNumber, validateSubmission, type Actor, type Category, type Centre, type Report, type Settings } from './model'
+import { rejectedExpenseSummary, defaultMinimumReportAmountMinor, approvalPerson, canArchiveReport, isArchivedReport, hasPaymentSettings, paymentProfileSchema, draftSchema, lineSchema, money, reportNumber, validateSubmission, type Actor, type Category, type Centre, type Report, type Settings } from './model'
 
 type Database = Pick<Pool, 'query'>
 export class ReimbursementError extends Error {
@@ -14,13 +14,14 @@ interface ReportRow {
   id: string; number: number; claimant_id: number; claimant_name: string; claimant_email: string;
   status: Report['status']; version: number; revision: number; centre_id: number | null;
   centre_name: string; account_name: string; account_number: string; lines: Report['lines']; history: Report['history'];
-  rc_approver_id: number | null;
+  rc_approver_id: number | null; campus_id: number | null; campus_name: string;
   payout_override: Report['payoutOverride'];
   created_at: Date; updated_at: Date;
 }
 function reportFromRow(row: ReportRow): Report {
   return {
     id: row.id, number: row.number, claimantId: row.claimant_id, claimantName: row.claimant_name,
+    campusId: row.campus_id ?? null, campusName: row.campus_name ?? '',
     claimantEmail: row.claimant_email, centreId: row.centre_id, centreName: row.centre_name,
     accountName: row.account_name, accountNumber: row.account_number, payoutOverride: row.payout_override ?? null, lines: row.lines.map(line => lineSchema.parse(line)), history: row.history,
     status: row.status, version: row.version, revision: row.revision, rcApproverId: row.rc_approver_id,
@@ -28,15 +29,16 @@ function reportFromRow(row: ReportRow): Report {
   }
 }
 export async function directory(db: Database) {
-  const [centres, categories, settings] = await Promise.all([
+  const [centres, categories, settings, campuses] = await Promise.all([
     db.query<{ id: number; name: string; approverRockPersonId: string | null; approverName: string | null; approverEmail: string | null; financeOnly: boolean }>(
       `SELECT id,name,approver_rock_person_id AS "approverRockPersonId",approver_name AS "approverName",approver_email AS "approverEmail",finance_only AS "financeOnly"
        FROM responsibility_centres WHERE is_active=true AND (is_local=true OR last_synced_at>now()-interval '45 minutes') ORDER BY sort_order,name`),
     db.query<Category>('SELECT id,name,archived FROM reimbursement_categories ORDER BY id'),
     db.query<{ data: Settings }>('SELECT data FROM reimbursement_settings WHERE id=1'),
+    db.query<{ id: number; name: string }>('SELECT id,name FROM campuses WHERE is_active=true ORDER BY "order",name'),
   ])
   if (!settings.rows[0]) throw new ReimbursementError('Reimbursement settings are unavailable.', 503)
-  return { centres: centres.rows.map(row => ({ ...row, approverRockPersonId: row.approverRockPersonId ? Number(row.approverRockPersonId) : null })) satisfies Centre[], categories: categories.rows, settings: { ...settings.rows[0].data, minimumReportAmountMinor: settings.rows[0].data.minimumReportAmountMinor ?? defaultMinimumReportAmountMinor } }
+  return { campuses: campuses.rows, centres: centres.rows.map(row => ({ ...row, approverRockPersonId: row.approverRockPersonId ? Number(row.approverRockPersonId) : null })) satisfies Centre[], categories: categories.rows, settings: { ...settings.rows[0].data, minimumReportAmountMinor: settings.rows[0].data.minimumReportAmountMinor ?? defaultMinimumReportAmountMinor } }
 }
 export async function isFinance(db: Database, personId: number) {
   return (await db.query(`SELECT 1 FROM reimbursement_finance_members WHERE rock_person_id=$1 AND last_synced_at>now()-interval '45 minutes' LIMIT 1`, [personId])).rowCount !== 0
@@ -71,7 +73,7 @@ export async function paymentProfile(db: Database, personId: number) {
 export async function memberOverview(db: Database, actor: Actor): Promise<Awaited<ReturnType<typeof overview>>> {
   const defaults = await paymentProfile(db, actor.personId)
   if (hasPaymentSettings(defaults)) return overview(db, actor)
-  return { reports: [], notificationFailures: [], centres: [], categories: [], settings: undefined,
+  return { reports: [], notificationFailures: [], campuses: [], centres: [], categories: [], settings: undefined,
     minimumReportAmountMinor: defaultMinimumReportAmountMinor,
     approvalFallbacks: { seniorPersonId: null, seniorName: '', alternatePersonId: null, alternateName: '' },
     defaults, manage: actor.finance || actor.admin, finance: actor.finance, personId: actor.personId }
@@ -92,16 +94,17 @@ export async function overview(db: Database, actor: Actor) {
     })
   const notifications = actor.finance || actor.admin ? await db.query<{ number: number; subject: string }>(`SELECT r.number,d.subject FROM reimbursement_email_deliveries d JOIN reimbursement_reports r ON r.id=d.report_id WHERE d.state='failed' ORDER BY d.created_at DESC LIMIT 20`) : { rows: [] }
   const defaults = await db.query<{ accountName: string; accountNumber: string }>('SELECT account_name AS "accountName",account_number AS "accountNumber" FROM reimbursement_profiles WHERE person_id=$1', [actor.personId])
-  return { reports, notificationFailures: notifications.rows, centres: context.centres.map(({ approverEmail: _email, ...centre }) => centre), categories: context.categories,
+  return { reports, notificationFailures: notifications.rows, campuses: context.campuses, centres: context.centres.map(({ approverEmail: _email, ...centre }) => centre), categories: context.categories,
     settings: actor.finance || actor.admin ? context.settings : undefined,
     minimumReportAmountMinor: context.settings.minimumReportAmountMinor,
     approvalFallbacks: { seniorPersonId: context.settings.seniorPersonId, seniorName: context.settings.seniorName, alternatePersonId: context.settings.alternatePersonId, alternateName: context.settings.alternateName },
     defaults: defaults.rows[0] ?? { accountName: '', accountNumber: '' }, manage: actor.finance || actor.admin, finance: actor.finance, personId: actor.personId }
 }
 
-async function event(db: Database, report: Report, actor: Actor, action: string, reason = '') {
-  const activity = { at: new Date().toISOString(), personId: actor.personId, name: actor.name, action, reason, revision: report.revision, ...(action === 'submit' ? { snapshot: { centreName: report.centreName, lines: report.lines } } : {}) }
-  await db.query(`UPDATE reimbursement_reports SET history=history || $2::jsonb WHERE id=$1`, [report.id, JSON.stringify([activity])])
+async function event(db: Database, report: Report, actor: Actor, action: string, reason = '', rejectedLineIds: string[] = []) {
+  const activity = { at: new Date().toISOString(), personId: actor.personId, name: actor.name, action, reason, revision: report.revision, ...(action === 'submit' ? { snapshot: { centreName: report.centreName, campusId: report.campusId, campusName: report.campusName, lines: report.lines } } : {}) }
+  const rejectedLines = report.lines.flatMap((line, index) => rejectedLineIds.includes(line.id) ? [{ id: line.id, number: index + 1, description: line.description }] : [])
+  await db.query(`UPDATE reimbursement_reports SET history=history || $2::jsonb WHERE id=$1`, [report.id, JSON.stringify([{ ...activity, ...(action === 'reject' ? { rejectedLines } : {}) }])])
 }
 
 async function queue(db: Database, report: Report, kind: string, recipient: string, subject: string, body: string, payment = false, pdf = false) {
@@ -115,7 +118,7 @@ export async function queueStateNotifications(db: Database, report: Report, cont
   if (isArchivedReport(report)) return
   const label = reportNumber(report.number)
   const total = money(report.lines.reduce((sum, line) => sum + (line.amountMinor ?? 0), 0))
-  const summary = `${label}\nClaimant: ${report.claimantName}\nPurpose: ${report.centreName}\nTotal: ${total} NZD`
+  const summary = `${label}\nClaimant: ${report.claimantName}\nPurpose: ${report.centreName}\nCampus: ${report.campusName || 'Not recorded'}\nTotal: ${total} NZD`
   const approver = approvalPerson(context.centres.find(centre => centre.id === report.centreId), report.claimantId, context.settings)
   if (report.status === 'rc-approval') {
     if (approver) await queue(db, report, `rc${reminder}`, approver.email, `${label} needs your approval`, `${summary}\n\nPlease review and approve or reject this report.`)
@@ -128,7 +131,8 @@ export async function queueStateNotifications(db: Database, report: Report, cont
       if (approver?.email) await queue(db, report, 'rc-payment', approver.email, `${label} approved for payment`, summary, false, true)
     }
   } else if (report.status === 'rejected') {
-    const reason = report.history.at(-1)?.reason ?? ''
+    const rejection = report.history.at(-1)
+    const reason = [rejection?.reason, rejection && rejectedExpenseSummary(rejection)].filter(Boolean).join('\n\n')
     await queue(db, report, 'rejected', report.claimantEmail, `${label} needs changes`, `${summary}\n\nReason: ${reason}\n\nYou can edit and resubmit the report. The approval process will restart.`)
   } else if (report.status === 'paid') {
     await queue(db, report, 'paid', report.claimantEmail, `${label} remittance advice`, `${summary}\n\nFinance has confirmed payment of your expense report.`, true, true)
@@ -177,9 +181,11 @@ export async function saveDraft(pool: Pool, actor: Actor, id: string, version: n
     const context = await directory(db)
     const centre = context.centres.find(centre => centre.id === draft.centreId && (centre.financeOnly || centre.approverRockPersonId))
     if (draft.centreId !== null && !centre) throw new ReimbursementError('Choose an active purpose with an assigned approver or finance-only approval.')
+    const campus = context.campuses.find(campus => campus.id === draft.campusId)
+    if (draft.campusId != null && !campus) throw new ReimbursementError('Choose an active campus.')
     const lines = draft.lines.map(line => ({ ...line, categoryName: context.categories.find(category => category.id === line.categoryId)?.name ?? '' }))
-    await db.query(`UPDATE reimbursement_reports SET centre_id=$2,centre_name=$3,lines=$4::jsonb,payout_override=$5::jsonb,version=version+1,updated_at=now() WHERE id=$1`,
-      [id, draft.centreId, centre?.name ?? '', JSON.stringify(lines), draft.payoutOverride ? JSON.stringify(draft.payoutOverride) : null])
+    await db.query(`UPDATE reimbursement_reports SET centre_id=$2,centre_name=$3,lines=$4::jsonb,payout_override=$5::jsonb,campus_id=$6,campus_name=$7,version=version+1,updated_at=now() WHERE id=$1`,
+      [id, draft.centreId, centre?.name ?? '', JSON.stringify(lines), draft.payoutOverride ? JSON.stringify(draft.payoutOverride) : null, campus?.id ?? null, campus?.name ?? ''])
     return version + 1
   })
 }
@@ -187,6 +193,7 @@ export async function saveDraft(pool: Pool, actor: Actor, id: string, version: n
 export const actionSchema = z.object({
   action: z.enum(['submit', 'withdraw', 'approve', 'reject', 'return', 'archive', 'restore']),
   version: z.number().int().positive(), reason: z.string().max(2000).default(''),
+  rejectedLineIds: z.array(z.string().uuid()).max(100).default([]),
 })
 export async function actOnReport(pool: Pool, actor: Actor, id: string, input: unknown) {
   const command = actionSchema.parse(input)
@@ -196,6 +203,8 @@ export async function actOnReport(pool: Pool, actor: Actor, id: string, input: u
     const context = await directory(db)
     const access = reportPermissions(actor, report, context.centres, context.settings)
     if (!access.visible) throw new ReimbursementError('Report not found.', 404)
+    if (command.rejectedLineIds.length && command.action !== 'reject') throw new ReimbursementError('Expense selection is only available when rejecting a report.')
+    if (new Set(command.rejectedLineIds).size !== command.rejectedLineIds.length || command.rejectedLineIds.some(id => !report.lines.some(line => line.id === id))) throw new ReimbursementError('Select expenses from this report only.')
     if (command.action === 'archive' || command.action === 'restore') {
       if (actor.personId !== report.claimantId) throw new ReimbursementError('Only the claimant can archive or restore this report.', 403)
       if (command.action === 'archive' && !isArchivedReport(report) && !canArchiveReport(report)) throw new ReimbursementError('This report cannot be archived at this stage.', 403)
@@ -218,6 +227,7 @@ export async function actOnReport(pool: Pool, actor: Actor, id: string, input: u
       const centre = context.centres.find(centre => centre.id === report.centreId)
       const approver = approvalPerson(centre, report.claimantId, context.settings)
       if (!centre) errors.push('Choose an active purpose before submission.')
+      if (!context.campuses.some(campus => campus.id === report.campusId)) errors.push('Choose an active campus before submission.')
       if (!centre?.financeOnly && !approver?.email) errors.push('An eligible purpose approver must be configured before submission.')
       if (!context.settings.financeEmail) errors.push('Finance must configure its notification email before submission.')
       if (errors.length) throw new ReimbursementError(errors.join('\n'))
@@ -247,7 +257,7 @@ export async function actOnReport(pool: Pool, actor: Actor, id: string, input: u
     const reason = command.action === 'submit'
       ? `Submitted ${reportNumber(report.number)} for ${money(report.lines.reduce((sum, line) => sum + (line.amountMinor ?? 0), 0))}`
       : command.reason.trim()
-    await event(db, report, actor, command.action, reason)
+    await event(db, report, actor, command.action, reason, command.rejectedLineIds)
     await db.query(`UPDATE reimbursement_reports SET status=$2,rc_approver_id=$3,revision=$4,lines=$5::jsonb,account_name=$6,account_number=$7,version=version+1,updated_at=now() WHERE id=$1`,
       [id, status, rcApproverId, report.revision, JSON.stringify(report.lines), report.accountName, report.accountNumber])
     await db.query(`UPDATE reimbursement_email_deliveries SET state='cancelled',lease_until=NULL,lease_token=NULL WHERE report_id=$1 AND state IN ('pending','failed','sending')`, [id])

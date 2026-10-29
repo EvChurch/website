@@ -19,11 +19,12 @@ describe('receipt store boundaries', () => {
   it('rolls submission back with an actionable error if attachment preflight fails', async () => {
     const now = new Date()
     const row = { id: '00000000-0000-4000-8000-000000000001', number: 1, claimant_id: 1, claimant_name: actor.name, claimant_email: actor.email,
-      status: 'draft', version: 1, revision: 0, history: [], centre_id: 1, centre_name: 'Hospitality', account_name: '', account_number: '', rc_approver_id: null, created_at: now, updated_at: now,
+      status: 'draft', version: 1, revision: 0, history: [], campus_id: 1, campus_name: 'North', centre_id: 1, centre_name: 'Hospitality', account_name: '', account_number: '', rc_approver_id: null, created_at: now, updated_at: now,
       lines: [{ id: '00000000-0000-4000-8000-000000000002', date: '2026-10-17', categoryId: 1, description: 'Lunch', amountMinor: 11500, hasGst: true, receiptHash: 'a'.repeat(64) }] }
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('SELECT * FROM reimbursement_reports')) return { rows: [row] }
       if (sql.includes('FROM responsibility_centres')) return { rows: [{ id: 1, name: 'Hospitality', approverRockPersonId: '2', approverName: 'Approver', approverEmail: 'approver@example.com' }] }
+      if (sql.includes('FROM campuses')) return { rows: [{ id: 1, name: 'North' }] }
       if (sql.includes('FROM reimbursement_categories')) return { rows: [{ id: 1, name: 'Meals', archived: false }] }
       if (sql.includes('FROM reimbursement_settings')) return { rows: [{ data: { financeEmail: 'finance@example.com' } }] }
       if (sql.includes('FROM reimbursement_profiles')) return { rows: [{ account_name: 'Claimant', account_number: '12-1234-1234567-000' }] }

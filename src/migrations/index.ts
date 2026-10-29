@@ -72,6 +72,8 @@ import * as migration_20260905_060000_feedback_github_issue_links from './202609
 
 import * as migration_20260910_010000_connect_group_visibility from './20260910_010000_connect_group_visibility';
 
+import * as migration_20261029_010000_reimbursement_campus from './20261029_010000_reimbursement_campus';
+
 export const migrations = [
   {
     up: migration_20260330_195149.up,
@@ -381,4 +383,5 @@ export const migrations = [
   { up: migration_20261018_010000_card_image_border.up, down: migration_20261018_010000_card_image_border.down, name: '20261018_010000_card_image_border' },
   { up: migration_20261021_010000_event_scheduled_occurrences.up, down: migration_20261021_010000_event_scheduled_occurrences.down, name: '20261021_010000_event_scheduled_occurrences' },
   { up: migration_20261028_010000_reimbursement_payout_and_pastor_account.up, down: migration_20261028_010000_reimbursement_payout_and_pastor_account.down, name: '20261028_010000_reimbursement_payout_and_pastor_account' },
+  { up: migration_20261029_010000_reimbursement_campus.up, down: migration_20261029_010000_reimbursement_campus.down, name: '20261029_010000_reimbursement_campus' },
 ];

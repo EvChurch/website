@@ -4,7 +4,7 @@ import { PDFDocument, rgb, type PDFPage } from 'pdf-lib'
 import fontkit from '@pdf-lib/fontkit'
 import sharp from 'sharp'
 import type { Pool } from 'pg'
-import { actionLabels, gstMinor, money, reportNumber, statusLabels, type Category, type Report } from './model'
+import { actionLabels, rejectedExpenseSummary, gstMinor, money, reportNumber, statusLabels, type Category, type Report } from './model'
 import { assertFinalPdfBudget, assertReceiptBudget, receiptLimits, stripPdfActions, validateReceipt } from './receipts'
 
 export interface ReportReceipt { hash: string; body: Buffer; mediaType: string }
@@ -108,6 +108,7 @@ export async function buildReportPdf(report: Report, categories: Category[], ban
   }
   detail('Claimant', report.claimantName)
   detail('Purpose', report.centreName)
+  detail('Campus', report.campusName || 'Not recorded')
   if (bank) {
     detail('Account holder', report.accountName)
     detail('Account number', report.accountNumber)
@@ -132,7 +133,7 @@ export async function buildReportPdf(report: Report, categories: Category[], ban
     const category = line.categoryName || categories.find(category => category.id === line.categoryId)?.name || 'Unclassified'
     const content = [
       ...wrap(`${index + 1}. ${category}`, 214),
-      ...wrap(line.description, 214),
+      ...wrap(`Expense reason: ${line.description}`, 214),
       ...(line.receiptHash ? [`Receipt ${uniqueHashes.indexOf(line.receiptHash) + 1}${line.hasGst ? '' : ' · No GST'}`] : [line.hasGst ? 'No receipt' : 'No receipt · No GST']),
     ]
     let offset = 0
@@ -172,7 +173,7 @@ export async function buildReportPdf(report: Report, categories: Category[], ban
     activityHead()
     for (const item of report.history) {
       const date = new Date(item.at).toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland', dateStyle: 'short', timeStyle: 'short' })
-      const columns = [wrap(date, 132, 8), wrap(item.name, 135, 8), wrap(`${actionLabels[item.action] ?? item.action}${item.reason ? `: ${item.reason}` : ''}`, 200, 8)]
+      const columns = [wrap(date, 132, 8), wrap(item.name, 135, 8), wrap(`${actionLabels[item.action] ?? item.action}${item.reason ? `: ${item.reason}` : ''}${rejectedExpenseSummary(item) ? ` — ${rejectedExpenseSummary(item)}` : ''}`, 200, 8)]
       let offset = 0
       const length = Math.max(...columns.map(column => column.length))
       while (offset < length) {

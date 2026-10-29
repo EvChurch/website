@@ -14,16 +14,17 @@ const lineId = '00000000-0000-4000-8000-000000000002'
 function fixture(): ComponentProps<typeof Reimbursements>['initialOverview'] { return {
   minimumReportAmountMinor: 2500, notificationFailures: [], personId: 1, finance: false, manage: false, defaults: { accountName: 'Aroha', accountNumber: '12-1234-1234567-000' }, settings: undefined,
   approvalFallbacks: { seniorPersonId: null, seniorName: '', alternatePersonId: null, alternateName: '' },
+  campuses: [{ id: 1, name: 'North' }, { id: 2, name: 'Central' }],
   categories: [{ id: 1, name: 'Food & hospitality', archived: false }],
   centres: [{ id: 1, name: 'Hospitality', financeOnly: false, approverRockPersonId: 2, approverName: 'RC Approver' }],
-  reports: [{ id, number: 1, version: 1, revision: 0, claimantId: 1, claimantName: 'Aroha', claimantEmail: 'aroha@example.com', centreId: null, centreName: '', accountName: '', accountNumber: '', payoutOverride: null, status: 'draft', history: [], rcApproverId: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  reports: [{ id, number: 1, version: 1, revision: 0, claimantId: 1, claimantName: 'Aroha', claimantEmail: 'aroha@example.com', campusId: null, campusName: '', centreId: null, centreName: '', accountName: '', accountNumber: '', payoutOverride: null, status: 'draft', history: [], rcApproverId: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     lines: [{ id: lineId, date: '', categoryId: null, description: '', amountMinor: null, hasGst: true, receiptHash: null }],
     permissions: { visible: true, bank: true, edit: true, withdraw: false, approveRC: false, approveFinance: false, payment: false },
   }],
 } }
 let container: HTMLDivElement, root: Root
 const fetchMock = vi.fn()
-function input(label: string) { const field = [...container.querySelectorAll('label')].find(item => item.textContent?.startsWith(label))?.querySelector<HTMLInputElement | HTMLTextAreaElement>('input,textarea'); if (!field) throw Error(`Missing ${label}`); return field }
+function input(label: string) { const element = [...container.querySelectorAll('label')].find(item => item.textContent?.startsWith(label)); const field = element?.control as HTMLInputElement | HTMLTextAreaElement | null; if (!field) throw Error(`Missing ${label}`); return field }
 async function type(label: string, value: string) { await act(async () => { const field = input(label); Object.getOwnPropertyDescriptor(field instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype, 'value')!.set!.call(field, value); field.dispatchEvent(new Event('input', { bubbles: true })) }) }
 function button(text: string) { return [...container.querySelectorAll<HTMLButtonElement>('button,a')].find(item => item.textContent === text)! }
 const response = (version: number) => ({ ok: true, json: async () => ({ version }) })
@@ -40,14 +41,14 @@ afterEach(async () => { await act(async () => root.unmount()); container.remove(
 it('autosaves incomplete lines and serializes newer keystrokes behind an in-flight save', async () => {
   let finish!: (value: ReturnType<typeof response>) => void
   fetchMock.mockImplementationOnce(() => new Promise(resolve => { finish = resolve })).mockResolvedValue(response(3))
-  await type('Description', 'First')
+  await type('Expense reason', 'First')
   await act(async () => vi.advanceTimersByTimeAsync(650))
   expect(fetchMock).toHaveBeenCalledTimes(1)
-  await type('Description', 'Typed while saving')
+  await type('Expense reason', 'Typed while saving')
   await act(async () => { finish(response(2)); await Promise.resolve() })
   expect(fetchMock).toHaveBeenCalledTimes(2)
   const bodies = fetchMock.mock.calls.map(call => JSON.parse(call[1].body))
-  expect(Object.keys(bodies[0].draft).sort()).toEqual(['centreId', 'lines', 'payoutOverride'])
+  expect(Object.keys(bodies[0].draft).sort()).toEqual(['campusId', 'centreId', 'lines', 'payoutOverride'])
   expect(bodies[0].draft.lines[0].description).toBe('First')
   expect(bodies[1].version).toBe(2)
   expect(bodies[1].draft.lines[0].description).toBe('Typed while saving')
@@ -77,9 +78,9 @@ it('calculates both GST fields and preserves line edits completed during an uplo
     file.dispatchEvent(new Event('change', { bubbles: true }))
   })
   expect(button('Submit').disabled).toBe(true)
-  await type('Description', 'Updated after upload started')
+  await type('Expense reason', 'Updated after upload started')
   await act(async () => FakeUpload.current.onload?.())
-  expect(input('Description').value).toBe('Updated after upload started')
+  expect(input('Expense reason').value).toBe('Updated after upload started')
   expect(input('Gross').value).toBe('115.00')
   expect(button('Submit').disabled).toBe(false)
   expect(container.querySelector('a[aria-label="Show receipt for expense 1"]')).not.toBeNull()
@@ -90,10 +91,10 @@ it('calculates both GST fields and preserves line edits completed during an uplo
 })
 it('retains edits after a failed autosave and retries the same version', async () => {
   fetchMock.mockRejectedValueOnce(new Error('Offline'))
-  await type('Description', 'Keep me')
+  await type('Expense reason', 'Keep me')
   await act(async () => vi.advanceTimersByTimeAsync(650))
   expect(container.textContent).toContain('Not saved')
-  expect(input('Description').value).toBe('Keep me')
+  expect(input('Expense reason').value).toBe('Keep me')
   await act(async () => button('Save').click())
   expect(fetchMock).toHaveBeenCalledTimes(2)
   expect(JSON.parse(fetchMock.mock.calls[1][1].body).version).toBe(1)
@@ -114,7 +115,7 @@ it('locks expense editing through the final save, submission and refresh', async
     .mockImplementationOnce(() => new Promise(resolve => { finishSubmit = resolve }))
     .mockImplementationOnce(() => new Promise(resolve => { finishRefresh = resolve }))
   await act(async () => button('Advanced').click())
-  await type('Description', 'Final description')
+  await type('Expense reason', 'Final description')
   await type('Gross', '115.00')
   await act(async () => button('Submit').click())
 
@@ -131,7 +132,7 @@ it('locks expense editing through the final save, submission and refresh', async
     expect(input('Use a different account for this report').disabled).toBe(true)
     expect(input('Account holder').disabled).toBe(true)
     expect(input('Bank account number').disabled).toBe(true)
-    expect(input('Description').value).toBe('Final description')
+    expect(input('Expense reason').value).toBe('Final description')
     expect(input('Gross').value).toBe('115.00')
   }
   expectLocked()
@@ -148,7 +149,7 @@ it('locks expense editing through the final save, submission and refresh', async
   submitted.reports[0].permissions.withdraw = true
   submitted.reports[0].lines = JSON.parse(fetchMock.mock.calls[0][1].body).draft.lines
   await act(async () => { finishRefresh({ ok: true, json: async () => submitted }) })
-  expect(input('Description').disabled).toBe(true)
+  expect(input('Expense reason').disabled).toBe(true)
   expect(input('Amount').value).toBe('115.00')
   expect(container.textContent).toContain('Awaiting purpose approval')
 })
@@ -179,9 +180,9 @@ it('blocks receipt retries during submission and restores editing after a reject
   expect(retry.disabled).toBe(true)
   await act(async () => retry.click())
   expect(FailedUpload.current).toBe(upload)
-  expect(input('Description').disabled).toBe(true)
+  expect(input('Expense reason').disabled).toBe(true)
   await act(async () => { finishSubmit({ ok: false, json: async () => ({ error: 'Upload a receipt before submitting.' }) }) })
-  expect(input('Description').disabled).toBe(false)
+  expect(input('Expense reason').disabled).toBe(false)
   expect(button('Retry receipt upload').disabled).toBe(false)
   expect(button('Add expense')).toBeDefined()
   expect(container.textContent).toContain('Upload a receipt before submitting.')
@@ -189,14 +190,14 @@ it('blocks receipt retries during submission and restores editing after a reject
 
 it('keeps the editor open when a final save before member navigation fails', async () => {
   fetchMock.mockRejectedValueOnce(new Error('Offline during navigation'))
-  await type('Description', 'Do not lose this last edit')
+  await type('Expense reason', 'Do not lose this last edit')
   const link = document.createElement('a'); link.href = '/members'; document.body.appendChild(link)
   const click = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })
   try {
     await act(async () => link.dispatchEvent(click))
     expect(click.defaultPrevented).toBe(true)
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(input('Description').value).toBe('Do not lose this last edit')
+    expect(input('Expense reason').value).toBe('Do not lose this last edit')
     expect(container.textContent).toContain('Offline during navigation')
   } finally { link.remove() }
 })
@@ -210,7 +211,7 @@ it('omits report titles and member settings, and labels the purpose', async () =
   expect(container.textContent).not.toContain('Delete draft')
   expect(container.textContent).not.toContain('Activity')
   expect(container.textContent).not.toContain('No activity yet.')
-  expect(container.querySelectorAll('[data-form-select]').length).toBe(2)
+  expect(container.querySelectorAll('[data-form-select]').length).toBe(3)
   expect(container.querySelector('[aria-label="Expense totals"]')).not.toBeNull()
   expect(container.textContent).toContain('Next approver')
   await act(async () => root.render(<Reimbursements key="list" initialOverview={{ ...fixture(), manage: true, finance: true }} />))
@@ -236,13 +237,13 @@ it('shows only Approve and Reject for finance approval, without category adjustm
 })
 
 it('grows and shrinks descriptions to fit wrapped content', async () => {
-  const field = input('Description')
+  const field = input('Expense reason')
   let height = 96
   Object.defineProperty(field, 'scrollHeight', { get: () => height })
-  await type('Description', 'A longer description that wraps across several lines')
+  await type('Expense reason', 'A longer description that wraps across several lines')
   expect(field.style.height).toBe('96px')
   height = 32
-  await type('Description', 'Short')
+  await type('Expense reason', 'Short')
   expect(field.style.height).toBe('32px')
   expect(field.classList.contains('resize-none')).toBe(true)
 })
@@ -288,7 +289,7 @@ it('uploads a receipt dropped anywhere on a row and keeps nested drag highlights
   }
   vi.stubGlobal('XMLHttpRequest', FakeUpload)
   const row = container.querySelector('fieldset')!
-  const description = input('Description')
+  const description = input('Expense reason')
   await act(async () => { fileDrag(row, 'dragenter'); fileDrag(description, 'dragenter'); fileDrag(row, 'dragleave') })
   expect(row.textContent).toContain('Drop receipt here')
   const receipt = new File(['%PDF-1.7'], 'receipt.pdf', { type: 'application/pdf' })
@@ -441,7 +442,7 @@ it('removes only the selected line’s receipt, autosaves the empty attachment a
   await act(async () => root.render(<Reimbursements key="remove-receipt" initialOverview={data} initialReportId={id} />))
   await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Remove receipt for expense 1"]')!.click())
   expect(container.querySelectorAll('fieldset')).toHaveLength(2)
-  expect(input('Description').value).toBe('Keep this expense')
+  expect(input('Expense reason').value).toBe('Keep this expense')
   expect(input('Amount').value).toBe('115.00')
   expect(container.querySelector('a[aria-label="Show receipt for expense 1"]')).toBeNull()
   expect(container.querySelector('button[aria-label="Upload receipt for expense 1"]')).not.toBeNull()
@@ -815,7 +816,7 @@ it.each(['draft', 'rejected'] as const)('includes the shared Pastor Expense Acco
   data.centres.push({ id: 2, name: 'Pastor Expense Account', financeOnly: true, approverRockPersonId: null, approverName: null })
   data.centres.push({ id: 3, name: 'Unconfigured purpose', financeOnly: false, approverRockPersonId: null, approverName: null })
   await act(async () => root.render(<Reimbursements key="finance-purpose" initialOverview={data} initialReportId={id} />))
-  const purpose = container.querySelector<HTMLSelectElement>('select')!
+  const purpose = [...container.querySelectorAll('label')].find(label => label.textContent?.startsWith('Purpose'))!.querySelector('select')!
   expect([...purpose.options].map(option => option.textContent)).toEqual(['Choose a purpose', 'Hospitality', 'Pastor Expense Account'])
   await act(async () => { purpose.value = '2'; purpose.dispatchEvent(new Event('change', { bubbles: true })) })
   const label = [...container.querySelectorAll('p')].find(item => item.textContent === 'Next approver')!
@@ -908,4 +909,53 @@ it('allows saving below the configured minimum but only enables submission at th
   expect(button('Submit').hasAttribute('aria-describedby')).toBe(false)
   await type('Amount', '30.01')
   expect(container.querySelector('#report-minimum')).toBeNull()
+})
+
+it('autosaves the campus independently of purpose and explains the expense reason in a dismissible popover', async () => {
+  const campus = [...container.querySelectorAll('label')].find(label => label.textContent?.startsWith('Campus'))!.querySelector('select')!
+  await act(async () => { campus.value = '2'; campus.dispatchEvent(new Event('change', { bubbles: true })); await vi.advanceTimersByTimeAsync(650) })
+  expect(JSON.parse(fetchMock.mock.calls.at(-1)![1].body).draft).toMatchObject({ campusId: 2, centreId: null })
+  expect(input('Expense reason').placeholder).toBe('e.g. Food for EC on Tuesday')
+  const help = [...container.querySelectorAll<HTMLButtonElement>('button[aria-label="About expense reason"]')].at(-1)!
+  expect(help.getAttribute('aria-expanded')).toBe('false')
+  await act(async () => help.click())
+  expect(document.getElementById(help.getAttribute('aria-controls')!)?.textContent).toContain('rather than repeating what’s on the receipt')
+  await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+  expect(help.getAttribute('aria-expanded')).toBe('false')
+  expect(document.activeElement).toBe(help)
+})
+
+it.each(['approveRC', 'approveFinance'] as const)('lets %s flag individual expenses with one report rejection reason', async permission => {
+  const data = fixture()
+  Object.assign(data.reports[0], { status: permission === 'approveRC' ? 'rc-approval' : 'finance-approval', campusId: 1, campusName: 'North' })
+  Object.assign(data.reports[0].permissions, { edit: false, [permission]: true })
+  data.reports[0].lines.push({ ...data.reports[0].lines[0], id: crypto.randomUUID() })
+  await act(async () => root.render(<Reimbursements key={permission} initialOverview={data} initialReportId={id} />))
+  const selected = container.querySelector<HTMLInputElement>('input[aria-label="Flag expense 2 for rejection"]')!
+  await act(async () => selected.click())
+  expect(button('Approve').disabled).toBe(true)
+  expect(button('Reject').disabled).toBe(true)
+  await type('Reason or note', 'Please explain the event this supported.')
+  expect(button('Reject').disabled).toBe(false)
+  fetchMock.mockResolvedValueOnce(response(2)).mockResolvedValueOnce({ ok: true, json: async () => data })
+  await act(async () => button('Reject').click())
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ action: 'reject', version: 1, reason: 'Please explain the event this supported.', rejectedLineIds: [data.reports[0].lines[1].id] })
+})
+
+it('highlights only flagged lines while allowing edits to the entire rejected report, and clears highlights on resubmission', async () => {
+  const data = fixture()
+  data.reports[0].lines.push({ ...data.reports[0].lines[0], id: crypto.randomUUID() })
+  Object.assign(data.reports[0], { status: 'rejected', history: [{ at: '2026-10-29T00:00:00Z', personId: 2, name: 'Approver', action: 'reject', reason: 'Check the event.', revision: 1, rejectedLines: [{ id: lineId, number: 1, description: 'Original reason' }] }] })
+  await act(async () => root.render(<Reimbursements key="flagged-rejected" initialOverview={data} initialReportId={id} />))
+  expect(container.querySelector('fieldset[aria-label="Expense 1: flagged for changes"]')).not.toBeNull()
+  expect(container.querySelectorAll('fieldset[aria-label]')).toHaveLength(1)
+  expect(container.querySelector('input[aria-label^="Flag expense"]')).toBeNull()
+  for (const field of container.querySelectorAll('textarea')) expect(field.disabled).toBe(false)
+  expect(container.textContent).toContain('Expenses flagged: 1. Original reason')
+  data.reports[0].status = 'rc-approval'
+  data.reports[0].permissions.edit = false
+  await act(async () => root.render(<Reimbursements key="flagged-resubmitted" initialOverview={data} initialReportId={id} />))
+  expect(container.querySelector('fieldset[aria-label]')).toBeNull()
+  expect(container.querySelector('section[aria-labelledby="rejection-reason-heading"]')).toBeNull()
+  expect(container.textContent).toContain('Expenses flagged: 1. Original reason')
 })

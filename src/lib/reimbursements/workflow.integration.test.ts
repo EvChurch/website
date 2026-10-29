@@ -6,8 +6,9 @@ import { NextRequest } from 'next/server'
 import { SIMPLIFY_REIMBURSEMENTS_UP_SQL } from '@/migrations/20261017_030000_simplify_reimbursements'
 import { REIMBURSEMENTS_UP_SQL } from '@/migrations/20261017_020000_reimbursements'
 import { REIMBURSEMENT_PAYOUT_AND_PASTOR_ACCOUNT_UP_SQL } from '@/migrations/20261028_010000_reimbursement_payout_and_pastor_account'
+import { REIMBURSEMENT_CAMPUS_UP_SQL } from '@/migrations/20261029_010000_reimbursement_campus'
 import { actOnReport, configure, createReport, hasOpened, isFinance, markBatchPaid, openReimbursements, overview, saveDraft, saveProfile, uploadReceipt } from './store'
-import { approvalPerson, isArchivedReport, isOlderReport, gstMinor, parseMoney, type Actor, type Draft, type Settings } from './model'
+import { rejectionDetails, approvalPerson, isArchivedReport, isOlderReport, gstMinor, parseMoney, type Actor, type Draft, type Settings } from './model'
 import { reconcileReimbursementEmails, type ReimbursementEmail } from './notifications'
 
 const runtime = vi.hoisted(() => ({ actor: vi.fn(), pool: vi.fn() }))
@@ -27,7 +28,7 @@ async function act(id: string, who: Actor, action: string, reason = '') { return
 async function validDraft(who = claimant) {
   await saveProfile(pool, who, { accountName: 'Claimant account', accountNumber: '12-1234-1234567-000' })
   const id = await createReport(pool, who)
-  const draft: Draft = { centreId: 1, lines: [{ id: randomUUID(), date: '2026-10-15', description: 'A portion of the lunch receipt', categoryId: 1, amountMinor: 11500, hasGst: true, receiptHash: hash }] }
+  const draft: Draft = { campusId: 1, centreId: 1, lines: [{ id: randomUUID(), date: '2026-10-15', description: 'A portion of the lunch receipt', categoryId: 1, amountMinor: 11500, hasGst: true, receiptHash: hash }] }
   await saveDraft(pool, who, id, 1, draft)
   return { id, draft }
 }
@@ -42,6 +43,8 @@ describe.skipIf(!url)('Reimbursement PostgreSQL workflow and authenticated HTTP 
     await setup.end()
     pool = new Pool({ connectionString: url, options: `-c search_path=${schema}` })
     await pool.query(`CREATE TYPE enum_payload_jobs_task_slug AS ENUM ('inline'); CREATE TYPE enum_payload_jobs_log_task_slug AS ENUM ('inline');
+      CREATE TABLE campuses (id integer PRIMARY KEY, name text, is_active boolean, "order" integer);
+      INSERT INTO campuses VALUES (1,'North',true,1),(2,'Central',true,2),(3,'Archived',false,3);
       CREATE TABLE responsibility_centres (id serial PRIMARY KEY, name text, approver_rock_person_id numeric, approver_name text, approver_email text, is_active boolean, last_synced_at timestamptz, sort_order integer, rock_id numeric, rock_guid varchar);
       CREATE TABLE reimbursement_finance_members (rock_person_id numeric, last_synced_at timestamptz);`)
     const client = await pool.connect()
@@ -49,6 +52,8 @@ describe.skipIf(!url)('Reimbursement PostgreSQL workflow and authenticated HTTP 
     // The schema migration is repeatable without creating duplicate categories.
     await pool.query(REIMBURSEMENTS_UP_SQL)
     await pool.query(REIMBURSEMENT_PAYOUT_AND_PASTOR_ACCOUNT_UP_SQL)
+    await pool.query(REIMBURSEMENT_CAMPUS_UP_SQL)
+    await pool.query(REIMBURSEMENT_CAMPUS_UP_SQL)
     runtime.pool.mockResolvedValue(pool)
     process.env.APP_BASE_URL = 'https://example.com'
   })
@@ -65,6 +70,52 @@ describe.skipIf(!url)('Reimbursement PostgreSQL workflow and authenticated HTTP 
     receiptBody = Buffer.from(await receipt.save())
     hash = await uploadReceipt(pool, claimant, receiptBody, 'receipt.pdf', 'application/pdf')
     runtime.actor.mockResolvedValue(claimant)
+  })
+  it('requires an active campus at submission and preserves historical campus names', async () => {
+    const { id, draft } = await validDraft()
+    expect((await overview(pool, claimant)).campuses.map(campus => campus.name)).toEqual(['North', 'Central'])
+    await saveDraft(pool, claimant, id, 2, { ...draft, campusId: null })
+    await expect(act(id, claimant, 'submit')).rejects.toThrow('Choose a campus')
+    for (const campusId of [3, 999]) await expect(saveDraft(pool, claimant, id, 3, { ...draft, campusId })).rejects.toThrow('active campus')
+    await saveDraft(pool, claimant, id, 3, { ...draft, campusId: 2 })
+    await act(id, claimant, 'submit')
+    expect(await read(id)).toMatchObject({ campusId: 2, campusName: 'Central' })
+    expect((await read(id)).history[0].snapshot).toMatchObject({ campusId: 2, campusName: 'Central' })
+    await pool.query(REIMBURSEMENT_CAMPUS_UP_SQL)
+    expect((await read(id)).campusName).toBe('Central')
+    expect((await pool.query("SELECT body FROM reimbursement_email_deliveries WHERE report_id=$1 AND kind='rc'", [id])).rows[0].body).toContain('Campus: Central')
+  })
+  it.each(['purpose', 'finance'])('returns the whole report for %s rejection with optional line flags and restarts all approvals', async stage => {
+    const { id, draft } = await validDraft()
+    const second = { ...draft.lines[0], id: randomUUID(), description: 'Second expense reason' }
+    await saveDraft(pool, claimant, id, 2, { ...draft, lines: [...draft.lines, second] })
+    await act(id, claimant, 'submit')
+    if (stage === 'finance') await act(id, rc, 'approve')
+    const reviewer = stage === 'finance' ? finance : rc
+    const version = (await read(id, reviewer)).version
+    await expect(actOnReport(pool, stranger, id, { action: 'reject', version, reason: 'No', rejectedLineIds: [second.id] })).rejects.toMatchObject({ status: 404 })
+    for (const rejectedLineIds of [[randomUUID()], [second.id, second.id]]) {
+      await expect(actOnReport(pool, reviewer, id, { action: 'reject', version, reason: 'Check this', rejectedLineIds })).rejects.toThrow('Select expenses from this report only')
+    }
+    await expect(actOnReport(pool, reviewer, id, { action: 'approve', version, rejectedLineIds: [second.id] })).rejects.toThrow('only available when rejecting')
+    await expect(actOnReport(pool, reviewer, id, { action: 'reject', version, rejectedLineIds: [second.id] })).rejects.toThrow('Give a reason')
+    await actOnReport(pool, reviewer, id, { action: 'reject', version, reason: 'Please clarify the event.', rejectedLineIds: [second.id] })
+    let report = await read(id)
+    expect(report.status).toBe('rejected')
+    expect(report.lines).toHaveLength(2)
+    expect(rejectionDetails(report)?.rejectedLines).toEqual([{ id: second.id, number: 2, description: 'Second expense reason' }])
+    await expect(markBatchPaid(pool, finance, { reports: [{ id, version: report.version }] })).rejects.toMatchObject({ status: 409 })
+    const email = (await pool.query("SELECT body FROM reimbursement_email_deliveries WHERE report_id=$1 AND kind='rejected'", [id])).rows[0].body
+    expect(email).toContain('Expenses flagged: 2. Second expense reason')
+    await saveDraft(pool, claimant, id, report.version, { ...report, lines: report.lines.map(line => ({ ...line, description: 'Corrected reason' })) })
+    await act(id, claimant, 'submit')
+    report = await read(id)
+    expect(report.status).toBe('rc-approval')
+    expect(report.rcApproverId).toBeNull()
+    expect(rejectionDetails(report)).toBeUndefined()
+    expect(report.history.find(item => item.action === 'reject')?.rejectedLines?.[0].description).toBe('Second expense reason')
+    await act(id, rc, 'reject', 'Wrong purpose for the whole report.')
+    expect(rejectionDetails(await read(id))?.rejectedLines).toEqual([])
   })
   it('keeps menu opt-in permanent and incomplete drafts private, with optimistic saves', async () => {
     expect(await hasOpened(pool, 1)).toBe(false)
@@ -372,6 +423,8 @@ describe.skipIf(!url)('Reimbursement PostgreSQL workflow and authenticated HTTP 
   })
   it('only updates the signed-in person’s payment settings over HTTP', async () => {
     await saveProfile(pool, claimant, { accountName: 'Original', accountNumber: '12-1234-1234567-000' })
+    await pool.query(REIMBURSEMENT_CAMPUS_UP_SQL)
+    await pool.query(REIMBURSEMENT_CAMPUS_UP_SQL)
     runtime.pool.mockResolvedValue(pool)
     const profileRequest = (origin = 'https://ev.church') => new NextRequest('https://ev.church/api/reimbursements/profile', { method: 'PUT', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify({ accountName: 'Attempt', accountNumber: '' }) })
     runtime.actor.mockResolvedValue(null)

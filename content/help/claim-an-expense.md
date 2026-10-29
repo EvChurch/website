@@ -23,13 +23,19 @@ The compact **Bank account** row shows your saved account holder and a masked ba
 ## Create your report
 
 1. On **My reports**, choose **Create** (the plus button) beside **Active reports**.
-2. Select a **Purpose**. Each report has one purpose. Ordinary purposes require an assigned approver. **Pastor Expense Account** is a single shared purpose available to anyone submitting reimbursements and requires finance approval only.
+2. Select a **Campus** for the whole report. Use separate reports for different campuses. Select a **Purpose**. Each report has one purpose. Ordinary purposes require an assigned approver. **Pastor Expense Account** is a single shared purpose available to anyone submitting reimbursements and requires finance approval only.
 3. Check **Next approver** to see who will review it.
 4. Add an expense for each item or category you are claiming.
 
 ## Add expenses and receipts
 
-For each line, enter a date, category, description, and **Amount**. Enter the receipt total you are claiming, including GST where applicable. New lines default to including GST.
+For each line, enter a date, category, **Expense reason**, and **Amount**. Enter the receipt total you are claiming, including GST where applicable. New lines default to including GST.
+
+**Expense reason** explains what the expense was used for. Name the event, activity, or ministry it supported, rather than repeating the receipt—for example, “Food for EC on Tuesday”. Click or tap the information icon beside **Expense reason** for guidance; on a computer it is in the column heading, and on mobile it is beside each field label. Press Escape or click outside to close it.
+
+![A sample report with Campus selected and the Expense reason information popover open.](/images/help/expense-reason.png)
+
+![The Expense reason information popover beside the field label on mobile.](/images/help/expense-reason-mobile.png)
 
 On a computer, **Advanced** and its slider sit on the right beside **Add expense**. On mobile, they sit below **Expenses** on the left, with **Add expense** on the right.
 
@@ -39,7 +45,7 @@ Attach one receipt file to every line using **Upload receipt** on mobile, or the
 
 Each file can be up to 10 MB. Images must be still images of 40 megapixels or less; each PDF can have up to 20 pages. Together, a report's receipts can be up to 15 MB and 50 pages. A shared receipt counts once, even when attached to several lines. The complete report PDF, including its summary and activity, must fit within 15 MB and 80 pages for email. If a file cannot be read, export a fresh image or unlocked PDF. If your report exceeds a limit, compress the receipts or split the expenses into separate reports before submitting.
 
-**Show receipt** opens an attached receipt on mobile; on a computer, use the eye icon. The trash icon beside **Show receipt** removes the attachment on mobile; on a computer, use the X. You can then upload a replacement. On mobile, open the three-dot menu on an expense card and choose **Delete expense** to remove the entire line. On a computer, use the trash icon. Use **Add expense** to add another line.
+**Show receipt** opens an attached receipt on mobile; on a computer, use the grey eye icon. Receipt and bank account eye icons stay grey, including on hover. The trash icon beside **Show receipt** removes the attachment on mobile; on a computer, use the X. You can then upload a replacement. On mobile, open the three-dot menu on an expense card and choose **Delete expense** to remove the entire line. On a computer, use the trash icon. Use **Add expense** to add another line.
 
 ![An example expense report with sample expenses and receipt controls.](/images/help/expense-editor.png)
 
@@ -72,7 +78,7 @@ Choose **Submit** when everything is ready. You must complete the required field
 
 While your report is awaiting approval, choose **Edit** and confirm that you want to return it to draft. This disregards current approvals. When you submit it again, the approval process starts from the beginning.
 
-If your report is rejected, open it, read the reason at the top, make your changes, and submit again. Ordinary purposes return to purpose approval before finance review. Pastor Expense Account goes directly to finance again.
+If your report is rejected, open it and read the overall reason at the top. The prompt **Edit your report and resubmit for approval** appears beneath it. Any expenses selected by the approver are highlighted as **flagged for changes**. You can edit the whole report, including expenses that were not flagged, then submit again. The whole report must be approved before any expenses can be paid. Activity retains the originally flagged expenses even if you change or remove them. Ordinary purposes return to purpose approval before finance review. Pastor Expense Account goes directly to finance again.
 
 Once finance approves the report, you cannot edit it. [Contact us](/contact) if you need help with an approved or paid report.
 
