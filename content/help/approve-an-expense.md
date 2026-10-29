@@ -7,7 +7,7 @@ Open [**Approvals**](/members/reimbursements/approvals). **Awaiting your approva
 ## Review a report
 
 1. On mobile, open the report using its number or choose **View report** from its three-dot menu. On a computer, use its number or the eye icon.
-2. Check the purpose, expense dates, categories, descriptions, and amounts. Turn on the **Advanced** slider above the expenses to view Net, Gross, and each line's GST treatment.
+2. Check the campus, purpose, expense dates, categories, expense reasons, and amounts. Turn on the **Advanced** slider above the expenses to view Net, Gross, and each line's GST treatment.
 3. Open each receipt using **Show receipt** on mobile or its eye icon on a computer and check it supports the amount claimed. Someone may claim part of a receipt or split it across categories.
 4. Check **Activity** for the submission and any previous decisions.
 
@@ -25,7 +25,11 @@ Choose **Approve** when the report is ready. It then goes to **finance approval*
 
 ## Reject
 
-Enter a clear reason in **Reason or note**, then choose **Reject**. Explain what the claimant needs to fix.
+Follow the prompt **Select any expenses that need changes, add one overall reason, then choose Reject.** Use the checkbox on the left of any expense that needs changing. Enter one clear overall reason in **Reason or note**, then choose **Reject**. You can also reject without selecting expenses when the issue affects the whole report. Clear all selected checkboxes before choosing **Approve**.
+
+Rejection returns the entire report. The selected expenses are highlighted for the claimant and recorded in Activity alongside your reason. The claimant can edit any part of the report. No expenses can be paid until the whole report is approved.
+
+![A sample finance review with the second expense selected and one overall rejection reason.](/images/help/reject-expense-lines.png)
 
 The claimant can edit and resubmit. A resubmitted report starts the approval process again, including purpose approval.
 

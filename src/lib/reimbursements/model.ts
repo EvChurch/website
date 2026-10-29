@@ -23,6 +23,7 @@ export function hasPaymentSettings(profile: { accountName: string; accountNumber
 }
 export const draftSchema = z.object({
   centreId: z.number().int().positive().nullable(),
+  campusId: z.number().int().positive().nullable().optional(),
   lines: z.array(lineSchema).max(100),
   payoutOverride: z.object({
     accountName: z.string().max(200), accountNumber: paymentProfileSchema.shape.accountNumber,
@@ -39,12 +40,18 @@ export interface Category { id: number; name: string; archived: boolean }
 export interface Centre { id: number; name: string; approverRockPersonId: number | null; approverName: string | null; approverEmail: string | null; financeOnly?: boolean }
 export const defaultMinimumReportAmountMinor = 2500
 export interface Settings { minimumReportAmountMinor: number; seniorPersonId: number | null; seniorName: string; seniorEmail: string; alternatePersonId: number | null; alternateName: string; alternateEmail: string; financeEmail: string }
-export interface Activity { at: string; personId: number; name: string; action: string; reason: string; revision: number; snapshot?: { centreName: string; lines: ExpenseLine[] } }
+export interface Activity { at: string; personId: number; name: string; action: string; reason: string; revision: number; rejectedLines?: { id: string; number: number; description: string }[]; snapshot?: { centreName: string; campusId?: number | null; campusName?: string; lines: ExpenseLine[] } }
 export interface Report extends Draft {
   id: string; number: number; claimantId: number; claimantName: string; claimantEmail: string;
   status: ReportStatus; version: number; revision: number; history: Activity[];
-  rcApproverId: number | null; centreName: string; createdAt: string; updatedAt: string;
+  rcApproverId: number | null; centreName: string; campusName?: string; createdAt: string; updatedAt: string;
   accountName: string; accountNumber: string;
+}
+export function rejectionDetails(report: Pick<Report, 'status' | 'history'>) {
+  return report.status === 'rejected' ? [...report.history].reverse().find(item => ['reject', 'return'].includes(item.action)) : undefined
+}
+export function rejectedExpenseSummary(activity: Activity) {
+  return activity.rejectedLines?.length ? `Expenses flagged: ${activity.rejectedLines.map(line => `${line.number}. ${line.description}`).join('; ')}` : ''
 }
 export function isArchivedReport(report: Pick<Report, 'status' | 'history'>) {
   return [...report.history].reverse().find(item => ['archive', 'restore', 'reject', 'return', 'submit'].includes(item.action))?.action === 'archive'
@@ -78,6 +85,7 @@ export function approvalPerson(centre: Centre | undefined, claimantId: number, s
 export function validateSubmission(draft: Draft, categories: Category[], profile: { accountName: string; accountNumber: string }, minimumReportAmountMinor = defaultMinimumReportAmountMinor): string[] {
   const errors: string[] = []
   if (!draft.centreId) errors.push('Choose a purpose.')
+  if (!draft.campusId) errors.push('Choose a campus.')
   if (!profile.accountName.trim()) errors.push('Enter the payout bank account holder name.')
   if (!isBankAccountNumber(profile.accountNumber)) errors.push(BANK_ACCOUNT_FORMAT_MESSAGE)
   if (!draft.lines.length) errors.push('Add at least one expense.')
@@ -89,7 +97,7 @@ export function validateSubmission(draft: Draft, categories: Category[], profile
     const date = new Date(`${line.date}T00:00:00Z`)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(line.date) || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== line.date) errors.push(prefix + 'choose a valid date.')
     if (!categories.some(category => category.id === line.categoryId && !category.archived)) errors.push(prefix + 'choose an active category.')
-    if (!line.description.trim()) errors.push(prefix + 'enter a description.')
+    if (!line.description.trim()) errors.push(prefix + 'enter an expense reason.')
     if (!line.amountMinor || line.amountMinor < 1) errors.push(prefix + 'enter an amount greater than zero.')
     if (!line.receiptHash) errors.push(prefix + 'upload a receipt.')
   })
