@@ -9,10 +9,11 @@
     "preview:giving-emails": "tsx watch scripts/preview-giving-emails.ts",
     "build": "payload generate:types && payload generate:importmap && pnpm typecheck && next build",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "vitest run",
+    "test": "pnpm check:payload-ui-context && vitest run",
     "test:migration:postgres": "vitest run src/migration-tests",
     "seed": "tsx src/seed/seed-pages.ts",
     "start": "next start",
+    "check:payload-ui-context": "node scripts/check-payload-ui-context.mjs",
     "check:worktree": "node scripts/check-worktree-integrations.mjs",
     "setup:worktree-db": "node scripts/setup-worktree-db.mjs",
     "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives",
@@ -69,7 +70,7 @@
     "zustand": "5.0.15"
   },
   "devDependencies": {
-    "@payloadcms/ui": "3.92.0",
+    "@payloadcms/ui": "3.91.0",
     "@types/canvas-confetti": "^1.9.0",
     "@types/jsdom": "^30.0.0",
     "@types/node": "24.19.2",
