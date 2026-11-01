@@ -1,5 +1,6 @@
 [build]
-buildCommand = "npm run generate:types"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.rock-sync"
 
 [deploy]
 startCommand = "npm run sync:rock"

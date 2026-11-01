@@ -1,6 +1,9 @@
 {
   "$schema": "https://schema.railpack.com",
-  "buildAptPackages": ["...", "ca-certificates"],
+  "buildAptPackages": [
+    "...",
+    "ca-certificates"
+  ],
   "steps": {
     "build": {
       "variables": {
@@ -18,7 +21,8 @@
       ],
       "variables": {
         "SSL_CERT_DIR": "/usr/local/share/security-ca/certs"
-      }
+      },
+      "deployOutputs": []
     },
     "security-runtime-ca": {
       "inputs": [
@@ -32,14 +36,15 @@
           "dest": "/app/scripts/update-security-ca.sh"
         },
         "sh scripts/update-security-ca.sh"
-      ]
+      ],
+      "deployOutputs": []
     }
   },
   "deploy": {
     "base": {
       "step": "security-runtime-ca"
     },
-    "aptPackages": ["...", "ca-certificates"],
+    "aptPackages": [],
     "variables": {
       "SSL_CERT_DIR": "/usr/local/share/security-ca/certs"
     }

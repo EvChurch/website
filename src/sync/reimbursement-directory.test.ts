@@ -80,6 +80,9 @@ describe('reimbursement directory sync', () => {
       collection: 'reimbursement-finance-members', id: 3, req: { transactionID: 'directory-transaction' },
     })
     expect(mocks.commitTransaction).toHaveBeenCalledOnce()
+    expect(mocks.find).toHaveBeenCalledWith(expect.objectContaining({
+      collection: 'responsibility-centres', where: { isLocal: { not_equals: true } },
+    }))
     expect(mocks.rockFetchAll.mock.invocationCallOrder.at(-1)!).toBeLessThan(
       mocks.getPayloadClient.mock.invocationCallOrder[0],
     )

@@ -143,7 +143,7 @@ export async function syncReimbursementDirectory(): Promise<SyncResult> {
       const person = alias ? personDetails(alias.Person, alias.PersonId) : null
       return {
         rockId: centre.Id, rockGuid: centre.Guid.toLowerCase(), name: centre.Value.trim(),
-        sortOrder: centre.Order, isActive: centre.IsActive,
+        sortOrder: centre.Order, isActive: centre.IsActive, isLocal: false, financeOnly: false,
         approverPersonAliasGuid: guid, approverRockPersonId: alias?.PersonId ?? null,
         approverName: person?.name ?? null, approverEmail: person?.email ?? null,
         lastSyncedAt: syncedAt,
@@ -186,6 +186,7 @@ export async function syncReimbursementDirectory(): Promise<SyncResult> {
     try {
       const existingCentres = await payload.find({
         collection: 'responsibility-centres', depth: 0, pagination: false, limit: 0,
+        where: { isLocal: { not_equals: true } },
         select: { rockId: true, isActive: true }, req,
       })
       if (centres.length === 0 && existingCentres.docs.length > 0) {

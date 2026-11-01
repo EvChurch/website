@@ -1,4 +1,6 @@
 import * as migration_20261031_010000_stripe_giving from './20261031_010000_stripe_giving';
+import * as migration_20261029_020000_api from './20261029_020000_api';
+import * as migration_20261028_010000_reimbursement_payout_and_pastor_account from './20261028_010000_reimbursement_payout_and_pastor_account';
 import * as migration_20261021_010000_event_scheduled_occurrences from './20261021_010000_event_scheduled_occurrences';
 import * as migration_20261017_030000_simplify_reimbursements from './20261017_030000_simplify_reimbursements';
 import * as migration_20261017_010000_reimbursement_directory from './20261017_010000_reimbursement_directory';
@@ -71,6 +73,8 @@ import * as migration_20260903_010000_member_giving_self_service from './2026090
 import * as migration_20260905_060000_feedback_github_issue_links from './20260905_060000_feedback_github_issue_links';
 
 import * as migration_20260910_010000_connect_group_visibility from './20260910_010000_connect_group_visibility';
+
+import * as migration_20261029_010000_reimbursement_campus from './20261029_010000_reimbursement_campus';
 
 export const migrations = [
   {
@@ -380,5 +384,8 @@ export const migrations = [
   { up: migration_20261017_030000_simplify_reimbursements.up, down: migration_20261017_030000_simplify_reimbursements.down, name: '20261017_030000_simplify_reimbursements' },
   { up: migration_20261018_010000_card_image_border.up, down: migration_20261018_010000_card_image_border.down, name: '20261018_010000_card_image_border' },
   { up: migration_20261021_010000_event_scheduled_occurrences.up, down: migration_20261021_010000_event_scheduled_occurrences.down, name: '20261021_010000_event_scheduled_occurrences' },
+  { up: migration_20261028_010000_reimbursement_payout_and_pastor_account.up, down: migration_20261028_010000_reimbursement_payout_and_pastor_account.down, name: '20261028_010000_reimbursement_payout_and_pastor_account' },
+  { up: migration_20261029_010000_reimbursement_campus.up, down: migration_20261029_010000_reimbursement_campus.down, name: '20261029_010000_reimbursement_campus' },
+  { up: migration_20261029_020000_api.up, down: migration_20261029_020000_api.down, name: '20261029_020000_api' },
   { up: migration_20261031_010000_stripe_giving.up, down: migration_20261031_010000_stripe_giving.down, name: '20261031_010000_stripe_giving' },
 ];

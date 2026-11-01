@@ -165,7 +165,7 @@ settings:
 overrides:
   pg: 8.23.1
   sharp@>=0.35.0 <0.35.5: 0.35.5
-  undici@>=7.29.0 <7.30.1: 7.30.1
+  undici@>=7.29.0 <7.30.1: 8.12.3
   jsdom>undici: 8.12.2
   '@payloadcms/plugin-mcp>@modelcontextprotocol/sdk': 1.32.1
   mcp-handler>@modelcontextprotocol/sdk: 1.32.1
@@ -288,6 +288,9 @@ importers:
       stripe:
         specifier: ^23.1.0
         version: 23.1.0(@types/node@24.19.2)
+      swagger-ui-dist:
+        specifier: 5.34.0
+        version: 5.34.0
       tailwindcss:
         specifier: 4.3.3
         version: 4.3.3
@@ -1936,6 +1939,9 @@ packages:
 
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
+
+  '@scarf/scarf@1.4.0':
+    resolution: {integrity: sha512-xxeapPiUXdZAE3che6f3xogoJPeZgig6omHEy1rIY5WVsB3H2BHNnZH+gHG6x91SCWyQCzWGsuL2Hh3ClO5/qQ==}
 
   '@sindresorhus/is@7.2.0':
     resolution: {integrity: sha512-P1Cz1dWaFfR4IR+U13mqqiGsLFf1KbayybWwdd2vfctdV6hDpUkgCY0nKOLLTMSoRd/jJNjtbqzf13K8DCCXQw==}
@@ -4549,6 +4555,9 @@ packages:
     resolution: {integrity: sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==}
     engines: {node: '>= 0.4'}
 
+  swagger-ui-dist@5.34.0:
+    resolution: {integrity: sha512-H6tAIjr3XqE31PbkZl0OFya1ziRLDfTwh3J6OHdumPtPCLfjTnyLeagl/55kFNZcTOz9a9QI9WP0FXldwiGJag==}
+
   swr@2.5.1:
     resolution: {integrity: sha512-BRw55e8r0B7SpDN20CAzoQAHl7y1yP7/Zt7oqUjMv0vSt2u2Xnkm88Ws+VypbV9BXHQVuSuyVq7zMjO16wSExw==}
     peerDependencies:
@@ -4686,12 +4695,12 @@ packages:
   undici-types@8.9.0:
     resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
 
-  undici@7.30.1:
-    resolution: {integrity: sha512-03KrMbjIFDWQR5RNPrSw3bd1r12JpyFQl9/yxjUbJtqkjmllqC5lFjZh6ujeuJCKr8EOQvRW872Oy/az+nLYxg==}
-    engines: {node: '>=20.18.1'}
-
   undici@8.12.2:
     resolution: {integrity: sha512-XtuDWVdqTLr3NAxm2ly9/hU6kUsJOgGh1RASzMBbsw6aWCOaQzHdW+QQDfdERjfJ2V5vL5pRPa4RetO9UfivDg==}
+    engines: {node: '>=22.19.0'}
+
+  undici@8.12.3:
+    resolution: {integrity: sha512-+fdndUTwBP86cVjihTp21hZHo7d6oj1c/47XPA3lL8mM0XHs+C4EkcjmgRsFnFk2f/UONGDy9ItBItmXsLOQHw==}
     engines: {node: '>=22.19.0'}
 
   unenv@2.0.0-rc.24:
@@ -6633,6 +6642,8 @@ snapshots:
     optional: true
 
   '@rolldown/pluginutils@1.0.1': {}
+
+  '@scarf/scarf@1.4.0': {}
 
   '@sindresorhus/is@7.2.0': {}
 
@@ -8619,7 +8630,7 @@ snapshots:
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       sharp: 0.35.5(@types/node@24.19.2)
-      undici: 7.30.1
+      undici: 8.12.3
       workerd: 1.20261012.1
       ws: 8.21.0
       youch: 4.1.0-beta.10
@@ -8802,7 +8813,7 @@ snapshots:
       sax: 1.6.1
       ts-essentials: 10.0.3(@typescript/typescript6@6.0.2)
       tsx: 4.23.15
-      undici: 7.30.1
+      undici: 8.12.3
       uuid: 13.0.2
       ws: 8.22.0
     transitivePeerDependencies:
@@ -9391,6 +9402,10 @@ snapshots:
 
   supports-preserve-symlinks-flag@1.0.0: {}
 
+  swagger-ui-dist@5.34.0:
+    dependencies:
+      '@scarf/scarf': 1.4.0
+
   swr@2.5.1(react@19.3.1):
     dependencies:
       dequal: 2.0.3
@@ -9525,9 +9540,9 @@ snapshots:
 
   undici-types@8.9.0: {}
 
-  undici@7.30.1: {}
-
   undici@8.12.2: {}
+
+  undici@8.12.3: {}
 
   unenv@2.0.0-rc.24:
     dependencies:

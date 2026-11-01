@@ -6,7 +6,7 @@ import type { Report } from './model'
 const report: Report = {
   id: '00000000-0000-4000-8000-000000000043', number: 43, claimantId: 1,
   claimantName: 'Aroha <Ngata>', claimantEmail: 'aroha@example.com', centreId: 1,
-  centreName: 'Food & hospitality', status: 'awaiting-payment', version: 1, revision: 1,
+  centreName: 'Food & hospitality', campusId: 1, campusName: 'North', status: 'awaiting-payment', version: 1, revision: 1,
   accountName: 'Aroha account', accountNumber: '12-1234-1234567-000', rcApproverId: 2,
   createdAt: '2026-10-17T00:00:00Z', updatedAt: '2026-10-17T00:00:00Z', history: [],
   lines: [{ id: '00000000-0000-4000-8000-000000000044', date: '2026-10-16', categoryId: 1, description: 'Lunch', amountMinor: 11500, hasGst: true, receiptHash: null }],
@@ -29,6 +29,7 @@ describe('reimbursement email presentation', () => {
     expect(message.html).not.toContain('>Reimbursements</p>')
     expect(message.html).toContain('Aroha &lt;Ngata&gt;')
     expect(message.html).toContain('Food &amp; hospitality')
+    expect(message.html).toContain('North')
     expect(message.html).toContain('$115.00 NZD')
     expect(message.html).not.toContain('<form')
   })

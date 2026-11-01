@@ -1,4 +1,5 @@
 import { stripeGivingTask } from '@/jobs/stripe-giving'
+import { ApiKeys, ApiAudit } from './src/collections/ApiKeys'
 import { SermonTranscripts } from '@/collections/SermonTranscripts'
 import { sermonTranscriptTasks } from '@/jobs/sermon-transcripts'
 import { SermonArticles } from '@/collections/SermonArticles'
@@ -105,6 +106,8 @@ function defaultFeedbackToolPermissions(fields: Field[]): Field[] {
 
 export const applicationCollections: CollectionConfig[] = [
   Users,
+  ApiKeys,
+  ApiAudit,
   Media,
   Pages,
   BlogPosts,
@@ -158,6 +161,8 @@ export const applicationGlobals: GlobalConfig[] = [
 ]
 
 export const mcpExcludedCollectionSlugs = new Set([
+  'api-keys',
+  'api-audit-events',
   'responsibility-centres',
   'reimbursement-finance-members',
   'sermon-articles',
