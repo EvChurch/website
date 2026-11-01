@@ -4,7 +4,7 @@ import config from '@payload-config'
 let payloadClient: ReturnType<typeof getPayload> | null = null
 
 export const getPayloadClient = () => {
-  payloadClient ??= getPayload({ config })
+  payloadClient ??= getPayload({ config, cron: true })
   return payloadClient
 }
 
