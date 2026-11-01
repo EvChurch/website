@@ -306,7 +306,7 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
               context_key,environment,synthetic,checkout_id,giver_id,consent_id,schedule_id,
               fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,transaction_fee_minor,provider_payment_id,status)
             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'pending')
-            ON CONFLICT(environment,provider_payment_id) DO NOTHING`, [
+            ON CONFLICT(environment,payment_provider,provider_payment_id) DO NOTHING`, [
             provenance.context_key,provenance.environment,provenance.synthetic,
             provenance.checkout_id,provenance.giver_id,provenance.consent_id,provenance.schedule_id,
             provenance.fund_id,provenance.fund_name,provenance.fund_code,provenance.fund_accounting_key,

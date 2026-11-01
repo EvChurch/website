@@ -4,9 +4,11 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { CardFeeSettings } from '@/lib/giving/fees'
 import type { PublicGivingFund } from '@/lib/giving/contracts'
 import { GIVING_SAFE_CLOSE_REASSURANCE_DELAY_MS, GIVING_STATUS_POLL_LIMIT, GivingFlow, givingCheckoutPresentation, givingProgress, givingStatusPollDelay, positionGivingSurface, safeGivingGatewayRedirect } from './GivingFlow'
 
+vi.mock('./StripeGivingCheckout',()=>({StripeGivingCheckout:()=> <div>Secure card component</div>}))
 vi.mock('@/components/forms/TurnstileWidget', () => ({ TurnstileWidget: ({ onToken }: { onToken: (token: string) => void }) => <button type="button" data-turnstile onClick={() => onToken('turnstile-token')}>Pass security check</button> }))
 const loadGivingSubmissionVersion=vi.hoisted(()=>vi.fn(async()=> 'V'.repeat(43)))
 vi.mock('@/lib/giving/submission-session',()=>({loadGivingSubmissionVersion}))
@@ -17,6 +19,7 @@ const givingContext=vi.hoisted(()=>({
   active:true,
   flagState:'enabled' as 'unresolved'|'enabled'|'disabled'|'failed',
   blinkPayEnabled:true,
+  cardEnabled:false,
   back:null as (()=>boolean)|null,
   close:null as (()=>boolean)|null,
   dismiss:vi.fn(()=>true),
@@ -26,6 +29,7 @@ vi.mock('./GivingExperienceProvider',()=>({useGivingExperience:()=>({
   givingViewActive:givingContext.active,
   flagState:givingContext.flagState,
   blinkPayEnabled:givingContext.blinkPayEnabled,
+  cardEnabled:givingContext.cardEnabled,
   dismissGiving:givingContext.dismiss,
   registerGivingBackHandler:(handler:()=>boolean)=>{givingContext.back=handler;return()=>{if(givingContext.back===handler)givingContext.back=null}},
   registerGivingCloseHandler:(handler:()=>boolean)=>{givingContext.close=handler;return()=>{if(givingContext.close===handler)givingContext.close=null}},
@@ -48,12 +52,19 @@ function change(input: HTMLInputElement, value: string) {
   Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set?.call(input, value)
   input.dispatchEvent(new Event('input', { bubbles: true }))
 }
-async function reachSignedInReview(container: HTMLElement, root: Root) {
-  await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
+async function reachSignedInPaymentMethod(container: HTMLElement, root: Root, cardFees?: CardFeeSettings) {
+  await act(async()=>root.render(<GivingFlow cardFees={cardFees} funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
   await act(async()=>change(container.querySelector('input')!,'25'))
   await act(async()=>button(container,'Continue')?.click())
   await act(async()=>button(container,'Just this once')?.click())
   await act(async()=>button(container,'General')?.click())
+}
+
+async function reachSignedInReview(container: HTMLElement, root: Root, cardFees?: CardFeeSettings) {
+  await reachSignedInPaymentMethod(container, root, cardFees)
+  expect(container.querySelector('#giving-step-heading')?.textContent).toBe('How would you like to pay?')
+  expect(container.querySelector('[data-turnstile]')).toBeNull()
+  await act(async () => button(container, givingContext.blinkPayEnabled ? 'Pay by bank' : 'Try manual bank transfer')?.click())
 }
 
 function elementWithRect(top: number, bottom: number) {
@@ -91,6 +102,7 @@ describe('GivingFlow', () => {
     givingContext.active=true
     givingContext.directedFundId=null
     givingContext.flagState='enabled'
+    givingContext.cardEnabled=false
     givingContext.blinkPayEnabled=true
     givingContext.back=null
     givingContext.close=null
@@ -144,10 +156,13 @@ describe('GivingFlow', () => {
     const previousChoices=container.querySelector('[aria-label="Previous giving choices"]')!
     expect(label.compareDocumentPosition(previousChoices) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     await act(async()=>button(container,'Just this once')?.click())
+    if (button(container, 'Pay by bank')) await act(async () => button(container, 'Pay by bank')?.click())
     expect(container.textContent).toContain('Continue with BlinkPay')
     expect(container.textContent).toContain('to Missions just this once')
     expect(container.textContent).not.toContain('What fund should this be for?')
     expect(container.querySelector('[aria-label="Change fund"]')).toBeNull()
+    await act(async()=>{expect(givingContext.back?.()).toBe(true)})
+    expect(container.querySelector('#giving-step-heading')?.textContent).toBe('How would you like to pay?')
     await act(async()=>{expect(givingContext.back?.()).toBe(true)})
     expect(container.querySelector('#giving-step-heading')?.textContent).toBe('How often?')
     expect(container.querySelector('[data-giving-step-preview="fund"]')).toBeNull()
@@ -158,6 +173,7 @@ describe('GivingFlow', () => {
     expect(container.querySelector('[aria-label="Change fund"]')).toBeNull()
     await act(async()=>button(container,'Just this once')?.click())
     await act(async()=>button(container,'Continue')?.click())
+    if (button(container, 'Pay by bank')) await act(async () => button(container, 'Pay by bank')?.click())
     expect(container.textContent).toContain('Continue with BlinkPay')
     const saved=vi.mocked(fetch).mock.calls.filter(([,init])=>init?.method==='PUT').at(-1)?.[1]?.body
     expect(JSON.parse(String(saved))).toMatchObject({fundId:1,fundConfirmed:true})
@@ -227,6 +243,7 @@ describe('GivingFlow', () => {
     await act(async()=>button(container,'Continue')?.click())
     await act(async()=>button(container,'Just this once')?.click())
     await act(async()=>button(container,'General')?.click())
+    if (button(container, 'Pay by bank')) await act(async () => button(container, 'Pay by bank')?.click())
     expect(container.textContent).toContain('Continue with BlinkPay')
     expect(container.textContent).toContain('BlinkPay is a trusted third party')
   })
@@ -248,6 +265,7 @@ describe('GivingFlow', () => {
     await act(async () => new Promise((resolve) => setTimeout(resolve, 0)))
 
     expect(requests.indexOf('/api/giving/identity')).toBeLessThan(requests.indexOf('/api/giving/drafts'))
+    if (button(container, 'Pay by bank')) await act(async () => button(container, 'Pay by bank')?.click())
     expect(container.textContent).toContain('Continue with BlinkPay')
     expect(container.textContent).not.toContain('What is your first name?')
   })
@@ -286,7 +304,7 @@ describe('GivingFlow', () => {
     expect(document.activeElement?.textContent).toContain('Every week')
     expect(container.querySelector('[data-question-panel="highlighted"]')).toBeTruthy()
     expect(container.querySelector('[aria-label="Change amount"]')).toBeTruthy()
-    expect(container.textContent).toContain('I’d like to give $50.00+$0.50')
+    expect(container.textContent).toContain('I’d like to give $50.00')
     expect(container.querySelector('[data-giving-step-preview="fund"]')?.textContent).toBe('What fund should this be for?')
     expect(container.querySelector('[data-giving-step] [data-giving-step-preview]')).toBeNull()
     expect(container.textContent).not.toContain('More options')
@@ -356,6 +374,7 @@ describe('GivingFlow', () => {
     expect(container.textContent).toContain('for General')
     expect(container.textContent).toContain('Every month')
     await act(async () => button(container, 'Tomorrow')?.click())
+    if (button(container, 'Pay by bank')) await act(async () => button(container, 'Pay by bank')?.click())
     expect(container.textContent).toContain('Continue with BlinkPay')
     expect(container.textContent).toContain('complete your payment setup with your bank')
     expect(container.textContent).toContain('You’re giving $55.00 plus a $0.50 transaction fee to General every month, starting tomorrow. BlinkPay will charge $55.50 each time.')
@@ -467,11 +486,12 @@ describe('GivingFlow', () => {
     expect(container.textContent).toContain('What is your email?')
     await act(async () => change(emailInput, 'ada@example.com'))
     await act(async () => button(container, 'Continue')?.click())
+    if (button(container, 'Pay by bank')) await act(async () => button(container, 'Pay by bank')?.click())
     expect(container.textContent).toContain('Continue with BlinkPay')
     expect(container.textContent).toContain('You’re giving $25.00 plus a $0.50 transaction fee to General just this once. BlinkPay will charge $25.50.')
   })
 
-  it('shows direct bank-transfer details when the BlinkPay rollout flag is off', async () => {
+  it('opens manual bank transfer only after it is chosen when BlinkPay is off', async () => {
     givingContext.flagState='disabled'
     givingContext.blinkPayEnabled=false
     vi.mocked(fetch).mockImplementation(async(input)=>{
@@ -484,6 +504,9 @@ describe('GivingFlow', () => {
     await act(async()=>button(container,'Continue')?.click())
     await act(async()=>button(container,'Just this once')?.click())
     await act(async()=>button(container,'General')?.click())
+    expect(container.textContent).toContain('How would you like to pay?')
+    expect(container.querySelector('[data-turnstile]')).toBeNull()
+    await act(async () => button(container, 'Try manual bank transfer')?.click())
     expect(button(container, 'Use bank transfer instead')).toBeUndefined()
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
     await act(async()=>Promise.resolve())
@@ -512,28 +535,57 @@ describe('GivingFlow', () => {
     expect(container.querySelector('[data-turnstile]')).toBeNull()
   })
 
-  it('waits for the rollout decision and freezes one payment method for the flow', async () => {
+  it('waits for provider availability and retains the chosen provider page', async () => {
     givingContext.flagState='unresolved'
     givingContext.blinkPayEnabled=false
-    await reachSignedInReview(container, root)
-    expect(container.textContent).toContain('Preparing your payment options')
+    await reachSignedInPaymentMethod(container, root)
+    expect(container.textContent).toContain('How would you like to pay?')
+    expect(button(container, 'Pay by bank')?.disabled).toBe(true)
     expect(container.querySelector('[data-turnstile]')).toBeNull()
     expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input) === '/api/giving/bank-transfer')).toBe(false)
 
     givingContext.flagState='enabled'
     givingContext.blinkPayEnabled=true
     await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
+    if (button(container, 'Pay by bank')) await act(async () => button(container, 'Pay by bank')?.click())
     expect(container.textContent).toContain('Continue with BlinkPay')
     expect(container.querySelector('[data-turnstile]')).toBeTruthy()
 
     givingContext.flagState='disabled'
     givingContext.blinkPayEnabled=false
     await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}}/>))
+    if (button(container, 'Pay by bank')) await act(async () => button(container, 'Pay by bank')?.click())
     expect(container.textContent).toContain('Continue with BlinkPay')
     expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input) === '/api/giving/bank-transfer')).toBe(false)
   })
 
-  it('offers a low-priority bank-transfer link below BlinkPay without starting a checkout', async () => {
+  it('quotes both gateways, submits the selected card fee and fund, and keeps card entry in the flow',async()=>{
+    givingContext.cardEnabled=true
+    const sent:Record<string,unknown>[]=[]
+    vi.mocked(fetch).mockImplementation(async(input,init)=>{
+      if(String(input)==='/api/giving/card') {
+        sent.push(JSON.parse(String(init?.body)) as Record<string,unknown>)
+        return new Response(JSON.stringify({outcome:'embedded',clientSecret:'cs_test_secret',publishableKey:'pk_test_example'}),{status:201,headers:{'content-type':'application/json'}})
+      }
+      return new Response(null,{status:204})
+    })
+    await reachSignedInPaymentMethod(container,root,{fixedMinor:30,percentageBasisPoints:265})
+    expect(container.querySelector('#giving-bank-payment-details')?.textContent).toContain('$0.50 payment fee · $25.50 total')
+    expect(container.querySelector('#giving-card-payment-details')?.textContent).toContain('$0.99 payment fee · $25.99 total')
+    expect(container.querySelector('[data-turnstile]')).toBeNull()
+    expect(document.activeElement).toBe(container.querySelector('#giving-step-heading'))
+    expect(button(container,'Continue to BlinkPay')).toBeUndefined()
+    await act(async()=>button(container,'Debit or credit card')?.click())
+    expect(button(container,'Pay by bank')).toBeUndefined()
+    expect(button(container,'Try manual bank transfer')).toBeUndefined()
+    await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
+    await act(async()=>button(container,'Continue to secure card details')?.click())
+    expect(sent).toHaveLength(1)
+    expect(sent[0]).toMatchObject({fundId:2,amountMinor:2500,transactionFeeMinor:99,frequency:'one-off'})
+    expect(container.textContent).toContain('Secure card details')
+    expect(button(container,'Pay by bank')).toBeUndefined()
+  })
+  it('offers a low-priority bank-transfer link below the main payment choices without starting a checkout', async () => {
     vi.mocked(fetch).mockImplementation(async (input) => {
       if (String(input) === '/api/giving/bank-transfer') return new Response(JSON.stringify({
         accountName: 'Auckland Evangelical Church Trust',
@@ -545,16 +597,16 @@ describe('GivingFlow', () => {
       }), { status: 200, headers: { 'content-type': 'application/json' } })
       return new Response(null, { status: 204 })
     })
-    await reachSignedInReview(container, root)
-    const primary = button(container, 'Continue to BlinkPay')!
-    const secondary = button(container, 'use bank transfer instead')!
-    const blinkPayCard = Array.from(container.querySelectorAll('div')).find((element) => element.className.includes('rounded-[2rem]') && element.contains(primary))!
-    expect(primary.className).toContain('bg-rich-red')
-    expect(blinkPayCard.contains(secondary)).toBe(false)
-    expect(blinkPayCard.nextElementSibling?.contains(secondary)).toBe(true)
+    await reachSignedInPaymentMethod(container, root)
+    const primary = button(container, 'Pay by bank')!
+    const secondary = button(container, 'Try manual bank transfer')!
+    expect(primary.compareDocumentPosition(secondary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(container.querySelector('[data-turnstile]')).toBeNull()
+    expect(secondary.closest('[aria-label="Payment method"]')).toBeNull()
+    expect(secondary.closest('[data-question-panel]')).toBeNull()
     expect(secondary.className).toContain('underline')
     expect(secondary.className).not.toContain('border')
-    expect(container.textContent).toContain('No credit or debit card needed. BlinkPay works with accounts from five major NZ banks: ANZ, ASB, BNZ, Kiwibank and Westpac.')
+    expect(container.textContent).toContain('How would you like to pay?')
 
     await act(async () => secondary.click())
     expect(container.textContent).toContain('Bank transfer details')
@@ -643,10 +695,13 @@ describe('GivingFlow', () => {
     await act(async () => button(container, 'Continue')?.click())
     await act(async () => change(container.querySelector('input')!, 'ada@example.com'))
     await act(async () => button(container, 'Continue')?.click())
+    if (button(container, 'Pay by bank')) await act(async () => button(container, 'Pay by bank')?.click())
     expect(container.textContent).toContain('Continue with BlinkPay')
     await act(async () => container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
     await act(async () => button(container, 'Continue to BlinkPay')?.click())
     expect(container.textContent).toContain('gift details are saved')
+    await act(async () => givingContext.back?.())
+    expect(container.textContent).toContain('How would you like to pay?')
     await act(async () => givingContext.back?.())
     expect(container.textContent).toContain('What is your email?')
     expect(container.querySelector<HTMLInputElement>('input')?.value).toBe('ada@example.com')
@@ -658,7 +713,7 @@ describe('GivingFlow', () => {
     const progress = container.querySelector<HTMLElement>('[role="progressbar"]')
     const amountInput = container.querySelector<HTMLInputElement>('input')
     expect(container.textContent).not.toContain('Step in progress')
-    expect(container.textContent).toContain('+$0.50 transaction fee.')
+    expect(container.textContent).not.toContain('+$0.50 transaction fee.')
     expect(amountInput?.placeholder).toBe('1.00')
     expect(container.querySelector<HTMLButtonElement>('button[aria-label="Continue"]')).toBeNull()
     expect(container.querySelector('[data-giving-step-preview="frequency"]')?.textContent).toBe('How often?')
@@ -731,6 +786,7 @@ describe('GivingFlow', () => {
     } }), { status: 200, headers: { 'content-type': 'application/json' } }))
     await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested identity={{ signedIn: true, firstName: 'Fresh', lastName: 'Member', email: 'fresh@example.com' }} />))
     await act(async () => Promise.resolve())
+    if (button(container, 'Pay by bank')) await act(async () => button(container, 'Pay by bank')?.click())
     expect(container.textContent).toContain('Continue with BlinkPay')
     expect(container.textContent).not.toContain('Fresh Member')
     expect(container.textContent).not.toContain('fresh@example.com')
@@ -770,7 +826,7 @@ describe('GivingFlow', () => {
     await act(async () => new Promise((resolve) => setTimeout(resolve, 0)))
 
     expect(container.textContent).toContain('How often?')
-    expect(container.textContent).toContain('I’d like to give $100.00+$0.50')
+    expect(container.textContent).toContain('I’d like to give $100.00')
     expect(container.querySelector('[aria-label="Change amount"]')).toBeTruthy()
   })
 
@@ -901,6 +957,7 @@ describe('GivingFlow', () => {
     await act(async()=>button(container,'Continue')?.click())
     await act(async()=>button(container,'Just this once')?.click())
     await act(async()=>button(container,'General')?.click())
+    await act(async()=>button(container,'Pay by bank')?.click())
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
     await act(async()=>button(container,'Continue to BlinkPay')?.click())
     expect(container.textContent).toContain('gift details are saved')
@@ -963,8 +1020,12 @@ describe('GivingFlow', () => {
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
     expect(button(container,'Continue to BlinkPay')?.disabled).toBe(false)
     await act(async()=>givingContext.back?.())
+    expect(container.textContent).toContain('How would you like to pay?')
+    expect(container.querySelector('[data-turnstile]')).toBeNull()
+    await act(async()=>givingContext.back?.())
     expect(container.textContent).toContain('What fund should this be for?')
     await act(async()=>button(container,'General')?.click())
+    if (button(container, 'Pay by bank')) await act(async () => button(container, 'Pay by bank')?.click())
     expect(container.textContent).toContain('Continue with BlinkPay')
     expect(button(container,'Continue to BlinkPay')?.disabled).toBe(true)
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
@@ -973,8 +1034,12 @@ describe('GivingFlow', () => {
 
   it('uses Back and Continue to walk completed steps linearly', async () => {
     await reachSignedInReview(container, root)
+    if (button(container, 'Pay by bank')) await act(async () => button(container, 'Pay by bank')?.click())
     expect(container.textContent).toContain('Continue with BlinkPay')
 
+    await act(async()=>givingContext.back?.())
+    expect(container.textContent).toContain('How would you like to pay?')
+    expect(container.querySelector('[data-turnstile]')).toBeNull()
     await act(async()=>givingContext.back?.())
     expect(container.textContent).toContain('What fund should this be for?')
     await act(async()=>givingContext.back?.())
@@ -1047,6 +1112,7 @@ describe('GivingFlow', () => {
     await act(async()=>button(container,'Continue')?.click())
     await act(async()=>button(container,'Just this once')?.click())
     await act(async()=>button(container,'General')?.click())
+    await act(async()=>button(container,'Pay by bank')?.click())
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
     await act(async()=>button(container,'Continue to BlinkPay')?.click())
     givingContext.active=false
@@ -1071,6 +1137,7 @@ describe('GivingFlow', () => {
     await act(async()=>button(container,'Continue')?.click())
     await act(async()=>button(container,'Just this once')?.click())
     await act(async()=>button(container,'General')?.click())
+    await act(async()=>button(container,'Pay by bank')?.click())
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')?.click())
     await act(async()=>button(container,'Continue to BlinkPay')?.click())
     expect(checkoutCalls).toBe(1)
@@ -1117,7 +1184,7 @@ describe('GivingFlow', () => {
     expect(container.textContent).toContain('$25.00')
     expect(container.textContent).toContain('Transaction fee')
     expect(container.textContent).toContain('$0.50')
-    expect(container.textContent).toContain('Total charged')
+    expect(container.textContent).toContain('Total each payment')
     expect(container.textContent).toContain('$25.50')
     expect(container.textContent).toContain('General')
     expect(container.textContent).toContain('Every month')
@@ -1136,10 +1203,10 @@ describe('GivingFlow', () => {
       return new Response(null,{status:204})
     })
     await act(async()=>root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested/>))
-    expect(container.textContent).toContain('We’re confirming your gift with BlinkPay.')
+    expect(container.textContent).toContain('We’re confirming your gift.')
     expect(container.textContent).not.toContain('This is taking a little longer')
     await act(async()=>vi.advanceTimersByTimeAsync(GIVING_SAFE_CLOSE_REASSURANCE_DELAY_MS-1))
-    expect(container.textContent).toContain('We’re confirming your gift with BlinkPay.')
+    expect(container.textContent).toContain('We’re confirming your gift.')
     expect(container.textContent).not.toContain('This is taking a little longer')
     await act(async()=>vi.advanceTimersByTimeAsync(1))
     expect(container.textContent).toContain('This is taking a little longer')
@@ -1233,7 +1300,7 @@ describe('GivingFlow', () => {
   })
 
   it('shows delayed reassurance and limits retry to definitive failed outcomes',()=>{
-    expect(givingCheckoutPresentation({state:'processing',retryAllowed:true,kind:'one-off'},false)).toEqual({message:'We’re confirming your gift with BlinkPay.',showRetry:false})
+    expect(givingCheckoutPresentation({state:'processing',retryAllowed:true,kind:'one-off'},false)).toEqual({message:'We’re confirming your gift.',showRetry:false})
     expect(givingCheckoutPresentation({state:'processing',retryAllowed:true,kind:'one-off'},true)).toEqual({message:'This is taking a little longer. You may safely close this flow while Ev keeps checking; there is no need to try again.',showRetry:false})
     expect(givingCheckoutPresentation({state:'unknown',retryAllowed:true,kind:'recurring'}).showRetry).toBe(false)
     for(const state of ['cancelled','rejected','expired'] as const)expect(givingCheckoutPresentation({state,retryAllowed:true,kind:'one-off'})).toEqual({message:'No gift was made.',showRetry:true})

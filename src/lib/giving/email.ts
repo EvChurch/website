@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { givingBankTransferDetails } from './bank-transfer'
 import { createGivingBankAcknowledgementUrl } from './email-links'
 
-export type GivingEmailKind = 'bank-transfer-details' | 'bank-transfer-thanks' | 'blinkpay-thanks' | 'blinkpay-support'
+export type GivingEmailKind = 'bank-transfer-details' | 'bank-transfer-thanks' | 'blinkpay-thanks' | 'blinkpay-support' | 'stripe-thanks' | 'stripe-support' | 'stripe-failed' | 'stripe-action' | 'stripe-stopped'
 
 export interface GivingEmailSource {
   id: number
@@ -23,6 +23,8 @@ export interface GivingEmailSource {
   leaseToken: string
   recipientEmail?: string | null
   recipientName?: string | null
+  eventKey?: string
+  actionUrl?: string | null
   completedAt?: Date | string | null
 }
 
@@ -77,12 +79,13 @@ function executiveCommitteeSignOff() {
 }
 
 export function buildGivingEmail(source: GivingEmailSource, now = new Date(), options: GivingEmailBuildOptions = {}): GivingEmailMessage {
-  if (source.kind === 'blinkpay-support') {
+  if (source.kind === 'blinkpay-support' || source.kind === 'stripe-support') {
     if (!source.recipientEmail?.trim() || !source.completedAt) throw new Error('Giving support email snapshot is missing')
     const recurring = source.frequency !== 'one-off'
+    const provider = source.kind === 'stripe-support' ? 'Stripe' : 'BlinkPay'
     const confirmation = recurring
-      ? 'A donor has authorised a recurring giving arrangement through BlinkPay and its schedule is active.'
-      : 'A donor’s single gift has been confirmed by BlinkPay.'
+      ? `A donor has authorised a recurring giving arrangement through ${provider} and its schedule is active.`
+      : `A donor’s single gift has been confirmed by ${provider}.`
     const money = new Intl.NumberFormat('en-NZ', { style: 'currency', currency: 'NZD' })
     const completedAt = new Intl.DateTimeFormat('en-NZ', {
       timeZone: 'Pacific/Auckland', dateStyle: 'full', timeStyle: 'long',
@@ -106,6 +109,20 @@ export function buildGivingEmail(source: GivingEmailSource, now = new Date(), op
   }
   const firstName = source.name.trim().split(/\s+/u)[0] || 'there'
   const summary = giftSummary(source)
+  if (['stripe-failed','stripe-action','stripe-stopped'].includes(source.kind)) {
+    const stopped = source.kind === 'stripe-stopped'
+    const action = source.kind === 'stripe-action'
+    const subject = stopped ? 'Your recurring gift to Ev Church has stopped' : action ? 'Your recurring gift needs your attention' : 'We could not process your recurring gift'
+    const explanation = stopped
+      ? 'Your recurring giving arrangement has stopped. We will not collect missed gifts or take further scheduled payments from this arrangement. You can review your card and set up a new arrangement when you are ready.'
+      : action ? 'Your card needs an update or bank authentication before this gift can be paid. Please open your giving details to review it.'
+      : 'Your scheduled card payment was unsuccessful. We retry recoverable failures on days 1, 4 and 9 after the first failure. We will let you know if your card needs attention or the arrangement stops.'
+    const url = source.actionUrl
+    if (!url) throw new Error('Missing giving recovery URL')
+    const recovery = new URL(url)
+    if (recovery.protocol !== 'https:' || recovery.username || recovery.password || !(recovery.pathname === '/members/giving' || recovery.origin === 'https://invoice.stripe.com')) throw new Error('Invalid giving recovery URL')
+    return {to:source.email,subject,text:[`Hi ${firstName},`,'',explanation,'',`Gift: ${summary}`,'',`${action ? 'Review your payment' : 'Manage your giving'}: ${url}`,'','The Ev Church website team'].join('\n'),html:`<p>Hi ${escapeHtml(firstName)},</p><p>${escapeHtml(explanation)}</p><p>${escapeHtml(summary)}</p><p><a href="${escapeHtml(url)}">${action ? 'Review your payment' : 'Manage your giving'}</a></p><p>The Ev Church website team</p>`}
+  }
   if (source.kind === 'bank-transfer-details') {
     const details = givingBankTransferDetails(source.fundCode, source.bankCode, source.bankReference)
     const acknowledgementUrl = options.acknowledgementUrl ?? createGivingBankAcknowledgementUrl(source.checkoutId, now)
@@ -159,10 +176,10 @@ export function createGivingEmailStore(pool: Pool) {
           AND (delivery.status='pending' OR delivery.status='sending' AND delivery.lease_expires_at<$4)
           AND (delivery.kind<>'bank-transfer-details' OR checkout.bank_details_prepared_at IS NOT NULL)
           AND (delivery.kind<>'bank-transfer-thanks' OR checkout.bank_setup_acknowledged_at IS NOT NULL)
-          AND (delivery.kind NOT IN ('blinkpay-thanks','blinkpay-support') OR checkout.status='completed' AND checkout.result_code='verified')
-          AND (delivery.kind<>'blinkpay-support' OR NULLIF(BTRIM(delivery.recipient_email),'') IS NOT NULL)
+          AND (delivery.kind NOT IN ('blinkpay-thanks','blinkpay-support','stripe-thanks','stripe-support') OR checkout.status='completed' AND checkout.result_code='verified')
+          AND (delivery.kind NOT IN ('blinkpay-support','stripe-support') OR NULLIF(BTRIM(delivery.recipient_email),'') IS NOT NULL)
         RETURNING delivery.id,delivery.checkout_id,delivery.kind,giver.email,giver.name,giver.bank_reference,
-          delivery.recipient_email,delivery.recipient_name,delivery.created_at,
+          delivery.recipient_email,delivery.recipient_name,delivery.created_at,delivery.action_url,delivery.event_key,
           checkout.bank_code,checkout.fund_code,checkout.fund_name,checkout.amount_minor,checkout.transaction_fee_minor,checkout.frequency,checkout.first_payment_date`,
       [id, leaseToken, leaseExpires, now, MAX_ATTEMPTS])
       const row = result.rows[0] as Record<string, unknown> | undefined
@@ -174,6 +191,8 @@ export function createGivingEmailStore(pool: Pool) {
         frequency:String(row.frequency) as GivingEmailSource['frequency'],firstPaymentDate:row.first_payment_date instanceof Date ? row.first_payment_date.toISOString().slice(0,10) : row.first_payment_date ? String(row.first_payment_date).slice(0,10) : null,leaseToken,
         recipientEmail:row.recipient_email == null ? null : String(row.recipient_email),
         recipientName:row.recipient_name == null ? null : String(row.recipient_name),
+        eventKey: typeof row.event_key === 'string' ? row.event_key : '',
+        actionUrl:row.action_url == null ? null : String(row.action_url),
         completedAt:row.created_at instanceof Date ? row.created_at : row.created_at == null ? null : String(row.created_at),
       } }
     },
@@ -221,7 +240,7 @@ export async function deliverGivingEmail(input: { id:number; pool:Pool; transpor
   try {
     const result = await input.transport.send(
       buildGivingEmail(claim.delivery, input.now),
-      `giving/${claim.delivery.checkoutId}/${claim.delivery.kind}`,
+      `giving/${claim.delivery.checkoutId}/${claim.delivery.kind}${claim.delivery.eventKey ? `/${claim.delivery.eventKey}` : ''}`,
     )
     providerId = result.providerId
   } catch {

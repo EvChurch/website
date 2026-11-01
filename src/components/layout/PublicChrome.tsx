@@ -131,6 +131,7 @@ export function PublicChrome({
         resumeRequested={givingResumeRequested}
         turnstileSiteKey={givingTurnstileSiteKey}
         gatewayOrigins={givingRuntime?.gatewayOrigins ?? []}
+        cardFees={givingRuntime?.card?.fees}
       />
     : <GivingUnavailable />
   const blinkPayEligible = memberChromeResolved && memberChromeAvailable && memberChrome.impersonation === null
@@ -138,6 +139,8 @@ export function PublicChrome({
   return (
     <GivingExperienceProvider
       serverEligibility={givingRuntime?.eligibility ?? null}
+      bankAvailable={givingRuntime?.bankAvailable ?? true}
+      cardAvailable={Boolean(givingRuntime?.card)}
       blinkPayEligibilityResolved={memberChromeResolved}
       blinkPayEligible={blinkPayEligible}
       resumeRequested={givingResumeRequested}

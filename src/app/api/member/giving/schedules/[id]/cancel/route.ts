@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-import { getBlinkPayRuntimeClient } from '@/lib/giving/blinkpay/runtime-client'
+import { getGivingCancellationProvider } from '@/lib/giving/stripe/cancellation'
 import { createGivingCancellationService, createPostgresGivingCancellationStore } from '@/lib/giving/cancellation'
 import { requireGivingPostgresPool } from '@/lib/giving/postgres'
 import { getPayloadClient } from '@/lib/payload'
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const payload = await getPayloadClient()
     const service = createGivingCancellationService({
       store: createPostgresGivingCancellationStore(requireGivingPostgresPool(payload)),
-      provider: getBlinkPayRuntimeClient,
+      provider: getGivingCancellationProvider,
     })
     const result = await service.cancelImmediate({
       actor: { kind: 'member', ...actor },

@@ -74,6 +74,7 @@ export interface GivingCheckoutOperation {
 }
 
 interface CreateCheckoutInput extends GivingContext {
+  paymentProvider?: 'blinkpay' | 'stripe' | 'manual'
   submission: GivingCheckoutSubmission
   submissionKeyDigest: string
   submissionDigest: string
@@ -84,6 +85,7 @@ interface CreateCheckoutInput extends GivingContext {
 }
 
 export type GivingCheckoutStartResult =
+  | { outcome: 'embedded'; clientSecret: string; publishableKey: string; statusToken: string }
   | { outcome: 'redirect'; gatewayRedirectUri: string; statusToken: string; returnToken: string; correlationKey: string; reused: boolean }
   | { outcome: 'unknown'; retryAllowed: false; statusToken: string; correlationKey: string; reused: boolean }
 
@@ -188,11 +190,11 @@ function hmac(secret: string, value: string) {
   return createHmac('sha256', secret).update(value).digest('hex')
 }
 
-function submissionKeyDigest(secret: string, context: GivingContext, submissionKey: string) {
+export function submissionKeyDigest(secret: string, context: GivingContext, submissionKey: string) {
   return hmac(secret, `giving-checkout-key-v1\0${context.contextKey}\0${context.environment}\0${submissionKey}`)
 }
 
-function canonicalSubmissionDigest(secret: string, submission: GivingCheckoutSubmission) {
+export function canonicalSubmissionDigest(secret: string, submission: GivingCheckoutSubmission) {
   const canonical = JSON.stringify({
     amountMinor: submission.amountMinor,
     transactionFeeMinor: submission.transactionFeeMinor,
@@ -206,7 +208,7 @@ function canonicalSubmissionDigest(secret: string, submission: GivingCheckoutSub
   return hmac(secret, `giving-checkout-request-v1\0${canonical}`)
 }
 
-function capabilityDigest(purpose: 'return' | 'status', token: string) {
+export function capabilityDigest(purpose: 'return' | 'status', token: string) {
   return createHash('sha256').update(`giving-checkout-v1\0${purpose}\0${token}`).digest('base64url')
 }
 
@@ -510,19 +512,19 @@ async function tx<T>(pool: Pool, work: (client: PoolClient) => Promise<T>) {
   }
 }
 
-async function queueBlinkPayCompletionEmails(client: PoolClient, checkoutId: number) {
+export async function queueGivingCompletionEmails(client: PoolClient, checkoutId: number, provider: 'blinkpay' | 'stripe' = 'blinkpay') {
   await client.query(`INSERT INTO giving_email_deliveries(checkout_id,kind)
-    VALUES($1,'blinkpay-thanks') ON CONFLICT(checkout_id,kind) DO NOTHING`, [checkoutId])
+    VALUES($1,$2) ON CONFLICT DO NOTHING`, [checkoutId, `${provider}-thanks`])
   // Snapshot the recipient only at the verified completion transition, never in outbox recovery.
   await client.query(`INSERT INTO giving_email_deliveries(checkout_id,kind,recipient_email,recipient_name)
-    SELECT checkout.id,'blinkpay-support',BTRIM(profile.email),profile.name
+    SELECT checkout.id,$2,BTRIM(profile.email),profile.name
     FROM giving_checkouts checkout
     JOIN giving_funds fund ON fund.id=checkout.fund_id
     JOIN support_profiles profile ON profile.id=fund.support_profile_id
     WHERE checkout.id=$1 AND checkout.environment='production' AND checkout.synthetic=false
       AND checkout.status='completed' AND checkout.result_code='verified'
       AND NULLIF(BTRIM(profile.email),'') IS NOT NULL
-    ON CONFLICT(checkout_id,kind) DO NOTHING`, [checkoutId])
+    ON CONFLICT DO NOTHING`, [checkoutId, `${provider}-support`])
 }
 
 type CheckoutRow = Record<string, unknown>
@@ -609,7 +611,7 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
           }
           const reached = (await client.query<{ blinkpay: boolean; rock: boolean }>(`
             SELECT
-              EXISTS(SELECT 1 FROM giving_provider_operations WHERE checkout_id=$1 AND provider='blinkpay') AS blinkpay,
+              EXISTS(SELECT 1 FROM giving_provider_operations WHERE checkout_id=$1 AND provider IN ('blinkpay','stripe')) AS blinkpay,
               EXISTS(SELECT 1 FROM giving_provider_operations WHERE checkout_id=$1 AND provider='rock' AND status IN ('submitted','succeeded','unknown')) AS rock
           `, [existing.id])).rows[0]
           if (reached?.blinkpay && !existing.gatewayRedirectUri) {
@@ -642,8 +644,8 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
           INSERT INTO giving_checkouts(
             context_key,environment,synthetic,fund_id,fund_name,fund_code,fund_accounting_key,
             bank_code,amount_minor,transaction_fee_minor,frequency,first_payment_date,correlation_key,submission_key_digest,submission_digest,
-            return_capability_digest,return_capability_expires_at,status
-          ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'draft')
+            return_capability_digest,return_capability_expires_at,payment_provider,status
+          ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'draft')
           RETURNING ${CHECKOUT_COLUMNS}
         `, [
           input.contextKey, input.environment, input.synthetic,
@@ -651,7 +653,7 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
           givingBankCode(input.submission.firstName, input.submission.lastName),
           input.submission.amountMinor, input.submission.transactionFeeMinor, input.submission.frequency, input.submission.firstPaymentDate,
           input.correlationKey, input.submissionKeyDigest, input.submissionDigest,
-          input.returnCapabilityDigest, input.returnCapabilityExpiresAt,
+          input.returnCapabilityDigest, input.returnCapabilityExpiresAt, input.paymentProvider ?? 'blinkpay',
         ])
         return { checkout: { ...checkoutRow(result.rows[0])!, bankReference: null }, reused: false, disposition: 'start' }
       })
@@ -743,7 +745,7 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
             AND gateway_redirect_uri IS NULL
             AND NOT EXISTS(
               SELECT 1 FROM giving_provider_operations operation
-              WHERE operation.checkout_id=checkout.id AND operation.provider='blinkpay'
+              WHERE operation.checkout_id=checkout.id AND operation.provider IN ('blinkpay','stripe')
             )
           FOR UPDATE OF checkout
         `, [digest, now])
@@ -760,7 +762,7 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
           if (updated.rowCount !== 1) throw new GivingCheckoutError('conflict')
         }
         await client.query(`INSERT INTO giving_email_deliveries(checkout_id,kind)
-          VALUES($1,'bank-transfer-thanks') ON CONFLICT(checkout_id,kind) DO NOTHING`, [eligible.rows[0]?.id])
+          VALUES($1,'bank-transfer-thanks') ON CONFLICT DO NOTHING`, [eligible.rows[0]?.id])
         return true
       })
     },
@@ -773,7 +775,7 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
             AND checkout.gateway_redirect_uri IS NULL
             AND NOT EXISTS(
               SELECT 1 FROM giving_provider_operations operation
-              WHERE operation.checkout_id=checkout.id AND operation.provider='blinkpay'
+              WHERE operation.checkout_id=checkout.id AND operation.provider IN ('blinkpay','stripe')
             )
           FOR UPDATE OF checkout
         `, [id])
@@ -785,24 +787,24 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
           if (updated.rowCount !== 1) throw new GivingCheckoutError('conflict')
         }
         await client.query(`INSERT INTO giving_email_deliveries(checkout_id,kind)
-          VALUES($1,'bank-transfer-thanks') ON CONFLICT(checkout_id,kind) DO NOTHING`, [id])
+          VALUES($1,'bank-transfer-thanks') ON CONFLICT DO NOTHING`, [id])
         return true
       })
     },
     markBankTransferPrepared(id, now) {
       return tx(pool, async (client) => {
         const eligible = await client.query(`UPDATE giving_checkouts checkout
-          SET bank_details_prepared_at=COALESCE(bank_details_prepared_at,$2),updated_at=now()
+          SET payment_provider='manual',bank_details_prepared_at=COALESCE(bank_details_prepared_at,$2),updated_at=now()
           WHERE checkout.id=$1 AND checkout.giver_id IS NOT NULL AND checkout.gateway_redirect_uri IS NULL
             AND NOT EXISTS(
               SELECT 1 FROM giving_provider_operations operation
-              WHERE operation.checkout_id=checkout.id AND operation.provider='blinkpay'
+              WHERE operation.checkout_id=checkout.id AND operation.provider IN ('blinkpay','stripe')
             )
           RETURNING checkout.id`, [id, now])
         if (eligible.rowCount !== 1) throw new GivingCheckoutError('conflict')
         const delivery = await client.query<{ id: number }>(`INSERT INTO giving_email_deliveries(checkout_id,kind)
           VALUES($1,'bank-transfer-details')
-          ON CONFLICT(checkout_id,kind) DO UPDATE SET checkout_id=EXCLUDED.checkout_id
+          ON CONFLICT(checkout_id,kind,event_key) DO UPDATE SET checkout_id=EXCLUDED.checkout_id
           RETURNING id`, [id])
         if (delivery.rowCount !== 1 || !delivery.rows[0]) throw new GivingCheckoutError('conflict')
         return Number(delivery.rows[0].id)
@@ -869,7 +871,7 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
             context_key,environment,synthetic,checkout_id,giver_id,fund_id,fund_name,fund_code,
             fund_accounting_key,amount_minor,transaction_fee_minor,provider_payment_id,status,provider_observed_at,provider_request_id
           ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'settled',$13,$14)
-          ON CONFLICT(environment,provider_payment_id) DO UPDATE SET
+          ON CONFLICT(environment,payment_provider,provider_payment_id) DO UPDATE SET
             provider_observed_at=GREATEST(giving_gifts.provider_observed_at,EXCLUDED.provider_observed_at)
           WHERE giving_gifts.context_key=EXCLUDED.context_key
             AND giving_gifts.environment=EXCLUDED.environment
@@ -884,7 +886,7 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
         if (gift.rowCount !== 1) throw new GivingCheckoutError('conflict')
         const completed = await client.query(`UPDATE giving_checkouts SET status='completed',result_code='verified',updated_at=now() WHERE id=$1 AND context_key=$2 AND status IN ('authorising','verifying','unknown') RETURNING id`, [checkout.id, checkout.contextKey])
         if (completed.rowCount !== 1) throw new GivingCheckoutError('conflict')
-        await queueBlinkPayCompletionEmails(client, checkout.id)
+        await queueGivingCompletionEmails(client, checkout.id)
       })
     },
     recordConsentAuthorised(checkout, consentId, observedAt, providerRequestId) {
@@ -1001,7 +1003,7 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
         }
         const completed = await client.query(`UPDATE giving_checkouts SET status='completed',result_code='verified',updated_at=now() WHERE id=$1 AND context_key=$2 AND status IN ('authorising','verifying','unknown') RETURNING id`, [checkout.id,checkout.contextKey])
         if (completed.rowCount !== 1) throw new GivingCheckoutError('conflict')
-        await queueBlinkPayCompletionEmails(client, checkout.id)
+        await queueGivingCompletionEmails(client, checkout.id)
       })
     },
     async setProcessing(id) {

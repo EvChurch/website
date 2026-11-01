@@ -31,20 +31,20 @@ describe('verified completion email transactions', () => {
     const emails=calls.filter(sql=>sql.includes('INSERT INTO giving_email_deliveries'))
     expect(emails).toHaveLength(2)
     expect(calls.indexOf(emails[0])).toBeGreaterThan(completionIndex)
-    expect(emails[0]).toContain("'blinkpay-thanks'")
+    expect(emails[0]).toContain('VALUES($1,$2)')
     expect(emails[1]).toContain('checkout_id,kind,recipient_email,recipient_name')
-    expect(emails[1]).toContain("checkout.id,'blinkpay-support',BTRIM(profile.email),profile.name")
+    expect(emails[1]).toContain("checkout.id,$2,BTRIM(profile.email),profile.name")
     expect(emails[1]).toContain('profile.id=fund.support_profile_id')
     expect(emails[1]).toContain("checkout.environment='production' AND checkout.synthetic=false")
     expect(emails[1]).toContain("checkout.status='completed' AND checkout.result_code='verified'")
     expect(emails[1]).toContain("NULLIF(BTRIM(profile.email),'') IS NOT NULL")
     expect(emails[1]).not.toContain('profile.published')
-    expect(emails[1]).toContain('ON CONFLICT(checkout_id,kind) DO NOTHING')
+    expect(emails[1]).toContain('ON CONFLICT DO NOTHING')
   })
 
   it.each(['single','recurring'] as const)('rolls back %s completion if support queuing fails',async(kind)=>{
     const query=vi.fn(async(sql:string)=>{
-      if(sql.includes("'blinkpay-support'")) throw new Error('outbox unavailable')
+      if(sql.includes('checkout_id,kind,recipient_email,recipient_name')) throw new Error('outbox unavailable')
       return {rowCount:1,rows:[{id:1}]}
     })
     await expect(complete(kind,query)).rejects.toThrow('outbox unavailable')

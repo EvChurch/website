@@ -89,6 +89,17 @@ function RecurringGiftCard({
   onToggle: () => void
   onCancel: () => void
 }) {
+  const [updating,setUpdating]=useState(false)
+  const [cardError,setCardError]=useState<string>()
+  async function updateCard() {
+    setUpdating(true);setCardError(undefined)
+    try {
+      const response=await fetch(`/api/member/giving/schedules/${gift.id}/card`,{method:'POST'})
+      const value=await response.json() as {url?:string}
+      if(!response.ok || !value.url || new URL(value.url).origin!=='https://checkout.stripe.com')throw new Error('Unavailable')
+      window.location.assign(value.url)
+    } catch {setCardError('Could not open card update. Please try again.');setUpdating(false)}
+  }
   return (
     <article className="relative rounded-xl border border-warm-grey bg-white p-5 pr-16 shadow-sm shadow-brand-black/5">
       <div>
@@ -99,6 +110,7 @@ function RecurringGiftCard({
         <TransactionFeeLine transactionFeeMinor={gift.transactionFeeMinor} className="mt-1 text-sm text-mid-grey" />
         <p className="mt-3 text-sm font-semibold text-brand-black">Next gift: {formatDate(gift.nextPaymentDate)}</p>
       </div>
+      {cardError && <p role="alert" className="mt-3 text-sm text-rich-red">{cardError}</p>}
       <div className="absolute right-4 top-4">
         <button
           type="button"
@@ -111,6 +123,7 @@ function RecurringGiftCard({
         </button>
         {menuOpen && (
           <div className="absolute right-0 top-12 z-10 w-56 rounded-lg border border-warm-grey bg-white p-2 shadow-xl shadow-brand-black/10">
+            {gift.paymentProvider==='stripe' && <button type="button" disabled={updating||cancelling} onClick={()=>void updateCard()} className="flex min-h-11 w-full items-center rounded-md px-3 text-left text-sm font-bold text-brand-black hover:bg-warm-grey/35">{updating?'Opening secure update…':'Update card'}</button>}
             <button
               type="button"
               disabled={cancelling}

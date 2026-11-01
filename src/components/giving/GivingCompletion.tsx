@@ -39,7 +39,7 @@ function GiftDetails({ gift }: { gift: GivingCheckoutStatusGift }) {
     )}
     {gift.transactionFeeMinor > 0 && (
       <div>
-        <dt className="font-bold text-brand-black">Total charged</dt>
+        <dt className="font-bold text-brand-black">{gift.frequency === 'one-off' ? 'Total charged' : 'Total each payment'}</dt>
         <dd className="mt-1 text-dark-grey">{formatAmount(totalMinor)}</dd>
       </div>
     )}
@@ -94,7 +94,7 @@ export function GivingCompletion({
   </article>
 }
 
-export function GivingPreparation({ mode }: { mode: 'blinkpay' | 'bank-transfer' }) {
+export function GivingPreparation({ mode }: { mode: 'blinkpay' | 'stripe' | 'bank-transfer' }) {
   const bankTransfer = mode === 'bank-transfer'
   return <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-warm-grey/60" role="status">
     <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-warm-grey/35" aria-hidden="true">
@@ -104,6 +104,6 @@ export function GivingPreparation({ mode }: { mode: 'blinkpay' | 'bank-transfer'
         <span className="absolute inset-2 rounded-full bg-rich-red/15 motion-safe:animate-pulse" />
       </div>
     </div>
-    <p className="mt-5 text-center leading-relaxed text-dark-grey">{bankTransfer ? 'We’re creating your personal reference so your gift can be matched correctly.' : 'We’re securely connecting you with BlinkPay and your bank.'} Please wait.</p>
+    <p className="mt-5 text-center leading-relaxed text-dark-grey">{mode === 'stripe' ? 'We’re preparing secure card entry.' : bankTransfer ? 'We’re creating your personal reference so your gift can be matched correctly.' : 'We’re securely connecting you with BlinkPay and your bank.'} Please wait.</p>
   </div>
 }

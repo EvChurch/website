@@ -144,7 +144,7 @@ describe('giving emails',()=>{
     expect(transport.send).toHaveBeenCalledWith(expect.objectContaining({to:'snapshot@example.com',text:expect.stringContaining('Hi Original recipient,')}),'giving/42/blinkpay-support')
     const sql=String(query.mock.calls[0][0])
     expect(sql).toContain("checkout.environment='production' AND checkout.synthetic=false")
-    expect(sql).toContain("delivery.kind NOT IN ('blinkpay-thanks','blinkpay-support') OR checkout.status='completed' AND checkout.result_code='verified'")
+    expect(sql).toContain("delivery.kind NOT IN ('blinkpay-thanks','blinkpay-support','stripe-thanks','stripe-support') OR checkout.status='completed' AND checkout.result_code='verified'")
     expect(sql).toContain("NULLIF(BTRIM(delivery.recipient_email),'') IS NOT NULL")
     expect(sql).toContain('delivery.lease_expires_at<$4')
     expect(sql).not.toContain('support_profiles')

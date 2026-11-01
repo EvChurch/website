@@ -10,7 +10,8 @@ const mocks = vi.hoisted(() => ({
   ]),
   getCachedPublicSupportProfiles: vi.fn().mockResolvedValue([]),
   getCachedGivingTransactionFeeMinor: vi.fn().mockResolvedValue(50),
-  resolveGivingRuntimeConfiguration: vi.fn().mockReturnValue(null),
+  getCachedGivingCardFees: vi.fn().mockResolvedValue({fixedMinor:30,percentageBasisPoints:250}),
+  resolveGivingPaymentRuntimeConfiguration: vi.fn().mockReturnValue(null),
   publicChrome: vi.fn(({ children }: {
     children: React.ReactNode
     givingFunds: unknown[]
@@ -26,8 +27,8 @@ vi.mock('@/lib/launcher/service-guide', () => ({ loadLauncherData: mocks.loadLau
 vi.mock('@/lib/site-feedback/settings', () => ({ loadSiteFeedbackSettings: mocks.loadSiteFeedbackSettings }))
 vi.mock('@/lib/giving/funds', () => ({ getCachedActiveGivingFunds: mocks.getCachedActiveGivingFunds }))
 vi.mock('@/lib/giving/support-profiles', () => ({ getCachedPublicSupportProfiles: mocks.getCachedPublicSupportProfiles }))
-vi.mock('@/lib/giving/settings', () => ({ getCachedGivingTransactionFeeMinor: mocks.getCachedGivingTransactionFeeMinor }))
-vi.mock('@/lib/giving/availability', () => ({ resolveGivingRuntimeConfiguration: mocks.resolveGivingRuntimeConfiguration }))
+vi.mock('@/lib/giving/settings', () => ({ getCachedGivingTransactionFeeMinor: mocks.getCachedGivingTransactionFeeMinor, getCachedGivingCardFees: mocks.getCachedGivingCardFees }))
+vi.mock('@/lib/giving/availability', () => ({ resolveGivingPaymentRuntimeConfiguration: mocks.resolveGivingPaymentRuntimeConfiguration }))
 vi.mock('@/components/layout/PublicChrome', () => ({ PublicChrome: mocks.publicChrome }))
 vi.mock('@/components/layout/AnnouncementBanner', () => ({ AnnouncementBanner: () => null }))
 vi.mock('@/components/layout/Footer', () => ({ Footer: () => null }))
@@ -42,7 +43,7 @@ describe('FrontendLayout public rendering boundary', () => {
     mocks.getCachedActiveGivingFunds.mockResolvedValue([
       { id: 1, name: 'General', code: 'GENERAL', sortOrder: 0, isDefault: true, apprenticeRelated: false },
     ])
-    mocks.resolveGivingRuntimeConfiguration.mockReturnValue(null)
+    mocks.resolveGivingPaymentRuntimeConfiguration.mockReturnValue(null)
     mocks.getCachedGivingTransactionFeeMinor.mockResolvedValue(50)
   })
 
@@ -66,16 +67,18 @@ describe('FrontendLayout public rendering boundary', () => {
     const givingRuntime = {
       eligibility: 'production' as const,
       gatewayOrigins: ['https://secure.blinkpay.co.nz'],
-      synthetic: false,
+      bankAvailable: true,
+      card: {publishableKey:'pk_live_example',fees:{fixedMinor:30,percentageBasisPoints:250}},
     }
     mocks.loadLauncherData.mockResolvedValue(launcher)
     mocks.loadSiteFeedbackSettings.mockResolvedValue(feedback)
-    mocks.resolveGivingRuntimeConfiguration.mockReturnValue(givingRuntime)
+    mocks.resolveGivingPaymentRuntimeConfiguration.mockReturnValue(givingRuntime)
     mocks.getCachedGivingTransactionFeeMinor.mockResolvedValue(75)
 
     const markup = renderToStaticMarkup(await FrontendLayout({ children: <section>Public page</section> }))
 
     expect(markup).toContain('Public page')
+    expect(mocks.resolveGivingPaymentRuntimeConfiguration).toHaveBeenCalledWith({fixedMinor:30,percentageBasisPoints:250})
     expect(mocks.publicChrome).toHaveBeenCalledWith({
       announcement: expect.anything(),
       children: expect.anything(),

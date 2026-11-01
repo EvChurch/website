@@ -29,6 +29,7 @@ export interface MemberGivingActor {
 }
 
 export interface MemberRecurringGift {
+  paymentProvider?: 'blinkpay' | 'stripe'
   id: number
   amountMinor: number
   transactionFeeMinor: number
@@ -149,7 +150,7 @@ export async function getMemberGiftHistoryPage(
     totalPages: Math.max(1, Math.ceil(total / MEMBER_GIFT_HISTORY_PAGE_SIZE)),
     gifts: giftResult.rows.map((row) => {
       const frequency = text(row.frequency)
-      const recurring = row.schedule_id !== null && row.schedule_id !== undefined
+      const recurring = text(row.frequency) !== 'one-off'
       return {
         id: Number(row.id),
         amountMinor: amount(row.amount_minor),
@@ -169,7 +170,7 @@ export async function getMemberGivingOverview(actor: MemberGivingActor, pool?: P
   const cutoff = new Date(Date.now() - RECENT_ACTIVITY_DAYS * 24 * 60 * 60 * 1_000)
   const [scheduleResult, activityResult, giftHistory] = await Promise.all([
     db.query(`
-      SELECT schedule.id,schedule.amount_minor,schedule.transaction_fee_minor,schedule.frequency,schedule.next_payment_date,checkout.fund_name
+      SELECT schedule.id,schedule.payment_provider,schedule.amount_minor,schedule.transaction_fee_minor,schedule.frequency,schedule.next_payment_date,checkout.fund_name
       FROM giving_schedules schedule
       JOIN giving_givers giver ON giver.id=schedule.giver_id AND giver.context_key=schedule.context_key
       JOIN giving_checkouts checkout ON checkout.id=schedule.checkout_id AND checkout.context_key=schedule.context_key
@@ -212,6 +213,7 @@ export async function getMemberGivingOverview(actor: MemberGivingActor, pool?: P
   ])
   return {
     recurringGifts: scheduleResult.rows.map((row) => ({
+      paymentProvider: row.payment_provider === 'stripe' ? 'stripe' as const : 'blinkpay' as const,
       id: Number(row.id),
       amountMinor: amount(row.amount_minor),
       transactionFeeMinor: amount(row.transaction_fee_minor),

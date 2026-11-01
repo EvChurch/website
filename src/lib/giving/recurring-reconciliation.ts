@@ -84,7 +84,7 @@ export async function recordRecurringObservation(pool: Pool, candidate: Recurrin
           context_key,environment,synthetic,checkout_id,giver_id,consent_id,schedule_id,
           fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,transaction_fee_minor,provider_payment_id,status,created_at)
         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'pending',$15)
-        ON CONFLICT(environment,provider_payment_id) DO NOTHING`, [
+        ON CONFLICT(environment,payment_provider,provider_payment_id) DO NOTHING`, [
         row.context_key,row.environment,row.synthetic,row.checkout_id,row.giver_id,row.consent_id,row.id,
         row.fund_id,row.fund_name,row.fund_code,row.fund_accounting_key,row.amount_minor,row.transaction_fee_minor,
         payment.payment_id,payment.creation_timestamp,
