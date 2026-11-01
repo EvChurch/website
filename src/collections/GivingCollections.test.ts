@@ -36,6 +36,7 @@ describe('private giving collection access', () => {
   it('uses the reviewed checkout, schedule and webhook lifecycle enums', () => {
     expect(field(GivingCheckouts, 'frequency')).toMatchObject({ options: ['one-off','daily','weekly','fortnightly','monthly','annual'] })
     expect(field(GivingCheckouts, 'status')).toMatchObject({ options: ['draft','authorising','verifying','unknown','completed','failed'] })
+    expect(field(GivingProviderOperations, 'provider')).toMatchObject({options:['rock','blinkpay','stripe']})
     expect(field(GivingSchedules, 'status')).toMatchObject({ options: ['pending','active','unknown','cancel_pending','cancelled','failed'] })
     expect(field(BlinkPayWebhookEvents, 'status')).toMatchObject({ options: ['pending','processing','retry','processed','quarantined','dead'] })
     expect(field(GivingCheckouts, 'transactionFeeMinor')).toBeDefined()
