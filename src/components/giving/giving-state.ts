@@ -12,6 +12,7 @@ export type GivingStep =
   | 'identity-firstName'
   | 'identity-lastName'
   | 'identity-email'
+  | 'payment-method'
   | 'review'
 
 export interface GivingAnswers {
@@ -44,6 +45,7 @@ export type GivingAction =
   | { type: 'hydrateIdentity'; identity: Partial<Record<GivingIdentityField, string>>; unedited: readonly GivingIdentityField[] }
   | { type: 'commitAmount'; amountMinor: number }
   | { type: 'next'; missingIdentity?: readonly GivingIdentityField[] }
+  | { type: 'choosePaymentMethod' }
   | { type: 'back' }
   | { type: 'edit'; step: GivingStep; returnTo?: GivingStep }
   | { type: 'restore'; answers: GivingAnswers; fundConfirmed: boolean; missingIdentity?: GivingIdentityField[] }
@@ -89,7 +91,7 @@ export function nextGivingStep(
   for (const field of missingIdentity) {
     if (!answers[field].trim()) return `identity-${field}`
   }
-  return 'review'
+  return 'payment-method'
 }
 
 export function givingStepOrder(answers: GivingAnswers, directedFundId: number | null = null): GivingStep[] {
@@ -101,6 +103,7 @@ export function givingStepOrder(answers: GivingAnswers, directedFundId: number |
     'identity-firstName',
     'identity-lastName',
     'identity-email',
+    'payment-method',
     'review',
   ]
 }
@@ -164,25 +167,29 @@ export function givingReducer(state: GivingState, action: GivingAction): GivingS
     case 'commitAmount': {
       const answers = { ...state.answers, amountMinor: action.amountMinor }
       const required = state.linearNavigation ? 'frequency' : nextGivingStep(answers, state.missingIdentity, state.fundConfirmed)
-      const step = state.editReturnStep && required === 'review' ? state.editReturnStep : required
+      const step = state.editReturnStep && required === 'payment-method' ? state.editReturnStep : required
       return {
         ...move({ ...state, answers }, step),
         editReturnStep: step === state.editReturnStep ? null : state.editReturnStep,
-        linearNavigation: state.linearNavigation && step !== 'review',
+        linearNavigation: state.linearNavigation && step !== 'payment-method',
       }
     }
     case 'next': {
       const required = state.linearNavigation
         ? adjacentGivingStep(state, 1) ?? 'review'
         : nextGivingStep(state.answers, action.missingIdentity ?? state.missingIdentity, state.fundConfirmed)
-      const step = state.editReturnStep && required === 'review' ? state.editReturnStep : required
+      const step = state.editReturnStep && required === 'payment-method' ? state.editReturnStep : required
       const moved = move(state, step)
       return {
         ...moved,
         editReturnStep: step === state.editReturnStep ? null : state.editReturnStep,
-        linearNavigation: state.linearNavigation && step !== 'review',
+        linearNavigation: state.linearNavigation && step !== 'payment-method',
       }
     }
+    case 'choosePaymentMethod':
+      return state.step === 'payment-method'
+        ? { ...move(state, 'review'), editReturnStep: null, linearNavigation: false }
+        : state
     case 'edit':
       if (action.step === 'fund' && state.directedFundId !== null) return state
       return { ...move(state, action.step), editReturnStep: action.returnTo ?? state.editReturnStep, linearNavigation: false }

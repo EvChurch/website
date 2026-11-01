@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hasExactPayloadAdminRole } from '@/access/roles'
-import { getBlinkPayRuntimeClient } from '@/lib/giving/blinkpay/runtime-client'
+import { getGivingCancellationProvider } from '@/lib/giving/stripe/cancellation'
 import { createGivingCancellationService, createPostgresGivingCancellationStore } from '@/lib/giving/cancellation'
 import { requireGivingPostgresPool } from '@/lib/giving/postgres'
 import { getPayloadClient } from '@/lib/payload'
@@ -45,7 +45,7 @@ async function defaults(): Promise<CancelDependencies> {
   const pool = requireGivingPostgresPool(payload)
   const service = createGivingCancellationService({
     store: createPostgresGivingCancellationStore(pool),
-    provider: getBlinkPayRuntimeClient,
+    provider: getGivingCancellationProvider,
   })
   return {
     async admin(headers) {

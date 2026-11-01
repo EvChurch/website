@@ -6,10 +6,10 @@ import { AnnouncementBanner } from '@/components/layout/AnnouncementBanner'
 import { Footer } from '@/components/layout/Footer'
 import { PublicChrome } from '@/components/layout/PublicChrome'
 import { OrganizationJsonLd } from '@/components/seo/OrganizationJsonLd'
-import { resolveGivingRuntimeConfiguration } from '@/lib/giving/availability'
+import { resolveGivingPaymentRuntimeConfiguration } from '@/lib/giving/availability'
 import { getCachedActiveGivingFunds } from '@/lib/giving/funds'
 import { DEFAULT_GIVING_TRANSACTION_FEE_MINOR } from '@/lib/giving/fees'
-import { getCachedGivingTransactionFeeMinor } from '@/lib/giving/settings'
+import { getCachedGivingTransactionFeeMinor, getCachedGivingCardFees } from '@/lib/giving/settings'
 import { loadLauncherData } from '@/lib/launcher/service-guide'
 import { loadSiteFeedbackSettings } from '@/lib/site-feedback/settings'
 import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
@@ -108,7 +108,7 @@ export default async function FrontendLayout({ children }: { children: ReactNode
     loadGivingFunds(),
     loadGivingTransactionFee(),
   ])
-  const givingRuntime = resolveGivingRuntimeConfiguration()
+  const givingRuntime = resolveGivingPaymentRuntimeConfiguration(await getCachedGivingCardFees().catch(() => null))
 
   return (
     <html lang="en" className={fontVariables}>

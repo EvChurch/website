@@ -8,6 +8,7 @@ export type GivingAnalyticsStep =
   | 'frequency'
   | 'starting-date'
   | 'identity'
+  | 'payment-method'
   | 'review'
   | 'authorising'
   | 'result'

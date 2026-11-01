@@ -8,6 +8,9 @@ export interface HelpArticleDefinition {
 }
 
 export const helpArticles: HelpArticleDefinition[] = [
+  { slug: 'giving-and-payment-methods', title: 'Give by bank or card', description: 'Choose a payment method, check fees, and understand your giving confirmation.', topic: 'Giving', audience: 'Givers', access: 'public' },
+  { slug: 'manage-recurring-giving', title: 'Manage recurring giving', description: 'View giving, update a card, or stop and replace a recurring arrangement.', topic: 'Giving', audience: 'Givers', access: 'members' },
+  { slug: 'giving-finance-export', title: 'Export giving for finance', description: 'Download payment records and distinguish giving confirmations from payouts.', topic: 'Giving', audience: 'Finance administrators', access: 'members' },
   {
     slug: 'claim-an-expense',
     title: 'Claim an expense',

@@ -37,7 +37,7 @@ function summary(step: GivingStep, answers: GivingAnswers, transactionFeeMinor: 
     case 'identity-firstName': return answers.firstName ? { label: 'first name', value: answers.firstName } : null
     case 'identity-lastName': return answers.lastName ? { label: 'last name', value: answers.lastName } : null
     case 'identity-email': return answers.email ? { label: 'email', value: answers.email } : null
-    case 'review': return null
+    case 'payment-method': case 'review': return null
   }
 }
 

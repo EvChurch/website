@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypt
 import type { Pool, PoolClient } from 'pg'
 import type { GivingEnvironment } from './contracts'
 import { BlinkPayClientError } from './blinkpay/client'
-import type { BlinkPayFixedRecurringPayment, BlinkPayMutationResult, BlinkPayOperationKeys } from './blinkpay/types'
+import type { BlinkPayMutationResult, BlinkPayOperationKeys } from './blinkpay/types'
 
 const NONCE_TTL_MS = 5 * 60 * 1_000
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/u
@@ -30,6 +30,7 @@ export interface CancellationTarget {
   checkoutId: number
   environment: GivingEnvironment
   providerScheduleId: string
+  paymentProvider?: 'blinkpay' | 'stripe'
   actor: GivingCancellationActor
   reason: string
   operationId: number
@@ -45,7 +46,7 @@ export interface GivingCancellationStore {
 
 export interface GivingCancellationProvider {
   cancelFixedRecurringPayment(id: string, keys: BlinkPayOperationKeys): Promise<BlinkPayMutationResult<undefined>>
-  getFixedRecurringPayment(id: string): Promise<BlinkPayFixedRecurringPayment>
+  getFixedRecurringPayment(id: string): Promise<{status:string}>
 }
 
 function digest(purpose: string, value: string) {
@@ -90,7 +91,7 @@ export function memberCanCancelSchedule(actor: Extract<GivingCancellationActor, 
 
 export function createGivingCancellationService(dependencies: {
   store: GivingCancellationStore
-  provider(environment: GivingEnvironment): GivingCancellationProvider
+  provider(environment: GivingEnvironment, paymentProvider?: 'blinkpay' | 'stripe'): GivingCancellationProvider
   now?: () => Date
   randomToken?: () => string
   randomId?: () => string
@@ -137,11 +138,11 @@ export function createGivingCancellationService(dependencies: {
 
   async function cancelTarget(
     target: CancellationTarget,
-    providerFor: (environment: GivingEnvironment) => GivingCancellationProvider,
+    providerFor: (environment: GivingEnvironment, paymentProvider?: 'blinkpay' | 'stripe') => GivingCancellationProvider,
   ) {
       let result: BlinkPayMutationResult<undefined>
       try {
-        result = await providerFor(target.environment).cancelFixedRecurringPayment(target.providerScheduleId, target.keys)
+        result = await providerFor(target.environment,target.paymentProvider).cancelFixedRecurringPayment(target.providerScheduleId, target.keys)
       } catch (error) {
         const definitiveRejection = error instanceof BlinkPayClientError && error.code === 'request-rejected' && typeof error.status === 'number' && error.status >= 400 && error.status < 500
         await dependencies.store.finish({ target, outcome: definitiveRejection ? 'recoverable' : 'unknown', now: now(), providerRequestId: error instanceof BlinkPayClientError ? error.metadata?.correlationId ?? error.metadata?.requestId : undefined, errorCode: definitiveRejection ? 'provider-rejected' : 'cancellation-ambiguous' })
@@ -151,8 +152,8 @@ export function createGivingCancellationService(dependencies: {
         await dependencies.store.finish({ target, outcome: 'cancelled', now: now(), providerRequestId: result.metadata.correlationId ?? result.metadata.requestId, providerStatus: 'cancelled' })
         return { status: 'cancelled' as const }
       }
-      let observed: BlinkPayFixedRecurringPayment | undefined
-      try { observed = await providerFor(target.environment).getFixedRecurringPayment(target.providerScheduleId) }
+      let observed: {status:string} | undefined
+      try { observed = await providerFor(target.environment,target.paymentProvider).getFixedRecurringPayment(target.providerScheduleId) }
       catch { /* authoritative read remains an operational unknown */ }
       if (observed && /cancel/iu.test(observed.status)) {
         await dependencies.store.finish({ target, outcome: 'cancelled', now: now(), providerRequestId: result.metadata.correlationId ?? result.metadata.requestId, providerStatus: observed.status })
@@ -175,7 +176,7 @@ export function createPostgresGivingCancellationStore(pool: Pool): GivingCancell
     client: PoolClient,
     input: { actor: GivingCancellationActor; scheduleId: number; reason: string; now: Date; requestId: string; idempotencyKey: string },
   ): Promise<CancellationTarget> {
-    const result = await client.query(`SELECT s.id schedule_id,s.checkout_id,s.environment,s.provider_schedule_id,s.status,c.context_key,c.synthetic,c.correlation_key,g.rock_person_alias_id,g.email
+    const result = await client.query(`SELECT s.id schedule_id,s.checkout_id,s.environment,s.provider_schedule_id,s.payment_provider,s.status,c.context_key,c.synthetic,c.correlation_key,g.rock_person_alias_id,g.email
       FROM giving_schedules s
       JOIN giving_checkouts c ON c.id=s.checkout_id AND c.context_key=s.context_key
       JOIN giving_givers g ON g.id=s.giver_id AND g.context_key=s.context_key
@@ -189,7 +190,9 @@ export function createPostgresGivingCancellationStore(pool: Pool): GivingCancell
     })) {
       throw new GivingCancellationError('not-active')
     }
-    const version = Number((await client.query("SELECT COALESCE(MAX(logical_version),0)+1 value FROM giving_provider_operations WHERE checkout_id=$1 AND provider='blinkpay' AND action='blinkpay.cancel-schedule'", [row.checkout_id])).rows[0].value)
+    const paymentProvider = row.payment_provider === 'stripe' ? 'stripe' : 'blinkpay'
+    const action = `${paymentProvider}.cancel-schedule`
+    const version = Number((await client.query('SELECT COALESCE(MAX(logical_version),0)+1 value FROM giving_provider_operations WHERE checkout_id=$1 AND provider=$2 AND action=$3', [row.checkout_id,paymentProvider,action])).rows[0].value)
     const actorDigest = input.actor.kind === 'admin'
       ? `admin:${input.actor.userId}`
       : `member:${input.actor.rockPersonId}:${input.actor.rockPersonAliasId}:${input.actor.auth0Subject}`
@@ -198,19 +201,19 @@ export function createPostgresGivingCancellationStore(pool: Pool): GivingCancell
         context_key,environment,synthetic,checkout_id,schedule_id,actor_id,member_actor_rock_person_id,
         member_actor_rock_person_alias_id,member_actor_auth0_subject,reason,provider,action,
         logical_version,request_digest,correlation_key,request_id,idempotency_key,status
-      ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'blinkpay','blinkpay.cancel-schedule',$11,$12,$13,$14,$15,'prepared') RETURNING id`, [
+      ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$16,$17,$11,$12,$13,$14,$15,'prepared') RETURNING id`, [
       row.context_key,row.environment,row.synthetic,row.checkout_id,input.scheduleId,
       input.actor.kind === 'admin' ? input.actor.userId : null,
       input.actor.kind === 'member' ? input.actor.rockPersonId : null,
       input.actor.kind === 'member' ? input.actor.rockPersonAliasId : null,
       input.actor.kind === 'member' ? input.actor.auth0Subject : null,
-      input.reason,version,requestDigest,`${row.correlation_key}:cancel:${version}`,input.requestId,input.idempotencyKey,
+      input.reason,version,requestDigest,`${row.correlation_key}:cancel:${version}`,input.requestId,input.idempotencyKey,paymentProvider,action,
     ])
     await client.query("UPDATE giving_provider_operations SET status='submitted',updated_at=$2 WHERE id=$1 AND status='prepared'", [operation.rows[0].id,input.now])
     await client.query(`INSERT INTO giving_provider_operation_attempts(operation_id,attempt_number,outcome) VALUES($1,1,'submitted')`, [operation.rows[0].id])
     const transitioned = await client.query("UPDATE giving_schedules SET status='cancel_pending',updated_at=$2 WHERE id=$1 AND status='active'", [input.scheduleId,input.now])
     if (transitioned.rowCount !== 1) throw new GivingCancellationError('conflict')
-    return { scheduleId:input.scheduleId,checkoutId:Number(row.checkout_id),environment:row.environment as GivingEnvironment,providerScheduleId:String(row.provider_schedule_id),actor:input.actor,reason:input.reason,operationId:Number(operation.rows[0].id),keys:{ requestId:input.requestId,idempotencyKey:input.idempotencyKey } }
+    return { scheduleId:input.scheduleId,checkoutId:Number(row.checkout_id),environment:row.environment as GivingEnvironment,providerScheduleId:String(row.provider_schedule_id),paymentProvider,actor:input.actor,reason:input.reason,operationId:Number(operation.rows[0].id),keys:{ requestId:input.requestId,idempotencyKey:input.idempotencyKey } }
   }
 
   return {
@@ -234,7 +237,7 @@ export function createPostgresGivingCancellationStore(pool: Pool): GivingCancell
     },
     finish(input) {
       return transaction(pool, async (client) => {
-        const operation = (await client.query(`SELECT id,status,schedule_id FROM giving_provider_operations WHERE id=$1 AND action='blinkpay.cancel-schedule' FOR UPDATE`, [input.target.operationId])).rows[0]
+        const operation = (await client.query(`SELECT id,status,schedule_id FROM giving_provider_operations WHERE id=$1 AND action IN ('blinkpay.cancel-schedule','stripe.cancel-schedule') FOR UPDATE`, [input.target.operationId])).rows[0]
         const schedule = (await client.query('SELECT id,status FROM giving_schedules WHERE id=$1 FOR UPDATE', [input.target.scheduleId])).rows[0]
         if (!operation || Number(operation.schedule_id) !== input.target.scheduleId || !schedule) throw new GivingCancellationError('conflict')
         if (operation.status === 'succeeded' && schedule.status === 'cancelled') return

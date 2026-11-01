@@ -113,6 +113,8 @@ describe('giving state', () => {
     }
 
     state = givingReducer(state, { type: 'back' })
+    expect(state.step).toBe('payment-method')
+    state = givingReducer(state, { type: 'back' })
     expect(state.step).toBe('starting-date')
     state = givingReducer(state, { type: 'back' })
     expect(state.step).toBe('fund')
@@ -197,7 +199,10 @@ describe('giving state', () => {
     state = givingReducer(state, { type: 'restore', answers: saved, fundConfirmed: true, missingIdentity: ['email'] })
     expect(state.step).toBe('identity-email')
     state = givingReducer(state, { type: 'restore', answers: { ...saved, email: 'fresh@example.com' }, fundConfirmed: true, missingIdentity: [] })
+    expect(state.step).toBe('payment-method')
+    state = givingReducer(state, { type: 'choosePaymentMethod' })
     expect(state.step).toBe('review')
+    expect(previousGivingStep(state)).toBe('payment-method')
   })
 
   it('serializes and restores partial progress without confirming the default fund', () => {

@@ -22,23 +22,23 @@ const originalLength = helpArticles.length
 afterEach(() => { helpArticles.splice(originalLength); auth.member.mockReset() })
 
 describe('help content and access', () => {
-  it('loads all three guides with unique URLs and valid help links and images', async () => {
+  it('loads the registered public guides with unique URLs and valid help links and images', async () => {
     const articles = await listHelpArticles(false)
-    expect(new Set(articles.map(article => article.slug)).size).toBe(3)
-    expect(articles.map(article => article.audience)).toEqual(['Claimants', 'Purpose approvers', 'Finance'])
+    expect(new Set(articles.map(article => article.slug)).size).toBe(helpArticles.filter(article=>article.access==='public').length)
+    expect(articles.map(article => article.audience)).toEqual(expect.arrayContaining(['Claimants', 'Purpose approvers', 'Finance', 'Givers']))
     for (const article of articles) {
       expect(article.body).toContain('## ')
       const links = [...article.body.matchAll(/(?<!!)\[[^\]]+\]\(([^)]+)\)/g)].map(match => match[1])
-      for (const link of links) expect(['/contact', ...Object.values(reimbursementViewPaths), ...helpArticles.map(item => `/help/${item.slug}`)]).toContain(link)
+      for (const link of links) expect(['/contact', '/give', '/members/giving', ...Object.values(reimbursementViewPaths), ...helpArticles.map(item => `/help/${item.slug}`)]).toContain(link)
       const images = [...article.body.matchAll(/!\[[^\]]+\]\(([^)]+)\)/g)].map(match => match[1])
-      expect(images).toHaveLength(1)
+      if (article.topic==='Reimbursements') expect(images).toHaveLength(1)
       for (const image of images) {
         expect(image).toMatch(/^\/images\/help\/[a-z-]+\.png$/)
         await expect(access(path.join(process.cwd(), 'public', image))).resolves.toBeUndefined()
       }
     }
   })
-  it.each(helpArticles.filter(article => article.access === 'public'))('links directly to reimbursements throughout $slug', async ({ slug }) => {
+  it.each(helpArticles.filter(article => article.access === 'public' && article.topic === 'Reimbursements'))('links directly to reimbursements throughout $slug', async ({ slug }) => {
     const page = await HelpArticlePage({ params: Promise.resolve({ slug }) })
     const markup = renderToStaticMarkup(page)
     expect(markup).toContain('href="/members/reimbursements"')
@@ -63,7 +63,7 @@ describe('help content and access', () => {
     expect(await canReadMemberHelp()).toBe(true)
   })
   it('does not make authentication a dependency of public-only help', async () => {
-    expect(await canReadMemberHelp()).toBe(false)
+    await HelpArticlePage({params:Promise.resolve({slug:'giving-and-payment-methods'})})
     expect(auth.member).not.toHaveBeenCalled()
   })
   it('returns not found for uncatalogued paths before reading any file', async () => {

@@ -22,6 +22,7 @@ interface GivingExperienceContextValue {
   selectGivingFund: (fundId: number | null) => void
   flagState: GivingFlagState
   blinkPayEnabled: boolean
+  cardEnabled: boolean
   givingSurfaceAvailable: boolean
   givingExperience: ReactNode | null
   givingRequestId: number
@@ -45,6 +46,7 @@ const disabledContext: GivingExperienceContextValue = {
   selectGivingFund: () => undefined,
   flagState: 'failed',
   blinkPayEnabled: false,
+  cardEnabled: false,
   givingSurfaceAvailable: false,
   givingExperience: null,
   givingRequestId: 0,
@@ -72,6 +74,8 @@ export function GivingExperienceProvider({
   blinkPayEligible = false,
   resumeRequested = false,
   supportProfiles = [],
+  bankAvailable = true,
+  cardAvailable = false,
 }: {
   children: ReactNode
   givingExperience?: ReactNode
@@ -80,6 +84,8 @@ export function GivingExperienceProvider({
   blinkPayEligible?: boolean
   resumeRequested?: boolean
   supportProfiles?: PublicSupportProfile[]
+  bankAvailable?: boolean
+  cardAvailable?: boolean
 }) {
   const [directedFundId, setDirectedFundId] = useState<number | null>(null)
   const [flagOverride, setFlagOverride] = useState<GivingFlagState | null>(null)
@@ -95,7 +101,8 @@ export function GivingExperienceProvider({
   const givingSurfaceAvailable = rendererReady
   const flagState = flagOverride ?? (!blinkPayEligibilityResolved ? 'unresolved' : blinkPayEligible ? 'enabled' : 'disabled')
   const blinkPayAllowed = flagOverride ? flagOverride === 'enabled' : blinkPayEligibilityResolved && blinkPayEligible
-  const blinkPayEnabled = serverEligibility !== null && blinkPayAllowed
+  const blinkPayEnabled = serverEligibility !== null && blinkPayAllowed && bankAvailable
+  const cardEnabled = serverEligibility !== null && blinkPayAllowed && cardAvailable
 
   const openGiving = useCallback((fundId?: number) => {
     if (!rendererReady) return false
@@ -150,6 +157,7 @@ export function GivingExperienceProvider({
     selectGivingFund: setDirectedFundId,
     flagState,
     blinkPayEnabled,
+    cardEnabled,
     givingSurfaceAvailable,
     givingExperience: givingExperience === null ? null : <div key={directedFundId === null ? 'general' : `directed-${directedFundId}-${givingRequestId}`} className="h-full">{givingExperience}</div>,
     givingRequestId,
@@ -175,6 +183,7 @@ export function GivingExperienceProvider({
     blinkPayEligible,
     flagOverride,
     blinkPayEnabled,
+    cardEnabled,
     flagState,
     givingSurfaceAvailable,
     givingExperience,

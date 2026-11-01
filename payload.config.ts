@@ -1,3 +1,4 @@
+import { stripeGivingTask } from '@/jobs/stripe-giving'
 import { SermonTranscripts } from '@/collections/SermonTranscripts'
 import { sermonTranscriptTasks } from '@/jobs/sermon-transcripts'
 import { SermonArticles } from '@/collections/SermonArticles'
@@ -290,6 +291,7 @@ export default buildConfig({
       feedbackCommunicationsTask,
       ...givingJobConfigs,
       ...givingEmailJobConfigs,
+      stripeGivingTask,
       reimbursementEmailTask,
       {
         slug: 'fullSermonSync',

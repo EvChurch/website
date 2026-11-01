@@ -30,7 +30,7 @@ export function configuredGivingCheckoutAuthority(config: ReturnType<typeof load
 }
 export interface GivingCheckoutRouteDependencies {
   authority(request: NextRequest): Promise<Authority>
-  transactionFeeMinor(request: NextRequest): Promise<number>
+  transactionFeeMinor(request: NextRequest, submission?: GivingCheckoutSubmission): Promise<number>
   rateLimitStore: GivingRateLimitStore
   verifyTurnstile(input: { token: string; remoteIp: string; expectedHostname: string | null; expectedAction: string }): Promise<void>
   memberSubject?(request: NextRequest): Promise<string | null>
@@ -97,7 +97,7 @@ async function defaultStart(authority: GivingContext, submission: GivingCheckout
   return service.start({ ...authority, submission })
 }
 
-const defaults: GivingCheckoutRouteDependencies = {
+export const givingCheckoutRouteDefaults: GivingCheckoutRouteDependencies = {
   authority: defaultAuthority,
   async transactionFeeMinor() {
     return getGivingTransactionFeeMinor()
@@ -113,7 +113,7 @@ const defaults: GivingCheckoutRouteDependencies = {
   startCheckout: defaultStart,
 }
 
-export async function handleGivingCheckoutPost(request: NextRequest, dependencies: GivingCheckoutRouteDependencies = defaults) {
+export async function handleGivingCheckoutPost(request: NextRequest, dependencies: GivingCheckoutRouteDependencies = givingCheckoutRouteDefaults) {
   try {
     const authority = await dependencies.authority(request)
     if (!authority) return response({ error: 'Giving unavailable' }, 404)
@@ -121,16 +121,18 @@ export async function handleGivingCheckoutPost(request: NextRequest, dependencie
     if (!isGivingJson(request)) return response({ error: 'Giving unavailable' }, 415)
     requireCurrentGivingSubmission(request.headers)
     const submission = validateGivingCheckoutSubmission(await boundedGivingJson(request))
-    if (submission.transactionFeeMinor !== await dependencies.transactionFeeMinor(request)) throw new GivingCheckoutError('invalid')
+    if (submission.transactionFeeMinor !== await dependencies.transactionFeeMinor(request, submission)) throw new GivingCheckoutError('invalid')
     const address = trustedGivingClientAddress(request.headers)
     await dependencies.verifyTurnstile({ token: submission.turnstileToken, remoteIp: address, expectedHostname: expectedTurnstileHostname(), expectedAction: GIVING_CHECKOUT_TURNSTILE_ACTION })
     const memberSubject = await dependencies.memberSubject?.(request) ?? null
     await enforceGivingRateLimits({ address, email: submission.email, memberSubject, store: dependencies.rateLimitStore })
     const result = await dependencies.startCheckout(authority, submission, request)
-    const output = result.outcome === 'redirect'
+    const output = result.outcome === 'embedded'
+      ? response({ outcome: result.outcome, clientSecret: result.clientSecret, publishableKey: result.publishableKey }, 201)
+      : result.outcome === 'redirect'
       ? response({ outcome: result.outcome, gatewayRedirectUri: result.gatewayRedirectUri, correlationKey: result.correlationKey, reused: result.reused }, 201)
       : response({ outcome: result.outcome, retryAllowed: result.retryAllowed, correlationKey: result.correlationKey, reused: result.reused }, 202)
-    output.cookies.set('__Host-ev_giving_checkout', result.statusToken, { httpOnly: true, secure: true, sameSite: 'strict', path: '/', maxAge: 30 * 60 })
+    output.cookies.set('__Host-ev_giving_checkout', result.statusToken, { httpOnly: true, secure: true, sameSite: 'strict', path: '/', maxAge: result.outcome === 'embedded' ? 60 * 60 : 30 * 60 })
     if (result.outcome === 'redirect') {
       output.cookies.set('__Host-ev_giving_return', result.returnToken, {
         httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 30 * 60,

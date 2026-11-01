@@ -20,6 +20,7 @@ function fakePool() {
           rows: params[0] === 'sandbox' && params[1] === 'sandbox' && params[2] === true && params[4] === actor.email
             ? [{
                 id: 3,
+      paymentProvider: 'blinkpay',
                 amount_minor: 10000,
                 transaction_fee_minor: 50,
                 frequency: 'weekly',
@@ -60,6 +61,7 @@ describe('member giving overview', () => {
 
     expect(overview.recurringGifts).toEqual([{
       id: 3,
+      paymentProvider: 'blinkpay',
       amountMinor: 10000,
       transactionFeeMinor: 50,
       frequency: 'weekly',

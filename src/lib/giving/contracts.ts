@@ -15,11 +15,12 @@ export const SCHEDULE_STATUSES = ['pending', 'active', 'unknown', 'cancel_pendin
 export type ScheduleStatus = (typeof SCHEDULE_STATUSES)[number]
 export const PROVIDER_OPERATION_STATUSES = ['prepared', 'submitted', 'succeeded', 'unknown', 'failed'] as const
 export type ProviderOperationStatus = (typeof PROVIDER_OPERATION_STATUSES)[number]
-export const PROVIDER_OPERATION_PROVIDERS = ['rock', 'blinkpay'] as const
+export const PROVIDER_OPERATION_PROVIDERS = ['rock', 'blinkpay', 'stripe'] as const
 export type ProviderOperationProvider = (typeof PROVIDER_OPERATION_PROVIDERS)[number]
 export const PROVIDER_OPERATION_ACTIONS = [
   'rock.resolve-giver', 'rock.create-giver', 'blinkpay.create-payment',
   'blinkpay.create-consent', 'blinkpay.create-schedule', 'blinkpay.cancel-schedule',
+  'stripe.create-checkout', 'stripe.cancel-schedule',
 ] as const
 export type ProviderOperationAction = (typeof PROVIDER_OPERATION_ACTIONS)[number]
 
