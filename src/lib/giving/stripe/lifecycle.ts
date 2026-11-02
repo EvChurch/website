@@ -1,3 +1,5 @@
+import { reconcileStripeRefunds } from './refunds'
+import { applyStripeCardUpdate } from './card-updates'
 import { createHash } from 'node:crypto'
 import type { Pool } from 'pg'
 import type Stripe from 'stripe'
@@ -32,6 +34,19 @@ async function handleStripeEvent(pool: Pool, environment: GivingEnvironment, eve
     }
     return
   }
+  if (event.type === 'charge.refunded' || event.type.startsWith('refund.')) {
+    const object = event.data.object
+    const chargeId = object.object === 'charge' ? object.id : object.object === 'refund' ? stripeObjectId(object.charge) : null
+    if (!chargeId) return
+    const charge = await stripe.charges.retrieve(chargeId)
+    if (charge.livemode !== (environment === 'production')) throw new Error('Refund environment mismatch')
+    const owner = (await pool.query<{checkout_id:number}>(`SELECT s.checkout_id FROM giving_stripe_sessions s JOIN giving_checkouts c ON c.id=s.checkout_id WHERE s.customer_id=$1 AND c.environment=$2 AND c.payment_provider='stripe'`,[stripeObjectId(charge.customer),environment])).rows[0]
+    if (!owner) return
+    const exists = await pool.query("SELECT 1 FROM giving_gifts WHERE environment=$1 AND payment_provider='stripe' AND provider_charge_id=$2",[environment,chargeId])
+    if (!exists.rowCount) await reconcileStripeCheckout(pool,owner.checkout_id)
+    await reconcileStripeRefunds(pool,environment,chargeId)
+    return
+  }
   if (event.type.startsWith('charge.dispute.')) {
     const object = event.data.object
     if (object.object !== 'dispute') return
@@ -56,19 +71,7 @@ async function handleStripeEvent(pool: Pool, environment: GivingEnvironment, eve
   if (object.object === 'checkout.session') {
     const update = (await pool.query<{schedule_id:number;customer_id:string}>("SELECT schedule_id,customer_id FROM giving_stripe_card_updates WHERE session_id=$1 AND environment=$2",[object.id,environment])).rows[0]
     if (update) {
-      const session = await stripe.checkout.sessions.retrieve(object.id)
-      if (session.status !== 'complete') return
-      if (session.mode !== 'setup' || session.livemode !== (environment==='production') || stripeObjectId(session.customer)!==update.customer_id) throw new Error('Card update mismatch')
-      const setup = await stripe.setupIntents.retrieve(stripeObjectId(session.setup_intent)!)
-      if (setup.status!=='succeeded' || stripeObjectId(setup.customer)!==update.customer_id) throw new Error('Card update not authorised')
-      const target = (await pool.query<{provider_schedule_id:string;status:string}>("SELECT provider_schedule_id,status FROM giving_schedules WHERE id=$1 AND payment_provider='stripe'",[update.schedule_id])).rows[0]
-      if (!target || target.status!=='active') return
-      const schedule = await stripe.subscriptionSchedules.retrieve(target.provider_schedule_id)
-      const method = stripeObjectId(setup.payment_method)!
-      if (stripeObjectId(schedule.customer)!==update.customer_id) throw new Error('Card update owner mismatch')
-      if (schedule.status === 'not_started' || schedule.status === 'active') await stripe.subscriptionSchedules.update(schedule.id,{default_settings:{default_payment_method:method}},{idempotencyKey:`giving-card-${session.id}`})
-      const subscription = stripeObjectId(schedule.subscription) ?? stripeObjectId(schedule.released_subscription)
-      if (subscription) await stripe.subscriptions.update(subscription,{default_payment_method:method},{idempotencyKey:`giving-card-sub-${session.id}`})
+      await applyStripeCardUpdate(pool,environment,object.id,update.schedule_id)
       return
     }
     const id = Number(object.metadata?.ev_checkout_id)
@@ -159,6 +162,14 @@ export async function reconcileStripeGiving(pool: Pool) {
       }
       await reconcileStripeCheckout(pool,item.checkout_id,sessionId??undefined)
     } catch { failures++ } finally { await pool.query('UPDATE giving_stripe_sessions SET last_attempt_at=now() WHERE checkout_id=$1',[item.checkout_id]) }
+  }
+  // Completed one-off gifts also need observation after checkout has finished.
+  const refunds = (await pool.query<{id:number;environment:GivingEnvironment;provider_charge_id:string}>(`SELECT id,environment,provider_charge_id FROM giving_gifts
+    WHERE payment_provider='stripe' AND provider_charge_id IS NOT NULL ORDER BY refunds_last_attempt_at ASC NULLS FIRST,id LIMIT 100`)).rows
+  for (const gift of refunds) {
+    try { await reconcileStripeRefunds(pool,gift.environment,gift.provider_charge_id) }
+    catch { failures++ }
+    finally { await pool.query('UPDATE giving_gifts SET refunds_last_attempt_at=now() WHERE id=$1',[gift.id]) }
   }
   // A payout and gift can commit concurrently. Join the durable association again after
   // observation processing so a zero-row payout update never loses the relationship.

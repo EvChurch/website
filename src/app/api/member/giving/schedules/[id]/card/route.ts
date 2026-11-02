@@ -22,10 +22,16 @@ export async function POST(request:NextRequest,context:{params:Promise<{id:strin
       WHERE schedule.id=$1 AND schedule.payment_provider='stripe' AND schedule.status='active' AND schedule.environment=$2
       AND (($3=false AND giver.rock_person_alias_id=$4) OR ($3=true AND lower(giver.email)=lower($5)))`,[Number(id),environment,environment==='sandbox',actor.rockPersonAliasId,actor.email??''])).rows[0]
     if(!row)return json({error:'Not found'},404)
+    // Reserve the version before contacting Stripe. The schedule lock also serializes
+    // reservations with webhook application and cancellation.
+    const reserved=(await pool.query<{version:string}>(`INSERT INTO giving_stripe_card_updates(schedule_id,customer_id,environment)
+      SELECT id,$2,$3 FROM giving_schedules WHERE id=$1 AND status='active' AND environment=$3 AND payment_provider='stripe' FOR UPDATE
+      RETURNING version`,[Number(id),row.customer_id,environment])).rows[0]
+    if(!reserved)return json({error:'Not found'},404)
     const config=loadStripeGivingConfig(environment)
-    const session=await getGivingStripe(environment).checkout.sessions.create({ui_mode:'hosted_page',mode:'setup',customer:row.customer_id,currency:'nzd',allowed_payment_method_types:['card'],success_url:`${config.origin}/members/giving`,cancel_url:`${config.origin}/members/giving`,metadata:{ev_card_update:id}})
+    const session=await getGivingStripe(environment).checkout.sessions.create({ui_mode:'hosted_page',mode:'setup',customer:row.customer_id,currency:'nzd',allowed_payment_method_types:['card'],success_url:`${config.origin}/members/giving`,cancel_url:`${config.origin}/members/giving`,metadata:{ev_card_update:id,ev_card_update_version:String(reserved.version)}},{idempotencyKey:`giving-card-setup-${reserved.version}`})
     if(!session.url || new URL(session.url).origin!=='https://checkout.stripe.com')throw new Error('Invalid update destination')
-    await pool.query('INSERT INTO giving_stripe_card_updates(session_id,schedule_id,customer_id,environment) VALUES($1,$2,$3,$4)',[session.id,Number(id),row.customer_id,environment])
+    await pool.query('UPDATE giving_stripe_card_updates SET session_id=$2 WHERE version=$1',[reserved.version,session.id])
     return json({url:session.url})
   } catch {return json({error:'Could not open secure card update'},503)}
 }

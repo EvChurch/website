@@ -6,7 +6,13 @@
 
 For a card arrangement, open **Recurring gift options** and choose **Update card**. Complete the secure Stripe page, then return to your giving. This keeps the gift amount, fund and frequency unchanged. Updating a card does not restart a stopped arrangement.
 
+If you open **Update card** more than once, use the newest link. Earlier links cannot replace the card from a newer request. If an older link no longer works, choose **Update card** again.
+
 If a payment email asks for authentication, use **Review your payment** in that email to complete your bank’s checks. Updating a card alone may not complete authentication for an existing payment.
+
+## Read refunds in your history
+
+A refunded card gift keeps its original amount in your history. **Refunded** shows the amount returned, including any returned transaction fee. **Refund pending** means Stripe is still processing it. A partial refund does not change the amount of future scheduled gifts.
 
 ## Stop or replace a recurring gift
 

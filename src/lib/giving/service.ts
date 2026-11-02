@@ -1,3 +1,4 @@
+import { assertBlinkPayPaymentDetails } from './blinkpay/payment-provenance'
 import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto'
 
 import type { Pool, PoolClient } from 'pg'
@@ -434,7 +435,15 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
       const quick = await blinkPay.getQuickPayment(operation.providerId)
       const settled = quick.consent.payments.find((payment) => blinkPay.isPaymentSettled(payment))
       const rejected = quick.consent.payments.find((payment) => payment.status === 'Rejected')
-      if (settled) await dependencies.repository.completeOneOff(checkout, settled.payment_id, new Date(settled.status_updated_timestamp), settled.provider_correlation_id)
+      if (settled) {
+        if (quick.quick_payment_id !== operation.providerId || !checkout.bankReference ||
+            settled.detail.consent_id !== quick.consent.consent_id) throw new GivingCheckoutError('conflict')
+        const expected = { amountMinor: chargedAmountMinor(checkout), fundCode: checkout.fundCode, bankCode: checkout.bankCode, bankReference: checkout.bankReference }
+        // Successful single payments inherit amount/PCR from the single consent.
+        assertBlinkPayPaymentDetails(quick.consent.detail, expected)
+        if (settled.detail.amount !== undefined || settled.detail.pcr !== undefined) assertBlinkPayPaymentDetails(settled.detail, expected)
+        await dependencies.repository.completeOneOff(checkout, settled.payment_id, new Date(settled.status_updated_timestamp), settled.provider_correlation_id)
+      }
       else if (rejected) await dependencies.repository.setFailed(checkout.id, 'rejected')
       else {
         const failure = failedConsent(quick.consent.status)

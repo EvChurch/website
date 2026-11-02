@@ -1,7 +1,8 @@
+import { assertBlinkPayPaymentDetails } from './blinkpay/payment-provenance'
 import type { Pool } from 'pg'
 import type { GivingEnvironment } from './contracts'
 import type { BlinkPayFixedRecurringPayment, BlinkPayPayment } from './blinkpay/types'
-import { minorUnitsToNzd, validateIsoTimestamp, validateNzDate } from './blinkpay/validation'
+import { validateIsoTimestamp, validateNzDate } from './blinkpay/validation'
 import type { LifecycleProvider } from './reconciliation'
 
 interface RecurringCandidate {
@@ -28,14 +29,7 @@ interface RecurringProvenance extends RecurringCandidate {
 }
 
 function assertPaymentDetails(value: unknown, row: RecurringProvenance) {
-  if (!value || typeof value !== 'object') throw new Error('Recurring payment details missing')
-  const detail = value as Record<string, unknown>
-  const amount = detail.amount as Record<string, unknown> | undefined
-  const pcr = detail.pcr as Record<string, unknown> | undefined
-  if (amount?.currency !== 'NZD' || amount.total !== minorUnitsToNzd(Number(row.amount_minor) + Number(row.transaction_fee_minor)) ||
-    pcr?.particulars !== row.fund_code.slice(0, 12) || pcr.code !== row.bank_code || pcr.reference !== row.bank_reference) {
-    throw new Error('Recurring payment amount or reference mismatch')
-  }
+  assertBlinkPayPaymentDetails(value, { amountMinor: Number(row.amount_minor) + Number(row.transaction_fee_minor), fundCode: row.fund_code, bankCode: row.bank_code, bankReference: row.bank_reference })
 }
 
 function paymentStatus(status: string) {
@@ -103,7 +97,7 @@ export async function recordRecurringObservation(pool: Pool, candidate: Recurrin
       const previousTime = gift.provider_status_updated_at ? new Date(gift.provider_status_updated_at).getTime() : null
       const incomingTime = new Date(payment.status_updated_timestamp).getTime()
       if (previousTime === incomingTime && gift.provider_status !== payment.status) throw new Error('Conflicting recurring payment observation')
-      if (previousTime === null || incomingTime > previousTime) {
+      if (previousTime === null || incomingTime >= previousTime) {
         const status = ['settled','failed','cancelled'].includes(gift.status) ? gift.status : paymentStatus(payment.status)
         await client.query(`UPDATE giving_gifts SET status=$2,provider_status=$3,provider_status_updated_at=$4,
           provider_verified_at=$5,provider_observed_at=$4,provider_source='reconciliation',provider_request_id=$6,updated_at=$5 WHERE id=$1`,
@@ -151,7 +145,7 @@ export async function reconcileRecurringGiving(input: { pool: Pool; provider(env
           if (consent.consent_id !== candidate.provider_consent_id) throw new Error('Recurring consent response mismatch')
           const known = new Set((await pool.query<{ provider_payment_id: string }>(`SELECT provider_payment_id FROM giving_gifts
             WHERE environment=$1 AND schedule_id=$2 AND status IN ('settled','failed','cancelled')
-              AND provider_verified_at IS NOT NULL`, [candidate.environment,candidate.id])).rows.map(row => row.provider_payment_id))
+              AND provider_verified_at IS NOT NULL AND provider_source='reconciliation'`, [candidate.environment,candidate.id])).rows.map(row => row.provider_payment_id))
           await recordRecurringObservation(pool,candidate,schedule,[],observedAt)
           let paymentFailures = 0
           for (const payment of consent.payments) {

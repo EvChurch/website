@@ -129,9 +129,9 @@ function service(repo = repository(), overrides: Partial<GivingCheckoutBlinkPayC
   let random = 0
   const blinkPay = {
     createQuickPayment: vi.fn(async (_input, keys) => ({ outcome: 'succeeded' as const, value: { quick_payment_id: 'quick-1', redirect_uri: 'https://sandbox.debit.blinkpay.co.nz/gateway/quick' }, metadata: keys })),
-    getQuickPayment: vi.fn(async () => ({ quick_payment_id: 'quick-1', consent: { consent_id: 'consent-1', status: 'Authorised', creation_timestamp: '2026-08-15T00:00:00Z', status_updated_timestamp: '2026-08-15T00:00:00Z', detail: {}, payments: [{ payment_id: 'payment-1', type: 'single', status: 'AcceptedSettlementCompleted', creation_timestamp: '2026-08-15T00:00:00Z', status_updated_timestamp: '2026-08-15T00:00:01Z', detail: {}, refunds: [] }] } })),
+    getQuickPayment: vi.fn(async () => ({ quick_payment_id: 'quick-1', consent: { consent_id: 'consent-1', status: 'Authorised', creation_timestamp: '2026-08-15T00:00:00Z', status_updated_timestamp: '2026-08-15T00:00:00Z', detail: { amount:{total:'25.50',currency:'NZD'},pcr:{particulars:'GEN',code:'ALOVELACE',reference:'EV123'} }, payments: [{ payment_id: 'payment-1', type: 'single', status: 'AcceptedSettlementCompleted', creation_timestamp: '2026-08-15T00:00:00Z', status_updated_timestamp: '2026-08-15T00:00:01Z', detail: {consent_id:'consent-1'}, refunds: [] }] } })),
     createEnduringConsent: vi.fn(async (_input,keys) => ({ outcome: 'succeeded' as const, value: { consent_id: 'consent-1', redirect_uri: 'https://sandbox.debit.blinkpay.co.nz/gateway/consent' }, metadata: keys })),
-    getEnduringConsent: vi.fn(async () => ({ consent_id: 'consent-1', status: 'Authorised', creation_timestamp: '2026-08-15T00:00:00Z', status_updated_timestamp: '2026-08-15T00:00:01Z', detail: {}, payments: [] })),
+    getEnduringConsent: vi.fn(async () => ({ consent_id: 'consent-1', status: 'Authorised', creation_timestamp: '2026-08-15T00:00:00Z', status_updated_timestamp: '2026-08-15T00:00:01Z', detail: { amount:{total:'25.50',currency:'NZD'},pcr:{particulars:'GEN',code:'ALOVELACE',reference:'EV123'} }, payments: [] })),
     createFixedRecurringPayment: vi.fn(async (_input,keys) => ({ outcome: 'succeeded' as const, value: { fixed_recurring_payment_id: 'schedule-1' }, metadata: keys })),
     getFixedRecurringPayment: vi.fn(async () => ({ fixed_recurring_payment_id: 'schedule-1', consent_id: 'consent-1', status: 'active', start_date: '2026-09-01', next_payment_date: '2026-09-01', amount: { total: '25.50', currency: 'NZD' as const }, pcr: { particulars: 'GEN' }, retry_strategy: 'same_day' as const, creation_timestamp: '2026-08-15T00:00:02Z' })),
     isPaymentSettled: (value: { status: string }) => value.status === 'AcceptedSettlementCompleted', isConsentAuthorised: (value: { status: string }) => value.status === 'Authorised', isFixedRecurringPaymentActive: (value: { status: string }) => value.status === 'active',
@@ -452,7 +452,7 @@ describe('giving checkout orchestration', () => {
   it('reconciles a transient return failure on status poll and completes one gift exactly once', async () => {
     const repo = repository()
     const completeOneOff = vi.spyOn(repo, 'completeOneOff')
-    const settled = { quick_payment_id: 'quick-1', consent: { consent_id: 'consent-1', status: 'Authorised', creation_timestamp: '2026-08-15T00:00:00Z', status_updated_timestamp: '2026-08-15T00:00:00Z', detail: {}, payments: [{ payment_id: 'payment-1', type: 'single', status: 'AcceptedSettlementCompleted', creation_timestamp: '2026-08-15T00:00:00Z', status_updated_timestamp: '2026-08-15T00:00:01Z', detail: {}, refunds: [] }] } }
+    const settled = { quick_payment_id: 'quick-1', consent: { consent_id: 'consent-1', status: 'Authorised', creation_timestamp: '2026-08-15T00:00:00Z', status_updated_timestamp: '2026-08-15T00:00:00Z', detail: { amount:{total:'25.50',currency:'NZD'},pcr:{particulars:'GEN',code:'ALOVELACE',reference:'EV123'} }, payments: [{ payment_id: 'payment-1', type: 'single', status: 'AcceptedSettlementCompleted', creation_timestamp: '2026-08-15T00:00:00Z', status_updated_timestamp: '2026-08-15T00:00:01Z', detail: {consent_id:'consent-1'}, refunds: [] }] } }
     const getQuickPayment = vi.fn().mockRejectedValueOnce(new Error('temporarily unavailable')).mockResolvedValue(settled)
     const { checkout } = service(repo, { getQuickPayment })
     const started = await checkout.start({ ...context, submission: baseSubmission })
@@ -558,5 +558,22 @@ describe('giving checkout orchestration', () => {
     expect(blinkPay.getFixedRecurringPayment).toHaveBeenCalledWith('schedule-1')
     expect(repo.schedules).toEqual([{ checkoutId: 1, consentId: 11, providerScheduleId: 'schedule-1', status: 'active' }])
     await expect(checkout.status(returned.statusToken)).resolves.toMatchObject({ state: 'verified', retryAllowed: false })
+  })
+})
+
+
+describe('BlinkPay settlement provenance', () => {
+  it.each(['amount','currency','reference','consent','quick-payment'] as const)('refuses a settled one-off with mismatched %s', async (field) => {
+    const {checkout,blinkPay,repo}=service()
+    await checkout.start({...context,submission:baseSubmission})
+    const quick=await blinkPay.getQuickPayment()
+    if(field==='amount')quick.consent.detail.amount.total='0.01'
+    if(field==='currency')quick.consent.detail.amount.currency='USD'
+    if(field==='reference')quick.consent.detail.pcr.reference='EV999'
+    if(field==='consent')quick.consent.payments[0].detail.consent_id='another-consent'
+    if(field==='quick-payment')quick.quick_payment_id='another-quick-payment'
+    blinkPay.getQuickPayment.mockResolvedValue(quick)
+    await expect(checkout.verify(repo.checkouts[0].id)).rejects.toThrow()
+    expect(repo.checkouts[0].status).not.toBe('completed')
   })
 })
