@@ -1,3 +1,4 @@
+import * as migration_20261102_010000_giving_financial_controls from './20261102_010000_giving_financial_controls';
 import * as migration_20261031_010000_stripe_giving from './20261031_010000_stripe_giving';
 import * as migration_20261029_020000_api from './20261029_020000_api';
 import * as migration_20261028_010000_reimbursement_payout_and_pastor_account from './20261028_010000_reimbursement_payout_and_pastor_account';
@@ -388,4 +389,5 @@ export const migrations = [
   { up: migration_20261029_010000_reimbursement_campus.up, down: migration_20261029_010000_reimbursement_campus.down, name: '20261029_010000_reimbursement_campus' },
   { up: migration_20261029_020000_api.up, down: migration_20261029_020000_api.down, name: '20261029_020000_api' },
   { up: migration_20261031_010000_stripe_giving.up, down: migration_20261031_010000_stripe_giving.down, name: '20261031_010000_stripe_giving' },
+  { up: migration_20261102_010000_giving_financial_controls.up, down: migration_20261102_010000_giving_financial_controls.down, name: '20261102_010000_giving_financial_controls' },
 ];

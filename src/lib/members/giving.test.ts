@@ -89,6 +89,8 @@ describe('member giving overview', () => {
       frequency: 'one-off',
       fundName: 'General',
       giftType: 'One-off',
+      refundedMinor: null,
+      refundPendingMinor: null,
       completedAt: '2026-09-02T01:00:00.000Z',
     }])
   })
