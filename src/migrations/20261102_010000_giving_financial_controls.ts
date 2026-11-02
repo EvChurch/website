@@ -19,6 +19,7 @@ CREATE TABLE giving_stripe_refunds (
 CREATE INDEX giving_stripe_refunds_gift ON giving_stripe_refunds(gift_id);
 ALTER TABLE giving_stripe_card_updates DROP CONSTRAINT giving_stripe_card_updates_pkey,
   ADD COLUMN version bigserial PRIMARY KEY, ADD COLUMN applied_at timestamptz,
+  ADD COLUMN application_started_at timestamptz, ADD COLUMN payment_method_id varchar,
   ALTER COLUMN session_id DROP NOT NULL, ADD CONSTRAINT giving_stripe_card_update_session_unique UNIQUE(session_id);
 CREATE INDEX giving_stripe_card_update_version ON giving_stripe_card_updates(schedule_id,version DESC);
 -- Old requests have no reliable creation order. Keep their audit rows, but require a new link.

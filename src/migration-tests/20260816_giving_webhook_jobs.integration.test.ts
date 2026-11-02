@@ -265,6 +265,7 @@ describe.skipIf(!databaseUrl)('giving webhook PostgreSQL leases and failure reco
     await expect(store.finalize({ eventId:inserted.eventId,leaseToken:claim!.leaseToken,observation:{ referenceType:'payment',referenceId:'missing',providerStatus:'AcceptedSettlementCompleted',statusUpdatedAt:new Date(),verifiedAt:new Date(),paymentConsentId:null } })).resolves.toBe(true)
     expect((await pool.query('SELECT status,lease_token FROM blinkpay_webhook_events WHERE id=$1',[inserted.eventId])).rows[0]).toMatchObject({ status:'quarantined',lease_token:null })
     await pool.query("UPDATE blinkpay_webhook_events SET provider_reference_id=NULL,status='quarantined',lease_token=NULL,lease_expires_at=NULL WHERE id=$1",[inserted.eventId])
+    await pool.query('UPDATE giving_gifts SET consent_id=NULL')
     await pool.query(GIVING_WEBHOOK_JOBS_DOWN_SQL)
     for (const slug of GIVING_WEBHOOK_JOB_SLUGS) expect((await pool.query('SELECT $1::enum_payload_jobs_task_slug value',[slug])).rows[0].value).toBe(slug)
   })
@@ -301,7 +302,7 @@ describe.skipIf(!databaseUrl)('giving webhook PostgreSQL leases and failure reco
     await store.finalize({ eventId:cancelledRegression.eventId,leaseToken:cancelledRegressionClaim!.leaseToken,observation:{ ...paymentProvenance('pay-cancel'),referenceType:'payment',referenceId:'pay-cancel',providerStatus:'AcceptedSettlementCompleted',statusUpdatedAt:new Date(at.getTime()+1000),verifiedAt:new Date(at.getTime()+1000) } })
     expect((await pool.query("SELECT status FROM giving_gifts WHERE provider_payment_id='pay-cancel'")).rows[0].status).toBe('cancelled')
 
-    const consent = await pool.query<{id:number}>(`INSERT INTO giving_consents(context_key,environment,synthetic,checkout_id,giver_id,provider_consent_id,status,provider_status,provider_status_updated_at) VALUES('production','production',false,$1,$2,'consent-terminal','failed','Failed',$3) RETURNING id`,[seeded.checkoutId,seeded.giverId,at])
+    const consent = await pool.query<{id:number}>("UPDATE giving_consents SET provider_consent_id='consent-terminal',status='failed',provider_status='Failed',provider_status_updated_at=$2 WHERE id=$1 RETURNING id",[seeded.consentId,at])
     await pool.query(`INSERT INTO giving_schedules(context_key,environment,synthetic,checkout_id,giver_id,consent_id,provider_schedule_id,status,frequency,amount_minor,provider_status,provider_status_updated_at) VALUES('production','production',false,$1,$2,$3,'schedule-terminal','cancelled','monthly',2500,'Cancelled',$4)`,[seeded.checkoutId,seeded.giverId,consent.rows[0].id,at])
     for (const candidate of [
       { eventId:'evt-consent-terminal',eventType:'consent.changed',referenceType:'consent' as const,referenceId:'consent-terminal',providerStatus:'Authorised' },

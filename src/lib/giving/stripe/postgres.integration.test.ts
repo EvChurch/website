@@ -358,22 +358,44 @@ describe.skipIf(!url)('Stripe giving against disposable PostgreSQL',()=>{
     await expect(reconcileStripeRefunds(pool,'sandbox',charge.id)).rejects.toThrow('charge mismatch')
   })
 
-  async function cardUpdateFixture() {
+  async function cardUpdateFixture(includeLatest=true) {
     const {row,schedule}=await recurringCheckout()
     await reconcileStripeCheckout(pool,row.id)
     const local=(await pool.query('SELECT id FROM giving_schedules')).rows[0]
+    const versions=new Map<string,string>()
     async function reserve(sessionId:string) {
       const update=(await pool.query<{version:string}>(`INSERT INTO giving_stripe_card_updates(schedule_id,customer_id,environment)
         SELECT id,'cus_test','sandbox' FROM giving_schedules WHERE id=$1 AND status='active' FOR UPDATE RETURNING version`,[local.id])).rows[0]
       await pool.query('UPDATE giving_stripe_card_updates SET session_id=$2 WHERE version=$1',[update.version,sessionId])
+      versions.set(sessionId,update.version)
       return update.version
     }
-    const old=await reserve('cs_old'), latest=await reserve('cs_new')
-    api.checkout.sessions.retrieve.mockImplementation(async(id:string)=>({id,status:'complete',mode:'setup',livemode:false,customer:'cus_test',setup_intent:id==='cs_new'?'seti_new':'seti_old',metadata:{ev_card_update:String(local.id),ev_card_update_version:id==='cs_new'?latest:old}}))
+    const old=await reserve('cs_old'), latest=includeLatest?await reserve('cs_new'):old
+    api.checkout.sessions.retrieve.mockImplementation(async(id:string)=>({id,status:'complete',mode:'setup',livemode:false,customer:'cus_test',setup_intent:id==='cs_new'?'seti_new':'seti_old',metadata:{ev_card_update:String(local.id),ev_card_update_version:versions.get(id)}}))
     api.setupIntents.retrieve.mockImplementation(async(id:string)=>({id,status:'succeeded',customer:'cus_test',payment_method:id==='seti_new'?'pm_new':'pm_old'}))
     api.subscriptionSchedules.retrieve.mockResolvedValue({...schedule,status:'released',released_subscription:'sub_test'})
-    return {id:local.id,old,latest}
+    return {id:local.id,old,latest,reserve}
   }
+  it('preserves legacy card-update links as superseded and gives new requests eligible versions',async()=>{
+    const {row}=await recurringCheckout()
+    await reconcileStripeCheckout(pool,row.id)
+    const local=(await pool.query('SELECT id FROM giving_schedules')).rows[0]
+    // Reconstruct the previous schema to exercise the actual upgrade with a legacy row.
+    await pool.query(`ALTER TABLE giving_gifts DROP CONSTRAINT giving_gift_refunds_valid,
+      DROP COLUMN refunded_minor,DROP COLUMN refund_pending_minor,DROP COLUMN refunds_verified_at,DROP COLUMN refunds_last_attempt_at;
+      DROP TABLE giving_stripe_refunds; DROP TABLE giving_stripe_card_updates;
+      CREATE TABLE giving_stripe_card_updates(session_id varchar PRIMARY KEY,schedule_id integer NOT NULL REFERENCES giving_schedules(id),customer_id varchar NOT NULL,environment varchar NOT NULL)`)
+    await pool.query("INSERT INTO giving_stripe_card_updates VALUES('cs_legacy',$1,'cus_test','sandbox')",[local.id])
+    await pool.query(GIVING_FINANCIAL_CONTROLS_UP_SQL)
+    const legacy=(await pool.query('SELECT session_id,version,superseded FROM giving_stripe_card_updates')).rows[0]
+    expect(legacy).toMatchObject({session_id:'cs_legacy',superseded:true})
+    const next=(await pool.query("INSERT INTO giving_stripe_card_updates(schedule_id,customer_id,environment) VALUES($1,'cus_test','sandbox') RETURNING version,superseded",[local.id])).rows[0]
+    expect(BigInt(next.version)).toBeGreaterThan(BigInt(legacy.version))
+    expect(next.superseded).toBe(false)
+    await applyStripeCardUpdate(pool,'sandbox','cs_legacy',local.id)
+    expect(api.subscriptionSchedules.update).not.toHaveBeenCalled()
+    expect(api.subscriptions.update).not.toHaveBeenCalled()
+  })
   it('ignores a delayed older card update and serializes duplicate completion workers',async()=>{
     const fixture=await cardUpdateFixture()
     await Promise.all([applyStripeCardUpdate(pool,'sandbox','cs_new',fixture.id),applyStripeCardUpdate(pool,'sandbox','cs_old',fixture.id),applyStripeCardUpdate(pool,'sandbox','cs_new',fixture.id)])
@@ -391,6 +413,32 @@ describe.skipIf(!url)('Stripe giving against disposable PostgreSQL',()=>{
     await pool.query("UPDATE giving_schedules SET status='cancelled' WHERE id=$1",[fixture.id])
     await applyStripeCardUpdate(pool,'sandbox','cs_new',fixture.id)
     expect(api.subscriptions.update).toHaveBeenCalledTimes(2)
+  })
+
+  it('fences a timed-out old mutation until its idempotent result is recovered before applying a newer card',async()=>{
+    const fixture=await cardUpdateFixture(false)
+    let providerMethod='pm_initial'
+    api.subscriptions.update.mockRejectedValueOnce(new Error('Ambiguous timeout'))
+    await expect(applyStripeCardUpdate(pool,'sandbox','cs_old',fixture.id)).rejects.toThrow('Ambiguous timeout')
+    await fixture.reserve('cs_new')
+    let releaseOld:()=>void=()=>{}
+    let oldRetryStarted:()=>void=()=>{}
+    const retried=new Promise<void>(resolve=>{oldRetryStarted=resolve})
+    api.subscriptions.update.mockImplementation(async(_id,params,options)=>{
+      if(options.idempotencyKey==='giving-card-sub-cs_old') {
+        oldRetryStarted()
+        await new Promise<void>(resolve=>{releaseOld=resolve})
+      }
+      providerMethod=params.default_payment_method
+      return {}
+    })
+    const applying=applyStripeCardUpdate(pool,'sandbox','cs_new',fixture.id)
+    await retried
+    expect(api.subscriptions.update.mock.calls.some(call=>call[1].default_payment_method==='pm_new')).toBe(false)
+    releaseOld()
+    await applying
+    expect(providerMethod).toBe('pm_new')
+    expect(api.subscriptions.update.mock.calls.map(call=>call[2].idempotencyKey)).toEqual(['giving-card-sub-cs_old','giving-card-sub-cs_old','giving-card-sub-cs_new'])
   })
 
   async function blinkPayRecurringFixture() {
