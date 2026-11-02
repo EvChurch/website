@@ -303,6 +303,7 @@ describe.skipIf(!url)('Stripe giving against disposable PostgreSQL',()=>{
     return {id,amount,status,charge,currency:'nzd',created:Math.floor(Date.now()/1000),balance_transaction:'txn_'+id}
   }
   it.each([2000,10304])('records a %s-cent Stripe refund before gift creation, retaining the original charge and deduplicating replay',async(amount)=>{
+    vi.setSystemTime(new Date('2026-11-02T00:00:00Z'))
     const {row,charge}=await paidStripeCheckout('production')
     charge.amount_refunded=amount
     api.refunds.list.mockReturnValue([refund('re_test',amount)])
