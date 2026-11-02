@@ -136,6 +136,21 @@ describe('giving emails',()=>{
     expect(()=>buildGivingEmail({...source('blinkpay-support'),recipientEmail:'support@example.com'})).toThrow('snapshot is missing')
   })
 
+  it.each(['stripe-failed', 'stripe-action', 'stripe-stopped'] as const)('keeps recovery details and the safe action link in %s', (kind) => {
+    const message = buildGivingEmail({
+      ...source(kind), name: '<Sam> Sample', fundName: 'General <script>alert(1)</script>',
+      frequency: 'monthly', firstPaymentDate: '2026-11-02', actionUrl: 'https://www.ev.church/members/giving?from=email&source=card',
+    })
+    expect(message.html).toContain('Hi &lt;Sam&gt;')
+    expect(message.html).toContain('General &lt;script&gt;alert(1)&lt;/script&gt;')
+    expect(message.html).not.toContain('<script>')
+    expect(message.html).toContain('href="https://www.ev.church/members/giving?from=email&amp;source=card"')
+    expect(message.html).toContain('2 Nov 2026')
+    expect(message.text).toContain('starting 2026-11-02')
+    if (kind === 'stripe-failed') expect(message.text).toContain('days 1, 4 and 9')
+    if (kind === 'stripe-stopped') expect(message.text).toContain('We will not collect missed gifts')
+  })
+
   it('claims support using the snapshot, a verified checkout, and the existing lease and idempotency key',async()=>{
     const claimed={id:7,checkout_id:42,kind:'blinkpay-support',email:'ada@example.com',name:'Ada Lovelace',bank_reference:'EV123',bank_code:'ALOVELACE',fund_code:'GEN',fund_name:'General',amount_minor:2500,transaction_fee_minor:50,frequency:'one-off',first_payment_date:null,recipient_email:'snapshot@example.com',recipient_name:'Original recipient',created_at:new Date('2026-08-22T00:00:00Z')}
     const query=vi.fn().mockResolvedValueOnce({rows:[claimed]}).mockResolvedValueOnce({rowCount:1})

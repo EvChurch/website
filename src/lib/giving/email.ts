@@ -43,6 +43,24 @@ function escapeHtml(value: string) {
   return value.replace(/[&<>'"]/gu, (character) => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' })[character] ?? character)
 }
 
+function givingEmailDetails(fields: string[][]) {
+  return `<table style="width:100%;border-collapse:collapse">${fields.map(([label, value]) => `<tr><th scope="row" style="width:38%;padding:12px 14px 12px 0;border-bottom:1px solid #eee8e3;text-align:left;vertical-align:top;font-size:14px;line-height:1.5;font-weight:400;color:#71686b">${escapeHtml(label)}</th><td style="padding:12px 0;border-bottom:1px solid #eee8e3;text-align:left;vertical-align:top;font-size:15px;line-height:1.5;font-weight:600;word-break:break-word">${escapeHtml(value)}</td></tr>`).join('')}</table>`
+}
+
+function givingEmailDate(value: string) {
+  return new Intl.DateTimeFormat('en-NZ', { timeZone: 'Pacific/Auckland', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00Z`))
+}
+
+function givingEmailFrequency(frequency: GivingEmailSource['frequency']) {
+  return ({ 'one-off': 'Just this once', daily: 'Every day', weekly: 'Every week', fortnightly: 'Every two weeks', monthly: 'Every month', annual: 'Every year' } as const)[frequency]
+}
+
+function givingEmailLayout(heading: string, preview: string, content: string) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(heading)}</title></head><body style="margin:0;padding:0;background:#FEFAF4;color:#0F0004;font-family:Arial,Helvetica,sans-serif"><div style="display:none;max-height:0;overflow:hidden;mso-hide:all">${escapeHtml(preview)}</div><table role="presentation" style="width:100%;border-collapse:collapse;background:#FEFAF4"><tr><td style="padding:32px 16px"><table role="presentation" align="center" style="width:100%;max-width:600px;margin:0 auto;border-spacing:0;background:#ffffff;border:1px solid #e8e0d9;border-radius:20px"><tr><td style="padding:24px;border-top:5px solid #E22A30;border-bottom:1px solid #eee8e3;border-radius:20px 20px 0 0"><img src="https://www.ev.church/images/global/ev-church-logo.png" alt="Ev Church" width="48" height="48" style="display:block;width:48px;height:48px;border:0"></td></tr><tr><td style="padding:28px 24px 32px"><p style="margin:0 0 12px;color:#a61d22;font-size:12px;line-height:1.5;font-weight:700;letter-spacing:1.5px;text-transform:uppercase">Giving at Ev Church</p><h1 style="margin:0 0 24px;font-size:28px;line-height:1.2;letter-spacing:-.6px">${escapeHtml(heading)}</h1>${content}</td></tr><tr><td style="padding:20px 24px;border-top:1px solid #eee8e3;font-size:13px;line-height:1.6;color:#71686b">The Ev Church website team<br><a href="https://www.ev.church/contact" style="color:#71686b;text-decoration:underline">Need a hand? Get in touch</a></td></tr></table></td></tr></table></body></html>`
+}
+
+const givingEmailParagraphStyle = 'margin:0 0 20px;font-size:16px;line-height:1.65;color:#5c5356'
+
 function giftSummary(source: GivingEmailSource) {
   const formatter = new Intl.NumberFormat('en-NZ', { style:'currency', currency:'NZD' })
   const amount = formatter.format(source.amountMinor / 100)
@@ -104,7 +122,8 @@ export function buildGivingEmail(source: GivingEmailSource, now = new Date(), op
       to: source.recipientEmail,
       subject: recurring ? 'New recurring giving arrangement from Ev Church' : 'New single gift from Ev Church',
       text: [greeting, '', confirmation, '', ...fields.map(([label, value]) => `${label}: ${value}`), '', 'The Ev Church website team'].join('\n'),
-      html: `<p>${escapeHtml(greeting)}</p><p>${escapeHtml(confirmation)}</p><table role="presentation"><tbody>${fields.map(([label, value]) => `<tr><th style="text-align:left">${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`).join('')}</tbody></table><p>The Ev Church website team</p>`,
+      html: givingEmailLayout(recurring ? 'New recurring gift' : 'New single gift', confirmation,
+        `<p style="${givingEmailParagraphStyle}">${escapeHtml(greeting)}</p><p style="${givingEmailParagraphStyle}">${escapeHtml(confirmation)}</p><h2 style="margin:28px 0 4px;font-size:17px;line-height:1.4">Giving details</h2>${givingEmailDetails(fields.map(([label, value]) => [label, label === 'First payment date' ? givingEmailDate(value) : label === 'Frequency' ? givingEmailFrequency(source.frequency) : value]))}`),
     }
   }
   const firstName = source.name.trim().split(/\s+/u)[0] || 'there'
@@ -121,7 +140,22 @@ export function buildGivingEmail(source: GivingEmailSource, now = new Date(), op
     if (!url) throw new Error('Missing giving recovery URL')
     const recovery = new URL(url)
     if (recovery.protocol !== 'https:' || recovery.username || recovery.password || !(recovery.pathname === '/members/giving' || recovery.origin === 'https://invoice.stripe.com')) throw new Error('Invalid giving recovery URL')
-    return {to:source.email,subject,text:[`Hi ${firstName},`,'',explanation,'',`Gift: ${summary}`,'',`${action ? 'Review your payment' : 'Manage your giving'}: ${url}`,'','The Ev Church website team'].join('\n'),html:`<p>Hi ${escapeHtml(firstName)},</p><p>${escapeHtml(explanation)}</p><p>${escapeHtml(summary)}</p><p><a href="${escapeHtml(url)}">${action ? 'Review your payment' : 'Manage your giving'}</a></p><p>The Ev Church website team</p>`}
+    const heading = stopped ? 'Your recurring gift has stopped' : action ? 'Your gift needs attention' : 'We couldn’t process your gift'
+    const money = new Intl.NumberFormat('en-NZ', { style:'currency', currency:'NZD' })
+    const details = givingEmailDetails([
+      ['Gift', money.format(source.amountMinor / 100)],
+      ['Payment fee', money.format(source.transactionFeeMinor / 100)],
+      ['Total each payment', money.format((source.amountMinor + source.transactionFeeMinor) / 100)],
+      ['Fund', source.fundName], ['Frequency', givingEmailFrequency(source.frequency)],
+      ...(source.firstPaymentDate ? [['Starting date', givingEmailDate(source.firstPaymentDate)]] : []),
+    ])
+    return {
+      to: source.email,
+      subject,
+      text: [`Hi ${firstName},`, '', explanation, '', `Gift: ${summary}`, '', `${action ? 'Review your payment' : 'Manage your giving'}: ${url}`, '', 'The Ev Church website team'].join('\n'),
+      html: givingEmailLayout(heading, explanation,
+        `<p style="${givingEmailParagraphStyle}">Hi ${escapeHtml(firstName)},</p><p style="${givingEmailParagraphStyle}">${escapeHtml(explanation)}</p><table role="presentation" style="border-collapse:collapse"><tr><td style="border-radius:999px;background:#E22A30"><a href="${escapeHtml(url)}" style="display:inline-block;padding:16px 24px;border:1px solid #E22A30;border-radius:999px;background:#E22A30;color:#ffffff;text-decoration:none;font-size:16px;line-height:1.3;font-weight:700">${action ? 'Review your payment' : 'Manage your giving'}</a></td></tr></table><div style="margin:28px 0 0;padding:4px 18px 12px;background:#f8f5f0;border-radius:12px"><h2 style="margin:18px 0 4px;font-size:17px;line-height:1.4">Your recurring gift</h2>${details}</div>`),
+    }
   }
   if (source.kind === 'bank-transfer-details') {
     const details = givingBankTransferDetails(source.fundCode, source.bankCode, source.bankReference)
