@@ -1,3 +1,4 @@
+import { assertBlinkPayPaymentDetails } from './blinkpay/payment-provenance'
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import type { GivingEnvironment } from './contracts'
@@ -18,6 +19,8 @@ export interface AuthoritativeObservation {
   verifiedAt: Date
   providerRequestId?: string
   paymentConsentId?: string | null
+  paymentId?: string
+  paymentDetail?: Record<string, unknown>
 }
 
 const TERMINAL_STATUSES: Record<LifecycleReferenceType, readonly string[]> = {
@@ -65,13 +68,13 @@ export class GivingLifecycleCorrelationPendingError extends Error {
 
 const PROVIDER_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
 
-function observed(value: { status: string; status_updated_timestamp?: string; provider_correlation_id?: string; detail?: Record<string, unknown> }, referenceType: LifecycleReferenceType, referenceId: string, now: Date): AuthoritativeObservation {
+function observed(value: { status: string; status_updated_timestamp?: string; provider_correlation_id?: string; detail?: Record<string, unknown>; payment_id?: string }, referenceType: LifecycleReferenceType, referenceId: string, now: Date): AuthoritativeObservation {
   const timestamp = value.status_updated_timestamp ? new Date(value.status_updated_timestamp) : now
   if (Number.isNaN(timestamp.getTime())) throw new Error('Provider observation timestamp is invalid')
   const paymentConsentId = referenceType === 'payment'
     ? (typeof value.detail?.consent_id === 'string' && PROVIDER_ID_PATTERN.test(value.detail.consent_id) ? value.detail.consent_id : null)
     : undefined
-  return { referenceType, referenceId, providerStatus: value.status, statusUpdatedAt: timestamp, verifiedAt: now, ...(value.provider_correlation_id ? { providerRequestId: value.provider_correlation_id } : {}), ...(referenceType === 'payment' ? { paymentConsentId } : {}) }
+  return { referenceType, referenceId, providerStatus: value.status, statusUpdatedAt: timestamp, verifiedAt: now, ...(value.provider_correlation_id ? { providerRequestId: value.provider_correlation_id } : {}), ...(referenceType === 'payment' ? { paymentConsentId, paymentId: value.payment_id, paymentDetail: value.detail } : {}) }
 }
 
 export function createGivingLifecycleProcessor(dependencies: { store: GivingLifecycleStore; provider(environment: GivingEnvironment): LifecycleProvider; now?: () => Date }) {
@@ -252,6 +255,7 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
           return result.rowCount === 1
         }
 
+        if (o.referenceType === 'payment' && o.paymentId !== o.referenceId) return quarantine('payment-id-mismatch')
         if (!aggregate && o.referenceType === 'payment') {
           if (!o.paymentConsentId) return quarantine('payment-consent-invalid')
           const consent = (await client.query(`
@@ -279,13 +283,14 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
                    checkout.id checkout_id, checkout.context_key, checkout.environment,
                    checkout.synthetic, checkout.giver_id,
                    checkout.fund_id, checkout.fund_name, checkout.fund_code,
-                   checkout.fund_accounting_key, schedule.amount_minor schedule_amount_minor,
+                   checkout.fund_accounting_key, checkout.bank_code, giver.bank_reference, schedule.amount_minor schedule_amount_minor,
                    schedule.transaction_fee_minor schedule_transaction_fee_minor
             FROM giving_consents consent
             JOIN giving_schedules schedule
               ON schedule.consent_id=consent.id AND schedule.context_key=consent.context_key
             JOIN giving_checkouts checkout
               ON checkout.id=schedule.checkout_id AND checkout.context_key=schedule.context_key
+            JOIN giving_givers giver ON giver.id=checkout.giver_id AND giver.context_key=checkout.context_key
             WHERE consent.environment=$1 AND consent.provider_consent_id=$2
               AND schedule.environment=consent.environment
               AND checkout.environment=consent.environment
@@ -302,6 +307,9 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
             if (scheduleExists) return quarantine('payment-consent-context-conflict')
             throw new GivingLifecycleCorrelationPendingError()
           }
+          try {
+            assertBlinkPayPaymentDetails(o.paymentDetail, { amountMinor: Number(provenance.schedule_amount_minor) + Number(provenance.schedule_transaction_fee_minor), fundCode: provenance.fund_code, bankCode: provenance.bank_code, bankReference: provenance.bank_reference })
+          } catch { return quarantine('payment-details-mismatch') }
           await client.query(`INSERT INTO giving_gifts(
               context_key,environment,synthetic,checkout_id,giver_id,consent_id,schedule_id,
               fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,transaction_fee_minor,provider_payment_id,status)
@@ -331,6 +339,19 @@ export function createPostgresGivingLifecycleStore(pool: Pool): GivingLifecycleS
           if (!provenance || provenance.provider_consent_id !== o.paymentConsentId) return quarantine('payment-correlation-conflict')
           await client.query(`UPDATE blinkpay_webhook_events SET context_key=$3,synthetic=$4,updated_at=$5
             WHERE id=$1 AND lease_token=$2`, [input.eventId,input.leaseToken,provenance.context_key,provenance.synthetic,o.verifiedAt])
+        }
+
+        if (o.referenceType === 'payment') {
+          const expected = (await client.query(`SELECT gift.amount_minor,gift.transaction_fee_minor,gift.fund_code,checkout.bank_code,giver.bank_reference,consent.provider_consent_id
+            FROM giving_gifts gift
+            JOIN giving_checkouts checkout ON checkout.id=gift.checkout_id AND checkout.context_key=gift.context_key
+            JOIN giving_givers giver ON giver.id=gift.giver_id AND giver.context_key=gift.context_key
+            JOIN giving_consents consent ON consent.id=gift.consent_id AND consent.checkout_id=gift.checkout_id
+            WHERE gift.id=$1 AND gift.environment=$2`, [aggregate.id,event.environment])).rows[0]
+          if (!expected || expected.provider_consent_id !== o.paymentConsentId) return quarantine('payment-correlation-conflict')
+          try {
+            assertBlinkPayPaymentDetails(o.paymentDetail, { amountMinor: Number(expected.amount_minor) + Number(expected.transaction_fee_minor), fundCode: expected.fund_code, bankCode: expected.bank_code, bankReference: expected.bank_reference })
+          } catch { return quarantine('payment-details-mismatch') }
         }
 
         const currentTimestamp = aggregate.provider_status_updated_at

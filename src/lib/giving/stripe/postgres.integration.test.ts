@@ -1,3 +1,9 @@
+import { getMemberGiftHistoryPage } from '@/lib/members/giving'
+import { GIVING_FINANCIAL_CONTROLS_UP_SQL } from '@/migrations/20261102_010000_giving_financial_controls'
+import { applyStripeCardUpdate } from './card-updates'
+import { reconcileStripeRefunds } from './refunds'
+import { createGivingLifecycleProcessor, createPostgresGivingLifecycleStore } from '../reconciliation'
+import { reconcileRecurringGiving } from '../recurring-reconciliation'
 import type Stripe from 'stripe'
 import { randomBytes } from 'node:crypto'
 import { Pool } from 'pg'
@@ -18,7 +24,7 @@ import { getGivingCancellationProvider } from './cancellation'
 import { storeStripeEvent, reconcileStripeGiving } from './lifecycle'
 import { givingFinanceCsv } from '../finance-export'
 
-const api=vi.hoisted(()=>({customers:{create:vi.fn()},checkout:{sessions:{create:vi.fn(),retrieve:vi.fn()}},paymentIntents:{retrieve:vi.fn()},charges:{retrieve:vi.fn()},setupIntents:{retrieve:vi.fn()},prices:{create:vi.fn(),retrieve:vi.fn()},coupons:{create:vi.fn(),retrieve:vi.fn()},subscriptionSchedules:{list:vi.fn(),create:vi.fn(),retrieve:vi.fn(),cancel:vi.fn()},subscriptions:{retrieve:vi.fn(),list:vi.fn(),cancel:vi.fn()},invoices:{list:vi.fn(),voidInvoice:vi.fn(),del:vi.fn()},invoicePayments:{list:vi.fn()},payouts:{retrieve:vi.fn()},balanceTransactions:{list:vi.fn()}}))
+const api=vi.hoisted(()=>({customers:{create:vi.fn()},checkout:{sessions:{create:vi.fn(),retrieve:vi.fn()}},paymentIntents:{retrieve:vi.fn()},charges:{retrieve:vi.fn()},refunds:{list:vi.fn()},setupIntents:{retrieve:vi.fn()},prices:{create:vi.fn(),retrieve:vi.fn()},coupons:{create:vi.fn(),retrieve:vi.fn()},subscriptionSchedules:{update:vi.fn(),list:vi.fn(),create:vi.fn(),retrieve:vi.fn(),cancel:vi.fn()},subscriptions:{update:vi.fn(),retrieve:vi.fn(),list:vi.fn(),cancel:vi.fn()},invoices:{list:vi.fn(),voidInvoice:vi.fn(),del:vi.fn()},invoicePayments:{list:vi.fn()},payouts:{retrieve:vi.fn()},balanceTransactions:{list:vi.fn()}}))
 vi.mock('./config',()=>({getGivingStripe:()=>api,loadStripeGivingConfig:()=>({origin:'https://www.ev.church',publishableKey:'pk_test_example'})}))
 const url=process.env.GIVING_STRIPE_TEST_DATABASE_URL
 
@@ -40,12 +46,14 @@ describe.skipIf(!url)('Stripe giving against disposable PostgreSQL',()=>{
       ALTER TABLE giving_checkouts ADD COLUMN bank_setup_acknowledged_at timestamptz;
       INSERT INTO users DEFAULT VALUES`)
     await pool.query(STRIPE_GIVING_UP_SQL)
-    vi.clearAllMocks()
+    await pool.query(GIVING_FINANCIAL_CONTROLS_UP_SQL)
+    vi.resetAllMocks()
+    api.refunds.list.mockReturnValue([])
   })
   const context={contextKey:'sandbox',environment:'sandbox' as const,synthetic:true}
   function submission(){return {submissionKey:randomBytes(32).toString('base64url'),amountMinor:10000,transactionFeeMinor:304,fundId:1,frequency:'one-off' as const,firstPaymentDate:null,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com',turnstileToken:'verified-token'}}
   async function resolveIdentity(input:{checkoutId:number}) {
-    const giver=(await pool.query<{id:number}>("INSERT INTO giving_givers(context_key,environment,synthetic,rock_person_alias_id,bank_reference,name,email) VALUES('sandbox','sandbox',true,123,'EV123','Ada Lovelace','ada@example.com') ON CONFLICT(context_key,rock_person_alias_id) DO UPDATE SET name=EXCLUDED.name RETURNING id")).rows[0]
+    const giver=(await pool.query<{id:number}>("INSERT INTO giving_givers(context_key,environment,synthetic,rock_person_alias_id,bank_reference,name,email) SELECT context_key,environment,synthetic,123,'EV123','Ada Lovelace','ada@example.com' FROM giving_checkouts WHERE id=$1 ON CONFLICT(context_key,rock_person_alias_id) DO UPDATE SET name=EXCLUDED.name RETURNING id",[input.checkoutId])).rows[0]
     await pool.query('UPDATE giving_checkouts SET giver_id=$2 WHERE id=$1',[input.checkoutId,giver.id])
     return {giverId:giver.id,personAliasId:123,bankReference:'EV123',firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}
   }
@@ -84,7 +92,7 @@ describe.skipIf(!url)('Stripe giving against disposable PostgreSQL',()=>{
     const params=api.checkout.sessions.create.mock.calls[0][0]
     api.checkout.sessions.retrieve.mockResolvedValue({...params,id:'cs_test',livemode:false,currency:'nzd',status:'complete',payment_status:'paid',amount_total:10304,payment_intent:'pi_test'})
     api.paymentIntents.retrieve.mockResolvedValue({id:'pi_test',status:'succeeded',metadata:params.metadata,latest_charge:'ch_test'})
-    api.charges.retrieve.mockResolvedValue({id:'ch_test',customer:'cus_test',currency:'nzd',amount:10304,livemode:false,paid:true,status:'succeeded',payment_intent:'pi_test',created:Math.floor(Date.now()/1000),balance_transaction:{currency:'nzd',fee:304,net:10000},disputed:false})
+    api.charges.retrieve.mockResolvedValue({id:'ch_test',customer:'cus_test',currency:'nzd',amount:10304,amount_refunded:0,livemode:false,paid:true,status:'succeeded',payment_intent:'pi_test',created:Math.floor(Date.now()/1000),balance_transaction:{currency:'nzd',fee:304,net:10000},disputed:false})
     await reconcileStripeCheckout(pool,stored.id)
     await pool.query("INSERT INTO support_profiles(name,email) VALUES('Sample Support','support@example.com'); UPDATE giving_funds SET support_profile_id=1 WHERE id=1")
     await reconcileStripeCheckout(pool,stored.id)
@@ -124,7 +132,7 @@ describe.skipIf(!url)('Stripe giving against disposable PostgreSQL',()=>{
     expect(params).toMatchObject({mode:'payment',payment_intent_data:{setup_future_usage:'off_session'}})
     api.checkout.sessions.retrieve.mockResolvedValue({...params,id:'cs_test',livemode:false,currency:'nzd',status:'complete',payment_status:'paid',amount_total:10304,payment_intent:'pi_first'})
     api.paymentIntents.retrieve.mockResolvedValue({id:'pi_first',status:'succeeded',setup_future_usage:'off_session',customer:'cus_test',payment_method:'pm_test',metadata:params.metadata,latest_charge:'ch_first'})
-    api.charges.retrieve.mockResolvedValue({id:'ch_first',customer:'cus_test',currency:'nzd',amount:10304,livemode:false,paid:true,status:'succeeded',payment_intent:'pi_first',created:Math.floor(Date.now()/1000),balance_transaction:{currency:'nzd',fee:304,net:10000},disputed:false})
+    api.charges.retrieve.mockResolvedValue({id:'ch_first',customer:'cus_test',currency:'nzd',amount:10304,amount_refunded:0,livemode:false,paid:true,status:'succeeded',payment_intent:'pi_first',created:Math.floor(Date.now()/1000),balance_transaction:{currency:'nzd',fee:304,net:10000},disputed:false})
     api.prices.create.mockResolvedValue({id:'price_test'})
     api.prices.retrieve.mockResolvedValue({currency:'nzd',unit_amount:10304,recurring:{interval:'month',interval_count:1}})
     api.coupons.create.mockImplementation(async(input)=>({id:'coupon_first',...input}))
@@ -163,7 +171,7 @@ describe.skipIf(!url)('Stripe giving against disposable PostgreSQL',()=>{
     api.paymentIntents.retrieve.mockImplementation(async(id:string)=>id==='pi_first'?await initialIntent:{id:'pi_next',status:'succeeded',latest_charge:'ch_next'})
     api.invoicePayments.list.mockResolvedValue({data:[{status:'paid',payment:{payment_intent:'pi_next'}}],has_more:false})
     api.invoices.list.mockReturnValue([{id:'in_next',currency:'nzd',billing_reason:'subscription_cycle',total:10304,amount_paid:10304,status:'paid'}])
-    api.charges.retrieve.mockImplementation(async(id:string)=>({id,customer:'cus_test',currency:'nzd',amount:10304,livemode:false,paid:true,status:'succeeded',payment_intent:id==='ch_first'?'pi_first':'pi_next',created:Math.floor(Date.now()/1000),balance_transaction:{currency:'nzd',fee:304,net:10000},disputed:false}))
+    api.charges.retrieve.mockImplementation(async(id:string)=>({id,customer:'cus_test',currency:'nzd',amount:10304,amount_refunded:0,livemode:false,paid:true,status:'succeeded',payment_intent:id==='ch_first'?'pi_first':'pi_next',created:Math.floor(Date.now()/1000),balance_transaction:{currency:'nzd',fee:304,net:10000},disputed:false}))
     await reconcileStripeCheckout(pool,row.id)
     await reconcileStripeCheckout(pool,row.id)
     expect((await pool.query('SELECT id FROM giving_gifts')).rows).toHaveLength(2)
@@ -248,7 +256,7 @@ describe.skipIf(!url)('Stripe giving against disposable PostgreSQL',()=>{
     const params=api.checkout.sessions.create.mock.calls[0][0]
     api.checkout.sessions.retrieve.mockResolvedValue({...params,id:'cs_test',livemode:false,currency:'nzd',status:'complete',payment_status:'paid',amount_total:10304,payment_intent:'pi_test'})
     api.paymentIntents.retrieve.mockResolvedValue({id:'pi_test',status:'succeeded',metadata:params.metadata,latest_charge:'ch_test'})
-    api.charges.retrieve.mockResolvedValue({id:'ch_test',customer:'cus_test',currency:'nzd',amount:10304,livemode:false,paid:true,status:'succeeded',payment_intent:'pi_test',created:Math.floor(Date.now()/1000),balance_transaction:{currency:'nzd',fee:304,net:10000},disputed:false})
+    api.charges.retrieve.mockResolvedValue({id:'ch_test',customer:'cus_test',currency:'nzd',amount:10304,amount_refunded:0,livemode:false,paid:true,status:'succeeded',payment_intent:'pi_test',created:Math.floor(Date.now()/1000),balance_transaction:{currency:'nzd',fee:304,net:10000},disputed:false})
     await reconcileStripeCheckout(pool,row.id)
     expect((await pool.query('SELECT payout_id,payout_status FROM giving_gifts')).rows).toEqual([{payout_id:'po_test',payout_status:'paid'}])
     await pool.query("UPDATE giving_gifts SET payout_id=NULL,payout_status=NULL")
@@ -279,4 +287,158 @@ describe.skipIf(!url)('Stripe giving against disposable PostgreSQL',()=>{
     await expect(reconcileStripeCheckout(pool,stored.id)).rejects.toThrow('total mismatch')
     expect((await pool.query('SELECT * FROM giving_gifts')).rows).toHaveLength(0)
   })
+  async function paidStripeCheckout(environment:'sandbox'|'production'='sandbox') {
+    mockCheckout()
+    api.checkout.sessions.create.mockImplementation(async(params)=>({id:'cs_test',client_secret:'cs_test_secret_example',livemode:environment==='production',currency:'nzd',...params}))
+    await startStripeGiving({contextKey:environment,environment,synthetic:environment==='sandbox',submission:submission()},{pool,resolveIdentity})
+    const row=(await pool.query('SELECT * FROM giving_checkouts')).rows[0]
+    const params=api.checkout.sessions.create.mock.calls[0][0]
+    api.checkout.sessions.retrieve.mockResolvedValue({...params,id:'cs_test',livemode:environment==='production',currency:'nzd',status:'complete',payment_status:'paid',amount_total:10304,payment_intent:'pi_test'})
+    api.paymentIntents.retrieve.mockResolvedValue({id:'pi_test',status:'succeeded',metadata:params.metadata,latest_charge:'ch_test'})
+    const charge={id:'ch_test',customer:'cus_test',currency:'nzd',amount:10304,amount_refunded:0,livemode:environment==='production',paid:true,status:'succeeded',payment_intent:'pi_test',created:Math.floor(Date.now()/1000),balance_transaction:{currency:'nzd',fee:304,net:10000},disputed:false}
+    api.charges.retrieve.mockResolvedValue(charge)
+    return {row,charge}
+  }
+  function refund(id:string,amount:number,status='succeeded',charge='ch_test') {
+    return {id,amount,status,charge,currency:'nzd',created:Math.floor(Date.now()/1000),balance_transaction:'txn_'+id}
+  }
+  it.each([2000,10304])('records a %s-cent Stripe refund before gift creation, retaining the original charge and deduplicating replay',async(amount)=>{
+    const {row,charge}=await paidStripeCheckout('production')
+    charge.amount_refunded=amount
+    api.refunds.list.mockReturnValue([refund('re_test',amount)])
+    await reconcileStripeCheckout(pool,row.id)
+    await reconcileStripeRefunds(pool,'production',charge.id)
+    expect((await pool.query('SELECT status,amount_minor,transaction_fee_minor,refunded_minor,refund_pending_minor FROM giving_gifts')).rows).toEqual([{status:'settled',amount_minor:'10000',transaction_fee_minor:'304',refunded_minor:String(amount),refund_pending_minor:'0'}])
+    expect((await pool.query('SELECT refund_id,status FROM giving_stripe_refunds')).rows).toEqual([{refund_id:'re_test',status:'succeeded'}])
+    vi.stubEnv('BLINKPAY_DEFAULT_ENVIRONMENT','production')
+    const history=await getMemberGiftHistoryPage({auth0Subject:'test',rockPersonId:123,rockPersonAliasId:123,email:'ada@example.com'},1,pool)
+    expect(history.gifts[0]).toMatchObject({amountMinor:10000,refundedMinor:amount,refundPendingMinor:0})
+    const csv=await givingFinanceCsv(pool,'2026-01-01','2026-12-31')
+    const lines=csv.trim().split('\r\n').map(line=>line.replace(/^\uFEFF/,'').split(',').map(cell=>cell.slice(1,-1)))
+    expect(lines[1][lines[0].indexOf('refunded_cents')]).toBe(String(amount))
+    expect(lines[1][lines[0].indexOf('retained_charge_cents')]).toBe(String(10304-amount))
+  })
+  it('tracks pending, failed and succeeded refund states without treating pending refunds as returned cash',async()=>{
+    const {row,charge}=await paidStripeCheckout()
+    await reconcileStripeCheckout(pool,row.id)
+    api.refunds.list.mockReturnValue([refund('re_pending',2000,'pending'),refund('re_failed',1000,'failed')])
+    await reconcileStripeRefunds(pool,'sandbox',charge.id)
+    expect((await pool.query('SELECT refunded_minor,refund_pending_minor FROM giving_gifts')).rows[0]).toEqual({refunded_minor:'0',refund_pending_minor:'2000'})
+    charge.amount_refunded=2000
+    api.refunds.list.mockReturnValue([refund('re_pending',2000),refund('re_failed',1000,'failed')])
+    await reconcileStripeRefunds(pool,'sandbox',charge.id)
+    expect((await pool.query('SELECT refunded_minor,refund_pending_minor FROM giving_gifts')).rows[0]).toEqual({refunded_minor:'2000',refund_pending_minor:'0'})
+    api.refunds.list.mockReturnValue([])
+    await expect(reconcileStripeRefunds(pool,'sandbox',charge.id)).rejects.toThrow('incomplete')
+    expect((await pool.query('SELECT refunded_minor FROM giving_gifts')).rows[0].refunded_minor).toBe('2000')
+  })
+  it('recovers refunds through webhook processing and through polling completed one-off gifts when a webhook is missed',async()=>{
+    const {row,charge}=await paidStripeCheckout()
+    await reconcileStripeCheckout(pool,row.id)
+    charge.amount_refunded=1000
+    api.refunds.list.mockReturnValue([refund('re_first',1000)])
+    const event={id:'evt_refund',type:'charge.refunded',livemode:false,data:{object:{object:'charge',id:charge.id}}} as Stripe.Event
+    await storeStripeEvent(pool,'sandbox',event,JSON.stringify(event))
+    await reconcileStripeGiving(pool)
+    expect((await pool.query('SELECT refunded_minor FROM giving_gifts')).rows[0].refunded_minor).toBe('1000')
+    charge.amount_refunded=3000
+    api.refunds.list.mockReturnValue([refund('re_first',1000),refund('re_second',2000)])
+    await reconcileStripeGiving(pool)
+    expect((await pool.query('SELECT refunded_minor FROM giving_gifts')).rows[0].refunded_minor).toBe('3000')
+    expect((await pool.query('SELECT id FROM giving_gifts')).rows).toHaveLength(1)
+  })
+  it('rejects refund ownership mismatches and rolls back every adjustment',async()=>{
+    const {row,charge}=await paidStripeCheckout()
+    await reconcileStripeCheckout(pool,row.id)
+    api.refunds.list.mockReturnValue([refund('re_wrong',1000,'succeeded','ch_other')])
+    await expect(reconcileStripeRefunds(pool,'sandbox',charge.id)).rejects.toThrow('provenance')
+    expect((await pool.query('SELECT * FROM giving_stripe_refunds')).rows).toHaveLength(0)
+    expect((await pool.query('SELECT refunded_minor FROM giving_gifts')).rows[0].refunded_minor).toBe('0')
+    charge.livemode=true
+    await expect(reconcileStripeRefunds(pool,'sandbox',charge.id)).rejects.toThrow('charge mismatch')
+  })
+
+  async function cardUpdateFixture() {
+    const {row,schedule}=await recurringCheckout()
+    await reconcileStripeCheckout(pool,row.id)
+    const local=(await pool.query('SELECT id FROM giving_schedules')).rows[0]
+    async function reserve(sessionId:string) {
+      const update=(await pool.query<{version:string}>(`INSERT INTO giving_stripe_card_updates(schedule_id,customer_id,environment)
+        SELECT id,'cus_test','sandbox' FROM giving_schedules WHERE id=$1 AND status='active' FOR UPDATE RETURNING version`,[local.id])).rows[0]
+      await pool.query('UPDATE giving_stripe_card_updates SET session_id=$2 WHERE version=$1',[update.version,sessionId])
+      return update.version
+    }
+    const old=await reserve('cs_old'), latest=await reserve('cs_new')
+    api.checkout.sessions.retrieve.mockImplementation(async(id:string)=>({id,status:'complete',mode:'setup',livemode:false,customer:'cus_test',setup_intent:id==='cs_new'?'seti_new':'seti_old',metadata:{ev_card_update:String(local.id),ev_card_update_version:id==='cs_new'?latest:old}}))
+    api.setupIntents.retrieve.mockImplementation(async(id:string)=>({id,status:'succeeded',customer:'cus_test',payment_method:id==='seti_new'?'pm_new':'pm_old'}))
+    api.subscriptionSchedules.retrieve.mockResolvedValue({...schedule,status:'released',released_subscription:'sub_test'})
+    return {id:local.id,old,latest}
+  }
+  it('ignores a delayed older card update and serializes duplicate completion workers',async()=>{
+    const fixture=await cardUpdateFixture()
+    await Promise.all([applyStripeCardUpdate(pool,'sandbox','cs_new',fixture.id),applyStripeCardUpdate(pool,'sandbox','cs_old',fixture.id),applyStripeCardUpdate(pool,'sandbox','cs_new',fixture.id)])
+    expect(api.subscriptions.update.mock.calls.map(call=>call[1].default_payment_method)).toEqual(['pm_new'])
+    expect((await pool.query('SELECT version FROM giving_stripe_card_updates WHERE applied_at IS NOT NULL')).rows).toEqual([{version:fixture.latest}])
+    expect(api.checkout.sessions.retrieve).not.toHaveBeenCalledWith('cs_old')
+  })
+  it('retries a partially applied update under the same provider idempotency key',async()=>{
+    const fixture=await cardUpdateFixture()
+    api.subscriptions.update.mockRejectedValueOnce(new Error('Timeout')).mockResolvedValueOnce({})
+    await expect(applyStripeCardUpdate(pool,'sandbox','cs_new',fixture.id)).rejects.toThrow('Timeout')
+    expect((await pool.query('SELECT applied_at FROM giving_stripe_card_updates WHERE version=$1',[fixture.latest])).rows[0].applied_at).toBeNull()
+    await applyStripeCardUpdate(pool,'sandbox','cs_new',fixture.id)
+    expect(api.subscriptions.update.mock.calls.map(call=>call[2].idempotencyKey)).toEqual(['giving-card-sub-cs_new','giving-card-sub-cs_new'])
+    await pool.query("UPDATE giving_schedules SET status='cancelled' WHERE id=$1",[fixture.id])
+    await applyStripeCardUpdate(pool,'sandbox','cs_new',fixture.id)
+    expect(api.subscriptions.update).toHaveBeenCalledTimes(2)
+  })
+
+  async function blinkPayRecurringFixture() {
+    const value={...submission(),frequency:'monthly' as const,firstPaymentDate:'2026-12-01'}
+    const created=await createPostgresGivingCheckoutRepository(pool).createOrReuse({...context,submission:value,submissionKeyDigest:'blink-key',submissionDigest:'blink-digest',correlationKey:'blink-correlation',returnCapabilityDigest:'blink-return',returnCapabilityExpiresAt:new Date(Date.now()+10000),currentTime:new Date()})
+    await resolveIdentity({checkoutId:created.checkout.id})
+    const row=(await pool.query('SELECT c.*,g.bank_reference FROM giving_checkouts c JOIN giving_givers g ON g.id=c.giver_id WHERE c.id=$1',[created.checkout.id])).rows[0]
+    const consentId='22222222-2222-4222-8222-222222222222',scheduleId='33333333-3333-4333-8333-333333333333'
+    const consent=(await pool.query(`INSERT INTO giving_consents(context_key,environment,synthetic,checkout_id,giver_id,provider_consent_id,status) VALUES('sandbox','sandbox',true,$1,$2,$3,'authorised') RETURNING id`,[row.id,row.giver_id,consentId])).rows[0]
+    const local=(await pool.query(`INSERT INTO giving_schedules(context_key,environment,synthetic,checkout_id,giver_id,consent_id,provider_schedule_id,status,frequency,amount_minor,transaction_fee_minor) VALUES('sandbox','sandbox',true,$1,$2,$3,$4,'active','monthly',10000,304) RETURNING id`,[row.id,row.giver_id,consent.id,scheduleId])).rows[0]
+    const detail={consent_id:consentId,amount:{currency:'NZD' as const,total:'103.04'},pcr:{particulars:row.fund_code.slice(0,12),code:row.bank_code,reference:row.bank_reference}}
+    const payment={payment_id:'44444444-4444-4444-8444-444444444444',type:'enduring',status:'AcceptedSettlementCompleted',creation_timestamp:'2026-11-02T00:00:00Z',status_updated_timestamp:'2026-11-02T00:01:00Z',refunds:[],detail}
+    const schedule={fixed_recurring_payment_id:scheduleId,consent_id:consentId,status:'active',start_date:'2026-12-01',next_payment_date:'2026-12-01',amount:detail.amount,pcr:detail.pcr,retry_strategy:'same_day' as const,creation_timestamp:payment.creation_timestamp}
+    const provider={getPayment:vi.fn().mockResolvedValue(payment),getFixedRecurringPayment:vi.fn().mockResolvedValue(schedule),getEnduringConsent:vi.fn().mockResolvedValue({consent_id:consentId,payments:[payment]})}
+    return {row,local,payment,provider,consent}
+  }
+  it.each(['amount','reference','currency','payment-id'] as const)('quarantines a BlinkPay webhook with mismatched %s before recording a gift',async(field)=>{
+    const {payment,provider}=await blinkPayRecurringFixture()
+    const reference=payment.payment_id
+    if(field==='amount')payment.detail.amount.total='0.01'
+    if(field==='reference')payment.detail.pcr.reference='EV999'
+    if(field==='currency')Object.assign(payment.detail.amount,{currency:'USD'})
+    if(field==='payment-id')payment.payment_id='55555555-5555-4555-8555-555555555555'
+    const store=createPostgresGivingLifecycleStore(pool)
+    const event=await store.recordVerifiedEvent({environment:'sandbox',eventId:'bad-payment',eventType:'completed',referenceType:'payment',referenceId:reference,payloadDigest:'digest',payload:{},now:new Date()})
+    await createGivingLifecycleProcessor({store,provider:()=>provider}).process(event.eventId)
+    expect((await pool.query('SELECT status FROM blinkpay_webhook_events')).rows[0].status).toBe('quarantined')
+    expect((await pool.query('SELECT * FROM giving_gifts')).rows).toHaveLength(0)
+  })
+  it('rechecks webhook-settled payments through validated reconciliation and rejects mismatches for an existing gift',async()=>{
+    const {payment,provider}=await blinkPayRecurringFixture()
+    const store=createPostgresGivingLifecycleStore(pool)
+    async function event(id:string) {
+      const event=await store.recordVerifiedEvent({environment:'sandbox',eventId:id,eventType:'completed',referenceType:'payment',referenceId:payment.payment_id,payloadDigest:id,payload:{},now:new Date()})
+      return createGivingLifecycleProcessor({store,provider:()=>provider}).process(event.eventId)
+    }
+    await event('valid')
+    expect((await pool.query('SELECT status,amount_minor FROM giving_gifts')).rows).toEqual([{status:'settled',amount_minor:'10000'}])
+    provider.getPayment.mockClear()
+    await reconcileRecurringGiving({pool,provider:()=>provider})
+    expect(provider.getPayment).toHaveBeenCalledOnce()
+    provider.getPayment.mockClear()
+    await reconcileRecurringGiving({pool,provider:()=>provider})
+    expect(provider.getPayment).not.toHaveBeenCalled()
+    payment.detail.amount.total='0.01'
+    await event('mismatch-existing')
+    expect((await pool.query("SELECT status FROM blinkpay_webhook_events WHERE provider_event_id='mismatch-existing'")).rows[0].status).toBe('quarantined')
+    expect((await pool.query('SELECT amount_minor FROM giving_gifts')).rows[0].amount_minor).toBe('10000')
+  })
+
 })

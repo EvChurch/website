@@ -1,3 +1,4 @@
+import { recordStripeRefunds } from './refunds'
 import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import type Stripe from 'stripe'
@@ -119,6 +120,7 @@ async function recordCharge(db: PoolClient, stripe: Stripe, row: StripeCheckoutR
     ON CONFLICT(environment,payment_provider,provider_payment_id) DO UPDATE SET schedule_id=COALESCE(giving_gifts.schedule_id,EXCLUDED.schedule_id),processing_fee_minor=EXCLUDED.processing_fee_minor,net_minor=EXCLUDED.net_minor,dispute_status=COALESCE(giving_gifts.dispute_status,EXCLUDED.dispute_status),payout_id=COALESCE(EXCLUDED.payout_id,giving_gifts.payout_id),payout_status=COALESCE(EXCLUDED.payout_status,giving_gifts.payout_status),provider_verified_at=now()
     WHERE giving_gifts.checkout_id=EXCLUDED.checkout_id AND giving_gifts.amount_minor=EXCLUDED.amount_minor AND giving_gifts.transaction_fee_minor=EXCLUDED.transaction_fee_minor RETURNING id`, [row.context_key,row.environment,row.synthetic,row.id,row.giver_id,scheduleId,row.fund_id,row.fund_name,row.fund_code,row.fund_accounting_key,row.amount_minor,row.transaction_fee_minor,paymentId,charge.id,charge.created,payout?.fee_minor ?? balance?.fee ?? null,payout?.net_minor ?? balance?.net ?? null,charge.disputed ? 'disputed' : null,payout?.payout_id ?? null,payout?.payout_status ?? null,invoiceId])
   if (recorded.rowCount !== 1) throw new Error('Stripe payment reference conflict')
+  await recordStripeRefunds(db,stripe,Number(recorded.rows[0].id),row.environment,charge)
 }
 
 async function readInitialRecurringPayment(stripe: Stripe, session: Stripe.Checkout.Session, row: StripeCheckoutRow) {

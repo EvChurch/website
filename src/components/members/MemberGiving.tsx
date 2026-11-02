@@ -388,6 +388,8 @@ export function MemberGiving({ initialOverview }: { initialOverview: MemberGivin
                       <div>
                         <p className="font-bold text-brand-black">{formatDate(gift.completedAt)}</p>
                         <p className="text-sm text-mid-grey">{frequencyLabel(gift.giftType)} to {gift.fundName}</p>
+                        {gift.refundedMinor != null && gift.refundedMinor > 0 && <p className="text-sm text-mid-grey">Refunded {formatAmount(gift.refundedMinor)}</p>}
+                        {gift.refundPendingMinor != null && gift.refundPendingMinor > 0 && <p className="text-sm text-mid-grey">Refund pending {formatAmount(gift.refundPendingMinor)}</p>}
                       </div>
                       <div className="sm:text-right">
                         <p className="text-base font-bold text-brand-black">{formatAmount(gift.amountMinor)}</p>

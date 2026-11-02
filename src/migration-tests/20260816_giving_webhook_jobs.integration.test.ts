@@ -26,6 +26,8 @@ describe.skipIf(!databaseUrl)('giving webhook PostgreSQL leases and failure reco
     await pool.query(GIVING_WEBHOOK_JOBS_UP_SQL)
     await pool.query(GIVING_BANK_CODE_UP_SQL)
     await pool.query(GIVING_TRANSACTION_FEES_UP_SQL)
+    // Runtime reconciliation uses the provider-scoped gift key introduced by Stripe.
+    await pool.query("ALTER TABLE giving_gifts ADD COLUMN payment_provider varchar NOT NULL DEFAULT 'blinkpay'; ALTER TABLE giving_gifts DROP CONSTRAINT giving_gifts_payment_unique; ALTER TABLE giving_gifts ADD CONSTRAINT giving_gifts_payment_unique UNIQUE(environment,payment_provider,provider_payment_id)")
     await pool.query("INSERT INTO giving_funds(name,code,accounting_key,is_default) VALUES('General','GEN','general',true)")
   })
 
@@ -33,7 +35,13 @@ describe.skipIf(!databaseUrl)('giving webhook PostgreSQL leases and failure reco
     const giver = await pool.query<{id:number}>("INSERT INTO giving_givers(context_key,environment,synthetic,rock_person_alias_id,bank_reference,name,email) VALUES('production','production',false,10,'EV10','Ada','ada@example.com') RETURNING id")
     const checkout = await pool.query<{id:number}>(`INSERT INTO giving_checkouts(context_key,environment,synthetic,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,bank_code,amount_minor,frequency,correlation_key,status,submission_key_digest,submission_digest) VALUES('production','production',false,$1,1,'General','GEN','general','AGIVER',2500,'monthly',$2,'verifying',$3,$4) RETURNING id`, [giver.rows[0].id,`correlation-${paymentId}`,`key-${paymentId}`,`digest-${paymentId}`])
     const gift = await pool.query<{id:number}>(`INSERT INTO giving_gifts(context_key,environment,synthetic,checkout_id,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,provider_payment_id,status) VALUES('production','production',false,$1,$2,1,'General','GEN','general',2500,$3,'pending') RETURNING id`, [checkout.rows[0].id,giver.rows[0].id,paymentId])
-    return { checkoutId: checkout.rows[0].id, giverId: giver.rows[0].id, giftId: gift.rows[0].id }
+    const consent=await pool.query<{id:number}>("INSERT INTO giving_consents(context_key,environment,synthetic,checkout_id,giver_id,provider_consent_id,status) VALUES('production','production',false,$1,$2,'11111111-1111-4111-8111-111111111111','authorised') RETURNING id",[checkout.rows[0].id,giver.rows[0].id])
+    await pool.query('UPDATE giving_gifts SET consent_id=$2 WHERE id=$1',[gift.rows[0].id,consent.rows[0].id])
+    return { checkoutId: checkout.rows[0].id, giverId: giver.rows[0].id, giftId: gift.rows[0].id, consentId:consent.rows[0].id }
+  }
+
+  function paymentProvenance(paymentId:string) {
+    return {paymentId,paymentConsentId:'11111111-1111-4111-8111-111111111111',paymentDetail:{consent_id:'11111111-1111-4111-8111-111111111111',amount:{total:'25.00',currency:'NZD'},pcr:{particulars:'GEN',code:'AGIVER',reference:'EV10'}}}
   }
 
   async function seedRecurring() {
@@ -150,7 +158,7 @@ describe.skipIf(!databaseUrl)('giving webhook PostgreSQL leases and failure reco
     const paymentId = '44444444-4444-4444-8444-444444444444'
     const records = await Promise.all(['evt-recurring-1','evt-recurring-2'].map((eventId) => store.recordVerifiedEvent({ environment:'production',eventId,eventType:'payment.changed',referenceType:'payment',referenceId:paymentId,payloadDigest:eventId.padEnd(64,'r'),payload:{},now:at })))
     expect(records.map((record) => record.outcome)).toEqual(['inserted','inserted'])
-    const getPayment = vi.fn().mockResolvedValue({ payment_id:paymentId,status:'AcceptedSettlementCompleted',status_updated_timestamp:at.toISOString(),detail:{consent_id:'22222222-2222-4222-8222-222222222222'} })
+    const getPayment = vi.fn().mockResolvedValue({ payment_id:paymentId,status:'AcceptedSettlementCompleted',status_updated_timestamp:at.toISOString(),detail:recurringProvider().payment.detail })
     const processor = createGivingLifecycleProcessor({store,provider:()=>({getPayment} as never),now:()=>at})
     expect(await Promise.all(records.map((record) => processor.process(record.eventId)))).toEqual([{status:'processed'},{status:'processed'}])
     expect(getPayment).toHaveBeenCalledTimes(2)
@@ -167,7 +175,7 @@ describe.skipIf(!databaseUrl)('giving webhook PostgreSQL leases and failure reco
     let current = new Date('2026-08-15T12:00:00Z')
     const paymentId = '44444444-4444-4444-8444-444444444445'
     const event = await store.recordVerifiedEvent({ environment:'production',eventId:'evt-before-schedule',eventType:'payment.changed',referenceType:'payment',referenceId:paymentId,payloadDigest:'b'.repeat(64),payload:{},now:current })
-    const getPayment = vi.fn().mockResolvedValue({ payment_id:paymentId,status:'AcceptedSettlementCompleted',status_updated_timestamp:current.toISOString(),detail:{consent_id:'22222222-2222-4222-8222-222222222222'} })
+    const getPayment = vi.fn().mockResolvedValue({ payment_id:paymentId,status:'AcceptedSettlementCompleted',status_updated_timestamp:current.toISOString(),detail:recurringProvider().payment.detail })
     const processor = createGivingLifecycleProcessor({store,provider:()=>({getPayment} as never),now:()=>current})
 
     expect(await processor.process(event.eventId)).toEqual({status:'retry'})
@@ -193,7 +201,7 @@ describe.skipIf(!databaseUrl)('giving webhook PostgreSQL leases and failure reco
     const at = new Date('2026-08-15T12:00:00Z')
     const cases = [
       { eventId:'evt-invalid-consent',environment:'production' as const,paymentId:'55555555-5555-4555-8555-555555555555',detail:{consent_id:'not-a-provider-id'} },
-      { eventId:'evt-wrong-environment',environment:'sandbox' as const,paymentId:'66666666-6666-4666-8666-666666666666',detail:{consent_id:'22222222-2222-4222-8222-222222222222'} },
+      { eventId:'evt-wrong-environment',environment:'sandbox' as const,paymentId:'66666666-6666-4666-8666-666666666666',detail:recurringProvider().payment.detail },
     ]
     for (const candidate of cases) {
       const event = await store.recordVerifiedEvent({environment:candidate.environment,eventId:candidate.eventId,eventType:'payment.changed',referenceType:'payment',referenceId:candidate.paymentId,payloadDigest:candidate.eventId.padEnd(64,'q'),payload:{},now:at})
@@ -238,7 +246,7 @@ describe.skipIf(!databaseUrl)('giving webhook PostgreSQL leases and failure reco
     await pool.query("UPDATE blinkpay_webhook_events SET lease_expires_at=now()-interval '1 second' WHERE id=$1", [inserted.eventId])
     const reclaimed = await store.claim(inserted.eventId,new Date())
     expect(reclaimed?.leaseToken).not.toBe(first.leaseToken)
-    const observation = { referenceType:'payment' as const,referenceId:'pay-1',providerStatus:'AcceptedSettlementCompleted',statusUpdatedAt:new Date(),verifiedAt:new Date() }
+    const observation = { ...paymentProvenance('pay-1'),referenceType:'payment' as const,referenceId:'pay-1',providerStatus:'AcceptedSettlementCompleted',statusUpdatedAt:new Date(),verifiedAt:new Date() }
     expect(await store.finalize({ eventId:inserted.eventId,leaseToken:first.leaseToken,observation })).toBe(false)
     expect(await store.finalize({ eventId:inserted.eventId,leaseToken:reclaimed!.leaseToken,observation })).toBe(true)
     expect((await pool.query("SELECT g.status gift_status,e.status event_status FROM giving_gifts g JOIN blinkpay_webhook_events e ON e.id=$1 WHERE g.provider_payment_id='pay-1'",[inserted.eventId])).rows[0]).toMatchObject({ gift_status:'settled',event_status:'processed' })
@@ -268,28 +276,29 @@ describe.skipIf(!databaseUrl)('giving webhook PostgreSQL leases and failure reco
     const record = (eventId: string, referenceId = 'pay-1') => store.recordVerifiedEvent({ environment:'production',eventId,eventType:'payment.changed',referenceType:'payment',referenceId,payloadDigest:eventId.padEnd(64,'x'),payload:{},now:at })
     const first = await record('evt-terminal-1')
     const firstClaim = await store.claim(first.eventId,at)
-    expect(await store.finalize({ eventId:first.eventId,leaseToken:firstClaim!.leaseToken,observation:{ referenceType:'payment',referenceId:'pay-1',providerStatus:'AcceptedSettlementCompleted',statusUpdatedAt:at,verifiedAt:at } })).toBe(true)
+    expect(await store.finalize({ eventId:first.eventId,leaseToken:firstClaim!.leaseToken,observation:{ ...paymentProvenance('pay-1'),referenceType:'payment',referenceId:'pay-1',providerStatus:'AcceptedSettlementCompleted',statusUpdatedAt:at,verifiedAt:at } })).toBe(true)
     const equal = await record('evt-terminal-2')
     const equalClaim = await store.claim(equal.eventId,at)
-    expect(await store.finalize({ eventId:equal.eventId,leaseToken:equalClaim!.leaseToken,observation:{ referenceType:'payment',referenceId:'pay-1',providerStatus:'AcceptedSettlementCompleted',statusUpdatedAt:at,verifiedAt:at } })).toBe(true)
+    expect(await store.finalize({ eventId:equal.eventId,leaseToken:equalClaim!.leaseToken,observation:{ ...paymentProvenance('pay-1'),referenceType:'payment',referenceId:'pay-1',providerStatus:'AcceptedSettlementCompleted',statusUpdatedAt:at,verifiedAt:at } })).toBe(true)
     expect((await pool.query('SELECT status FROM blinkpay_webhook_events WHERE id=$1',[equal.eventId])).rows[0].status).toBe('processed')
     const conflict = await record('evt-terminal-3')
     const conflictClaim = await store.claim(conflict.eventId,at)
-    expect(await store.finalize({ eventId:conflict.eventId,leaseToken:conflictClaim!.leaseToken,observation:{ referenceType:'payment',referenceId:'pay-1',providerStatus:'Failed',statusUpdatedAt:at,verifiedAt:at } })).toBe(true)
+    expect(await store.finalize({ eventId:conflict.eventId,leaseToken:conflictClaim!.leaseToken,observation:{ ...paymentProvenance('pay-1'),referenceType:'payment',referenceId:'pay-1',providerStatus:'Failed',statusUpdatedAt:at,verifiedAt:at } })).toBe(true)
     expect((await pool.query('SELECT status,last_error FROM blinkpay_webhook_events WHERE id=$1',[conflict.eventId])).rows[0]).toMatchObject({ status:'quarantined',last_error:'provider-observation-conflict' })
     const newer = await record('evt-terminal-4')
     const newerClaim = await store.claim(newer.eventId,new Date(at.getTime()+1000))
-    await store.finalize({ eventId:newer.eventId,leaseToken:newerClaim!.leaseToken,observation:{ referenceType:'payment',referenceId:'pay-1',providerStatus:'Failed',statusUpdatedAt:new Date(at.getTime()+1000),verifiedAt:new Date(at.getTime()+1000) } })
+    await store.finalize({ eventId:newer.eventId,leaseToken:newerClaim!.leaseToken,observation:{ ...paymentProvenance('pay-1'),referenceType:'payment',referenceId:'pay-1',providerStatus:'Failed',statusUpdatedAt:new Date(at.getTime()+1000),verifiedAt:new Date(at.getTime()+1000) } })
     expect((await pool.query('SELECT status FROM giving_gifts WHERE id=$1',[seeded.giftId])).rows[0].status).toBe('settled')
 
     await pool.query(`INSERT INTO giving_gifts(context_key,environment,synthetic,checkout_id,giver_id,fund_id,fund_name,fund_code,fund_accounting_key,amount_minor,provider_payment_id,status) VALUES('production','production',false,$1,$2,1,'General','GEN','general',2500,'pay-cancel','pending')`,[seeded.checkoutId,seeded.giverId])
+    await pool.query("UPDATE giving_gifts SET consent_id=$1 WHERE provider_payment_id='pay-cancel'",[seeded.consentId])
     const cancelled = await record('evt-cancelled','pay-cancel')
     const cancelledClaim = await store.claim(cancelled.eventId,at)
-    await store.finalize({ eventId:cancelled.eventId,leaseToken:cancelledClaim!.leaseToken,observation:{ referenceType:'payment',referenceId:'pay-cancel',providerStatus:'Cancelled',statusUpdatedAt:at,verifiedAt:at } })
+    await store.finalize({ eventId:cancelled.eventId,leaseToken:cancelledClaim!.leaseToken,observation:{ ...paymentProvenance('pay-cancel'),referenceType:'payment',referenceId:'pay-cancel',providerStatus:'Cancelled',statusUpdatedAt:at,verifiedAt:at } })
     expect((await pool.query("SELECT status FROM giving_gifts WHERE provider_payment_id='pay-cancel'")).rows[0].status).toBe('cancelled')
     const cancelledRegression = await record('evt-cancelled-regression','pay-cancel')
     const cancelledRegressionClaim = await store.claim(cancelledRegression.eventId,new Date(at.getTime()+1000))
-    await store.finalize({ eventId:cancelledRegression.eventId,leaseToken:cancelledRegressionClaim!.leaseToken,observation:{ referenceType:'payment',referenceId:'pay-cancel',providerStatus:'AcceptedSettlementCompleted',statusUpdatedAt:new Date(at.getTime()+1000),verifiedAt:new Date(at.getTime()+1000) } })
+    await store.finalize({ eventId:cancelledRegression.eventId,leaseToken:cancelledRegressionClaim!.leaseToken,observation:{ ...paymentProvenance('pay-cancel'),referenceType:'payment',referenceId:'pay-cancel',providerStatus:'AcceptedSettlementCompleted',statusUpdatedAt:new Date(at.getTime()+1000),verifiedAt:new Date(at.getTime()+1000) } })
     expect((await pool.query("SELECT status FROM giving_gifts WHERE provider_payment_id='pay-cancel'")).rows[0].status).toBe('cancelled')
 
     const consent = await pool.query<{id:number}>(`INSERT INTO giving_consents(context_key,environment,synthetic,checkout_id,giver_id,provider_consent_id,status,provider_status,provider_status_updated_at) VALUES('production','production',false,$1,$2,'consent-terminal','failed','Failed',$3) RETURNING id`,[seeded.checkoutId,seeded.giverId,at])

@@ -48,6 +48,8 @@ export interface MemberGivingActivity {
 }
 
 export interface MemberGiftHistoryItem {
+  refundedMinor: number | null
+  refundPendingMinor: number | null
   id: number
   amountMinor: number
   transactionFeeMinor: number
@@ -129,7 +131,7 @@ export async function getMemberGiftHistoryPage(
         AND (($3=false AND giver.rock_person_alias_id=$4) OR ($3=true AND lower(giver.email)=lower($5)))
     `, [scope.contextKey, scope.environment, scope.synthetic, actor.rockPersonAliasId, actor.email ?? '']),
     db.query(`
-      SELECT gift.id,gift.amount_minor,gift.transaction_fee_minor,gift.fund_name,checkout.frequency,gift.schedule_id,
+      SELECT gift.id,gift.amount_minor,gift.transaction_fee_minor,gift.refunded_minor,gift.refund_pending_minor,gift.fund_name,checkout.frequency,gift.schedule_id,
              COALESCE(gift.provider_observed_at,gift.created_at) completed_at
       FROM giving_gifts gift
       JOIN giving_givers giver ON giver.id=gift.giver_id AND giver.context_key=gift.context_key
@@ -157,6 +159,8 @@ export async function getMemberGiftHistoryPage(
         transactionFeeMinor: amount(row.transaction_fee_minor),
         frequency,
         fundName: text(row.fund_name),
+        refundedMinor: row.refunded_minor == null ? null : Number(row.refunded_minor),
+        refundPendingMinor: row.refund_pending_minor == null ? null : Number(row.refund_pending_minor),
         giftType: recurring ? frequency : 'One-off',
         completedAt: iso(row.completed_at),
       }
