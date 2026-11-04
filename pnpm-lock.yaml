@@ -235,8 +235,8 @@ importers:
         specifier: ^1.20.0
         version: 1.20.0(debug@4.4.3(supports-color@10.2.2))(supports-color@10.2.2)
       blink-debit-api-client-node:
-        specifier: 1.7.4
-        version: 1.7.4(debug@4.4.3(supports-color@10.2.2))(supports-color@10.2.2)
+        specifier: 1.7.6
+        version: 1.7.6(debug@4.4.3(supports-color@10.2.2))(supports-color@10.2.2)
       canvas-confetti:
         specifier: ^1.9.4
         version: 1.9.4
@@ -2566,8 +2566,8 @@ packages:
   blake3-wasm@2.1.5:
     resolution: {integrity: sha512-F1+K8EbfOZE49dtoPtmxUQrpXaBIl3ICvasLh+nJta0xkz+9kF/7uet9fLnwKqhDrmj6g+6K3Tw9yQPUg2ka5g==}
 
-  blink-debit-api-client-node@1.7.4:
-    resolution: {integrity: sha512-YjRNP/1c8Aqs3MYfxkMQg7NaxSu9+ANQGf2WZ5adaDXZqhfQgrVHNxs28ubsVM9ZcMXgM2yqBKWggNQpluPLAA==}
+  blink-debit-api-client-node@1.7.6:
+    resolution: {integrity: sha512-v9I4Zik2ku7jWl6NfSTIoTL3oLOFwwra8uMr2BCztOE9bpsVEIfPeqR7hEEOvAsylF7LmeKvqK1spWJONnD9Iw==}
 
   body-parser@2.4.0:
     resolution: {integrity: sha512-Ifk1KcLrxaGt1occQagQNFNNOqRt1LFuehEnHHzB8Z6cRgIxRU1TBaiIsUiCdA+gy5PL7Y1IX31DNKkRmxtXjQ==}
@@ -2839,10 +2839,6 @@ packages:
 
   dompurify@3.4.17:
     resolution: {integrity: sha512-B/pSlYVHQ58kqISD/yDjuJ1yfzI34m1gF4lAod2bwSRhiN4K5Cl3H8Af7hqB2PmTL911tdEudnnXn5FnhRoz0w==}
-
-  dotenv@17.4.2:
-    resolution: {integrity: sha512-nI4U3TottKAcAD9LLud4Cb7b2QztQMUEfHbvhTH09bqXTxnSie8WnjPALV/WMCrJZ6UV/qHJ6L03OqO3LcdYZw==}
-    engines: {node: '>=12'}
 
   dotenv@18.0.9:
     resolution: {integrity: sha512-3fVOW4cB02R066PUSwn8O4TJyz9NckQl7F81blIbaq9jKBm2tSmOKky7ZHIXzGvkVPXCSn6jkpziBPZdGFs8Tw==}
@@ -7204,12 +7200,12 @@ snapshots:
 
   blake3-wasm@2.1.5: {}
 
-  blink-debit-api-client-node@1.7.4(debug@4.4.3(supports-color@10.2.2))(supports-color@10.2.2):
+  blink-debit-api-client-node@1.7.6(debug@4.4.3(supports-color@10.2.2))(supports-color@10.2.2):
     dependencies:
       axios: 1.20.0(debug@4.4.3(supports-color@10.2.2))(supports-color@10.2.2)
       class-transformer: 0.5.1
       cockatiel: 3.2.1
-      dotenv: 17.4.2
+      dotenv: 18.0.9
       humps: 2.0.1
       loglevel: 1.9.2
       luxon: 3.7.2
@@ -7461,8 +7457,6 @@ snapshots:
   dompurify@3.4.17:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
-
-  dotenv@17.4.2: {}
 
   dotenv@18.0.9: {}
 
