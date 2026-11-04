@@ -168,7 +168,7 @@ overrides:
   undici@>=7.29.0 <7.30.1: 8.12.3
   jsdom>undici: 8.12.2
   '@payloadcms/plugin-mcp>@modelcontextprotocol/sdk': 1.32.2
-  mcp-handler>@modelcontextprotocol/sdk: 1.32.1
+  mcp-handler>@modelcontextprotocol/sdk: 1.32.2
   express@5.2.1>proxy-addr: 2.0.8
   js-yaml@4.3.1: 5.5.0
   dompurify@<3.4.17: 3.4.17
@@ -3745,7 +3745,7 @@ packages:
     resolution: {integrity: sha512-MVCES7g18gcoZy+R/3v5nadkUMzMAWdos8jRl6DyljOKvd2/ZKDmwlCjL6zp4vo+7FeCXOYL1uWinHWlkKAAUg==}
     hasBin: true
     peerDependencies:
-      '@modelcontextprotocol/sdk': 1.32.1
+      '@modelcontextprotocol/sdk': 1.32.2
       next: '>=13.0.0'
     peerDependenciesMeta:
       next:
