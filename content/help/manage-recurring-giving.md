@@ -2,6 +2,10 @@
 
 [Open your giving](/members/giving) and sign in. You can view your recurring arrangements and confirmed gift history.
 
+**Gift history** includes website payments and donations recorded against your profile in Ev’s giving records, including manual bank transfers and earlier gifts. Donations appear once they have been recorded; choosing **I’ve set this up** for a manual transfer does not confirm a received gift.
+
+These donations appear in **Gift history** only. Your **Recurring gifts** section shows arrangements managed through the website. If some donations could not be loaded, refresh the page to try again.
+
 ## Update a card
 
 For a card arrangement, open **Recurring gift options** and choose **Update card**. Complete the secure Stripe page, then return to your giving. This keeps the gift amount, fund and frequency unchanged. Updating a card does not restart a stopped arrangement.

@@ -266,17 +266,17 @@ export function MemberGiving({ initialOverview }: { initialOverview: MemberGivin
   const [historyError, setHistoryError] = useState(false)
   const [historyLoading, setHistoryLoading] = useState(false)
   const hasAnyGiving = recurringGifts.length > 0 || recentActivity.length > 0 || history.gifts.length > 0
-  const showHistory = history.gifts.length > 0
+  const showHistory = history.gifts.length > 0 || history.rockUnavailable
 
   const emptyMessage = useMemo(() => {
-    if (hasAnyGiving) return null
+    if (hasAnyGiving || history.rockUnavailable) return null
     return (
       <section className="rounded-xl border border-warm-grey bg-white p-8 text-center shadow-sm shadow-brand-black/5">
-        <h2 className="text-3xl leading-tight text-brand-black">You don&apos;t have any online giving history yet</h2>
+        <h2 className="text-3xl leading-tight text-brand-black">You don&apos;t have any gift history yet</h2>
         <div className="mt-6"><StartGivingButton /></div>
       </section>
     )
-  }, [hasAnyGiving])
+  }, [hasAnyGiving, history.rockUnavailable])
 
   async function loadPage(page: number) {
     if (page === history.page || historyLoading) return
@@ -331,7 +331,7 @@ export function MemberGiving({ initialOverview }: { initialOverview: MemberGivin
       <div className="space-y-8">
         {emptyMessage}
 
-        {hasAnyGiving && (
+        {(hasAnyGiving || history.rockUnavailable) && (
           <>
             <section>
               <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -382,6 +382,7 @@ export function MemberGiving({ initialOverview }: { initialOverview: MemberGivin
             {showHistory && (
               <section>
                 <h2 className="mb-4 text-2xl leading-tight text-brand-black">Gift history</h2>
+                {history.rockUnavailable && <p role="status" className="mb-4 text-sm text-mid-grey">Some donations couldn’t be loaded. Refresh the page to try again.</p>}
                 <div className="divide-y divide-warm-grey rounded-xl border border-warm-grey bg-white shadow-sm shadow-brand-black/5">
                   {history.gifts.map((gift) => (
                     <div key={gift.id} className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_auto] sm:items-center">

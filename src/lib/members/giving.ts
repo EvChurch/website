@@ -4,6 +4,7 @@ import { createGivingRockClient } from '@/lib/giving/rock-client'
 import { configuredGivingEnvironment } from '@/lib/giving/availability'
 import { requireGivingPostgresPool } from '@/lib/giving/postgres'
 import { getPayloadClient } from '@/lib/payload'
+import { getRockDonationHistory } from './rock-donations'
 
 export const MEMBER_GIFT_HISTORY_PAGE_SIZE = 25
 export const MEMBER_RECENT_GIVING_LIMIT = 3
@@ -50,7 +51,7 @@ export interface MemberGivingActivity {
 export interface MemberGiftHistoryItem {
   refundedMinor: number | null
   refundPendingMinor: number | null
-  id: number
+  id: number | string
   amountMinor: number
   transactionFeeMinor: number
   frequency: string
@@ -60,6 +61,7 @@ export interface MemberGiftHistoryItem {
 }
 
 export interface MemberGiftHistoryPage {
+  rockUnavailable?: boolean
   page: number
   pageSize: number
   totalPages: number
@@ -119,19 +121,8 @@ export async function getMemberGiftHistoryPage(
   const scope = memberGivingScope()
   const currentPage = positivePage(page)
   const offset = (currentPage - 1) * MEMBER_GIFT_HISTORY_PAGE_SIZE
-  const [countResult, giftResult] = await Promise.all([
-    db.query<{ count: string }>(`
-      SELECT count(*)::text count
-      FROM giving_gifts gift
-      JOIN giving_givers giver ON giver.id=gift.giver_id AND giver.context_key=gift.context_key
-      WHERE gift.context_key=$1
-        AND gift.environment=$2
-        AND gift.synthetic=$3
-        AND gift.status='settled'
-        AND (($3=false AND giver.rock_person_alias_id=$4) OR ($3=true AND lower(giver.email)=lower($5)))
-    `, [scope.contextKey, scope.environment, scope.synthetic, actor.rockPersonAliasId, actor.email ?? '']),
-    db.query(`
-      SELECT gift.id,gift.amount_minor,gift.transaction_fee_minor,gift.refunded_minor,gift.refund_pending_minor,gift.fund_name,checkout.frequency,gift.schedule_id,
+  const giftResult = await db.query(`
+      SELECT gift.id,gift.provider_payment_id,gift.provider_charge_id,gift.provider_invoice_id,gift.amount_minor,gift.transaction_fee_minor,gift.refunded_minor,gift.refund_pending_minor,gift.fund_name,checkout.frequency,gift.schedule_id,
              COALESCE(gift.provider_observed_at,gift.created_at) completed_at
       FROM giving_gifts gift
       JOIN giving_givers giver ON giver.id=gift.giver_id AND giver.context_key=gift.context_key
@@ -142,29 +133,40 @@ export async function getMemberGiftHistoryPage(
         AND gift.status='settled'
         AND (($3=false AND giver.rock_person_alias_id=$4) OR ($3=true AND lower(giver.email)=lower($5)))
       ORDER BY COALESCE(gift.provider_observed_at,gift.created_at) DESC, gift.id DESC
-      LIMIT $6 OFFSET $7
-    `, [scope.contextKey, scope.environment, scope.synthetic, actor.rockPersonAliasId, actor.email ?? '', MEMBER_GIFT_HISTORY_PAGE_SIZE, offset]),
-  ])
-  const total = Number(countResult.rows[0]?.count ?? 0)
+    `, [scope.contextKey, scope.environment, scope.synthetic, actor.rockPersonAliasId, actor.email ?? ''])
+  const gifts: MemberGiftHistoryItem[] = giftResult.rows.map((row) => {
+    const frequency = text(row.frequency)
+    const recurring = text(row.frequency) !== 'one-off'
+    return {
+      id: Number(row.id),
+      amountMinor: amount(row.amount_minor),
+      transactionFeeMinor: amount(row.transaction_fee_minor),
+      refundedMinor: row.refunded_minor == null ? null : Number(row.refunded_minor),
+      refundPendingMinor: row.refund_pending_minor == null ? null : Number(row.refund_pending_minor),
+      frequency,
+      fundName: text(row.fund_name),
+      giftType: recurring ? frequency : 'One-off',
+      completedAt: iso(row.completed_at),
+    }
+  })
+  let rockUnavailable = false
+  if (!scope.synthetic) {
+    const websitePaymentIds = new Set<string>(giftResult.rows
+      .flatMap(row => [text(row.provider_payment_id), text(row.provider_charge_id), text(row.provider_invoice_id)]).filter(Boolean))
+    try {
+      gifts.push(...await getRockDonationHistory(actor.rockPersonId, websitePaymentIds))
+    } catch {
+      rockUnavailable = true
+    }
+  }
+  gifts.sort((a, b) => Date.parse(b.completedAt) - Date.parse(a.completedAt)
+    || String(b.id).localeCompare(String(a.id), 'en', { numeric: true }))
   return {
     page: currentPage,
     pageSize: MEMBER_GIFT_HISTORY_PAGE_SIZE,
-    totalPages: Math.max(1, Math.ceil(total / MEMBER_GIFT_HISTORY_PAGE_SIZE)),
-    gifts: giftResult.rows.map((row) => {
-      const frequency = text(row.frequency)
-      const recurring = text(row.frequency) !== 'one-off'
-      return {
-        id: Number(row.id),
-        amountMinor: amount(row.amount_minor),
-        transactionFeeMinor: amount(row.transaction_fee_minor),
-        frequency,
-        fundName: text(row.fund_name),
-        refundedMinor: row.refunded_minor == null ? null : Number(row.refunded_minor),
-        refundPendingMinor: row.refund_pending_minor == null ? null : Number(row.refund_pending_minor),
-        giftType: recurring ? frequency : 'One-off',
-        completedAt: iso(row.completed_at),
-      }
-    }),
+    totalPages: Math.max(1, Math.ceil(gifts.length / MEMBER_GIFT_HISTORY_PAGE_SIZE)),
+    gifts: gifts.slice(offset, offset + MEMBER_GIFT_HISTORY_PAGE_SIZE),
+    ...(rockUnavailable ? { rockUnavailable: true } : {}),
   }
 }
 
