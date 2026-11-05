@@ -2,7 +2,7 @@
 
 [Open your giving](/members/giving) and sign in. You can view your recurring arrangements and confirmed gift history.
 
-**Gift history** includes website payments and donations recorded against your profile in Ev’s giving records, including manual bank transfers and earlier gifts. Donations appear once they have been recorded; choosing **I’ve set this up** for a manual transfer does not confirm a received gift.
+**Gift history** includes website payments and donations recorded against your profile in Ev’s giving records, including manual bank transfers and earlier gifts. A website payment that can be uniquely matched to its recorded donation appears once, with its website gift amount and fee shown separately. Donations appear once they have been recorded; choosing **I’ve set this up** for a manual transfer does not confirm a received gift.
 
 These donations appear in **Gift history** only. Your **Recurring gifts** section shows arrangements managed through the website. If some donations could not be loaded, refresh the page to try again.
 

@@ -154,7 +154,10 @@ export async function getMemberGiftHistoryPage(
     const websitePaymentIds = new Set<string>(giftResult.rows
       .flatMap(row => [text(row.provider_payment_id), text(row.provider_charge_id), text(row.provider_invoice_id)]).filter(Boolean))
     try {
-      gifts.push(...await getRockDonationHistory(actor.rockPersonId, websitePaymentIds))
+      gifts.push(...await getRockDonationHistory(actor.rockPersonId, websitePaymentIds, gifts.map((gift, index) => ({
+        ...gift,
+        paymentIds: [text(giftResult.rows[index].provider_payment_id), text(giftResult.rows[index].provider_charge_id), text(giftResult.rows[index].provider_invoice_id)].filter(Boolean),
+      }))))
     } catch {
       rockUnavailable = true
     }
