@@ -114,7 +114,7 @@ describe('member giving overview', () => {
     expect(overview.giftHistory.totalPages).toBe(2)
     expect(overview.giftHistory.gifts).toHaveLength(25)
     expect(overview.giftHistory.gifts[0].id).toBe(9)
-    expect(getRockDonationHistory).toHaveBeenCalledWith(actor.rockPersonId, new Set(['payment-9', 'charge-9', 'invoice-9']))
+    expect(getRockDonationHistory).toHaveBeenCalledWith(actor.rockPersonId, new Set(['payment-9', 'charge-9', 'invoice-9']), expect.any(Array))
     const second = await getMemberGiftHistoryPage(actor, 2, pool)
     expect(second.gifts).toHaveLength(1)
     expect(second.gifts[0].id).not.toBe(9)
