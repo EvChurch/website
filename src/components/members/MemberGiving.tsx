@@ -162,7 +162,7 @@ function Pagination({
   if (totalPages <= 1) return null
   const buttonClass = 'flex h-10 w-10 items-center justify-center rounded-full border border-warm-grey text-sm font-bold text-brand-black transition hover:border-rich-red hover:text-rich-red disabled:cursor-not-allowed disabled:opacity-40'
   return (
-    <nav aria-label="Gift history pages" className="mt-6 flex flex-wrap items-center gap-2">
+    <nav aria-label="Gift history pages" className="mt-6 flex flex-wrap items-center justify-center gap-2">
       <button type="button" className={buttonClass} disabled={loading || page === 1} onClick={() => onPage(1)} aria-label="First page">
         <HiChevronDoubleLeft aria-hidden="true" className="h-4 w-4" />
       </button>
