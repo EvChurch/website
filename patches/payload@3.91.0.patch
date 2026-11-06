@@ -1,0 +1,25 @@
+diff --git a/dist/queues/utilities/updateJob.js b/dist/queues/utilities/updateJob.js
+index 5e5137ed2f9f5a9051b00f9a470ca6ab23f74104..cc675189d2567fcdb6e1b597468052b01c041ec4 100644
+--- a/dist/queues/utilities/updateJob.js
++++ b/dist/queues/utilities/updateJob.js
+@@ -70,9 +70,17 @@ import { getCurrentDate } from './getCurrentDate.js';
+         sort,
+         where: where
+     };
+-    const updatedJobs = await req.payload.db.updateJobs(args);
+-    if (req.payload.db.name !== 'mongoose' && jobReq.transactionID) {
+-        await req.payload.db.commitTransaction(jobReq.transactionID);
++    let updatedJobs;
++    try {
++        updatedJobs = await req.payload.db.updateJobs(args);
++        if (req.payload.db.name !== 'mongoose' && jobReq.transactionID) {
++            await req.payload.db.commitTransaction(jobReq.transactionID);
++        }
++    } catch (error) {
++        if (req.payload.db.name !== 'mongoose' && jobReq.transactionID) {
++            await req.payload.db.rollbackTransaction(jobReq.transactionID);
++        }
++        throw error;
+     }
+     if (returning === false || !updatedJobs?.length) {
+         return null;
