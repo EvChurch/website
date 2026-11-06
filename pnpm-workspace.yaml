@@ -44,3 +44,6 @@ overrides:
   'qs@6.15.3': 6.16.1
   '@esbuild-kit/core-utils@3.3.2>esbuild': 0.28.2
   'vite>esbuild': 0.28.2
+
+patchedDependencies:
+  payload@3.91.0: patches/payload@3.91.0.patch

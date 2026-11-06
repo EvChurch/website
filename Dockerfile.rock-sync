@@ -9,6 +9,7 @@ ENV SSL_CERT_DIR=/usr/local/share/security-ca/certs NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY workers/rock-image-proxy/package.json workers/rock-image-proxy/package.json
+COPY patches/ patches/
 RUN pnpm install --frozen-lockfile
 COPY . .
 RUN S3_BUCKET=synthetic-ci-typecheck S3_ENDPOINT=http://127.0.0.1:57151 \
