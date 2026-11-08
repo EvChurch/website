@@ -72,7 +72,7 @@
     "zustand": "5.0.15"
   },
   "devDependencies": {
-    "@payloadcms/ui": "3.91.0",
+    "@payloadcms/ui": "3.93.0",
     "@types/canvas-confetti": "^1.9.0",
     "@types/jsdom": "^30.0.0",
     "@types/node": "26.6.6",
@@ -87,7 +87,7 @@
     "eslint": "10.14.0",
     "sass": "1.107.1",
     "typescript": "npm:@typescript/typescript6@6.0.2",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "packageManager": "pnpm@12.14.0"
 }
