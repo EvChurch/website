@@ -6,7 +6,7 @@ node --input-type=module - <<'JS'
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {mkdtempSync,writeFileSync,rmSync} from 'node:fs';
-assert.equal(process.version,'v24.22.1');
+assert.equal(process.version,'v24.22.3');
 const hosts=['dv-g3b-emudhra.we-have-a-problem.com','dv-g3b-aaa-emudhra.we-have-a-problem.com'];
 for(const host of hosts)await assert.rejects(fetch('https://'+host+'/',{signal:AbortSignal.timeout(10000)}),e=>e.cause?.code==='CERT_REVOKED');
 assert.equal((await fetch('https://www.google.com/generate_204',{signal:AbortSignal.timeout(10000)})).status,204);
