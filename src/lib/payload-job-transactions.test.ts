@@ -64,6 +64,16 @@ describe('Payload job transaction cleanup', () => {
     expect(db.commitTransaction).not.toHaveBeenCalled()
   })
 
+  it('rolls back and preserves the original error when commit fails', async () => {
+    const { db, openTransactions, update } = fixture()
+    const failure = new Error('Synthetic commit failure')
+    db.commitTransaction.mockRejectedValue(failure)
+
+    await expect(update()).rejects.toBe(failure)
+    expect(db.rollbackTransaction).toHaveBeenCalledExactlyOnceWith('1')
+    expect(openTransactions.size).toBe(0)
+  })
+
   it('commits successful updates without rolling back', async () => {
     const { db, openTransactions, update } = fixture()
     await update()
