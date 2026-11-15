@@ -27,10 +27,10 @@
     "node": "24.22.3"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "1.7.0",
+    "@anthropic-ai/sdk": "1.8.0",
     "@auth0/nextjs-auth0": "^4.33.0",
-    "@aws-sdk/client-s3": "^3.1164.0",
-    "@aws-sdk/s3-request-presigner": "^3.1164.0",
+    "@aws-sdk/client-s3": "^3.1167.0",
+    "@aws-sdk/s3-request-presigner": "^3.1167.0",
     "@iframe-resizer/react": "5.5.9",
     "@payloadcms/db-postgres": "3.93.0",
     "@payloadcms/next": "3.93.0",
@@ -56,7 +56,7 @@
     "pdf-lib": "^1.17.1",
     "pg": "8.23.1",
     "postcss": "8.5.32",
-    "posthog-js": "^1.447.5",
+    "posthog-js": "^1.447.15",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "react-icons": "5.7.0",
