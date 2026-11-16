@@ -70,11 +70,36 @@ describe('member service unavailability route', () => {
     expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0')
   })
 
+  it('passes explicit multi-team selections and partial confirmations without broadening them', async () => {
+    const input = { startDate: '2026-08-20', endDate: '2026-08-22', groupIds: [701, 702], notes: 'Away' }
+    mocks.save.mockResolvedValue({ status: 'partial', confirmedGroupIds: [701] })
+    const response = await POST(request(input))
+    expect(mocks.save).toHaveBeenCalledWith(42, input)
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual({ status: 'partial', confirmedGroupIds: [701] })
+  })
+
+  it('rejects missing session cookies and oversized selections before saving', async () => {
+    const noCookie = request({ groupIds: [701, 702] })
+    noCookie.cookies.delete('__Host-ev_admin_session')
+    expect((await POST(noCookie)).status).toBe(401)
+    expect((await POST(request({ groupIds: Array.from({ length: 2000 }, () => 701) }))).status).toBe(400)
+    expect(mocks.save).not.toHaveBeenCalled()
+  })
+
+  it('requires an authenticated member session for multi-team saves', async () => {
+    mocks.getSession.mockResolvedValue(null)
+    expect((await POST(request({ groupIds: [701, 702] }))).status).toBe(401)
+    mocks.getSession.mockResolvedValue({ user: { sub: 'auth0|42' } })
+    expect((await POST(request({ groupIds: [701, 702] }))).status).toBe(401)
+    expect(mocks.save).not.toHaveBeenCalled()
+  })
+
   it('rejects cross-origin, impersonated, and expanded requests before saving', async () => {
-    expect((await POST(request({}, 'https://example.com'))).status).toBe(400)
+    expect((await POST(request({ groupIds: [701, 702] }, 'https://example.com'))).status).toBe(400)
 
     mocks.getSession.mockResolvedValue(session(true))
-    expect((await POST(request({ startDate: '2026-08-20', endDate: '2026-08-22' }))).status).toBe(403)
+    expect((await POST(request({ startDate: '2026-08-20', endDate: '2026-08-22', groupIds: [701, 702] }))).status).toBe(403)
 
     mocks.getSession.mockResolvedValue(session())
     expect((await POST(request({
@@ -88,6 +113,7 @@ describe('member service unavailability route', () => {
   it.each([
     ['invalid-request', 400],
     ['busy', 429],
+    ['partial', 503],
     ['rock-unavailable', 503],
     ['outcome-unknown', 503],
   ])('maps %s without leaking provider details', async (status, expectedStatus) => {

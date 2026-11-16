@@ -417,6 +417,130 @@ describe('volunteer scheduling adapter', () => {
     })
   })
 
+  describe('multi-team unavailability', () => {
+    const now = new Date('2026-08-18T00:00:00Z')
+    const input = { startDate: '2026-08-20', endDate: '2026-08-22', notes: 'Away' }
+
+    function rockFixture() {
+      const saved: Record<string, unknown>[] = []
+      const writes: number[] = []
+      let failGroup: number | null = null
+      let uncertainGroup: number | null = null
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+        const path = new URL(String(url)).pathname
+        if (path === '/api/People') return response([{ Id: 42, PrimaryAliasId: 142 }])
+        if (path === '/api/GroupMembers') return response([701, 702, 703].map((id) => ({
+          Id: id, PersonId: 42, GroupId: id, GroupMemberStatus: 1, IsArchived: false,
+        })))
+        if (path === '/api/Groups') return response([701, 702, 703].map((id) => ({
+          Id: id, Name: `Team ${id}`, GroupTypeId: 801, IsActive: true, IsArchived: false,
+          DisableScheduling: false, DisableScheduleToolboxAccess: false, Order: id,
+        })))
+        if (path === '/api/GroupTypes') return response([{ Id: 801, IsSchedulingEnabled: true }])
+        if (path === '/api/PersonScheduleExclusions') {
+          if (init?.method === 'POST') {
+            const body = JSON.parse(String(init.body)) as Record<string, unknown>
+            const id = Number(body.GroupId)
+            writes.push(id)
+            if (id === failGroup) throw new Error('Rock timed out before saving')
+            saved.push({ ...body, Id: 900 + id })
+            if (id === uncertainGroup) throw new Error('Rock timed out after saving')
+            return new Response(null, { status: 201 })
+          }
+          return response(saved)
+        }
+        throw new Error(`Unexpected path ${path}`)
+      })
+      return { saved, writes, fetchMock, fail: (id: number | null) => { failGroup = id }, uncertain: (id: number) => { uncertainGroup = id } }
+    }
+
+    it.each([[701, 702], [701, 702, 703]])('saves only explicit eligible teams %j and reuses matches on retry', async (...ids) => {
+      const fixture = rockFixture()
+      // Include unrelated global and child exclusions: neither is a matching team exclusion.
+      fixture.saved.push(
+        { Id: 1, PersonAliasId: 142, StartDate: input.startDate, EndDate: input.endDate, GroupId: null, Title: 'Away' },
+        { Id: 2, PersonAliasId: 142, StartDate: input.startDate, EndDate: input.endDate, GroupId: 701, Title: 'Away', ParentPersonScheduleExclusionId: 1 },
+      )
+      const selection = [...ids, ids[0]]
+      await expect(saveVolunteerScheduleUnavailability(42, { ...input, groupIds: selection }, now)).resolves.toEqual({ status: 'saved' })
+      expect(fixture.writes).toEqual(ids)
+      await expect(saveVolunteerScheduleUnavailability(42, { ...input, groupIds: selection }, now)).resolves.toEqual({ status: 'saved' })
+      expect(fixture.writes).toEqual(ids)
+      expect(fixture.saved.slice(2).map((row) => row.GroupId)).toEqual(ids)
+      expect(fixture.saved.every((row) => row.PersonAliasId === 142)).toBe(true)
+    })
+
+    it('validates every selected team before any external write', async () => {
+      const fixture = rockFixture()
+      await expect(saveVolunteerScheduleUnavailability(42, { ...input, groupIds: [701, 999] }, now)).resolves.toEqual({ status: 'invalid-request' })
+      expect(fixture.writes).toEqual([])
+    })
+
+    it.each([[], [0], [-1], ['701'], [null], null, 'all', Array.from({ length: 101 }, () => 701)].map((groupIds) => [groupIds]))('rejects an invalid or unbounded selection %j before Rock reads', async (groupIds) => {
+      const fixture = rockFixture()
+      await expect(saveVolunteerScheduleUnavailability(42, { ...input, groupIds }, now)).resolves.toEqual({ status: 'invalid-request' })
+      expect(fixture.fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('rejects ambiguous team contracts and invalid person or dates before writes', async () => {
+      const fixture = rockFixture()
+      for (const value of [
+        { ...input, groupIds: [701], groupId: 702 },
+        { ...input, groupIds: [701], startDate: '2026-08-17' },
+        { ...input, groupIds: [701], endDate: '2026-08-19' },
+      ]) await expect(saveVolunteerScheduleUnavailability(42, value, now)).resolves.toEqual({ status: 'invalid-request' })
+      await expect(saveVolunteerScheduleUnavailability(0, { ...input, groupIds: [701] }, now)).resolves.toEqual({ status: 'invalid-request' })
+      expect(fixture.fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('reports confirmed teams after partial saves, then retries only missing teams', async () => {
+      const fixture = rockFixture()
+      fixture.fail(702)
+      const selection = { ...input, groupIds: [701, 702, 703] }
+      await expect(saveVolunteerScheduleUnavailability(42, selection, now)).resolves.toEqual({ status: 'partial', confirmedGroupIds: [701] })
+      expect(fixture.writes).toEqual([701, 702])
+      fixture.fail(null)
+      await expect(saveVolunteerScheduleUnavailability(42, selection, now)).resolves.toEqual({ status: 'saved' })
+      expect(fixture.writes).toEqual([701, 702, 702, 703])
+      expect(fixture.saved.map((row) => row.GroupId)).toEqual([701, 702, 703])
+    })
+
+    it('verifies writes that time out after reaching Rock and does not repeat them', async () => {
+      const fixture = rockFixture()
+      fixture.uncertain(701)
+      const selection = { ...input, groupIds: [701, 702] }
+      await expect(saveVolunteerScheduleUnavailability(42, selection, now)).resolves.toEqual({ status: 'saved' })
+      await expect(saveVolunteerScheduleUnavailability(42, selection, now)).resolves.toEqual({ status: 'saved' })
+      expect(fixture.writes).toEqual([701, 702])
+    })
+
+    it('retains confirmed teams when a later matching read fails, and retries safely', async () => {
+      const fixture = rockFixture()
+      const read = fixture.fetchMock.getMockImplementation()!
+      let exclusionReads = 0
+      fixture.fetchMock.mockImplementation(async (url, init) => {
+        if (new URL(String(url)).pathname === '/api/PersonScheduleExclusions' && init?.method !== 'POST') {
+          exclusionReads += 1
+          if (exclusionReads === 3) throw new Error('Rock read unavailable')
+        }
+        return read(url, init)
+      })
+      const selection = { ...input, groupIds: [701, 702] }
+      await expect(saveVolunteerScheduleUnavailability(42, selection, now)).resolves.toEqual({ status: 'partial', confirmedGroupIds: [701] })
+      expect(fixture.writes).toEqual([701])
+      await expect(saveVolunteerScheduleUnavailability(42, selection, now)).resolves.toEqual({ status: 'saved' })
+      expect(fixture.writes).toEqual([701, 702])
+    })
+
+    it('coordinates multi-team saves with other saves and removals for the same person', async () => {
+      rockFixture()
+      const pending = saveVolunteerScheduleUnavailability(42, { ...input, groupIds: [701, 702] }, now)
+      await expect(saveVolunteerScheduleUnavailability(42, { ...input, groupId: 703 }, now)).resolves.toEqual({ status: 'busy' })
+      await expect(deleteVolunteerScheduleUnavailability(42, `rock-unavailability:${GUIDS.other}`, now)).resolves.toEqual({ status: 'busy' })
+      await expect(pending).resolves.toEqual({ status: 'saved' })
+    })
+  })
+
   it('removes and verifies a current-person schedule exclusion', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(response([{ Id: 42, PrimaryAliasId: 142 }]))

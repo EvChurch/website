@@ -15,7 +15,7 @@ const PRIVATE_HEADERS = {
   Vary: 'Cookie',
 }
 const SESSION_COOKIE_NAMES = ['__Host-ev_admin_session', 'ev_admin_session'] as const
-const MAX_BODY_BYTES = 1_024
+const MAX_BODY_BYTES = 4_096
 
 function json(body: unknown, status: number, extraHeaders?: Record<string, string>) {
   return NextResponse.json(body, {
@@ -35,13 +35,14 @@ function hasSessionCookie(request: NextRequest) {
 function parseInput(value: unknown) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const input = value as Record<string, unknown>
-  if (Object.keys(input).some((key) => !['startDate', 'endDate', 'groupId', 'notes'].includes(key))) {
+  if (Object.keys(input).some((key) => !['startDate', 'endDate', 'groupId', 'groupIds', 'notes'].includes(key))) {
     return null
   }
   return {
     startDate: input.startDate,
     endDate: input.endDate,
-    groupId: input.groupId,
+    ...(input.groupId !== undefined ? { groupId: input.groupId } : {}),
+    ...(input.groupIds !== undefined ? { groupIds: input.groupIds } : {}),
     notes: input.notes,
   }
 }

@@ -87,6 +87,7 @@ export type VolunteerScheduleGroupsResult =
 
 export type VolunteerScheduleUnavailabilityResult =
   | { status: 'saved' }
+  | { status: 'partial'; confirmedGroupIds: number[] }
   | { status: 'invalid-request' | 'busy' | 'rock-unavailable' | 'outcome-unknown' }
 
 export type VolunteerScheduleUnavailabilityDeleteResult =
@@ -1240,12 +1241,20 @@ export async function saveVolunteerScheduleUnavailability(
     startDate: unknown
     endDate: unknown
     groupId?: unknown
+    groupIds?: unknown
     notes?: unknown
   },
   now = new Date(),
 ): Promise<VolunteerScheduleUnavailabilityResult> {
   const notes = normalizedUnavailabilityNotes(input.notes ?? '')
-  const groupId = input.groupId
+  // Keep the single-team contract for existing callers; never accept both forms.
+  const selection = input.groupIds ?? (input.groupId === undefined ? [] : [input.groupId])
+  if (
+    (input.groupIds !== undefined && input.groupId !== undefined) ||
+    !Array.isArray(selection) || selection.length === 0 || selection.length > 100 ||
+    !selection.every(isPositiveInteger)
+  ) return { status: 'invalid-request' }
+  const groupIds = [...new Set<number>(selection)]
   if (
     !isPositiveInteger(personId) ||
     !Number.isFinite(now.getTime()) ||
@@ -1253,7 +1262,6 @@ export async function saveVolunteerScheduleUnavailability(
     !isCalendarDate(input.endDate) ||
     input.startDate > input.endDate ||
     input.startDate < aucklandDate(now) ||
-    !isPositiveInteger(groupId) ||
     notes === null
   ) return { status: 'invalid-request' }
   if (unavailabilityWrites.has(personId)) return { status: 'busy' }
@@ -1265,32 +1273,44 @@ export async function saveVolunteerScheduleUnavailability(
     const personAliasId = await loadPrimaryAliasId(config, personId, operationSignal)
 
     const groups = await loadVolunteerScheduleGroups(config, personId, operationSignal)
-    if (!groups.some(({ id }) => id === groupId)) return { status: 'invalid-request' }
-    const exclusion = {
-      personAliasId,
-      startDate: input.startDate,
-      endDate: input.endDate,
-      groupId,
-      notes,
+    // Validate the complete selection before the first external write.
+    if (!groupIds.every((id) => groups.some((group) => group.id === id))) {
+      return { status: 'invalid-request' }
     }
-    if (await matchingUnavailabilityExists(config, exclusion, operationSignal)) {
-      return { status: 'saved' }
+    const confirmedGroupIds: number[] = []
+    const incomplete = (): VolunteerScheduleUnavailabilityResult => confirmedGroupIds.length
+      ? { status: 'partial', confirmedGroupIds }
+      : { status: 'outcome-unknown' }
+    for (const groupId of groupIds) {
+      const exclusion = {
+        personAliasId,
+        startDate: input.startDate,
+        endDate: input.endDate,
+        groupId,
+        notes,
+      }
+      try {
+        // Re-read on every attempt, including retries after a partial save.
+        if (!await matchingUnavailabilityExists(config, exclusion, operationSignal)) {
+          try {
+            await schedulingCreateExclusion(config, exclusion, operationSignal)
+          } catch {
+            // A timed-out write can still have reached Rock. Verify before retrying.
+          }
+          if (!await matchingUnavailabilityExists(
+            config,
+            exclusion,
+            AbortSignal.timeout(OPERATION_TIMEOUT_MS),
+          )) return incomplete()
+        }
+        confirmedGroupIds.push(groupId)
+      } catch {
+        return incomplete()
+      }
+      // Bound the batch by the existing operation budget, including on slow Rock reads.
+      if (operationSignal.aborted && confirmedGroupIds.length < groupIds.length) return incomplete()
     }
-
-    try {
-      await schedulingCreateExclusion(config, exclusion, operationSignal)
-    } catch {
-      // A timed-out write can still have reached Rock. Verify before reporting failure.
-    }
-    try {
-      return await matchingUnavailabilityExists(
-        config,
-        exclusion,
-        AbortSignal.timeout(OPERATION_TIMEOUT_MS),
-      ) ? { status: 'saved' } : { status: 'outcome-unknown' }
-    } catch {
-      return { status: 'outcome-unknown' }
-    }
+    return { status: 'saved' }
   } catch {
     return { status: 'rock-unavailable' }
   } finally {

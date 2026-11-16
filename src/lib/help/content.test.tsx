@@ -29,7 +29,7 @@ describe('help content and access', () => {
     for (const article of articles) {
       expect(article.body).toContain('## ')
       const links = [...article.body.matchAll(/(?<!!)\[[^\]]+\]\(([^)]+)\)/g)].map(match => match[1])
-      for (const link of links) expect(['/contact', '/give', '/members/giving', '/admin', '/api/admin/giving/export', '/api/v1/docs', '/api/v1/openapi.json', ...Object.values(reimbursementViewPaths), ...helpArticles.map(item => `/help/${item.slug}`)]).toContain(link)
+      for (const link of links) expect(['/contact', '/members/my-service', '/give', '/members/giving', '/admin', '/api/admin/giving/export', '/api/v1/docs', '/api/v1/openapi.json', ...Object.values(reimbursementViewPaths), ...helpArticles.map(item => `/help/${item.slug}`)]).toContain(link)
       const images = [...article.body.matchAll(/!\[[^\]]+\]\(([^)]+)\)/g)].map(match => match[1])
       if (article.topic==='Reimbursements') expect(images.length).toBeGreaterThan(0)
       for (const image of images) {
@@ -52,6 +52,14 @@ describe('help content and access', () => {
     expect(searchHelpArticles(articles, 'confirm payment', 'Reimbursements', 'Finance').map(article => article.slug)).toEqual(['finance-reimbursements'])
     expect(searchHelpArticles(articles, 'camera', '', 'Finance')).toEqual([])
     expect(searchHelpArticles(articles, 'no-such-answer')).toEqual([])
+  })
+  it('finds the serving guide in member search and links to My Service', async () => {
+    expect(searchHelpArticles(await listHelpArticles(true), 'Select all', 'Serving').map(article => article.slug)).toEqual(['schedule-unavailability'])
+    auth.member.mockResolvedValue({ personId: 1 })
+    const markup = renderToStaticMarkup(await HelpArticlePage({ params: Promise.resolve({ slug: 'schedule-unavailability' }) }))
+    expect(markup).toContain('href="/members/my-service"')
+    expect(markup).toContain('Open My Service')
+    expect(markup).toContain('Serving teams')
   })
   it('does not read or expose restricted content in public search or metadata', async () => {
     helpArticles.push({ slug: 'internal-only', title: 'Private operational detail', description: 'Private description', audience: 'Finance', topic: 'Internal', access: 'members' })
