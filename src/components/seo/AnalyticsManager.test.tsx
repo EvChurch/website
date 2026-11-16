@@ -355,6 +355,7 @@ describe('AnalyticsManager', () => {
   it.each([
     '/give',
     '/give/return/status',
+    '/generosity/calculator',
   ])('does not send giving-private route %s to analytics or replay', async (pathname) => {
     navigation.pathname = pathname
 
@@ -364,6 +365,19 @@ describe('AnalyticsManager', () => {
     expect(posthog.capture).not.toHaveBeenCalled()
     expect(posthog.startSessionRecording).not.toHaveBeenCalled()
     expect(posthog.startExceptionAutocapture).not.toHaveBeenCalled()
+    expect(container.querySelector('[data-ga-path]')).toBeNull()
+  })
+
+  it('stops replay when navigating into the giving calculator', async () => {
+    await act(async () => root.render(<AnalyticsManager />))
+    posthog.stopSessionRecording.mockClear()
+    posthog.stopExceptionAutocapture.mockClear()
+    posthog.capture.mockClear()
+    navigation.pathname = '/generosity/calculator'
+    await act(async () => root.render(<AnalyticsManager />))
+    expect(posthog.stopSessionRecording).toHaveBeenCalledOnce()
+    expect(posthog.stopExceptionAutocapture).toHaveBeenCalledOnce()
+    expect(posthog.capture).not.toHaveBeenCalled()
     expect(container.querySelector('[data-ga-path]')).toBeNull()
   })
 

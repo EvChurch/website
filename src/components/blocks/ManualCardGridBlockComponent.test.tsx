@@ -12,6 +12,13 @@ describe('ManualCardGridBlockComponent', () => {
     vi.unstubAllEnvs()
   })
 
+  it('renders an unavailable card action as a disabled button', () => {
+    const markup = renderToStaticMarkup(<ManualCardGridBlockComponent cardStyle="info" cards={[{ title: 'Go deeper', linkLabel: 'Coming soon' }]} />)
+    expect(markup).toContain('disabled=""')
+    expect(markup).toContain('Coming soon')
+    expect(markup).not.toContain('href=')
+  })
+
   it.each(['imageTop', 'profile'] as const)('only borders opted-in %s card image areas', (cardStyle) => {
     const markup = renderToStaticMarkup(
       <ManualCardGridBlockComponent

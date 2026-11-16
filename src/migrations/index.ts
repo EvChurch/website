@@ -1,3 +1,4 @@
+import * as migration_20261116_010000_generosity_pages from './20261116_010000_generosity_pages';
 import * as migration_20261102_010000_giving_financial_controls from './20261102_010000_giving_financial_controls';
 import * as migration_20261031_010000_stripe_giving from './20261031_010000_stripe_giving';
 import * as migration_20261029_020000_api from './20261029_020000_api';
@@ -390,4 +391,5 @@ export const migrations = [
   { up: migration_20261029_020000_api.up, down: migration_20261029_020000_api.down, name: '20261029_020000_api' },
   { up: migration_20261031_010000_stripe_giving.up, down: migration_20261031_010000_stripe_giving.down, name: '20261031_010000_stripe_giving' },
   { up: migration_20261102_010000_giving_financial_controls.up, down: migration_20261102_010000_giving_financial_controls.down, name: '20261102_010000_giving_financial_controls' },
+  { up: migration_20261116_010000_generosity_pages.up, down: migration_20261116_010000_generosity_pages.down, name: '20261116_010000_generosity_pages' },
 ];

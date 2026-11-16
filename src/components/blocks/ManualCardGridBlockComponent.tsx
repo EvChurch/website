@@ -139,10 +139,9 @@ function InfoCard({ card, index }: { card: ManualCard; index: number }) {
             <ArrowSvg />
           </Link>
         ) : card.linkLabel ? (
-          <span className="mt-auto inline-flex items-center gap-1.5 pt-6 text-sm font-semibold text-rich-red transition-colors group-hover:text-deep-red">
+          <button type="button" disabled className="mt-6 self-start rounded-md bg-warm-grey px-5 py-2.5 text-sm font-semibold text-dark-grey disabled:cursor-not-allowed">
             {card.linkLabel}
-            <ArrowSvg />
-          </span>
+          </button>
         ) : null}
       </div>
     </div>
