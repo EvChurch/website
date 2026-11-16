@@ -35,6 +35,7 @@ async function enter(id: string, value: string) {
 describe('GivingCalculator', () => {
   it('updates giving and next-step figures, then clears everything without transmitting or storing inputs', async () => {
     await act(async () => root.render(<GivingCalculator />))
+    expect(container.querySelector('[data-giving-private]')).not.toBeNull()
     await enter('household-amount', '100000')
     await enter('general-amount', '100')
     expect(container.querySelector('[data-testid="annual-giving"]')!.textContent).toBe('$5,200.00')

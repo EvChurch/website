@@ -97,8 +97,8 @@ export function GivingCalculator() {
   }
 
   return (
-    <div className="ph-no-capture ph-mask" data-private="true">
-      <p className="mb-10 rounded-xl border border-warm-grey bg-white p-5 text-dark-grey">Your figures stay in this calculator on your device. They aren’t saved or sent to us. Refreshing or leaving this page clears them. Enter amounts in NZ dollars, with up to two decimal places.</p>
+    <div className="ph-no-capture ph-mask" data-giving-private="true">
+      <p className="mb-10 rounded-xl border border-warm-grey bg-white p-5 text-dark-grey">Your figures stay in this calculator on your device. They aren’t saved or sent to us. Use Clear all figures or refresh this page to reset them. Enter amounts in NZ dollars, with up to two decimal places.</p>
       <div className="space-y-8">
         <AmountGroup title="Your income" description="Include your household income before tax, plus any other income or support." rows={income} onChange={setIncome} />
         <AmountGroup title="Your local church giving" description="What you currently give to your local church. Choose a frequency for each amount." rows={church} onChange={setChurch} />
