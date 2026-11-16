@@ -120,7 +120,6 @@ async function fetchSitemapSections(): Promise<SitemapSection[]> {
         link('Central events', '/events/central', { changeFrequency: 'weekly', priority: 0.8 }),
         link('Unichurch events', '/events/unichurch', { changeFrequency: 'weekly', priority: 0.8 }),
         link('Blog', '/blog', { changeFrequency: 'weekly', priority: 0.6 }),
-        link('Grow in generosity', '/generosity', { changeFrequency: 'monthly', priority: 0.7 }),
         link('Giving calculator', '/generosity/calculator', { changeFrequency: 'monthly', priority: 0.5 }),
         link('Health and safety', '/hs', { changeFrequency: 'yearly', priority: 0.3 }),
       ],

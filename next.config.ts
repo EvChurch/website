@@ -60,12 +60,6 @@ const nextConfig: NextConfig = {
       },
     ]
   },
-  async rewrites() {
-    return [
-      // Serve Rowan's standalone calculator without the React shell or analytics.
-      { source: '/generosity/calculator', destination: '/generosity/calculator.html' },
-    ]
-  },
   async redirects() {
     return [
       // Retired staging host → canonical production host

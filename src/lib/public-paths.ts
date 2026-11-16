@@ -4,6 +4,7 @@ const ANALYTICS_SENSITIVE_PREFIXES = [
   '/auth',
   '/contact',
   '/give',
+  '/generosity/calculator',
   '/member-auth',
   '/member-avatar',
   '/member-sign-in',
