@@ -29,7 +29,7 @@ describe('help content and access', () => {
     for (const article of articles) {
       expect(article.body).toContain('## ')
       const links = [...article.body.matchAll(/(?<!!)\[[^\]]+\]\(([^)]+)\)/g)].map(match => match[1])
-      for (const link of links) expect(['/contact', '/members/my-service', '/give', '/members/giving', '/admin', '/api/admin/giving/export', '/api/v1/docs', '/api/v1/openapi.json', ...Object.values(reimbursementViewPaths), ...helpArticles.map(item => `/help/${item.slug}`)]).toContain(link)
+      for (const link of links) expect(['/events', '/contact', '/members/my-service', '/give', '/members/giving', '/admin', '/api/admin/giving/export', '/api/v1/docs', '/api/v1/openapi.json', ...Object.values(reimbursementViewPaths), ...helpArticles.map(item => `/help/${item.slug}`)]).toContain(link)
       const images = [...article.body.matchAll(/!\[[^\]]+\]\(([^)]+)\)/g)].map(match => match[1])
       if (article.topic==='Reimbursements') expect(images.length).toBeGreaterThan(0)
       for (const image of images) {
@@ -60,6 +60,15 @@ describe('help content and access', () => {
     expect(markup).toContain('href="/members/my-service"')
     expect(markup).toContain('Open My Service')
     expect(markup).toContain('Serving teams')
+  })
+  it('finds event payment help and links to events without exposing organiser instructions', async () => {
+    const articles = await listHelpArticles(false)
+    expect(searchHelpArticles(articles, 'BlinkPay', 'Events').map(article => article.slug)).toEqual(['pay-for-an-event'])
+    const markup = renderToStaticMarkup(await HelpArticlePage({ params: Promise.resolve({ slug: 'pay-for-an-event' }) }))
+    expect(markup).toContain('href="/events"')
+    expect(markup).toContain('Open events')
+    expect(markup).not.toContain('set-up-event-payments')
+    expect(markup).not.toContain('Open reimbursements')
   })
   it('does not read or expose restricted content in public search or metadata', async () => {
     helpArticles.push({ slug: 'internal-only', title: 'Private operational detail', description: 'Private description', audience: 'Finance', topic: 'Internal', access: 'members' })
