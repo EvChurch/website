@@ -2,7 +2,7 @@
 
 In Rock, use a registration template configured with **Blink Pay** as its financial gateway. The former Simple Donation event templates have been migrated to BlinkPay. Keep using the appropriate template for the event; its questions, prices and financial account still belong to that event.
 
-Simple Donation has been cancelled. Do not select it when creating or copying a template. If creating a new paid template, select **Blink Pay**. This gateway supports one-off NZD bank payments; it does not support cards, saved accounts or automatic instalment plans.
+Simple Donation has been cancelled and its gateway is inactive. If creating a new paid template, select **Blink Pay**. This gateway supports one-off NZD bank payments; it does not support cards, saved accounts or automatic instalment plans.
 
 ## Check each registration instance
 

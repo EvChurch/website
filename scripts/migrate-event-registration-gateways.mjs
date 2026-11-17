@@ -30,11 +30,11 @@ async function request(path, { params = {}, body } = {}) {
   return text ? JSON.parse(text) : undefined
 }
 
-async function all(path) {
+async function all(path, params = {}) {
   const records = []
   const seen = new Set()
   for (let skip = 0; ; skip += 100) {
-    const page = await request(path, { params: { $top: '100', $skip: String(skip), $orderby: 'Id' } })
+    const page = await request(path, { params: { ...params, $top: '100', $skip: String(skip), $orderby: 'Id' } })
     assert.ok(Array.isArray(page), `Expected collection: ${path}`)
     for (const record of page) {
       assert.ok(!seen.has(record.Id), `Pagination did not advance: ${path}`)
@@ -51,6 +51,9 @@ const component = await request(`EntityTypes/${target.EntityTypeId}`)
 assert.equal(source.Name, 'Simple Donation')
 assert.equal(target.IsActive, true)
 assert.equal(component.Name, 'EvChurch.Rock.BlinkPay.Gateway')
+assert.equal((await all('FinancialScheduledTransactions', {
+  $filter: `FinancialGatewayId eq ${SOURCE} and IsActive eq true`,
+})).length, 0, 'Active Simple Donation schedules need separate review before retiring the gateway')
 
 const templates = await all('RegistrationTemplates')
 const instances = await all('RegistrationInstances')
@@ -85,6 +88,10 @@ for (const template of templates.filter(t => TEMPLATE_IDS.includes(t.Id) && t.Fi
   changes.push({ path: `RegistrationTemplates/${template.Id}`, name: template.Name,
     before: { FinancialGatewayId: SOURCE }, after: { FinancialGatewayId: TARGET } })
 }
+// Retain the gateway and historical transactions, but prevent new selection of
+// the cancelled provider once all event templates and routes have been migrated.
+if (source.IsActive) changes.push({ path: `FinancialGateways/${SOURCE}`, name: source.Name,
+  before: { IsActive: true }, after: { IsActive: false } })
 console.log(JSON.stringify({ target: API, apply: APPLY, templateCount: TEMPLATE_IDS.length,
   instanceCount: instances.filter(i => affectedTemplates.has(i.RegistrationTemplateId)).length, changes }, null, 2))
 
@@ -114,5 +121,6 @@ if (APPLY) {
   const savedInstances = await all('RegistrationInstances')
   assert.ok(savedInstances.filter(i => gatewayTemplateIds.has(i.RegistrationTemplateId))
     .every(i => i.ExternalGatewayMerchantId === TARGET && i.ExternalGatewayFundId === TARGET), 'Missing BlinkPay route')
-  console.log('Verified: no Simple Donation templates; every BlinkPay instance has its connection and route.')
+  assert.equal((await request(`FinancialGateways/${SOURCE}`)).IsActive, false, 'Cancelled gateway is still active')
+  console.log('Verified: Simple Donation retired with no templates; every BlinkPay instance has its connection and route.')
 }
