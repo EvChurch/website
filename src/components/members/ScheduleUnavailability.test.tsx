@@ -84,7 +84,7 @@ describe('ScheduleUnavailability', () => {
     await act(async () => container.querySelector<HTMLButtonElement>('button')?.click())
     expect(container.querySelector('[role="dialog"]')).not.toBeNull()
     expect(container.textContent).not.toContain('Individual')
-    expect(container.querySelector<HTMLSelectElement>('#unavailability-group')?.required).toBe(true)
+    expect(container.querySelector<HTMLInputElement>('#unavailability-group-701')?.checked).toBe(false)
 
     await act(async () => container.querySelector<HTMLButtonElement>('#unavailability-date-range')?.click())
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Choose 20 August 2026"]')?.click())
@@ -93,7 +93,7 @@ describe('ScheduleUnavailability', () => {
     expect(container.querySelector('[aria-label="Date range calendar"]')).toBeNull()
     await act(async () => {
       change(container.querySelector('#unavailability-notes')!, 'Away')
-      change(container.querySelector('#unavailability-group')!, '701')
+      container.querySelector<HTMLInputElement>('#unavailability-group-701')!.click()
     })
     await act(async () => container.querySelector('form')?.dispatchEvent(
       new Event('submit', { bubbles: true, cancelable: true }),
@@ -104,7 +104,7 @@ describe('ScheduleUnavailability', () => {
         startDate: '2026-08-20',
         endDate: '2026-08-22',
         notes: 'Away',
-        groupId: 701,
+        groupIds: [701],
       }),
     }))
     expect(container.textContent).toContain('Your unavailability has been saved.')
@@ -129,7 +129,7 @@ describe('ScheduleUnavailability', () => {
     await act(async () => container.querySelector<HTMLButtonElement>('#unavailability-date-range')?.click())
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Choose 20 August 2026"]')?.click())
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Choose 22 August 2026"]')?.click())
-    await act(async () => change(container.querySelector('#unavailability-group')!, '701'))
+    await act(async () => container.querySelector<HTMLInputElement>('#unavailability-group-701')!.click())
     await act(async () => container.querySelector('form')?.dispatchEvent(
       new Event('submit', { bubbles: true, cancelable: true }),
     ))
@@ -137,6 +137,68 @@ describe('ScheduleUnavailability', () => {
     const section = container.querySelector('[aria-labelledby="upcoming-unavailability-heading"]')
     expect(section?.querySelector('[role="status"]')?.textContent)
       .toContain('Your unavailability has been saved.')
+  })
+
+  it('requires a team, supports multiple and all selections, and retains partial saves for retry', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'partial', confirmedGroupIds: [701] }), { status: 503 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'saved' }), { status: 200 }))
+    await act(async () => root.render(
+      <ScheduleUnavailability groups={[
+        { id: 701, name: 'Welcome Team' },
+        { id: 702, name: 'Music Team' },
+        { id: 703, name: 'Kids Team' },
+      ]} isImpersonating={false} />,
+    ))
+    await act(async () => container.querySelector<HTMLButtonElement>('button')!.click())
+    expect([...container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].every((input) => !input.checked)).toBe(true)
+    expect(container.querySelector('fieldset[aria-describedby="unavailability-teams-hint"] legend')?.textContent).toContain('Serving teams')
+    await act(async () => container.querySelector<HTMLButtonElement>('#unavailability-date-range')!.click())
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Choose 20 August 2026"]')!.click())
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Choose 22 August 2026"]')!.click())
+    const submit = () => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await act(async () => { submit() })
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Choose at least one serving team')
+    expect(fetchMock).not.toHaveBeenCalled()
+    const all = [...container.querySelectorAll<HTMLButtonElement>('button')].find(({ textContent }) => textContent?.trim() === 'Select all')!
+    all.focus()
+    expect(document.activeElement).toBe(all)
+    await act(async () => all.click())
+    expect([...container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].every((input) => input.checked)).toBe(true)
+    await act(async () => container.querySelector<HTMLInputElement>('#unavailability-group-703')!.click())
+    await act(async () => change(container.querySelector('#unavailability-notes')!, 'Away'))
+    await act(async () => { submit() })
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).groupIds).toEqual([701, 702])
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Saved for Welcome Team.')
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('could not confirm')
+    expect(container.querySelector<HTMLInputElement>('#unavailability-group-701')?.checked).toBe(true)
+    expect(container.querySelector<HTMLInputElement>('#unavailability-group-702')?.checked).toBe(true)
+    expect(container.querySelector<HTMLTextAreaElement>('#unavailability-notes')?.value).toBe('Away')
+    expect(mocks.refresh).toHaveBeenCalledOnce()
+    await act(async () => { submit() })
+    expect(fetchMock.mock.calls[1]?.[1]?.body).toBe(fetchMock.mock.calls[0]?.[1]?.body)
+    expect(container.querySelector('[role="dialog"]')).toBeNull()
+    expect(mocks.refresh).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['outcome-unknown', 'network-timeout', 'unreadable-response'])('retains all teams after %s without claiming success', async (status) => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+    if (status === 'network-timeout') fetchMock.mockRejectedValue(new DOMException('Timeout', 'TimeoutError'))
+    else if (status === 'unreadable-response') fetchMock.mockResolvedValue(new Response('Gateway timeout', { status: 504 }))
+    else fetchMock.mockResolvedValue(new Response(JSON.stringify({ status }), { status: 503 }))
+    await act(async () => root.render(
+      <ScheduleUnavailability groups={[{ id: 701, name: 'Welcome Team' }, { id: 702, name: 'Music Team' }]} isImpersonating={false} />,
+    ))
+    await act(async () => container.querySelector<HTMLButtonElement>('button')!.click())
+    await act(async () => container.querySelector<HTMLButtonElement>('#unavailability-date-range')!.click())
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Choose 20 August 2026"]')!.click())
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Choose 22 August 2026"]')!.click())
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>('button')].find(({ textContent }) => textContent?.trim() === 'Select all')!.click())
+    await act(async () => { container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).groupIds).toEqual([701, 702])
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('could not confirm')
+    expect([...container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].every((input) => input.checked)).toBe(true)
+    expect(container.querySelector('[role="status"]')).toBeNull()
   })
 
   it('uses inline validation and is read-only during impersonation', async () => {

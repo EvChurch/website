@@ -12,6 +12,7 @@ import type {
 } from '@/lib/members/volunteer-scheduling'
 
 const REQUEST_TIMEOUT_MS = 15_000
+const UNCONFIRMED_SAVE_MESSAGE = 'We could not confirm whether Rock saved this for every selected team. Keep the same teams, dates and notes and try again; matching saved entries will be reused.'
 
 function aucklandToday() {
   return new Intl.DateTimeFormat('en-CA', {
@@ -49,7 +50,7 @@ export function ScheduleUnavailability({
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [notes, setNotes] = useState('')
-  const [groupId, setGroupId] = useState('')
+  const [groupIds, setGroupIds] = useState<number[]>([])
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -112,8 +113,8 @@ export function ScheduleUnavailability({
       })
       return
     }
-    if (!groupId) {
-      setMessage({ kind: 'error', text: 'Choose the serving group this applies to.' })
+    if (groupIds.length === 0) {
+      setMessage({ kind: 'error', text: 'Choose at least one serving team.' })
       return
     }
 
@@ -131,16 +132,16 @@ export function ScheduleUnavailability({
           startDate,
           endDate,
           notes,
-          groupId: Number(groupId),
+          groupIds,
         }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })
-      const result = await response.json().catch(() => null) as { status?: unknown } | null
+      const result = await response.json().catch(() => null) as { status?: unknown; confirmedGroupIds?: unknown } | null
       if (response.ok && result?.status === 'saved') {
         setStartDate('')
         setEndDate('')
         setNotes('')
-        setGroupId('')
+        setGroupIds([])
         setIsDatePickerOpen(false)
         setIsOpen(false)
         if (onSaved) {
@@ -153,22 +154,27 @@ export function ScheduleUnavailability({
         router.refresh()
         return
       }
-      if (response.status === 401) {
-        setMessage({ kind: 'error', text: 'Your session has expired. Sign in again before saving.' })
-      } else if (response.status === 400) {
-        setMessage({ kind: 'error', text: 'Check the dates and try again.' })
-      } else if (result?.status === 'outcome-unknown') {
+      if (result?.status === 'partial') {
+        const confirmedIds = result.confirmedGroupIds
+        const confirmed = Array.isArray(confirmedIds)
+          ? groups.filter((group) => groupIds.includes(group.id) && confirmedIds.includes(group.id))
+          : []
+        if (confirmed.length) router.refresh()
         setMessage({
           kind: 'error',
-          text: 'We could not confirm whether Rock saved this. Check your unavailability before trying again.',
+          text: `Saved for ${confirmed.map((group) => group.name).join(', ') || 'some teams'}. We could not confirm saves for the remaining selected teams. Keep the same teams, dates and notes and try again; matching saved entries will be reused.`,
         })
+      } else if (response.status === 401) {
+        setMessage({ kind: 'error', text: 'Your session has expired. Sign in again before saving.' })
+      } else if (response.status === 400) {
+        setMessage({ kind: 'error', text: 'Check the dates and selected teams and try again.' })
       } else {
-        setMessage({ kind: 'error', text: 'Rock could not save your unavailability. Please try again.' })
+        setMessage({ kind: 'error', text: UNCONFIRMED_SAVE_MESSAGE })
       }
     } catch {
       setMessage({
         kind: 'error',
-        text: 'We could not confirm whether Rock saved this. Check your unavailability before trying again.',
+        text: UNCONFIRMED_SAVE_MESSAGE,
       })
     } finally {
       setIsSaving(false)
@@ -277,32 +283,37 @@ export function ScheduleUnavailability({
             />
           </label>
 
-          <div>
-            <label className={formLabelClass} htmlFor="unavailability-group">
-              Group <span className="text-rich-red" aria-hidden="true">*</span>
-            </label>
-            <div className="relative">
-            <select
-              id="unavailability-group"
-              aria-required="true"
-              required
-              value={groupId}
-              onChange={(event) => setGroupId(event.target.value)}
-              className={`${formInputClass} min-h-12 appearance-none pr-11`}
+          <fieldset disabled={isSaving} aria-describedby="unavailability-teams-hint">
+            <legend className={formLabelClass}>
+              Serving teams <span className="text-rich-red" aria-hidden="true">*</span>
+            </legend>
+            <p id="unavailability-teams-hint" className="mt-1 text-sm text-mid-grey">
+              Choose at least one team. Select all applies only to the teams listed here.
+            </p>
+            <button
+              type="button"
+              onClick={() => setGroupIds(groups.map(({ id }) => id))}
+              className="mt-2 min-h-11 rounded-full border border-rich-red px-4 py-2 text-sm font-bold text-rich-red disabled:opacity-60"
             >
-              <option value="">Select a serving group</option>
-              {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
-            </select>
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 20 20"
-                fill="none"
-                className="pointer-events-none absolute right-4 top-1/2 mt-1 h-4 w-4 -translate-y-1/2 text-mid-grey"
-              >
-                <path d="m5.5 7.5 4.5 4.5 4.5-4.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              Select all
+            </button>
+            <div className="mt-2 max-h-60 overflow-y-auto rounded-xl border border-warm-grey bg-white p-2">
+              {groups.map((group) => (
+                <label key={group.id} className="flex min-h-11 cursor-pointer items-center gap-3 px-2 py-2 text-sm text-brand-black">
+                  <input
+                    type="checkbox"
+                    id={`unavailability-group-${group.id}`}
+                    checked={groupIds.includes(group.id)}
+                    onChange={(event) => setGroupIds((current) => event.target.checked
+                      ? [...current, group.id]
+                      : current.filter((id) => id !== group.id))}
+                    className="h-5 w-5 accent-rich-red"
+                  />
+                  {group.name}
+                </label>
+              ))}
             </div>
-          </div>
+          </fieldset>
 
           {message?.kind === 'error' && (
             <p
