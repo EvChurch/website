@@ -12,6 +12,9 @@ import { runFullSync, type SyncResult } from '@/sync/sync-runner'
 
 const MAX_RUNTIME_MS = 14 * 60 * 1000
 const PAYLOAD_CLEANUP_TIMEOUT_MS = 5 * 1000
+// Repeating a tag invalidation is safe; cap cache-only recovery at about 33 seconds.
+const CACHE_REVALIDATION_TIMEOUT_MS = 10_000
+const CACHE_REVALIDATION_ATTEMPTS = 3
 
 type WorkerResult =
   | { status: 'completed'; results: SyncResult[] }
@@ -54,6 +57,7 @@ export function cacheTagsForSyncResults(results: SyncResult[]): CacheTag[] {
 export async function notifyWebsiteCache(
   results: SyncResult[],
   fetcher: typeof fetch = fetch,
+  { wait = delay }: { wait?: (ms: number) => Promise<unknown> } = {},
 ): Promise<void> {
   const tags = cacheTagsForSyncResults(results)
   if (tags.length === 0) return
@@ -64,16 +68,42 @@ export async function notifyWebsiteCache(
     throw new Error('APP_BASE_URL and CRON_SECRET are required for cache revalidation')
   }
 
-  const response = await fetcher(new URL('/api/internal/cache/revalidate', appBaseUrl), {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${cronSecret}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({ tags }),
-  })
-  if (!response.ok) {
-    throw new Error(`Website cache revalidation failed with status ${response.status}`)
+  const url = new URL('/api/internal/cache/revalidate', appBaseUrl)
+  for (let attempt = 1; attempt <= CACHE_REVALIDATION_ATTEMPTS; attempt++) {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), CACHE_REVALIDATION_TIMEOUT_MS)
+    let failure: string
+    let retryable = true
+    try {
+      const response = await fetcher(url, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${cronSecret}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ tags }),
+        signal: controller.signal,
+      })
+      // Only the status is needed; release the response on success and retries.
+      void response.body?.cancel().catch(() => {})
+      if (response.ok) return
+      failure = `HTTP ${response.status}`
+      retryable = response.status === 408 || response.status === 429 || response.status >= 500
+    } catch (error: unknown) {
+      // Never include URLs, headers or response bodies in operational errors.
+      const cause = error instanceof Error ? error.cause : undefined
+      const code = typeof cause === 'object' && cause !== null && 'code' in cause
+        && typeof cause.code === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(cause.code)
+        ? ` (${cause.code})` : ''
+      failure = controller.signal.aborted ? 'request timed out' : `network error${code}`
+    } finally {
+      clearTimeout(timeout)
+    }
+    if (!retryable || attempt === CACHE_REVALIDATION_ATTEMPTS) {
+      throw new Error(`Website cache revalidation failed after ${attempt} ${attempt === 1 ? 'attempt' : 'attempts'}: ${failure}`)
+    }
+    console.warn(JSON.stringify({ message: 'Retrying website cache revalidation', attempt, failure }))
+    await wait(1000 * 2 ** (attempt - 1))
   }
 }
 
@@ -102,11 +132,19 @@ export async function runRockSyncWorker({
     }
   }
 
-  await notifyWebsite(lockResult.value)
-
   const errors = lockResult.value.flatMap((result) =>
     result.errors.map((error) => `${result.entity}: ${error}`),
   )
+  console.log(JSON.stringify({ message: 'Rock sync data phase finished', results: lockResult.value }))
+  // Refresh partial changes even when an entity failed, while retaining both failures.
+  try {
+    await notifyWebsite(lockResult.value)
+  } catch (error: unknown) {
+    if (errors.length > 0) {
+      throw new Error(`Sync completed with errors: ${errors.join('; ')}; ${error instanceof Error ? error.message : String(error)}`, { cause: error })
+    }
+    throw error
+  }
   if (errors.length > 0) {
     throw new Error(`Sync completed with errors: ${errors.join('; ')}`)
   }
