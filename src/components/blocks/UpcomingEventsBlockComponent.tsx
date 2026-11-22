@@ -10,7 +10,7 @@ const UPCOMING_EVENT_LIMIT = 3
 type UpcomingEventsBlockProps = Pick<
   PayloadUpcomingEventsBlock,
   'eyebrow' | 'heading' | 'campusFilter'
->
+> & { excludedSlugs?: readonly string[] }
 
 function getCampusFilterSlug(campusFilter: PayloadUpcomingEventsBlock['campusFilter']) {
   if (!campusFilter || typeof campusFilter !== 'object') return undefined
@@ -21,9 +21,12 @@ export async function UpcomingEventsBlockComponent({
   eyebrow = 'What’s on',
   heading = 'Upcoming events',
   campusFilter,
+  excludedSlugs = [],
 }: UpcomingEventsBlockProps) {
   const campusSlug = getCampusFilterSlug(campusFilter)
-  const events = (await getUpcomingEvents(campusSlug)).slice(0, UPCOMING_EVENT_LIMIT)
+  const events = (await getUpcomingEvents(campusSlug))
+    .filter((event) => !excludedSlugs.includes(event.slug))
+    .slice(0, UPCOMING_EVENT_LIMIT)
 
   if (events.length === 0) return null
 

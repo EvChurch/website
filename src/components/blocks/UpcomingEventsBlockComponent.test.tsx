@@ -91,6 +91,19 @@ describe('UpcomingEventsBlockComponent', () => {
     expect(renderToStaticMarkup(await UpcomingEventsBlockComponent({}))).toContain('19–22 January 2027')
   })
 
+  it('excludes promoted events before selecting the next three', async () => {
+    mocks.getUpcomingEvents.mockResolvedValue([
+      { ...baseEvent, slug: 'christmas', title: 'Christmas' },
+      ...[2, 3, 4].map(id => ({ ...baseEvent, id, slug: `event-${id}`, title: `Event ${id}` })),
+    ])
+    const markup = renderToStaticMarkup(await UpcomingEventsBlockComponent({ excludedSlugs: ['christmas'] }))
+    expect(markup).not.toContain('/events/christmas')
+    expect(markup.match(/<article/g)).toHaveLength(3)
+    expect(markup).toContain('Event 4')
+    const unfiltered = renderToStaticMarkup(await UpcomingEventsBlockComponent({}))
+    expect(unfiltered).toContain('/events/christmas')
+  })
+
   it('does not render an empty block', async () => {
     mocks.getUpcomingEvents.mockResolvedValue([])
 
