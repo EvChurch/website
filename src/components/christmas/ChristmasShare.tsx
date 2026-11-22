@@ -59,17 +59,16 @@ export function ChristmasShare({ image, label = 'Share Christmas' }: { image?: s
   return (
     <div ref={container}>
       <button type="button" onClick={share} aria-label={label} className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#d9b879] bg-[#d9b879] px-6 py-3 text-base font-semibold text-[#0b203b] hover:bg-[#f3d49b] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f3d49b]">{label}</button>
-      <details className="mt-3" open={optionsOpen} onToggle={(event) => setOptionsOpen(event.currentTarget.open)}>
-        <summary className="cursor-pointer text-sm text-[#f3d49b] underline underline-offset-4">More sharing options</summary>
-        <div className="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-1">
+      {optionsOpen && (
+        <nav aria-label="Share Christmas page" className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-1">
           <a className={linkClass} href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`} target="_blank" rel="noopener noreferrer">Facebook</a>
           <a className={linkClass} href={`https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>
           <a className={linkClass} href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`} target="_blank" rel="noopener noreferrer">X</a>
           <a className={linkClass} href={`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`${text}\n\n${url}`)}`}>Email</a>
           <button type="button" className={linkClass} onClick={copyLink}>Copy link</button>
-        </div>
-      </details>
-      <p role="status" className="mt-2 text-sm text-white/85">{status}</p>
+        </nav>
+      )}
+      <p role="status" className={status ? 'mt-2 text-sm text-white/85' : 'sr-only'}>{status}</p>
     </div>
   )
 }

@@ -3,8 +3,8 @@ import Image from 'next/image'
 import { ChristmasShare } from '@/components/christmas/ChristmasShare'
 
 const title = 'Christmas 2026 at Ev Church'
-const description = 'Come see what Christmas brings. Discover joy, comfort, life and hope this December at Ev Central, Ev North and Unichurch in Auckland.'
-const images = [{ url: '/christmas/christmas-2026.webp', width: 1920, height: 1080, alt: 'Come see what Christmas brings' }]
+const description = 'Come see what Christmas brings. Join us on 13, 20, 25 & 27 December at Ev Central, Ev North or Unichurch in Auckland. Everyone is welcome.'
+const images = [{ url: 'https://www.ev.church/christmas/christmas-2026-social.jpg', secureUrl: 'https://www.ev.church/christmas/christmas-2026-social.jpg', type: 'image/jpeg', width: 1200, height: 630, alt: 'Come see what Christmas brings — Christmas 2026 at Ev Church' }]
 
 export const metadata: Metadata = {
   title: { absolute: title },
@@ -117,7 +117,6 @@ export default function ChristmasPage() {
           <h2 id="share-title" className="text-3xl font-bold sm:text-4xl">Share Christmas with a friend</h2>
           <p className="mt-4 text-lg leading-relaxed text-white/85">Invite a friend in a few taps. Choose a social app to share the Christmas page, or share an invitation image below.</p>
           <div className="mt-6"><ChristmasShare /></div>
-          <p className="mt-3 text-sm text-white/75">Your device chooses which apps are available. Image sharing depends on your browser and the app.</p>
         </div>
         <div className="mt-10 grid gap-8 sm:grid-cols-2">
           {shareImages.map((item) => {
@@ -130,7 +129,6 @@ export default function ChristmasPage() {
                 <figcaption className="mt-4 flex flex-wrap items-center justify-between gap-3">
                   <h3 className="text-lg font-semibold">{item.label}</h3>
                   <ChristmasShare image={src} label={`Share ${item.label}`} />
-                  <a href={src} download aria-label={`Save ${item.label} (JPG)`} className="inline-flex min-h-11 items-center text-sm text-[#f3d49b] underline underline-offset-4">Save image</a>
                 </figcaption>
               </figure>
             )
