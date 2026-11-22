@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const mocks = vi.hoisted(() => ({ invalidate: vi.fn() }))
+vi.mock('@/hooks/revalidateCacheTags', () => ({ createCacheInvalidationHook: () => mocks.invalidate }))
 
 import { Campuses } from './Campuses'
 
@@ -44,5 +47,26 @@ describe('Campuses service calendar validation', () => {
     await expect(
       Promise.resolve(validate?.('09:45', { siblingData: { serviceOpens: '10:15' } })),
     ).resolves.toContain('after')
+  })
+})
+
+
+describe('campus block cache invalidation', () => {
+  beforeEach(() => mocks.invalidate.mockClear())
+  const afterChange = Campuses.hooks!.afterChange![0]
+
+  it('invalidates when a block schedule changes or the final block is removed', async () => {
+    const layout = [{ blockType: 'upcomingEvents', visibility: { until: '2026-12-27T11:00:00Z' } }]
+    await afterChange({ doc: { layout }, previousDoc: { layout: [] }, context: {} } as never)
+    expect(mocks.invalidate).toHaveBeenCalledOnce()
+    await afterChange({ doc: { layout: [] }, previousDoc: { layout }, context: {} } as never)
+    expect(mocks.invalidate).toHaveBeenCalledTimes(2)
+  })
+
+  it('leaves unchanged layouts and ordinary Rock sync updates alone', async () => {
+    await afterChange({ doc: {}, previousDoc: {}, context: {} } as never)
+    const layout = [{ blockType: 'upcomingEvents' }]
+    await afterChange({ doc: { layout }, previousDoc: { layout }, context: {} } as never)
+    expect(mocks.invalidate).not.toHaveBeenCalled()
   })
 })

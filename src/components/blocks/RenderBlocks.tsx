@@ -1,4 +1,5 @@
-import { Fragment, Suspense, type ReactNode } from 'react'
+import { Suspense } from 'react'
+import { ChristmasHomeBanner } from '@/components/christmas/ChristmasHomeBanner'
 import { HeroBlockComponent } from './HeroBlockComponent'
 import { ContentBlockComponent } from './ContentBlockComponent'
 import { CTABlockComponent } from './CTABlockComponent'
@@ -295,11 +296,10 @@ export type RenderableBlock =
 
 interface RenderBlocksProps {
   blocks: RenderableBlock[]
-  beforeUpcomingEvents?: ReactNode
   excludedEventSlugs?: readonly string[]
 }
 
-export function RenderBlocks({ blocks, beforeUpcomingEvents, excludedEventSlugs }: RenderBlocksProps) {
+export function RenderBlocks({ blocks, excludedEventSlugs }: RenderBlocksProps) {
   if (!blocks || blocks.length === 0) return null
 
   return (
@@ -309,6 +309,9 @@ export function RenderBlocks({ blocks, beforeUpcomingEvents, excludedEventSlugs 
         const aboveFold = index < 3
 
         switch (block.blockType) {
+          case 'christmasBanner':
+            return <ChristmasHomeBanner key={key} />
+
           case 'dailyReading': {
             const b = block as DailyReadingBlockType
             return <DailyReadingBlockComponent key={key} eyebrow={b.eyebrow} heading={b.heading} />
@@ -565,15 +568,13 @@ export function RenderBlocks({ blocks, beforeUpcomingEvents, excludedEventSlugs 
           case 'upcomingEvents': {
             const b = block as PayloadUpcomingEventsBlock
             return (
-              <Fragment key={key}>
-                {beforeUpcomingEvents}
-                <UpcomingEventsBlockComponent
-                  eyebrow={b.eyebrow}
-                  heading={b.heading}
-                  campusFilter={b.campusFilter}
-                  excludedSlugs={excludedEventSlugs}
-                />
-              </Fragment>
+              <UpcomingEventsBlockComponent
+                key={key}
+                eyebrow={b.eyebrow}
+                heading={b.heading}
+                campusFilter={b.campusFilter}
+                excludedSlugs={excludedEventSlugs}
+              />
             )
           }
 

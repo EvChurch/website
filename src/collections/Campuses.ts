@@ -1,4 +1,7 @@
 import type { CollectionConfig } from 'payload'
+import { withVisibility } from '@/blocks/withVisibility'
+import { createCacheInvalidationHook } from '@/hooks/revalidateCacheTags'
+import { CACHE_TAGS } from '@/lib/cache-tags'
 
 import { isAdmin } from '@/access/roles'
 import { UpcomingEventsBlock } from '@/blocks/UpcomingEventsBlock'
@@ -8,6 +11,14 @@ export const Campuses: CollectionConfig = {
   admin: {
     useAsTitle: 'name',
     defaultColumns: ['name', 'city', 'isActive', 'order'],
+  },
+  hooks: {
+    afterChange: [({ doc, previousDoc, ...args }) => {
+      if ((doc.layout?.length || previousDoc?.layout?.length) &&
+        JSON.stringify(doc.layout) !== JSON.stringify(previousDoc?.layout)) {
+        createCacheInvalidationHook(CACHE_TAGS.campuses)(args)
+      }
+    }],
   },
   access: {
     read: () => true,
@@ -327,7 +338,7 @@ export const Campuses: CollectionConfig = {
     {
       name: 'layout',
       type: 'blocks',
-      blocks: [UpcomingEventsBlock],
+      blocks: [UpcomingEventsBlock].map(withVisibility),
       admin: {
         description: 'Managed sections displayed before the closing campus call to action.',
       },

@@ -1,4 +1,6 @@
 import type { CollectionConfig } from 'payload'
+import { withVisibility } from '@/blocks/withVisibility'
+import { ChristmasBannerBlock } from '@/blocks/ChristmasBannerBlock'
 import { isContentLead, isEditor, publishedOnly } from '@/access/roles'
 import { HeroBlock } from '@/blocks/HeroBlock'
 import { ContentBlock } from '@/blocks/ContentBlock'
@@ -86,7 +88,8 @@ export const Pages: CollectionConfig = {
         LatestSermonBlock,
         UpcomingEventsBlock,
         ConnectGroupsBlock,
-      ],
+        ChristmasBannerBlock,
+      ].map(withVisibility),
     },
     {
       name: 'template',
