@@ -74,6 +74,11 @@ const nextConfig: NextConfig = {
         destination: '/?launcher=connect',
         permanent: true,
       },
+      {
+        source: '/events/christmas',
+        destination: '/christmas',
+        permanent: true,
+      },
       // Old campus URLs → new slug-based URLs
       { source: '/campus/2', destination: '/campus/north', permanent: true },
       {
