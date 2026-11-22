@@ -115,6 +115,7 @@ async function fetchSitemapSections(): Promise<SitemapSection[]> {
             changeFrequency: 'monthly',
             priority: page.slug === 'home' ? 1 : 0.7,
           })),
+        link('Christmas at Ev Church', '/christmas', { changeFrequency: 'monthly', priority: 0.8 }),
         link('Events', '/events', { changeFrequency: 'daily', priority: 0.9 }),
         link('North events', '/events/north', { changeFrequency: 'weekly', priority: 0.8 }),
         link('Central events', '/events/central', { changeFrequency: 'weekly', priority: 0.8 }),
