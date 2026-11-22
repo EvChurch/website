@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { unstable_cache } from 'next/cache'
 import { cache } from 'react'
+import { getVisibleBlocks } from '@/lib/block-visibility'
 import { getPayloadClient } from '@/lib/payload'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import { trackedNotFound } from '@/lib/tracked-not-found'
@@ -108,7 +109,7 @@ export default async function DynamicPage({
   if (!page) trackedNotFound(slug)
 
 
-  const layout = page.layout ?? []
+  const layout = await getVisibleBlocks(page.layout ?? [])
   const blocks = (slug === 'explaining-christianity'
     ? applyExplainingChristianityAction(layout, await getExplainingChristianityAction())
     : layout) as any[]

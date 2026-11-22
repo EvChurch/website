@@ -4,7 +4,7 @@ import { cache } from 'react'
 import { getPayloadClient } from '@/lib/payload'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
-import { ChristmasHomeBanner } from '@/components/christmas/ChristmasHomeBanner'
+import { getVisibleBlocks } from '@/lib/block-visibility'
 import {
   RenderBlocks,
   type RenderableBlock,
@@ -95,7 +95,7 @@ export default async function HomePage() {
     )
   }
 
-  const blocks = (page.layout ?? []) as unknown as RenderableBlock[]
+  const blocks = await getVisibleBlocks(page.layout ?? []) as unknown as RenderableBlock[]
 
-  return <RenderBlocks blocks={blocks} beforeUpcomingEvents={<ChristmasHomeBanner />} excludedEventSlugs={['christmas']} />
+  return <RenderBlocks blocks={blocks} excludedEventSlugs={['christmas']} />
 }

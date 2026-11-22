@@ -1,3 +1,4 @@
+import { getVisibleBlocks } from '@/lib/block-visibility'
 import type { Metadata } from 'next'
 import { unstable_cache } from 'next/cache'
 import Image from 'next/image'
@@ -343,7 +344,7 @@ export default async function CampusPage({
     slug === 'north' || slug === 'central' || slug === 'unichurch'
       ? slug
       : null
-  const blocks = (campus.layout ?? []) as unknown as RenderableBlock[]
+  const blocks = await getVisibleBlocks(campus.layout ?? []) as unknown as RenderableBlock[]
   const brandHeading = getBrandHeading(content.brandName)
 
   return (

@@ -74,6 +74,12 @@ const centralCampus: Campus = {
 }
 
 describe('RenderBlocks', () => {
+  it('renders the editor-managed Christmas banner', () => {
+    const markup = renderToStaticMarkup(<RenderBlocks blocks={[{ blockType: 'christmasBanner' }]} />)
+    expect(markup).toContain('christmas-home-title')
+    expect(markup).toContain('href="/christmas"')
+  })
+
   it('does not preload campus cards below a full hero', () => {
     const markup = renderToStaticMarkup(<RenderBlocks blocks={[
       { blockType: 'hero', heading: 'Welcome', image: '/hero.jpg' },

@@ -1,3 +1,4 @@
+import * as migration_20261122_020000_scheduled_blocks from './20261122_020000_scheduled_blocks';
 import * as migration_20261122_010000_life_on_purpose_artwork from './20261122_010000_life_on_purpose_artwork';
 import * as migration_20261116_010000_generosity_pages from './20261116_010000_generosity_pages';
 import * as migration_20261102_010000_giving_financial_controls from './20261102_010000_giving_financial_controls';
@@ -394,4 +395,5 @@ export const migrations = [
   { up: migration_20261102_010000_giving_financial_controls.up, down: migration_20261102_010000_giving_financial_controls.down, name: '20261102_010000_giving_financial_controls' },
   { up: migration_20261116_010000_generosity_pages.up, down: migration_20261116_010000_generosity_pages.down, name: '20261116_010000_generosity_pages' },
   { up: migration_20261122_010000_life_on_purpose_artwork.up, down: migration_20261122_010000_life_on_purpose_artwork.down, name: '20261122_010000_life_on_purpose_artwork' },
+  { up: migration_20261122_020000_scheduled_blocks.up, down: migration_20261122_020000_scheduled_blocks.down, name: '20261122_020000_scheduled_blocks' },
 ];

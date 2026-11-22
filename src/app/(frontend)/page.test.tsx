@@ -22,7 +22,6 @@ vi.mock('@/components/blocks/RenderBlocks', () => ({
 }))
 
 import HomePage from './page'
-import { ChristmasHomeBanner } from '@/components/christmas/ChristmasHomeBanner'
 
 describe('HomePage upcoming events placement', () => {
   beforeEach(() => {
@@ -59,7 +58,6 @@ describe('HomePage upcoming events placement', () => {
     expect(mocks.renderBlocks).toHaveBeenCalledOnce()
     expect(mocks.renderBlocks).toHaveBeenCalledWith({
       blocks,
-      beforeUpcomingEvents: <ChristmasHomeBanner />,
       excludedEventSlugs: ['christmas'],
     }, undefined)
   })
