@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { Fragment, Suspense, type ReactNode } from 'react'
 import { HeroBlockComponent } from './HeroBlockComponent'
 import { ContentBlockComponent } from './ContentBlockComponent'
 import { CTABlockComponent } from './CTABlockComponent'
@@ -295,9 +295,11 @@ export type RenderableBlock =
 
 interface RenderBlocksProps {
   blocks: RenderableBlock[]
+  beforeUpcomingEvents?: ReactNode
+  excludedEventSlugs?: readonly string[]
 }
 
-export function RenderBlocks({ blocks }: RenderBlocksProps) {
+export function RenderBlocks({ blocks, beforeUpcomingEvents, excludedEventSlugs }: RenderBlocksProps) {
   if (!blocks || blocks.length === 0) return null
 
   return (
@@ -563,12 +565,15 @@ export function RenderBlocks({ blocks }: RenderBlocksProps) {
           case 'upcomingEvents': {
             const b = block as PayloadUpcomingEventsBlock
             return (
-              <UpcomingEventsBlockComponent
-                key={key}
-                eyebrow={b.eyebrow}
-                heading={b.heading}
-                campusFilter={b.campusFilter}
-              />
+              <Fragment key={key}>
+                {beforeUpcomingEvents}
+                <UpcomingEventsBlockComponent
+                  eyebrow={b.eyebrow}
+                  heading={b.heading}
+                  campusFilter={b.campusFilter}
+                  excludedSlugs={excludedEventSlugs}
+                />
+              </Fragment>
             )
           }
 
