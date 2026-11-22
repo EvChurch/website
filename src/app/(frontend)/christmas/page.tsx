@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
+import { ChristmasShare } from '@/components/christmas/ChristmasShare'
 
 const title = 'Christmas 2026 at Ev Church'
 const description = 'Come see what Christmas brings. Discover joy, comfort, life and hope this December at Ev Central, Ev North and Unichurch in Auckland.'
@@ -114,20 +115,22 @@ export default function ChristmasPage() {
       <section id="share" aria-labelledby="share-title" className="mx-auto mt-16 max-w-[80rem] scroll-mt-28 border-t border-[#d9b879]/40 px-5 pt-12 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <h2 id="share-title" className="text-3xl font-bold sm:text-4xl">Share Christmas with a friend</h2>
-          <p className="mt-4 text-lg leading-relaxed text-white/85">Help get the word out. Save the invitation and your campus’s service details, then share them in a social post or send them to a friend.</p>
-          <a href="/christmas/share/ev-christmas-2026-share-images.zip" download className={`${buttonClass} mt-6`}>Download all four images (ZIP)</a>
+          <p className="mt-4 text-lg leading-relaxed text-white/85">Invite a friend in a few taps. Choose a social app to share the Christmas page, or share an invitation image below.</p>
+          <div className="mt-6"><ChristmasShare /></div>
+          <p className="mt-3 text-sm text-white/75">Your device chooses which apps are available. Image sharing depends on your browser and the app.</p>
         </div>
         <div className="mt-10 grid gap-8 sm:grid-cols-2">
           {shareImages.map((item) => {
             const src = `/christmas/share/ev-christmas-2026-${item.id}.jpg`
             return (
               <figure key={item.id}>
-                <a href={src} download aria-label={`Download ${item.label} (JPG)`} className="block overflow-hidden rounded-xl border border-[#d9b879]/40 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f3d49b]">
+                <div className="overflow-hidden rounded-xl border border-[#d9b879]/40">
                   <Image src={src} alt={item.alt} width={2324} height={1682} sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 608px" className="h-auto w-full" />
-                </a>
+                </div>
                 <figcaption className="mt-4 flex flex-wrap items-center justify-between gap-3">
                   <h3 className="text-lg font-semibold">{item.label}</h3>
-                  <a href={src} download aria-label={`Download ${item.label} (JPG)`} className="inline-flex min-h-11 items-center text-base font-semibold text-[#f3d49b] underline underline-offset-4">Download JPG</a>
+                  <ChristmasShare image={src} label={`Share ${item.label}`} />
+                  <a href={src} download aria-label={`Save ${item.label} (JPG)`} className="inline-flex min-h-11 items-center text-sm text-[#f3d49b] underline underline-offset-4">Save image</a>
                 </figcaption>
               </figure>
             )
