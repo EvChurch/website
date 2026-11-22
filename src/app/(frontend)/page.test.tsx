@@ -22,6 +22,7 @@ vi.mock('@/components/blocks/RenderBlocks', () => ({
 }))
 
 import HomePage from './page'
+import { ChristmasHomeBanner } from '@/components/christmas/ChristmasHomeBanner'
 
 describe('HomePage upcoming events placement', () => {
   beforeEach(() => {
@@ -44,7 +45,7 @@ describe('HomePage upcoming events placement', () => {
     expect(source).toContain('cache(getCachedHomePage)')
   })
 
-  it('renders the Payload layout without injecting events outside it', async () => {
+  it('keeps events in the Payload layout and adds the Christmas homepage treatment', async () => {
     const blocks = [
       { id: 'hero', blockType: 'hero' },
       { id: 'sermon', blockType: 'latestSermon' },
@@ -56,6 +57,10 @@ describe('HomePage upcoming events placement', () => {
     renderToStaticMarkup(await HomePage())
 
     expect(mocks.renderBlocks).toHaveBeenCalledOnce()
-    expect(mocks.renderBlocks).toHaveBeenCalledWith({ blocks }, undefined)
+    expect(mocks.renderBlocks).toHaveBeenCalledWith({
+      blocks,
+      beforeUpcomingEvents: <ChristmasHomeBanner />,
+      excludedEventSlugs: ['christmas'],
+    }, undefined)
   })
 })
