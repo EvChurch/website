@@ -36,11 +36,29 @@ const campuses = [
 
 const buttonClass = 'inline-flex min-h-12 items-center justify-center rounded-full border border-[#d9b879] px-6 py-3 text-base font-semibold text-[#f3d49b] transition-colors hover:bg-[#d9b879] hover:text-[#0b203b] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f3d49b]'
 
+const shareImages = [
+  { id: 'invitation', label: 'Christmas invitation', alt: 'The best gift doesn’t fit under the tree. Come along to Ev Church this December and find what Christmas truly brings.' },
+  { id: 'central', label: 'Ev Central service details', alt: 'Christmas services at Ev Central, 80 Olsen Ave, Hillsborough: 13, 20, 25 and 27 December at 10:15am.' },
+  { id: 'north', label: 'Ev North service details', alt: 'Christmas services at Ev North, 9–11 Rothwell Ave, Rosedale: 13, 20, 25 and 27 December at 10:15am.' },
+  { id: 'unichurch', label: 'Unichurch service details', alt: 'Unichurch Christmas services: 13, 20 and 27 December at 5:15pm at Maclaurin Chapel, and Christmas Day at 10:15am at Ev Central.' },
+]
+
 export default function ChristmasPage() {
   return (
     <div className="bg-[#0b203b] pb-20 pt-24 text-warm-white lg:pt-28">
-      <section aria-labelledby="christmas-title" className="mx-auto max-w-[80rem] px-5 lg:px-8">
-        <h1 id="christmas-title" className="sr-only">Come see what Christmas brings — Christmas 2026 at Ev Church</h1>
+      <section aria-label="Christmas at Ev Church" className="mx-auto max-w-[80rem] px-5 lg:px-8">
+        <div className="relative overflow-hidden rounded-t-full border border-[#d9b879]/50 bg-[#102943] px-3 pb-14 pt-8 text-center sm:hidden">
+          <Image src="/christmas/star.webp" alt="" width={96} height={96} className="mx-auto mb-6 h-24 w-24" />
+          <h1 id="christmas-title" className="relative z-10">
+            <span className="block font-serif text-3xl italic text-[#f3d49b]">Come see what</span>
+            <span className="mt-2 block text-[clamp(2.25rem,10vw,4rem)] font-light uppercase leading-tight tracking-wide text-[#f3d49b]">Christmas</span>
+            <span className="mt-1 block font-serif text-5xl italic text-[#f3d49b]">brings</span>
+            <span className="sr-only"> — Christmas 2026 at Ev Church</span>
+          </h1>
+          <Image src="/christmas/angel.webp" alt="" width={72} height={90} className="absolute bottom-4 left-3 h-20 w-auto opacity-70" />
+          <Image src="/christmas/angel.webp" alt="" width={72} height={90} className="absolute bottom-4 right-3 h-20 w-auto -scale-x-100 opacity-70" />
+        </div>
+        <h1 className="sr-only hidden sm:block">Come see what Christmas brings — Christmas 2026 at Ev Church</h1>
         <Image
           src="/christmas/christmas-2026.webp"
           alt="Come see what Christmas brings"
@@ -48,7 +66,7 @@ export default function ChristmasPage() {
           height={1080}
           sizes="(max-width: 1280px) 100vw, 1280px"
           preload
-          className="h-auto w-full"
+          className="hidden h-auto w-full sm:block"
         />
         <div className="mx-auto max-w-3xl py-10 text-center sm:py-16">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#f3d49b]">December 2026 · Auckland</p>
@@ -91,6 +109,31 @@ export default function ChristmasPage() {
             </section>
           ))}
         </div>
+      </section>
+
+      <section id="share" aria-labelledby="share-title" className="mx-auto mt-16 max-w-[80rem] scroll-mt-28 border-t border-[#d9b879]/40 px-5 pt-12 lg:px-8">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 id="share-title" className="text-3xl font-bold sm:text-4xl">Share Christmas with a friend</h2>
+          <p className="mt-4 text-lg leading-relaxed text-white/85">Help get the word out. Save the invitation and your campus’s service details, then share them in a social post or send them to a friend.</p>
+          <a href="/christmas/share/ev-christmas-2026-share-images.zip" download className={`${buttonClass} mt-6`}>Download all four images (ZIP)</a>
+        </div>
+        <div className="mt-10 grid gap-8 sm:grid-cols-2">
+          {shareImages.map((item) => {
+            const src = `/christmas/share/ev-christmas-2026-${item.id}.jpg`
+            return (
+              <figure key={item.id}>
+                <a href={src} download aria-label={`Download ${item.label} (JPG)`} className="block overflow-hidden rounded-xl border border-[#d9b879]/40 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f3d49b]">
+                  <Image src={src} alt={item.alt} width={2324} height={1682} sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 608px" className="h-auto w-full" />
+                </a>
+                <figcaption className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-lg font-semibold">{item.label}</h3>
+                  <a href={src} download aria-label={`Download ${item.label} (JPG)`} className="inline-flex min-h-11 items-center text-base font-semibold text-[#f3d49b] underline underline-offset-4">Download JPG</a>
+                </figcaption>
+              </figure>
+            )
+          })}
+        </div>
+        <p className="mt-8 text-center text-base leading-relaxed text-white/85">You can also send a friend this link: <a href="https://www.ev.church/christmas" className="font-semibold text-[#f3d49b] underline underline-offset-4">ev.church/christmas</a></p>
       </section>
     </div>
   )
