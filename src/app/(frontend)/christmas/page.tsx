@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
-import { ChristmasShare } from '@/components/christmas/ChristmasShare'
+import { ChristmasInvitationShare } from '@/components/christmas/ChristmasInvitationShare'
 
 const title = 'Christmas 2026 at Ev Church'
 const description = 'Come see what Christmas brings. Join us on 13, 20, 25 & 27 December at Ev Central, Ev North or Unichurch in Auckland. Everyone is welcome.'
@@ -37,11 +37,17 @@ const campuses = [
 
 const buttonClass = 'inline-flex min-h-12 items-center justify-center rounded-full border border-[#d9b879] px-6 py-3 text-base font-semibold text-[#f3d49b] transition-colors hover:bg-[#d9b879] hover:text-[#0b203b] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f3d49b]'
 
-const shareImages = [
-  { id: 'invitation', label: 'Christmas invitation', alt: 'The best gift doesn’t fit under the tree. Come along to Ev Church this December and find what Christmas truly brings.' },
-  { id: 'central', label: 'Ev Central service details', alt: 'Christmas services at Ev Central, 80 Olsen Ave, Hillsborough: 13, 20, 25 and 27 December at 10:15am.' },
-  { id: 'north', label: 'Ev North service details', alt: 'Christmas services at Ev North, 9–11 Rothwell Ave, Rosedale: 13, 20, 25 and 27 December at 10:15am.' },
-  { id: 'unichurch', label: 'Unichurch service details', alt: 'Unichurch Christmas services: 13, 20 and 27 December at 5:15pm at Maclaurin Chapel, and Christmas Day at 10:15am at Ev Central.' },
+const photos = [
+  { src: 'central-christmas-8.webp', height: 667, alt: 'A Merry Christmas banner welcomes people to Ev Central.' },
+  { src: 'central-christmas-11.webp', height: 1498, alt: 'Candles light a Christmas display at Ev Central.' },
+  { src: 'central-christmas-10.webp', height: 667, alt: 'The congregation joins in Christmas worship at Ev Central.' },
+  { src: 'central-christmas-23.webp', height: 1498, alt: 'Singers lead Christmas worship at Ev Central.' },
+  { src: 'north-christmas-26.webp', height: 667, alt: 'A manger and candles form a Christmas display at Ev North.' },
+  { src: 'north-christmas-41.webp', height: 1500, alt: 'A musician plays guitar at Ev North’s Christmas service.' },
+  { src: 'north-christmas-34.webp', height: 667, alt: 'A preacher shares a Bible message at Ev North.' },
+  { src: 'north-christmas-48.webp', height: 667, alt: 'Christmas biscuits ready to share at Ev North.' },
+  { src: 'unichurch-18.webp', height: 1333, alt: 'The Unichurch congregation gathers for worship in Maclaurin Chapel.' },
+  { src: 'unichurch-28.webp', height: 1333, alt: 'A decorated Christmas tree with gifts beneath it at Unichurch.' },
 ]
 
 export default function ChristmasPage() {
@@ -112,28 +118,32 @@ export default function ChristmasPage() {
         </div>
       </section>
 
+      <section aria-labelledby="photos-title" className="mx-auto mt-16 max-w-[80rem] border-t border-[#d9b879]/40 px-5 pt-12 lg:px-8">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 id="photos-title" className="text-3xl font-bold sm:text-4xl">Christmas at Ev</h2>
+          <p className="mt-4 text-lg leading-relaxed text-white/85">A glimpse of Christmas together at Ev Central, Ev North and Unichurch.</p>
+        </div>
+        <div className="mt-10 columns-2 gap-4 lg:columns-4">
+          {photos.map((photo) => (
+            <Image
+              key={photo.src}
+              src={`/christmas/photos/${photo.src}`}
+              alt={photo.alt}
+              width={1000}
+              height={photo.height}
+              sizes="(max-width: 1023px) 50vw, (max-width: 1280px) 25vw, 292px"
+              className="mb-4 h-auto w-full break-inside-avoid rounded-xl border border-[#d9b879]/40"
+            />
+          ))}
+        </div>
+      </section>
+
       <section id="share" aria-labelledby="share-title" className="mx-auto mt-16 max-w-[80rem] scroll-mt-28 border-t border-[#d9b879]/40 px-5 pt-12 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 id="share-title" className="text-3xl font-bold sm:text-4xl">Share Christmas with a friend</h2>
-          <p className="mt-4 text-lg leading-relaxed text-white/85">Invite a friend in a few taps. Choose a social app to share the Christmas page, or share an invitation image below.</p>
-          <div className="mt-6"><ChristmasShare /></div>
+          <h2 id="share-title" className="text-3xl font-bold sm:text-4xl">Share an invitation with a friend</h2>
+          <p className="mt-4 text-lg leading-relaxed text-white/85">Choose your campus, then share its invitation with a friend.</p>
         </div>
-        <div className="mt-10 grid gap-8 sm:grid-cols-2">
-          {shareImages.map((item) => {
-            const src = `/christmas/share/ev-christmas-2026-${item.id}.jpg`
-            return (
-              <figure key={item.id}>
-                <div className="overflow-hidden rounded-xl border border-[#d9b879]/40">
-                  <Image src={src} alt={item.alt} width={2324} height={1682} sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 608px" className="h-auto w-full" />
-                </div>
-                <figcaption className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-lg font-semibold">{item.label}</h3>
-                  <ChristmasShare image={src} label={`Share ${item.label}`} />
-                </figcaption>
-              </figure>
-            )
-          })}
-        </div>
+        <ChristmasInvitationShare />
         <p className="mt-8 text-center text-base leading-relaxed text-white/85">You can also send a friend this link: <a href="https://www.ev.church/christmas" className="font-semibold text-[#f3d49b] underline underline-offset-4">ev.church/christmas</a></p>
       </section>
     </div>
