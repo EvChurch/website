@@ -72,7 +72,8 @@ export async function saveCourseAnswer(identity: Auth0Identity, attemptId: numbe
   if (context.groupId) await client.query('BEGIN')
   if (context.groupId) {
     const group = await lockCourseGroup(client, context.groupId)
-    if (group.status !== 'active') throw new Error('This group is closed.')
+    const deletingOwnAnswer = value === null && context.scope !== 'group' && context.ownerKey === identity.identityKey
+    if (group.status !== 'active' && !deletingOwnAnswer) throw new Error('This group is closed.')
     if (context.scope !== 'personal') await requireGroupMember(client, identity, context.groupId)
   }
   const result = expectedRevision === 0

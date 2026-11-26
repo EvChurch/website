@@ -50,3 +50,26 @@ it('disables budget editing when the server marks a shared answer read-only', as
   expect(container.textContent).toContain('Read only')
   expect(container.textContent).not.toContain('Delete budget')
 })
+
+it.each(['personal', 'individual-shared'] as const)('allows deleting a closed own %s budget while inputs remain disabled', async scope => {
+  const budget = { kind: 'budget' as const, income: '100', rows: [{ id: 'r1', categoryId: 'live', label: 'Food', amount: '20' }] }
+  await act(async () => root.render(<CourseBudget key="closed-own" block={{ id: 'b', blockType: 'courseBudget', title: 'Budget', visibility: scope === 'personal' ? 'personal' : 'shared', categories: [{ categoryId: 'live', label: 'Living' }] }} attemptId={1} lessonId="l" initial={{ ...initial, scope, value: budget, revision: 1, readOnly: true }} />))
+  expect(container.querySelector('input')!.matches(':disabled')).toBe(true)
+  const button = Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Delete budget')!
+  expect(button.matches(':disabled')).toBe(false)
+  expect(button.closest('fieldset')).toBeNull()
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+  save.mockResolvedValue({ status: 'error', message: 'Offline' })
+  await act(async () => button.click())
+  await act(async () => vi.advanceTimersByTimeAsync(600))
+  expect(save).toHaveBeenCalledWith(1, 'l', 'b', 1, null)
+  expect(container.textContent).toContain('Couldn’t save')
+  const retry = Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Retry')!
+  expect(retry.matches(':disabled')).toBe(false)
+  save.mockResolvedValue({ status: 'saved', answer: { ...initial, value: null, revision: 2 } })
+  await act(async () => retry.click())
+  await act(async () => vi.advanceTimersByTimeAsync(600))
+  expect(save).toHaveBeenCalledTimes(2)
+  expect(container.querySelector('input')!.matches(':disabled')).toBe(true)
+  confirm.mockRestore()
+})

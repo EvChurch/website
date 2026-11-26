@@ -17,7 +17,7 @@ export function CourseBudget({ block, attemptId, lessonId, initial }: { block: B
     <fieldset disabled={initial.readOnly} className="min-w-0 space-y-6">
     <div className="flex items-center justify-between gap-3 text-xs text-mid-grey">
       <span className="rounded-full border border-warm-grey bg-white px-3 py-1">{initial.scope === 'personal' ? 'Personal · Only you' : initial.scope === 'group' ? 'Shared · Everyone in this group' : 'Shared · Your own budget'}</span>
-      <span role="status" aria-live="polite">{initial.readOnly ? 'Read only' : status === 'saved' ? '✓ Saved' : status === 'saving' ? 'Saving…' : status === 'conflict' ? 'Updated elsewhere' : 'Couldn’t save'}</span>
+      <span role="status" aria-live="polite">{status === 'saved' ? initial.readOnly ? 'Read only' : '✓ Saved' : status === 'saving' ? 'Saving…' : status === 'conflict' ? 'Updated elsewhere' : 'Couldn’t save'}</span>
     </div>
     <div><h2 id={`${id}-title`} className="text-2xl font-bold">{block.title}{block.required && <span className="ml-2 text-sm font-normal text-mid-grey">Required</span>}</h2>{block.instructions && <p className="mt-3 whitespace-pre-line text-mid-grey">{block.instructions}</p>}</div>
     <div className="max-w-sm"><label htmlFor={`${id}-income`} className="mb-2 block font-bold">Take-home pay per week ($)</label><input id={`${id}-income`} type="text" inputMode="decimal" autoComplete="off" maxLength={20} className={inputClass} value={budget.income} aria-invalid={moneyCents(budget.income) === null} onChange={event => update({ income: event.target.value })} /><p className="mt-2 text-xs text-mid-grey">Weekly amounts in NZ dollars.</p></div>
@@ -34,9 +34,9 @@ export function CourseBudget({ block, attemptId, lessonId, initial }: { block: B
       </div>)}</div>
       <button type="button" disabled={budget.rows.length >= MAX_BUDGET_ROWS} onClick={() => { const rowId = crypto.randomUUID(); update({ rows: [...budget.rows, { id: rowId, categoryId: category.categoryId, label: '', amount: '' }] }); requestAnimationFrame(() => document.getElementById(`${id}-${rowId}-name`)?.focus()) }} className="mt-4 text-sm font-bold text-rich-red disabled:opacity-50">+ Add a row</button>
     </section>)}</div>
+    </fieldset>
     {status === 'error' && <p role="alert" className="text-sm">Your work is kept here. <button type="button" onClick={saveMine} className="font-bold text-rich-red underline">Retry</button></p>}
     {conflict && <div role="alert" className="rounded-lg border border-warm-grey bg-white p-4 text-sm"><p>Your changes are kept here. Choose which budget to keep.</p><div className="mt-3 flex flex-wrap gap-4"><button type="button" onClick={useSaved} className="font-bold text-rich-red">Use saved budget</button><button type="button" onClick={saveMine} className="font-bold text-rich-red">Save my version</button></div></div>}
-    {!initial.readOnly && value !== null && <button type="button" onClick={clear} className="text-xs text-mid-grey underline">Delete budget</button>}
-    </fieldset>
+    {(!initial.readOnly || initial.scope !== 'group') && value !== null && <button type="button" onClick={clear} className="text-xs text-mid-grey underline">Delete budget</button>}
   </section>
 }

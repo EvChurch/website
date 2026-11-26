@@ -75,3 +75,32 @@ it('asks once before leaving a page with multiple unsaved answers', async () => 
   expect(confirm).toHaveBeenCalledTimes(1)
   confirm.mockRestore(); link.remove()
 })
+
+it.each(['personal', 'individual-shared'] as const)('keeps closed %s inputs read-only while allowing owner deletion and retry', async scope => {
+  await act(async () => root.render(<CourseQuestion key="closed" block={{ id: 'q', blockType: 'courseQuestion', prompt: 'Reflection', inputType: 'text', visibility: scope === 'personal' ? 'personal' : 'shared' }} attemptId={1} lessonId="l" initial={{ ...initial, scope, readOnly: true }} />))
+  expect(container.querySelector('textarea')!.matches(':disabled')).toBe(true)
+  const button = Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Delete answer')!
+  expect(button.matches(':disabled')).toBe(false)
+  expect(button.closest('fieldset')).toBeNull()
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+  save.mockResolvedValue({ status: 'error', message: 'Offline' })
+  await act(async () => button.click())
+  await act(async () => vi.advanceTimersByTimeAsync(600))
+  expect(save).toHaveBeenCalledWith(1, 'l', 'q', 1, null)
+  expect(container.textContent).toContain('Couldn’t save')
+  const retry = Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Retry')!
+  expect(retry.matches(':disabled')).toBe(false)
+  save.mockResolvedValue({ status: 'saved', answer: { ...initial, value: null, revision: 2 } })
+  await act(async () => retry.click())
+  await act(async () => vi.advanceTimersByTimeAsync(600))
+  expect(save).toHaveBeenCalledTimes(2)
+  expect(container.textContent).not.toContain('Couldn’t save')
+  expect(container.querySelector('textarea')!.matches(':disabled')).toBe(true)
+  confirm.mockRestore()
+})
+
+it('does not offer ordinary deletion for a closed group-owned answer', async () => {
+  await act(async () => root.render(<CourseQuestion key="closed-group" block={{ id: 'q', blockType: 'courseQuestion', prompt: 'Reflection', inputType: 'text', visibility: 'shared' }} attemptId={1} lessonId="l" initial={{ ...initial, scope: 'group', readOnly: true }} />))
+  expect(container.querySelector('textarea')!.matches(':disabled')).toBe(true)
+  expect(container.textContent).not.toContain('Delete answer')
+})
