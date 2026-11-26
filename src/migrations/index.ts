@@ -1,3 +1,4 @@
+import * as migration_20261126_180000_publish_faithful_course from './20261126_180000_publish_faithful_course';
 import * as migration_20261126_103725_courses_budget from './20261126_103725_courses_budget';
 import * as migration_20261126_103845_courses_groups from './20261126_103845_courses_groups'
 import * as migration_20261126_102210_courses_answers from './20261126_102210_courses_answers';
@@ -404,4 +405,5 @@ export const migrations = [
   { up: migration_20261126_102210_courses_answers.up, down: migration_20261126_102210_courses_answers.down, name: '20261126_102210_courses_answers' },
   { up: migration_20261126_103725_courses_budget.up, down: migration_20261126_103725_courses_budget.down, name: '20261126_103725_courses_budget' },
   { up: migration_20261126_103845_courses_groups.up, down: migration_20261126_103845_courses_groups.down, name: '20261126_103845_courses_groups' },
+  { up: migration_20261126_180000_publish_faithful_course.up, down: migration_20261126_180000_publish_faithful_course.down, name: '20261126_180000_publish_faithful_course' },
 ];

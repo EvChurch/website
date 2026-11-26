@@ -28,4 +28,6 @@ pnpm exec tsx scripts/import-faithful-course.ts --export /tmp/faithful-with-mone
 
 For eventual production authoring, use the authorised CMS/MCP workflow: find the slug first, create a draft only if absent, read it back, then review the staff preview. If it already exists, compare proposed edits with current content; never replace human edits automatically. Publish only after that review. There is intentionally no production CLI import.
 
+The initial release uses the reviewed `20261126_180000_publish_faithful_course` data migration because the production MCP connection was unavailable. It publishes the locally reviewed course only when its slug is absent, checks that publication created an edition, and preserves existing drafts, published content and learner work. Later authoring remains in the CMS/MCP workflow.
+
 The calculator passes no figures into the course. Account registration/sign-in preserves the intended course destination. Local QA uses synthetic accounts; real Auth0 and real invitation delivery still need environment verification.
