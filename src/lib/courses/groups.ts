@@ -46,6 +46,16 @@ async function requireOpenCourse(client: Pick<PoolClient, 'query'>, editionId: n
   if (!open.rowCount) throw new Error('Invitation is unavailable.')
 }
 
+// Group mutations hold the same row lock. Keep event order even within timestamp(3)
+// precision, and never use a transaction-start timestamp captured before that lock.
+const groupEventTimeSQL = `GREATEST(clock_timestamp(),
+  COALESCE((SELECT max(created_at)+interval '1 millisecond' FROM course_invitations WHERE group_id=$1), '-infinity'::timestamptz),
+  COALESCE((SELECT max(updated_at)+interval '1 millisecond' FROM course_attempts WHERE group_id=$1 AND membership_status<>'active'), '-infinity'::timestamptz))`
+
+async function endGroupMembership(client: PoolClient, groupId: number, attemptId: number, status: 'left' | 'removed') {
+  await client.query(`UPDATE course_attempts SET membership_status=$3,updated_at=${groupEventTimeSQL} WHERE group_id=$1 AND id=$2`, [groupId, attemptId, status])
+}
+
 export async function startCourseGroup(identity: Auth0Identity, slug: string, inputName: string) {
   const name = inputName.trim() || 'My course group'
   if (name.length > 80) throw new Error('Use a shorter group name.')
@@ -86,7 +96,7 @@ export async function inviteToCourseGroup(identity: Auth0Identity, groupId: numb
     const limits = await client.query<{ sender: string; recipient: string }>(`SELECT count(*) FILTER (WHERE inviter_key=$1) AS sender, count(*) FILTER (WHERE email=$2) AS recipient FROM course_invitations WHERE created_at > now()-interval '1 hour'`, [identity.identityKey, email])
     if (Number(limits.rows[0].sender) >= 30 || Number(limits.rows[0].recipient) >= 5) throw new Error('Too many invitations. Try again later.')
     await client.query(`UPDATE course_invitations SET status='revoked',updated_at=now() WHERE group_id=$1 AND email=$2 AND status='pending'`, [groupId, email])
-    const result = await client.query<{ id: number }>(`INSERT INTO course_invitations (group_id,email,inviter_key,token_hash,expires_at,status,delivery_status,created_at,updated_at) VALUES ($1,$2,$3,$4,now()+interval '7 days','pending','sending',now(),now()) RETURNING id`, [groupId, email, identity.identityKey, invitationTokenHash(token)])
+    const result = await client.query<{ id: number }>(`INSERT INTO course_invitations (group_id,email,inviter_key,token_hash,expires_at,status,delivery_status,created_at,updated_at) VALUES ($1,$2,$3,$4,clock_timestamp()+interval '7 days','pending','sending',${groupEventTimeSQL},clock_timestamp()) RETURNING id`, [groupId, email, identity.identityKey, invitationTokenHash(token)])
     const edition = await client.query<{ snapshot: unknown }>('SELECT snapshot FROM course_editions WHERE id=$1', [group.edition_id])
     return { id: result.rows[0].id, group, title: readCourseSnapshot(edition.rows[0].snapshot).title }
   })
@@ -107,7 +117,7 @@ export async function inviteToCourseGroup(identity: Auth0Identity, groupId: numb
 export async function getCourseInvitation(identity: Auth0Identity, token: string) {
   if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return null
   const pool = coursePostgresPool(await getPayloadClient())
-  const result = await pool.query<{ group_name: string; snapshot: unknown }>(`SELECT i.*,g.name AS group_name,g.edition_id,g.status AS group_status,e.snapshot FROM course_invitations i JOIN course_groups g ON g.id=i.group_id JOIN course_editions e ON e.id=g.edition_id JOIN courses c ON c.id=e.course_id WHERE i.token_hash=$1 AND i.email=$2 AND i.status='pending' AND i.expires_at>now() AND g.status='active' AND c._status='published' AND c.enrolment_open=true`, [invitationTokenHash(token), identity.email])
+  const result = await pool.query<{ group_name: string; snapshot: unknown }>(`SELECT i.*,g.name AS group_name,g.edition_id,g.status AS group_status,e.snapshot FROM course_invitations i JOIN course_groups g ON g.id=i.group_id JOIN course_editions e ON e.id=g.edition_id JOIN courses c ON c.id=e.course_id WHERE i.token_hash=$1 AND i.email=$2 AND i.status='pending' AND i.expires_at>now() AND g.status='active' AND c._status='published' AND c.enrolment_open=true AND NOT EXISTS (SELECT 1 FROM course_attempts m WHERE m.group_id=i.group_id AND m.account_key=$3 AND m.membership_status<>'active' AND i.created_at<=m.updated_at)`, [invitationTokenHash(token), identity.email, identity.identityKey])
   const invitation = result.rows[0]
   return invitation ? { groupName: invitation.group_name, title: readCourseSnapshot(invitation.snapshot).title } : null
 }
@@ -121,7 +131,7 @@ export async function acceptCourseInvitation(identity: Auth0Identity, token: str
     const group = await lockCourseGroup(client, lookup.rows[0].group_id)
     if (group.status !== 'active') throw new Error('Invitation is unavailable.')
     await requireOpenCourse(client, group.edition_id)
-    const invite = await client.query<InvitationRow>('SELECT * FROM course_invitations WHERE token_hash=$1 AND email=$2 FOR UPDATE', [tokenHash, identity.email])
+    const invite = await client.query<InvitationRow>(`SELECT i.* FROM course_invitations i WHERE i.token_hash=$1 AND i.email=$2 AND NOT EXISTS (SELECT 1 FROM course_attempts m WHERE m.group_id=i.group_id AND m.account_key=$3 AND m.membership_status<>'active' AND i.created_at<=m.updated_at) FOR UPDATE OF i`, [tokenHash, identity.email, identity.identityKey])
     const invitation = invite.rows[0]
     if (!invitation || invitation.status !== 'pending' || new Date(invitation.expires_at).getTime() <= Date.now()) throw new Error('Invitation is unavailable.')
     await client.query(`INSERT INTO course_attempts (account_key,edition_id,mode,group_id,membership_status,display_name,completed_lesson_ids,created_at,updated_at) VALUES ($1,$2,'group',$3,'active',$4,'[]'::jsonb,now(),now()) ON CONFLICT (group_id,account_key) DO UPDATE SET membership_status='active',display_name=EXCLUDED.display_name,updated_at=now()`, [identity.identityKey, group.edition_id, group.id, identity.name])
@@ -153,7 +163,7 @@ export async function manageCourseGroup(identity: Auth0Identity, groupId: number
     const self = await requireGroupMember(client, identity, groupId)
     if (action === 'leave') {
       if (group.status === 'active' && group.facilitator_key === identity.identityKey) throw new Error('Transfer facilitation or close the group before leaving.')
-      await client.query(`UPDATE course_attempts SET membership_status='left',updated_at=now() WHERE id=$1`, [self.id]); return
+      await endGroupMembership(client, groupId, self.id, 'left'); return
     }
     requireFacilitator(group, identity, action !== 'delete-workbook')
     if (action === 'close') { await client.query(`UPDATE course_groups SET status='closed',updated_at=now() WHERE id=$1`, [groupId]); await client.query(`UPDATE course_invitations SET status='revoked',updated_at=now() WHERE group_id=$1 AND status='pending'`, [groupId]); return }
@@ -166,7 +176,7 @@ export async function manageCourseGroup(identity: Auth0Identity, groupId: number
     const person = target.rows[0]
     if (!person || person.id === self.id) throw new Error('Choose another participant.')
     if (action === 'transfer') await client.query('UPDATE course_groups SET facilitator_key=$2,updated_at=now() WHERE id=$1', [groupId, person.account_key])
-    if (action === 'remove') await client.query(`UPDATE course_attempts SET membership_status='removed',updated_at=now() WHERE id=$1`, [person.id])
+    if (action === 'remove') await endGroupMembership(client, groupId, person.id, 'removed')
   })
 }
 

@@ -65,6 +65,61 @@ suite('course groups against isolated PostgreSQL', () => {
     const saves=await Promise.all([saveCourseAnswer(a,attemptA,'lesson','together',revision,'A'),saveCourseAnswer(b,attemptB,'lesson','together',revision,'B')])
     expect(saves.map(x=>x.status).sort()).toEqual(['conflict','saved'])
   })
+  it('rejects pre-removal invitations across repeated revocation before the wall clock catches up',async()=>{
+    const person=identity('Dina')
+    const attempt=(await pool.query<{id:number}>("INSERT INTO course_attempts(account_key,edition_id,mode,group_id,membership_status,display_name,completed_lesson_ids,created_at,updated_at) VALUES($1,$2,'group',$3,'active','Dina','[]',now(),now()) RETURNING id",[person.identityKey,editionId,groupId])).rows[0].id
+    const send = async () => {
+      let token=''
+      await inviteToCourseGroup(a,groupId,person.email,{send:async message=>{token=message.text.match(/http[^\s]+/)![0].split('/').at(-1)!;return {providerId:'fake-revocation'}}})
+      return token
+    }
+    const assertBlocked = async (token: string) => {
+      expect(await getCourseInvitation(person,token)).toBeNull()
+      await expect(acceptCourseInvitation(person,token)).rejects.toThrow('unavailable')
+      expect((await pool.query('SELECT membership_status FROM course_attempts WHERE id=$1',[attempt])).rows[0].membership_status).toBe('removed')
+      expect((await pool.query<{ordered:boolean}>('SELECT i.created_at<m.updated_at AS ordered FROM course_invitations i JOIN course_attempts m ON m.id=$1 WHERE i.token_hash=$2',[attempt,invitationTokenHash(token)])).rows[0].ordered).toBe(true)
+    }
+    try {
+      // Model clock/precision pressure: every subsequent mutation runs while the
+      // wall clock is behind the stored event, without sleeping or JS date casts.
+      const old=await send()
+      await pool.query("UPDATE course_invitations SET created_at=clock_timestamp()+interval '1 minute' WHERE token_hash=$1",[invitationTokenHash(old)])
+      await manageCourseGroup(a,groupId,'remove',attempt)
+      await assertBlocked(old)
+      const fresh=await send()
+      expect((await pool.query<{ordered:boolean}>('SELECT i.created_at>m.updated_at AS ordered FROM course_invitations i JOIN course_attempts m ON m.id=$1 WHERE i.token_hash=$2',[attempt,invitationTokenHash(fresh)])).rows[0].ordered).toBe(true)
+      expect(await getCourseInvitation(person,fresh)).not.toBeNull()
+      expect(await acceptCourseInvitation(person,fresh)).toBe(groupId)
+      const pendingAgain=await send()
+      expect((await pool.query<{future:boolean}>('SELECT created_at>clock_timestamp() AS future FROM course_invitations WHERE token_hash=$1',[invitationTokenHash(pendingAgain)])).rows[0].future).toBe(true)
+      await manageCourseGroup(a,groupId,'remove',attempt)
+      await assertBlocked(pendingAgain)
+      const freshAgain=await send()
+      expect(await acceptCourseInvitation(person,freshAgain)).toBe(groupId)
+    } finally {
+      await pool.query('DELETE FROM course_invitations WHERE group_id=$1 AND email=$2',[groupId,person.email])
+      await pool.query('DELETE FROM course_attempts WHERE id=$1',[attempt])
+    }
+  })
+  it('rejects pre-leave invitations including an exact stored timestamp boundary',async()=>{
+    const person=identity('Evan')
+    const attempt=(await pool.query<{id:number}>("INSERT INTO course_attempts(account_key,edition_id,mode,group_id,membership_status,display_name,completed_lesson_ids,created_at,updated_at) VALUES($1,$2,'group',$3,'active','Evan','[]',now(),now()) RETURNING id",[person.identityKey,editionId,groupId])).rows[0].id
+    const send=async()=>{let token='';await inviteToCourseGroup(a,groupId,person.email,{send:async message=>{token=message.text.match(/http[^\s]+/)![0].split('/').at(-1)!;return {providerId:'fake-leave'}}});return token}
+    try {
+      const old=await send()
+      await manageCourseGroup(person,groupId,'leave')
+      await pool.query('UPDATE course_invitations SET created_at=(SELECT updated_at FROM course_attempts WHERE id=$1) WHERE token_hash=$2',[attempt,invitationTokenHash(old)])
+      expect(await getCourseInvitation(person,old)).toBeNull()
+      await expect(acceptCourseInvitation(person,old)).rejects.toThrow('unavailable')
+      expect((await pool.query('SELECT membership_status FROM course_attempts WHERE id=$1',[attempt])).rows[0].membership_status).toBe('left')
+      const fresh=await send()
+      expect(await getCourseInvitation(person,fresh)).not.toBeNull()
+      expect(await acceptCourseInvitation(person,fresh)).toBe(groupId)
+    } finally {
+      await pool.query('DELETE FROM course_invitations WHERE group_id=$1 AND email=$2',[groupId,person.email])
+      await pool.query('DELETE FROM course_attempts WHERE id=$1',[attempt])
+    }
+  })
   it('revokes shared access after removal while preserving own personal answers',async()=>{
     await saveCourseAnswer(b,attemptB,'lesson','private',0,'Private Bob')
     await expect(manageCourseGroup(b,groupId,'remove',attemptA)).rejects.toThrow()
