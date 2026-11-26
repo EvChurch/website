@@ -1,6 +1,6 @@
 ## Start a course
 
-Open [Courses](/members/courses), choose an available course, and select **Start solo** or **Start group**. Sign in or create an account when asked. You do not need to be a church member.
+Open [Courses](/members/courses) and sign in or create an account before browsing. You do not need to be a church member. Choose an available course and select **Start solo** or **Start group**. Links from the public giving calculator and email invitations also take you through sign-in first.
 
 ## Continue learning
 

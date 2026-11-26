@@ -5,6 +5,7 @@ import { getAuth0Client } from '@/auth/auth0-client'
 import { getAuth0SessionFromHeaders } from '@/auth/auth0-session'
 import { readAuth0Config } from '@/auth/auth0-config'
 import { safeAdminReturnTo } from '@/auth/safe-admin-return'
+import { safeMemberReturnTo } from '@/auth/safe-member-return'
 import { KIDS_ENROLMENT_LAUNCHER_HREF } from '@/lib/launcher/constants'
 import { findMissingPathRedirect } from '@/lib/missing-paths'
 import {
@@ -25,13 +26,15 @@ export async function proxy(request: NextRequest) {
   const isAdminAuthRoute = matchesPathPrefix(request.nextUrl.pathname, '/auth')
   const isAdminRoute = matchesPathPrefix(request.nextUrl.pathname, '/admin')
   const isAdminApiRoute = matchesPathPrefix(request.nextUrl.pathname, '/api')
+  const isCourseRoute = matchesPathPrefix(request.nextUrl.pathname, '/members/courses')
   const normalizedPath = normalizePublicPath(request.nextUrl.pathname)
   const isEligiblePath = normalizedPath !== null && isEligibleRedirectPath(normalizedPath)
 
   if (
     !isAdminAuthRoute &&
     !isAdminRoute &&
-    !isAdminApiRoute
+    !isAdminApiRoute &&
+    !isCourseRoute
   ) {
     if (matchesPathPrefix(request.nextUrl.pathname, '/shared/leader-resources')) {
       const requestHeaders = new Headers(request.headers)
@@ -84,7 +87,7 @@ export async function proxy(request: NextRequest) {
   try {
     response = await getAuth0Client().middleware(request)
   } catch {
-    if (isAdminRoute || isAdminAuthRoute) {
+    if (isAdminRoute || isAdminAuthRoute || isCourseRoute) {
       return new NextResponse('Authentication is temporarily unavailable.', {
         status: 503,
         headers: { 'Cache-Control': 'private, no-store, max-age=0' },
@@ -93,7 +96,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  if (!isAdminRoute) return response
+  if (!isAdminRoute && !isCourseRoute) return response
 
   const identity = await getAuth0SessionFromHeaders(request.headers)
   if (identity) return response
@@ -102,9 +105,13 @@ export async function proxy(request: NextRequest) {
   const login = new URL('/auth/login', config.appBaseUrl)
   login.searchParams.set(
     'returnTo',
-    safeAdminReturnTo(`${request.nextUrl.pathname}${request.nextUrl.search}`),
+    (isCourseRoute ? safeMemberReturnTo : safeAdminReturnTo)(
+      `${request.nextUrl.pathname}${request.nextUrl.search}`,
+    ),
   )
-  return NextResponse.redirect(login)
+  const loginResponse = NextResponse.redirect(login)
+  loginResponse.headers.set('Cache-Control', 'private, no-store, max-age=0')
+  return loginResponse
 }
 
 export const config = {
