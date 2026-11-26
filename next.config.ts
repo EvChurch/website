@@ -120,6 +120,8 @@ const payloadHeaders = payloadConfig.headers
 payloadConfig.headers = async () => {
   const headers = (await payloadHeaders?.()) ?? []
 
+  headers.push({ source: '/members/courses/invitations/:path*', headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }] })
+
   return headers.map((rule) => {
     const requestsColorScheme = rule.headers.some(
       ({ key, value }) =>

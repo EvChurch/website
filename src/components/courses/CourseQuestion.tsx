@@ -15,6 +15,7 @@ export function CourseQuestion({ block, attemptId, lessonId, initial }: { block:
       <span className="rounded-full border border-warm-grey bg-white px-3 py-1">{initial.scope === 'personal' ? 'Personal · Only you' : initial.scope === 'group' ? 'Shared · Everyone in this group' : 'Shared · Your own answer'}</span>
       <span role="status" aria-live="polite">{status === 'saved' ? '✓ Saved' : status === 'saving' ? 'Saving…' : status === 'conflict' ? 'Updated elsewhere' : 'Couldn’t save'}</span>
     </div>
+    <fieldset disabled={initial.readOnly} className="min-w-0 border-0 p-0">
     <label id={`${fieldId}-label`} htmlFor={fieldId} className="mb-4 block text-xl font-bold">{block.prompt}{block.required && <span className="ml-2 text-sm font-normal text-mid-grey">Required</span>}</label>
     {block.inputType === 'text' && <textarea id={fieldId} className={classes} rows={4} maxLength={10000} value={typeof value === 'string' ? value : ''} onChange={event => change(event.target.value)} />}
     {block.inputType === 'number' && <input id={fieldId} className={classes} type="number" step="any" value={typeof value === 'number' ? value : ''} onChange={event => change(event.target.value === '' ? null : Number(event.target.value))} />}
@@ -24,5 +25,6 @@ export function CourseQuestion({ block, attemptId, lessonId, initial }: { block:
     {status === 'error' && <p role="alert" className="mt-3 text-sm">Your answer is kept here. <button type="button" onClick={saveMine} className="font-bold text-rich-red underline">Retry</button></p>}
     {conflict && <div role="alert" className="mt-4 rounded-lg border border-warm-grey bg-white p-4 text-sm"><p>Your changes are kept here. Choose which answer to keep.</p><div className="mt-3 flex flex-wrap gap-4"><button type="button" onClick={useSaved} className="font-bold text-rich-red">Use saved answer</button><button type="button" onClick={saveMine} className="font-bold text-rich-red">Save my version</button></div></div>}
     {value !== null && value !== '' && <button type="button" onClick={clear} className="mt-4 text-xs text-mid-grey underline">Delete answer</button>}
+    </fieldset>
   </section>
 }

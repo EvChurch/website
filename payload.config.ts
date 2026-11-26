@@ -1,3 +1,5 @@
+import { CourseGroups } from './src/collections/CourseGroups'
+import { CourseInvitations } from './src/collections/CourseInvitations'
 import { stripeGivingTask } from '@/jobs/stripe-giving'
 import { ApiKeys, ApiAudit } from './src/collections/ApiKeys'
 import { SermonTranscripts } from '@/collections/SermonTranscripts'
@@ -109,6 +111,7 @@ function defaultFeedbackToolPermissions(fields: Field[]): Field[] {
 }
 
 export const applicationCollections: CollectionConfig[] = [
+  CourseGroups, CourseInvitations,
   Courses,
   CourseEditions,
   CourseAttempts,
@@ -169,6 +172,8 @@ export const applicationGlobals: GlobalConfig[] = [
 ]
 
 export const mcpExcludedCollectionSlugs = new Set([
+  'course-groups',
+  'course-invitations',
   'course-editions',
   'course-attempts',
   'course-answers',

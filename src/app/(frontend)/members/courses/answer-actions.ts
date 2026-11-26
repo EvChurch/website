@@ -1,6 +1,6 @@
 'use server'
 import { getCurrentCourseIdentity } from '@/auth/course-session'
-import { readCourseAnswer, saveCourseAnswer } from '@/lib/courses/answers'
+import { readCourseAnswer, saveCourseAnswer, readOtherCourseAnswers } from '@/lib/courses/answers'
 import type { CourseSaveResult } from '@/lib/courses/answer-model'
 
 export async function readCourseAnswerAction(attemptId: number, lessonId: string, blockId: string) {
@@ -17,4 +17,10 @@ export async function saveCourseAnswerAction(attemptId: number, lessonId: string
   } catch {
     return { status: 'error', message: 'Couldn’t save. Your answer is kept here.' }
   }
+}
+
+export async function readOtherCourseAnswersAction(attemptId: number, lessonId: string, blockId: string) {
+  const identity = await getCurrentCourseIdentity()
+  if (!identity) throw new Error('Sign in to continue.')
+  return readOtherCourseAnswers(identity, attemptId, lessonId, blockId)
 }

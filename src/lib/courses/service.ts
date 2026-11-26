@@ -1,3 +1,4 @@
+import type { PoolClient } from 'pg'
 import type { Auth0Identity } from '@/auth/auth0-identity'
 import type { Course, CourseAttempt } from '@/payload-types'
 import { getPayloadClient } from '@/lib/payload'
@@ -36,7 +37,11 @@ export async function getOwnedCourseAttempt(identity: Auth0Identity, attemptId: 
 export async function listCourseAttempts(identity: Auth0Identity) {
   const payload = await getPayloadClient()
   const result = await payload.find({ collection: 'course-attempts', where: { accountKey: { equals: identity.identityKey } }, sort: '-updatedAt', depth: 0, limit: 100, overrideAccess: true })
-  return Promise.all(result.docs.map(attempt => getOwnedCourseAttempt(identity, attempt.id)))
+  const attempts = await Promise.all(result.docs.map(attempt => getOwnedCourseAttempt(identity, attempt.id)))
+  const groupIds = attempts.flatMap(item => { const group = item?.attempt.group; return group ? [typeof group === 'number' ? group : group.id] : [] })
+  const groups = groupIds.length ? await coursePostgresPool(payload).query<{ id: number; name: string }>('SELECT id,name FROM course_groups WHERE id=ANY($1::int[])', [groupIds]) : { rows: [] }
+  const names = new Map(groups.rows.map(group => [group.id, group.name]))
+  return attempts.map(item => item ? { ...item, groupName: names.get(typeof item.attempt.group === 'number' ? item.attempt.group : item.attempt.group?.id ?? 0) } : null)
 }
 
 export async function startSoloCourse(identity: Auth0Identity, slug: string): Promise<CourseAttempt> {
@@ -47,7 +52,7 @@ export async function startSoloCourse(identity: Auth0Identity, slug: string): Pr
   const payload = await getPayloadClient()
   const existing = await payload.find({ collection: 'course-attempts', where: { and: [{ accountKey: { equals: identity.identityKey } }, { edition: { equals: edition.id } }, { mode: { equals: 'solo' } }, { completedAt: { exists: false } }] }, depth: 0, limit: 1, overrideAccess: true })
   if (existing.docs[0]) return existing.docs[0]
-  return payload.create({ collection: 'course-attempts', data: { accountKey: identity.identityKey, edition: edition.id, mode: 'solo', completedLessonIds: [] }, overrideAccess: true })
+  return payload.create({ collection: 'course-attempts', data: { accountKey: identity.identityKey, edition: edition.id, mode: 'solo', membershipStatus: 'active', completedLessonIds: [] }, overrideAccess: true })
 }
 
 export async function completeCourseLesson(identity: Auth0Identity, attemptId: number, lessonId: string) {
@@ -58,9 +63,15 @@ export async function completeCourseLesson(identity: Auth0Identity, attemptId: n
   const payload = await getPayloadClient()
   const required = owned.snapshot.lessons.filter(lesson => lesson.required !== false).map(lesson => lesson.lessonId)
   // Append atomically: two tabs finishing different lessons cannot erase progress.
-  await coursePostgresPool(payload).query(`UPDATE course_attempts SET
+  const update = (client: Pick<PoolClient, 'query'>) => client.query(`UPDATE course_attempts SET
     completed_lesson_ids = (SELECT jsonb_agg(DISTINCT item) FROM jsonb_array_elements(completed_lesson_ids || $3::jsonb) AS item),
     completed_at = CASE WHEN (completed_lesson_ids || $3::jsonb) @> $4::jsonb THEN COALESCE(completed_at, now()) ELSE completed_at END,
     updated_at = now()
     WHERE id = $1 AND account_key = $2`, [attemptId, identity.identityKey, JSON.stringify([lessonId]), JSON.stringify(required)])
+  if (owned.attempt.mode === 'group') {
+    const groupId = typeof owned.attempt.group === 'number' ? owned.attempt.group : owned.attempt.group?.id
+    if (!groupId) throw new Error('Group not found.')
+    const { withCourseGroupWrite } = await import('./groups')
+    await withCourseGroupWrite(identity, groupId, update)
+  } else await update(coursePostgresPool(payload))
 }
