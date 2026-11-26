@@ -23,3 +23,9 @@ Answers save automatically to your account. Wait for **Saved** before leaving, t
 If saving fails, your work stays on the screen; choose **Retry**. If another tab saved a newer answer, choose **Use saved answer** or **Save my version**. Your typing is kept until you choose.
 
 Use **Delete answer** to clear an answer from your account. Required questions must be answered before marking a lesson complete.
+
+## Build your budget
+
+Enter your weekly take-home pay and planned amounts in NZ dollars. Use up to two decimal places. Category totals and the amount left update as you type; an over-budget amount does not prevent you from saving.
+
+Use **Add a row** for another expense and **×** to remove a row. Your budget uses the same autosave and privacy rules as other answers. **Delete budget** clears the saved figures and restores the starting rows.

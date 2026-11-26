@@ -1,14 +1,17 @@
 import type { CourseBlock } from './model'
+import { budgetComplete, isBudgetAnswer, validateBudgetAnswer, type BudgetAnswer, type CourseBudget } from './budget-model'
 
 export type CourseQuestion = Extract<CourseBlock, { blockType: 'courseQuestion' }>
+export type CourseAnswerableBlock = CourseQuestion | CourseBudget
 export type CourseAnswerScope = 'personal' | 'individual-shared' | 'group'
-export type CourseAnswerValue = string | number | string[] | null
+export type CourseAnswerValue = string | number | string[] | BudgetAnswer | null
 export interface CourseAnswerState {
   blockId: string
   scope: CourseAnswerScope
   value: CourseAnswerValue
   revision: number
   updatedAt: string | null
+  readOnly?: boolean
 }
 export type CourseSaveResult =
   | { status: 'saved'; answer: CourseAnswerState }
@@ -19,8 +22,13 @@ export function isQuestionBlock(block: CourseBlock): block is CourseQuestion {
   return block.blockType === 'courseQuestion'
 }
 
-export function validateCourseAnswer(block: CourseQuestion, value: unknown): CourseAnswerValue {
+export function isAnswerableBlock(block: CourseBlock): block is CourseAnswerableBlock {
+  return block.blockType === 'courseQuestion' || block.blockType === 'courseBudget'
+}
+
+export function validateCourseAnswer(block: CourseAnswerableBlock, value: unknown): CourseAnswerValue {
   if (value === null || value === '') return null
+  if (block.blockType === 'courseBudget') return validateBudgetAnswer(block, value)
   switch (block.inputType) {
     case 'text':
       if (typeof value === 'string' && value.length <= 10000) return value
@@ -40,8 +48,9 @@ export function validateCourseAnswer(block: CourseQuestion, value: unknown): Cou
   throw new Error('Check your answer and try again.')
 }
 
-export function courseAnswerComplete(block: CourseQuestion, value: CourseAnswerValue): boolean {
+export function courseAnswerComplete(block: CourseAnswerableBlock, value: CourseAnswerValue): boolean {
   if (value === null) return false
+  if (block.blockType === 'courseBudget') return isBudgetAnswer(value) && budgetComplete(block, value)
   if (block.inputType === 'checklist') return Array.isArray(value) && !!block.choices?.length && block.choices.every(choice => value.includes(choice.choiceId))
   if (typeof value === 'string') return value.trim().length > 0
   return typeof value === 'number' && Number.isFinite(value)

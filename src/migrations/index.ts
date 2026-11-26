@@ -1,3 +1,4 @@
+import * as migration_20261126_103725_courses_budget from './20261126_103725_courses_budget';
 import * as migration_20261126_102210_courses_answers from './20261126_102210_courses_answers';
 import * as migration_20261126_100822_courses_foundation from './20261126_100822_courses_foundation';
 import * as migration_20261122_020000_scheduled_blocks from './20261122_020000_scheduled_blocks';
@@ -400,4 +401,5 @@ export const migrations = [
   { up: migration_20261122_020000_scheduled_blocks.up, down: migration_20261122_020000_scheduled_blocks.down, name: '20261122_020000_scheduled_blocks' },
   { up: migration_20261126_100822_courses_foundation.up, down: migration_20261126_100822_courses_foundation.down, name: '20261126_100822_courses_foundation' },
   { up: migration_20261126_102210_courses_answers.up, down: migration_20261126_102210_courses_answers.down, name: '20261126_102210_courses_answers' },
+  { up: migration_20261126_103725_courses_budget.up, down: migration_20261126_103725_courses_budget.down, name: '20261126_103725_courses_budget' },
 ];

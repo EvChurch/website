@@ -3,14 +3,14 @@ import type { Auth0Identity } from '@/auth/auth0-identity'
 import { getPayloadClient } from '@/lib/payload'
 import { getOwnedCourseAttempt } from './service'
 import { coursePostgresPool } from './postgres'
-import { isQuestionBlock, validateCourseAnswer, courseAnswerComplete, type CourseQuestion, type CourseAnswerState, type CourseAnswerScope, type CourseAnswerValue, type CourseSaveResult } from './answer-model'
+import { isAnswerableBlock, validateCourseAnswer, courseAnswerComplete, type CourseAnswerableBlock, type CourseAnswerState, type CourseAnswerScope, type CourseAnswerValue, type CourseSaveResult } from './answer-model'
 
 export interface CourseAnswerContext {
   responseKey: string
   attemptId: number
   editionId: number
   lessonId: string
-  block: CourseQuestion
+  block: CourseAnswerableBlock
   ownerKey: string
   scope: CourseAnswerScope
 }
@@ -21,7 +21,7 @@ export async function getCourseAnswerContext(identity: Auth0Identity, attemptId:
   if (!owned || owned.attempt.mode !== 'solo') throw new Error('Answer not found.')
   const lesson = owned.snapshot.lessons.find(item => item.lessonId === lessonId)
   const block = lesson?.blocks?.find(item => item.id === blockId)
-  if (!block || !isQuestionBlock(block)) throw new Error('Answer not found.')
+  if (!block || !isAnswerableBlock(block)) throw new Error('Answer not found.')
   const editionId = owned.edition.id
   const responseKey = createHash('sha256').update(JSON.stringify([attemptId, editionId, lessonId, blockId, identity.identityKey])).digest('hex')
   return { responseKey, attemptId, editionId, lessonId, block, ownerKey: identity.identityKey, scope: 'personal' }
@@ -62,7 +62,7 @@ export async function getCourseLessonAnswers(identity: Auth0Identity, attemptId:
   const owned = await getOwnedCourseAttempt(identity, attemptId)
   const lesson = owned?.snapshot.lessons.find(item => item.lessonId === lessonId)
   if (!owned || !lesson || owned.attempt.mode !== 'solo') throw new Error('Lesson not found.')
-  const answers = await Promise.all((lesson.blocks ?? []).filter(isQuestionBlock).map(block => readCourseAnswer(identity, attemptId, lessonId, block.id!)))
+  const answers = await Promise.all((lesson.blocks ?? []).filter(isAnswerableBlock).map(block => readCourseAnswer(identity, attemptId, lessonId, block.id!)))
   return Object.fromEntries(answers.map(answer => [answer.blockId, answer]))
 }
 
@@ -70,7 +70,7 @@ export async function requiredCourseAnswersComplete(identity: Auth0Identity, att
   const owned = await getOwnedCourseAttempt(identity, attemptId)
   const lesson = owned?.snapshot.lessons.find(item => item.lessonId === lessonId)
   if (!owned || !lesson) return false
-  const required = (lesson.blocks ?? []).filter(isQuestionBlock).filter(block => block.required)
+  const required = (lesson.blocks ?? []).filter(isAnswerableBlock).filter(block => block.required)
   if (!required.length) return true
   const answers = await getCourseLessonAnswers(identity, attemptId, lessonId)
   return required.every(block => courseAnswerComplete(block, answers[block.id!]?.value ?? null))

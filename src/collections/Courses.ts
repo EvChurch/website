@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { CollectionConfig } from 'payload'
 import { isContentLead, isEditor } from '@/access/roles'
 import { courseQuestionBlock, coursePromptBlock } from '@/lib/courses/question-blocks'
+import { courseBudgetBlock } from '@/lib/courses/budget-block'
 import { publishCourseEdition } from '@/lib/courses/publishing'
 
 export const Courses: CollectionConfig = {
@@ -25,7 +26,7 @@ export const Courses: CollectionConfig = {
       { name: 'title', type: 'text', required: true },
       { name: 'required', type: 'checkbox', defaultValue: true },
       { name: 'blocks', type: 'blocks', blocks: [
-        courseQuestionBlock, coursePromptBlock,
+        courseQuestionBlock, coursePromptBlock, courseBudgetBlock,
         { slug: 'courseTeaching', interfaceName: 'CourseTeachingBlock', fields: [{ name: 'body', type: 'richText', required: true }] },
         { slug: 'courseImage', interfaceName: 'CourseImageBlock', fields: [{ name: 'image', type: 'upload', relationTo: 'media', required: true }, { name: 'caption', type: 'text' }] },
         { slug: 'courseVideo', interfaceName: 'CourseVideoBlock', fields: [{ name: 'url', type: 'text', required: true, validate: (value: unknown) => { try { return typeof value === 'string' && new URL(value).protocol === 'https:' || 'Use an HTTPS video link.' } catch { return 'Use an HTTPS video link.' } } }, { name: 'title', type: 'text', required: true }] },
