@@ -50,6 +50,47 @@ describe('admin Auth0 proxy', () => {
     expect(middleware).toHaveBeenCalledOnce()
   })
 
+  it.each([
+    '/members/courses',
+    '/members/courses/faithful-with-money',
+    '/members/courses/faithful-with-money/preview',
+    '/members/courses/attempts/4/lesson-1',
+    '/members/courses/groups/2',
+    '/members/courses/invitations/invitation-token?source=email',
+  ])('requires sign-in before serving course route %s', async path => {
+    getSession.mockResolvedValue(null)
+    const response = await proxy(new NextRequest(`https://www.ev.church${path}`))
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe(
+      `https://www.ev.church/auth/login?returnTo=${encodeURIComponent(path)}`,
+    )
+    expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0')
+    expect(findRedirect).not.toHaveBeenCalled()
+  })
+
+  it('allows an authenticated course account without a Rock profile or CMS role', async () => {
+    getSession.mockResolvedValue({ subject: 'auth0|learner' })
+    const response = await proxy(new NextRequest('https://www.ev.church/members/courses'))
+    expect(response.status).toBe(200)
+    expect(middleware).toHaveBeenCalledOnce()
+    expect(findRedirect).not.toHaveBeenCalled()
+  })
+
+  it('keeps the calculator public and does not guard course-prefix lookalikes', async () => {
+    for (const path of ['/generosity/calculator', '/members/courses-other']) {
+      expect((await proxy(new NextRequest(`https://www.ev.church${path}`))).status).toBe(200)
+    }
+    expect(getSession).not.toHaveBeenCalled()
+    expect(middleware).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when course authentication is unavailable', async () => {
+    middleware.mockRejectedValue(new Error('configuration unavailable'))
+    const response = await proxy(new NextRequest('https://www.ev.church/members/courses'))
+    expect(response.status).toBe(503)
+    expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0')
+  })
+
   it('does not guard public routes', async () => {
     const response = await proxy(new NextRequest('https://www.ev.church/events'))
     expect(response.status).toBe(200)
