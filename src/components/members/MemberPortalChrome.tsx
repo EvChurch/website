@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 import { MemberAvatar } from './MemberAvatar'
 import { ReimbursementMenuLink } from './ReimbursementMenuLink'
 
-export type MemberSection = 'overview' | 'service' | 'groups' | 'reading' | 'resources' | 'giving' | 'reimbursements' | 'help'
+export type MemberSection = 'overview' | 'service' | 'groups' | 'reading' | 'resources' | 'giving' | 'reimbursements' | 'help' | 'courses'
 
 export function memberConnectGroupHref(groups: Array<{ rockGroupId: number }>) {
   return groups.length === 1
@@ -26,6 +26,7 @@ export function MemberPortalChrome({
 }) {
   const links = [
     { key: 'overview' as const, label: 'Overview', href: '/members' },
+    { key: 'courses' as const, label: 'Courses', href: '/members/courses' },
     { key: 'reading' as const, label: 'Daily Reading', href: '/members/daily-readings' },
     { key: 'groups' as const, label: 'Connect Group', href: connectGroupHref },
     {

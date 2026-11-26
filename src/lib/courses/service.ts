@@ -1,0 +1,64 @@
+import type { Auth0Identity } from '@/auth/auth0-identity'
+import type { Course, CourseAttempt } from '@/payload-types'
+import { getPayloadClient } from '@/lib/payload'
+import { completedLessonIds, readCourseSnapshot } from './model'
+import { coursePostgresPool } from './postgres'
+
+export async function listAvailableCourses() {
+  const payload = await getPayloadClient()
+  const result = await payload.find({ collection: 'courses', where: { and: [{ _status: { equals: 'published' } }, { enrolmentOpen: { equals: true } }] }, select: { title: true, slug: true, summary: true, allowSolo: true, allowGroup: true }, sort: 'title', depth: 0, limit: 100, overrideAccess: true })
+  return result.docs
+}
+
+export async function findPublishedCourse(slug: string): Promise<Course | null> {
+  const payload = await getPayloadClient()
+  const result = await payload.find({ collection: 'courses', where: { and: [{ slug: { equals: slug } }, { _status: { equals: 'published' } }] }, depth: 0, limit: 1, overrideAccess: true })
+  return result.docs[0] ?? null
+}
+
+export async function latestCourseEdition(courseId: number) {
+  const payload = await getPayloadClient()
+  const result = await payload.find({ collection: 'course-editions', where: { course: { equals: courseId } }, sort: '-id', depth: 0, limit: 1, overrideAccess: true })
+  return result.docs[0] ?? null
+}
+
+export async function getOwnedCourseAttempt(identity: Auth0Identity, attemptId: number) {
+  if (!Number.isSafeInteger(attemptId) || attemptId <= 0) return null
+  const payload = await getPayloadClient()
+  const result = await payload.find({ collection: 'course-attempts', where: { and: [{ id: { equals: attemptId } }, { accountKey: { equals: identity.identityKey } }] }, depth: 0, limit: 1, overrideAccess: true })
+  const attempt = result.docs[0]
+  if (!attempt) return null
+  const editionId = typeof attempt.edition === 'number' ? attempt.edition : attempt.edition.id
+  const edition = await payload.findByID({ collection: 'course-editions', id: editionId, depth: 0, overrideAccess: true })
+  return { attempt, edition, snapshot: readCourseSnapshot(edition.snapshot), completed: completedLessonIds(attempt.completedLessonIds) }
+}
+
+export async function listCourseAttempts(identity: Auth0Identity) {
+  const payload = await getPayloadClient()
+  const result = await payload.find({ collection: 'course-attempts', where: { accountKey: { equals: identity.identityKey } }, sort: '-updatedAt', depth: 0, limit: 100, overrideAccess: true })
+  return Promise.all(result.docs.map(attempt => getOwnedCourseAttempt(identity, attempt.id)))
+}
+
+export async function startSoloCourse(identity: Auth0Identity, slug: string): Promise<CourseAttempt> {
+  const course = await findPublishedCourse(slug)
+  if (!course || !course.enrolmentOpen || course.allowSolo === false) throw new Error('This course is not open for solo enrolment.')
+  const edition = await latestCourseEdition(course.id)
+  if (!edition) throw new Error('This course is not available yet.')
+  const payload = await getPayloadClient()
+  const existing = await payload.find({ collection: 'course-attempts', where: { and: [{ accountKey: { equals: identity.identityKey } }, { edition: { equals: edition.id } }, { mode: { equals: 'solo' } }, { completedAt: { exists: false } }] }, depth: 0, limit: 1, overrideAccess: true })
+  if (existing.docs[0]) return existing.docs[0]
+  return payload.create({ collection: 'course-attempts', data: { accountKey: identity.identityKey, edition: edition.id, mode: 'solo', completedLessonIds: [] }, overrideAccess: true })
+}
+
+export async function completeCourseLesson(identity: Auth0Identity, attemptId: number, lessonId: string) {
+  const owned = await getOwnedCourseAttempt(identity, attemptId)
+  if (!owned || !owned.snapshot.lessons.some(lesson => lesson.lessonId === lessonId)) throw new Error('Lesson not found.')
+  const payload = await getPayloadClient()
+  const required = owned.snapshot.lessons.filter(lesson => lesson.required !== false).map(lesson => lesson.lessonId)
+  // Append atomically: two tabs finishing different lessons cannot erase progress.
+  await coursePostgresPool(payload).query(`UPDATE course_attempts SET
+    completed_lesson_ids = (SELECT jsonb_agg(DISTINCT item) FROM jsonb_array_elements(completed_lesson_ids || $3::jsonb) AS item),
+    completed_at = CASE WHEN (completed_lesson_ids || $3::jsonb) @> $4::jsonb THEN COALESCE(completed_at, now()) ELSE completed_at END,
+    updated_at = now()
+    WHERE id = $1 AND account_key = $2`, [attemptId, identity.identityKey, JSON.stringify([lessonId]), JSON.stringify(required)])
+}
