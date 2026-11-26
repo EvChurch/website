@@ -76,3 +76,45 @@ The total being claimed for an expense line, including GST where applicable; the
 
 **GST controls**:
 The optional form controls for viewing or entering net amounts and changing whether an expense includes GST.
+
+# Courses
+
+Language used when authoring and participating in Ev Church courses.
+
+## Language
+
+**Site member**:
+A person with a registered website account. Course enrolment does not require formal church membership.
+
+**Course**:
+A learning experience containing teaching, questions, and exercises, with supported participation modes chosen by its author.
+
+**Course version**:
+A published edition of a course whose questions, response audiences, and lesson structure remain stable for its existing enrolments. Wording corrections do not create a new edition.
+
+**Enrolment**:
+A participant's undertaking of a particular course version, with their progress and associated responses.
+
+**Course attempt**:
+A distinct undertaking of a course, with separate progress and answers from previous undertakings. Repeating a course or taking it with another group starts a new attempt.
+
+**Participation mode**:
+The way a participant chooses to undertake a course: Solo or Group, from the modes available for that course. Two people undertaking it together use Group mode.
+
+**Facilitator**:
+The person who starts a course group and manages its invitations and membership, coordinating shared sessions while participants maintain individual progress.
+
+**Personal response**:
+An individual participant's private answer to a question designated for personal reflection.
+
+**Shared response**:
+An answer visible to the course group as designated by its question block, or private to the participant in Solo mode. It may be one collaborative answer or an individual's answer shared with that audience.
+
+**Collaborative answer**:
+One shared answer that participants in its designated audience can update. Participants see each other's saved changes; simultaneous editing is not required.
+
+**Course group**:
+Two or more people undertaking a course together in Group mode, independent of church Connect Groups.
+
+**Closed course group**:
+A course group whose existing participants retain read access to its workbook, with invitations and editing stopped.
