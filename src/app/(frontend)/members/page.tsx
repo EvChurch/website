@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
+import { getCurrentCourseIdentity } from '@/auth/course-session'
+
 import { memberConnectGroupHref, MemberPortalChrome } from '@/components/members/MemberPortalChrome'
 import { formatReadingDate, getLatestDailyReading } from '@/lib/daily-readings/data'
 import { getMemberPortalHome } from '@/lib/members/data'
@@ -14,7 +16,10 @@ export const metadata: Metadata = {
 
 export default async function MembersPage() {
   const home = await getMemberPortalHome()
-  if (!home) redirect('/auth/login?returnTo=%2Fmembers')
+  if (!home) {
+    if (await getCurrentCourseIdentity()) redirect('/members/courses')
+    redirect('/auth/login?returnTo=%2Fmembers')
+  }
   const latestReading = await getLatestDailyReading()
 
   return (

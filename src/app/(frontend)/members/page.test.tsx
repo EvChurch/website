@@ -1,11 +1,16 @@
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   getMemberPortalHome: vi.fn(),
+  getCurrentCourseIdentity: vi.fn(),
+  redirect: vi.fn((path: string): never => { throw new Error(`NEXT_REDIRECT:${path}`) }),
   getLatestDailyReading: vi.fn(),
 }))
 
+vi.mock('@/auth/course-session', () => ({
+  getCurrentCourseIdentity: mocks.getCurrentCourseIdentity,
+}))
 vi.mock('@/lib/members/data', () => ({
   getMemberPortalHome: mocks.getMemberPortalHome,
 }))
@@ -17,11 +22,37 @@ vi.mock('@/components/members/MemberPortalChrome', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/components/members/MemberPortalChrome')>(),
   MemberPortalChrome: ({ children }: { children: React.ReactNode }) => children,
 }))
-vi.mock('next/navigation', () => ({ redirect: vi.fn() }))
+vi.mock('next/navigation', () => ({ redirect: mocks.redirect }))
 
 import MembersPage from './page'
 
 describe('MembersPage Connect Group navigation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.getCurrentCourseIdentity.mockResolvedValue(null)
+  })
+
+  it('returns account-only participants to Courses without restarting sign-in', async () => {
+    mocks.getMemberPortalHome.mockResolvedValue(null)
+    mocks.getCurrentCourseIdentity.mockResolvedValue({
+      identityKey: 'course-account', issuer: 'https://auth.example.com/',
+      subject: 'auth0|course-account', email: 'participant@example.com', name: 'Aroha',
+    })
+
+    await expect(MembersPage()).rejects.toThrow('NEXT_REDIRECT:/members/courses')
+
+    expect(mocks.redirect).toHaveBeenCalledExactlyOnceWith('/members/courses')
+    expect(mocks.getLatestDailyReading).not.toHaveBeenCalled()
+  })
+
+  it('keeps the existing sign-in destination for anonymous visitors', async () => {
+    mocks.getMemberPortalHome.mockResolvedValue(null)
+
+    await expect(MembersPage()).rejects.toThrow('NEXT_REDIRECT:/auth/login?returnTo=%2Fmembers')
+
+    expect(mocks.redirect).toHaveBeenCalledExactlyOnceWith('/auth/login?returnTo=%2Fmembers')
+    expect(mocks.getLatestDailyReading).not.toHaveBeenCalled()
+  })
   it('links the Connect Group card directly to the only group', async () => {
     mocks.getLatestDailyReading.mockResolvedValue({
       rockId: 16160,
@@ -41,6 +72,8 @@ describe('MembersPage Connect Group navigation', () => {
 
     const markup = renderToStaticMarkup(await MembersPage())
 
+    expect(mocks.getCurrentCourseIdentity).not.toHaveBeenCalled()
+    expect(mocks.redirect).not.toHaveBeenCalled()
     expect(markup).toContain('href="/members/connect-groups/10"')
     expect(markup).toContain('href="/members/daily-readings"')
     expect(markup).toContain('href="/members/connect-group-leader-resources"')
