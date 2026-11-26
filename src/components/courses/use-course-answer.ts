@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { readCourseAnswerAction, saveCourseAnswerAction } from '@/app/(frontend)/members/courses/answer-actions'
 import type { CourseAnswerState, CourseAnswerValue } from '@/lib/courses/answer-model'
 
+const checkedNavigationEvents = new WeakSet<Event>()
+
 /** Shared autosave behaviour for questions and predefined exercise blocks. */
 export function useCourseAnswer({ attemptId, lessonId, blockId, initial }: { attemptId: number; lessonId: string; blockId: string; initial: CourseAnswerState }) {
   const router = useRouter()
@@ -29,7 +31,8 @@ export function useCourseAnswer({ attemptId, lessonId, blockId, initial }: { att
     mounted.current = true
     const beforeUnload = (event: BeforeUnloadEvent) => { if (dirty.current) { event.preventDefault(); event.returnValue = '' } }
     const beforeClick = (event: MouseEvent) => {
-      if (!dirty.current || !(event.target instanceof Element) || !event.target.closest('a[href]')) return
+      if (!dirty.current || checkedNavigationEvents.has(event) || !(event.target instanceof Element) || !event.target.closest('a[href]')) return
+      checkedNavigationEvents.add(event)
       if (!window.confirm('Your answer has not saved. Leave this page?')) { event.preventDefault(); event.stopPropagation() }
     }
     const beforeSubmit = (event: Event) => { if (dirty.current) { event.preventDefault(); event.stopPropagation() } }

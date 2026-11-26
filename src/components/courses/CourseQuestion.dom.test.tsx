@@ -56,3 +56,22 @@ it('refreshes only clean answers', async () => {
   expect(container.querySelector('textarea')!.value).toBe('Unsent')
   expect(read).toHaveBeenCalledTimes(1)
 })
+
+it('asks once before leaving a page with multiple unsaved answers', async () => {
+  await act(async () => root.render(<>
+    {['q', 'q2'].map(id => <CourseQuestion key={id} block={{ id, blockType: 'courseQuestion', prompt: id, inputType: 'text', visibility: 'personal' }} attemptId={1} lessonId="l" initial={{ ...initial, blockId: id }} />)}
+  </>))
+  await act(async () => {
+    container.querySelectorAll('textarea').forEach(textarea => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(textarea, 'Unsaved')
+      textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+  })
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+  const link = document.createElement('a'); link.href = '/members/courses'; document.body.append(link)
+  const click = new MouseEvent('click', { bubbles: true, cancelable: true })
+  await act(async () => link.dispatchEvent(click))
+  expect(click.defaultPrevented).toBe(true)
+  expect(confirm).toHaveBeenCalledTimes(1)
+  confirm.mockRestore(); link.remove()
+})
