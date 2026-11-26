@@ -1,10 +1,12 @@
 import type { CollectionAfterChangeHook } from 'payload'
 import type { Course, CourseEdition } from '@/payload-types'
 import { courseStructureKey, snapshotCourse } from './model'
+import { validateCourseRowIds } from './authoring'
 
 export const publishCourseEdition: CollectionAfterChangeHook<Course> = async ({ doc, req }) => {
   if (doc._status !== 'published') return doc
   const snapshot = snapshotCourse(doc)
+  validateCourseRowIds(snapshot.lessons)
   const structureKey = courseStructureKey(snapshot)
   const existing = await req.payload.find({ collection: 'course-editions', where: { course: { equals: doc.id } }, sort: '-id', limit: 1, depth: 0, req, overrideAccess: true })
   const latest = existing.docs[0]

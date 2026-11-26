@@ -18,13 +18,13 @@ export function snapshotCourse(course: Course): CourseSnapshot {
     lessons: course.lessons ?? [] }
 }
 
-/** Wording may change in place; identities, order, types and requirements may not. */
+/** Teaching/title corrections may change in place; answer meaning must stay pinned. */
 export function courseStructureKey(snapshot: CourseSnapshot): string {
   const structure = snapshot.lessons.map(lesson => ({
     id: lesson.lessonId, required: lesson.required !== false,
     blocks: (lesson.blocks ?? []).map(block => ({ id: block.id, type: block.blockType,
-      ...(block.blockType === 'courseBudget' ? { schema: 1, visibility: block.visibility, responseMode: block.responseMode, required: !!block.required, categories: block.categories.map(category => ({ id: category.categoryId, startingLines: category.startingLines ?? '' })) } : {}),
-      ...(block.blockType === 'courseQuestion' ? { inputType: block.inputType, visibility: block.visibility, responseMode: block.responseMode, required: !!block.required, choices: block.choices?.map(choice => choice.choiceId) } : {}),
+      ...(block.blockType === 'courseBudget' ? { schema: 1, visibility: block.visibility, responseMode: block.responseMode, required: !!block.required, categories: block.categories.map(category => ({ id: category.categoryId, label: category.label, startingLines: category.startingLines ?? '' })) } : {}),
+      ...(block.blockType === 'courseQuestion' ? { prompt: block.prompt, inputType: block.inputType, visibility: block.visibility, responseMode: block.responseMode, required: !!block.required, choices: block.choices?.map(choice => ({ id: choice.choiceId, label: choice.label })) } : {}),
     })),
   }))
   return createHash('sha256').update(JSON.stringify(structure)).digest('hex')

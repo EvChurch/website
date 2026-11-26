@@ -25,6 +25,10 @@ describe('course answer validation', () => {
   it('requires non-whitespace text', () => expect(courseAnswerComplete(question, '  ')).toBe(false))
 })
 describe('question edition boundaries', () => {
-  it('allows wording corrections without changing the audience or input contract', () => expect(courseStructureKey(snapshot({ ...question, prompt: 'Corrected words' }))).toBe(courseStructureKey(snapshot(question))))
+  it('creates a new edition when the question prompt changes', () => expect(courseStructureKey(snapshot({ ...question, prompt: 'Different question' }))).not.toBe(courseStructureKey(snapshot(question))))
+  it('creates a new edition when a saved choice changes meaning', () => {
+    const block = { ...question, inputType: 'choice' as const, choices: [{ choiceId: 'one', label: 'Yes' }] }
+    expect(courseStructureKey(snapshot({ ...block, choices: [{ choiceId: 'one', label: 'No' }] }))).not.toBe(courseStructureKey(snapshot(block)))
+  })
   it.each([{ visibility: 'shared' as const }, { required: true }, { inputType: 'number' as const }, { responseMode: 'individual' as const }])('creates a new edition for changed response semantics %j', change => expect(courseStructureKey(snapshot({ ...question, ...change }))).not.toBe(courseStructureKey(snapshot(question))))
 })

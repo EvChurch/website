@@ -4,6 +4,7 @@ import { isContentLead, isEditor } from '@/access/roles'
 import { courseQuestionBlock, coursePromptBlock } from '@/lib/courses/question-blocks'
 import { courseBudgetBlock } from '@/lib/courses/budget-block'
 import { publishCourseEdition } from '@/lib/courses/publishing'
+import { normalizeCourseAuthoringIds } from '@/lib/courses/authoring'
 
 export const Courses: CollectionConfig = {
   slug: 'courses',
@@ -13,7 +14,7 @@ export const Courses: CollectionConfig = {
   },
   access: { read: isEditor, create: isContentLead, update: isEditor, delete: isContentLead },
   versions: { drafts: true },
-  hooks: { afterChange: [publishCourseEdition] },
+  hooks: { beforeValidate: [normalizeCourseAuthoringIds], afterChange: [publishCourseEdition] },
   fields: [
     { name: 'title', type: 'text', required: true },
     { name: 'slug', type: 'text', required: true, unique: true, index: true, validate: (value: unknown) => typeof value === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value) || 'Use lowercase words separated by hyphens.' },

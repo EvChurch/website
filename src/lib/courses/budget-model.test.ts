@@ -46,7 +46,7 @@ describe('fixed-point budget values', () => {
 describe('budget edition boundaries', () => {
   it('permits wording corrections but pins sharing, requirements and category structure', () => {
     expect(courseStructureKey(snapshot({ ...block, title: 'Corrected title' }))).toBe(courseStructureKey(snapshot(block)))
-    for (const change of [{ visibility: 'shared' as const }, { responseMode: 'individual' as const }, { required: false }, { categories: [{ categoryId: 'different', label: 'Living' }] }]) {
+    for (const change of [{ visibility: 'shared' as const }, { responseMode: 'individual' as const }, { required: false }, { categories: [{ categoryId: 'different', label: 'Living' }] }, { categories: block.categories.map(category => ({ ...category, label: 'Different category' })) }]) {
       expect(courseStructureKey(snapshot({ ...block, ...change }))).not.toBe(courseStructureKey(snapshot(block)))
     }
   })
