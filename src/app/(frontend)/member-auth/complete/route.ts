@@ -21,6 +21,9 @@ export async function GET(request: NextRequest) {
   const profile = await getCurrentMemberProfile()
 
   if (!profile) {
+    if (returnTo === '/members' && await getCurrentCourseIdentity()) {
+      return privateMemberRedirect(new URL('/members/courses', appBaseUrl))
+    }
     return privateMemberRedirect(memberSignInErrorUrl(appBaseUrl))
   }
 
