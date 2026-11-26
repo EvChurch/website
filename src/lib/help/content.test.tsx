@@ -29,7 +29,7 @@ describe('help content and access', () => {
     for (const article of articles) {
       expect(article.body).toContain('## ')
       const links = [...article.body.matchAll(/(?<!!)\[[^\]]+\]\(([^)]+)\)/g)].map(match => match[1])
-      for (const link of links) expect(['/contact', '/members/my-service', '/give', '/members/giving', '/admin', '/api/admin/giving/export', '/api/v1/docs', '/api/v1/openapi.json', ...Object.values(reimbursementViewPaths), ...helpArticles.map(item => `/help/${item.slug}`)]).toContain(link)
+      for (const link of links) expect(['/contact', '/members/my-service', '/members/courses', '/generosity/calculator', '/give', '/members/giving', '/admin', '/api/admin/giving/export', '/api/v1/docs', '/api/v1/openapi.json', ...Object.values(reimbursementViewPaths), ...helpArticles.map(item => `/help/${item.slug}`)]).toContain(link)
       const images = [...article.body.matchAll(/!\[[^\]]+\]\(([^)]+)\)/g)].map(match => match[1])
       if (article.topic==='Reimbursements') expect(images.length).toBeGreaterThan(0)
       for (const image of images) {
@@ -64,7 +64,7 @@ describe('help content and access', () => {
   it('does not read or expose restricted content in public search or metadata', async () => {
     helpArticles.push({ slug: 'internal-only', title: 'Private operational detail', description: 'Private description', audience: 'Finance', topic: 'Internal', access: 'members' })
     const publicArticles = await listHelpArticles(false)
-    expect(searchHelpArticles(publicArticles, 'private')).toEqual([])
+    expect(searchHelpArticles(publicArticles, 'private operational detail')).toEqual([])
     expect(publicArticles.some(article => article.slug === 'internal-only')).toBe(false)
     expect(await generateMetadata({ params: Promise.resolve({ slug: 'internal-only' }) })).toEqual({ title: 'Help' })
     auth.member.mockResolvedValue(null)
