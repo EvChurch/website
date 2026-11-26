@@ -28,8 +28,8 @@ export function normalizeCourseRowIds(lessons: CourseLesson[], original: CourseL
     const previous = lesson.id ? original.find(row => row.id === lesson.id) : undefined
     return { ...lesson, blocks: lesson.blocks?.map(block => {
       const priorBlock = block.id ? previous?.blocks?.find(row => row.id === block.id) : undefined
-      if (block.blockType === 'courseBudget') return { ...block, categories: normalizeRows(block.categories,
-        priorBlock?.blockType === 'courseBudget' ? priorBlock.categories : [], 'categoryId', nextId) }
+      if (block.blockType === 'courseBudget') return { ...block, categories: normalizeRows(block.categories ?? [],
+        priorBlock?.blockType === 'courseBudget' ? priorBlock.categories ?? [] : [], 'categoryId', nextId) }
       if (block.blockType === 'courseQuestion') return { ...block, choices: block.choices ? normalizeRows(block.choices,
         priorBlock?.blockType === 'courseQuestion' ? priorBlock.choices ?? [] : [], 'choiceId', nextId) : block.choices }
       return block

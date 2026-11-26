@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { normalizeCourseRowIds, validateCourseRowIds } from './authoring'
+import { normalizeCourseAuthoringIds, normalizeCourseRowIds, validateCourseRowIds } from './authoring'
 import type { CourseLesson } from './model'
 import type { Course } from '@/payload-types'
 import { publishCourseEdition } from './publishing'
@@ -14,6 +14,14 @@ const lesson: CourseLesson = { id: 'lesson-row', lessonId: 'lesson-stable', titl
 ] }
 
 describe('course authoring row identities', () => {
+  it('allows saving an incomplete draft budget before categories have been entered', async () => {
+    const draft = { _status: 'draft', lessons: [{ id: 'draft-lesson', lessonId: 'draft', title: 'Draft', blocks: [
+      { id: 'draft-budget', blockType: 'courseBudget', title: 'Budget', visibility: 'personal' },
+    ] }] }
+    const result = await normalizeCourseAuthoringIds({ data: draft, originalDoc: draft } as unknown as Parameters<typeof normalizeCourseAuthoringIds>[0])
+    expect(result?.lessons?.[0].blocks?.[0]).toMatchObject({ blockType: 'courseBudget', categories: [] })
+  })
+
   it('normalizes copied rows even when they appear before the existing row', () => {
     const copiedLesson = structuredClone(lesson)
     copiedLesson.id = 'copied-lesson-row'
