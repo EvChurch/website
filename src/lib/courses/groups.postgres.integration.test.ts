@@ -120,6 +120,30 @@ suite('course groups against isolated PostgreSQL', () => {
       await pool.query('DELETE FROM course_attempts WHERE id=$1',[attempt])
     }
   })
+  it.each(['remove', 'leave'] as const)('revokes old email-bound invitations after %s across login subjects',async action=>{
+    const person=identity(`Email-${action}`)
+    const alternate={...identity(`Alternate-${action}`),email:person.email}
+    const attempt=(await pool.query<{id:number}>("INSERT INTO course_attempts(account_key,account_email,edition_id,mode,group_id,membership_status,display_name,completed_lesson_ids,created_at,updated_at) VALUES($1,$2,$3,'group',$4,'active','Email member','[]',now(),now()) RETURNING id",[person.identityKey,person.email,editionId,groupId])).rows[0].id
+    const send=async()=>{let token='';await inviteToCourseGroup(a,groupId,person.email,{send:async message=>{token=message.text.match(/http[^\s]+/)![0].split('/').at(-1)!;return {providerId:'fake-email-revocation'}}});return token}
+    try {
+      const old=await send()
+      if(action==='remove') await manageCourseGroup(a,groupId,'remove',attempt)
+      else await manageCourseGroup(person,groupId,'leave')
+      expect((await pool.query('SELECT status FROM course_invitations WHERE token_hash=$1',[invitationTokenHash(old)])).rows[0].status).toBe('revoked')
+      for(const login of [person,alternate]) {
+        expect(await getCourseInvitation(login,old)).toBeNull()
+        await expect(acceptCourseInvitation(login,old)).rejects.toThrow('unavailable')
+      }
+      expect((await pool.query('SELECT id FROM course_attempts WHERE group_id=$1 AND account_key=$2',[groupId,alternate.identityKey])).rowCount).toBe(0)
+      const fresh=await send()
+      expect(await getCourseInvitation(alternate,fresh)).not.toBeNull()
+      expect(await acceptCourseInvitation(alternate,fresh)).toBe(groupId)
+      expect((await pool.query('SELECT account_email FROM course_attempts WHERE group_id=$1 AND account_key=$2',[groupId,alternate.identityKey])).rows[0].account_email).toBe(person.email)
+    } finally {
+      await pool.query('DELETE FROM course_invitations WHERE group_id=$1 AND email=$2',[groupId,person.email])
+      await pool.query('DELETE FROM course_attempts WHERE group_id=$1 AND account_key=ANY($2::varchar[])',[groupId,[person.identityKey,alternate.identityKey]])
+    }
+  })
   it('revokes shared access after removal while preserving own personal answers',async()=>{
     await saveCourseAnswer(b,attemptB,'lesson','private',0,'Private Bob')
     await expect(manageCourseGroup(b,groupId,'remove',attemptA)).rejects.toThrow()

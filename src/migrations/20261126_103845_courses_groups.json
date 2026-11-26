@@ -2208,6 +2208,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "account_email": {
+          "name": "account_email",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
         "account_key": {
           "name": "account_key",
           "type": "varchar",

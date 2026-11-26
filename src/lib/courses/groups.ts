@@ -8,7 +8,7 @@ import { findPublishedCourse, latestCourseEdition } from './service'
 import { completedLessonIds, readCourseSnapshot } from './model'
 
 export interface CourseGroupRow { id: number; name: string; edition_id: number; facilitator_key: string; status: 'active' | 'closed' }
-export interface GroupMemberRow { id: number; account_key: string; display_name: string | null; membership_status: 'active' | 'left' | 'removed'; completed_lesson_ids: unknown; completed_at: string | null }
+export interface GroupMemberRow { id: number; account_key: string; account_email: string | null; display_name: string | null; membership_status: 'active' | 'left' | 'removed'; completed_lesson_ids: unknown; completed_at: string | null }
 export interface InvitationRow { id: number; group_id: number; email: string; expires_at: Date | string; status: 'pending' | 'accepted' | 'revoked'; delivery_status: string }
 
 export function invitationTokenHash(token: string) {
@@ -53,7 +53,12 @@ const groupEventTimeSQL = `GREATEST(clock_timestamp(),
   COALESCE((SELECT max(updated_at)+interval '1 millisecond' FROM course_attempts WHERE group_id=$1 AND membership_status<>'active'), '-infinity'::timestamptz))`
 
 async function endGroupMembership(client: PoolClient, groupId: number, attemptId: number, status: 'left' | 'removed') {
-  await client.query(`UPDATE course_attempts SET membership_status=$3,updated_at=${groupEventTimeSQL} WHERE group_id=$1 AND id=$2`, [groupId, attemptId, status])
+  const ended = await client.query<{ account_email: string | null }>(`UPDATE course_attempts SET membership_status=$3,updated_at=${groupEventTimeSQL} WHERE group_id=$1 AND id=$2 RETURNING account_email`, [groupId, attemptId, status])
+  // Invitations belong to verified email addresses, which can appear under another
+  // login subject. Revoke those tokens as part of the same locked mutation.
+  // Legacy memberships without an email conservatively revoke all pending tokens.
+  const email = ended.rows[0]?.account_email
+  await client.query("UPDATE course_invitations SET status='revoked',updated_at=clock_timestamp() WHERE group_id=$1 AND status='pending' AND ($2::varchar IS NULL OR email=$2)", [groupId, email || null])
 }
 
 export async function startCourseGroup(identity: Auth0Identity, slug: string, inputName: string) {
@@ -72,7 +77,7 @@ export async function startCourseGroup(identity: Auth0Identity, slug: string, in
     if (!available.rowCount) throw new Error('Group enrolment is closed.')
     const created = await client.query<CourseGroupRow>(`INSERT INTO course_groups (name,edition_id,facilitator_key,status,created_at,updated_at) VALUES ($1,$2,$3,'active',now(),now()) RETURNING *`, [name, edition.id, identity.identityKey])
     const group = created.rows[0]
-    await client.query(`INSERT INTO course_attempts (account_key,edition_id,mode,group_id,membership_status,display_name,completed_lesson_ids,created_at,updated_at) VALUES ($1,$2,'group',$3,'active',$4,'[]'::jsonb,now(),now())`, [identity.identityKey, edition.id, group.id, identity.name])
+    await client.query(`INSERT INTO course_attempts (account_key,edition_id,mode,group_id,membership_status,display_name,account_email,completed_lesson_ids,created_at,updated_at) VALUES ($1,$2,'group',$3,'active',$4,$5,'[]'::jsonb,now(),now())`, [identity.identityKey, edition.id, group.id, identity.name, normalizeInvitationEmail(identity.email)])
     return group.id
   })
 }
@@ -134,7 +139,7 @@ export async function acceptCourseInvitation(identity: Auth0Identity, token: str
     const invite = await client.query<InvitationRow>(`SELECT i.* FROM course_invitations i WHERE i.token_hash=$1 AND i.email=$2 AND NOT EXISTS (SELECT 1 FROM course_attempts m WHERE m.group_id=i.group_id AND m.account_key=$3 AND m.membership_status<>'active' AND i.created_at<=m.updated_at) FOR UPDATE OF i`, [tokenHash, identity.email, identity.identityKey])
     const invitation = invite.rows[0]
     if (!invitation || invitation.status !== 'pending' || new Date(invitation.expires_at).getTime() <= Date.now()) throw new Error('Invitation is unavailable.')
-    await client.query(`INSERT INTO course_attempts (account_key,edition_id,mode,group_id,membership_status,display_name,completed_lesson_ids,created_at,updated_at) VALUES ($1,$2,'group',$3,'active',$4,'[]'::jsonb,now(),now()) ON CONFLICT (group_id,account_key) DO UPDATE SET membership_status='active',display_name=EXCLUDED.display_name,updated_at=now()`, [identity.identityKey, group.edition_id, group.id, identity.name])
+    await client.query(`INSERT INTO course_attempts (account_key,edition_id,mode,group_id,membership_status,display_name,account_email,completed_lesson_ids,created_at,updated_at) VALUES ($1,$2,'group',$3,'active',$4,$5,'[]'::jsonb,now(),now()) ON CONFLICT (group_id,account_key) DO UPDATE SET membership_status='active',display_name=EXCLUDED.display_name,account_email=EXCLUDED.account_email,updated_at=now()`, [identity.identityKey, group.edition_id, group.id, identity.name, normalizeInvitationEmail(identity.email)])
     await client.query(`UPDATE course_invitations SET status='accepted',updated_at=now() WHERE id=$1`, [invitation.id])
     return group.id
   })

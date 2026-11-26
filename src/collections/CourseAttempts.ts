@@ -10,6 +10,7 @@ export const CourseAttempts: CollectionConfig = {
     { name: 'group', type: 'relationship', relationTo: 'course-groups', index: true },
     { name: 'membershipStatus', type: 'select', options: ['active', 'left', 'removed'], defaultValue: 'active', required: true },
     { name: 'displayName', type: 'text' },
+    { name: 'accountEmail', type: 'text' },
     { name: 'accountKey', type: 'text', required: true, index: true },
     { name: 'edition', type: 'relationship', relationTo: 'course-editions', required: true, index: true },
     { name: 'mode', type: 'select', options: ['solo', 'group'], required: true, defaultValue: 'solo' },

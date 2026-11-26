@@ -33,6 +33,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "course_attempts" ADD COLUMN "group_id" integer;
   ALTER TABLE "course_attempts" ADD COLUMN "membership_status" "enum_course_attempts_membership_status" DEFAULT 'active' NOT NULL;
   ALTER TABLE "course_attempts" ADD COLUMN "display_name" varchar;
+  ALTER TABLE "course_attempts" ADD COLUMN "account_email" varchar;
   ALTER TABLE "payload_locked_documents_rels" ADD COLUMN "course_groups_id" integer;
   ALTER TABLE "payload_locked_documents_rels" ADD COLUMN "course_invitations_id" integer;
   ALTER TABLE "course_groups" ADD CONSTRAINT "course_groups_edition_id_course_editions_id_fk" FOREIGN KEY ("edition_id") REFERENCES "public"."course_editions"("id") ON DELETE set null ON UPDATE no action;
@@ -75,6 +76,7 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   ALTER TABLE "course_attempts" DROP COLUMN "group_id";
   ALTER TABLE "course_attempts" DROP COLUMN "membership_status";
   ALTER TABLE "course_attempts" DROP COLUMN "display_name";
+  ALTER TABLE "course_attempts" DROP COLUMN "account_email";
   ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "course_groups_id";
   ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "course_invitations_id";
   DROP TYPE "public"."enum_course_groups_status";
