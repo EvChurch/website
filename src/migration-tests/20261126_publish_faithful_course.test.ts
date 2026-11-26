@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { MigrateUpArgs } from '@payloadcms/db-postgres'
-import { down, up } from './20261126_180000_publish_faithful_course'
+import { down, up } from '../migrations/20261126_180000_publish_faithful_course'
 
 function fixture(existing: unknown[] = [], editions: unknown[] = [{ id: 9 }]) {
   const payload = {
