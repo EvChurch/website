@@ -1,3 +1,5 @@
+import { CourseGroups } from './src/collections/CourseGroups'
+import { CourseInvitations } from './src/collections/CourseInvitations'
 import { stripeGivingTask } from '@/jobs/stripe-giving'
 import { ApiKeys, ApiAudit } from './src/collections/ApiKeys'
 import { SermonTranscripts } from '@/collections/SermonTranscripts'
@@ -20,6 +22,10 @@ import sharp from 'sharp'
 
 // Collections
 import { Users } from '@/collections/Users'
+import { Courses } from '@/collections/Courses'
+import { CourseEditions } from '@/collections/CourseEditions'
+import { CourseAttempts } from '@/collections/CourseAttempts'
+import { CourseAnswers } from '@/collections/CourseAnswers'
 import { Media } from '@/collections/Media'
 import { Pages } from '@/collections/Pages'
 import { BlogPosts } from '@/collections/BlogPosts'
@@ -105,6 +111,11 @@ function defaultFeedbackToolPermissions(fields: Field[]): Field[] {
 }
 
 export const applicationCollections: CollectionConfig[] = [
+  CourseGroups, CourseInvitations,
+  Courses,
+  CourseEditions,
+  CourseAttempts,
+  CourseAnswers,
   Users,
   ApiKeys,
   ApiAudit,
@@ -161,6 +172,11 @@ export const applicationGlobals: GlobalConfig[] = [
 ]
 
 export const mcpExcludedCollectionSlugs = new Set([
+  'course-groups',
+  'course-invitations',
+  'course-editions',
+  'course-attempts',
+  'course-answers',
   'api-keys',
   'api-audit-events',
   'responsibility-centres',

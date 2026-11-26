@@ -7,19 +7,25 @@ import {
 import { readAuth0Config } from '@/auth/auth0-config'
 import { getCurrentMemberProfile } from '@/auth/member-session'
 import { safeMemberReturnTo } from '@/auth/safe-member-return'
+import { getCurrentCourseIdentity, isCourseReturnTo } from '@/auth/course-session'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   const { appBaseUrl } = readAuth0Config()
+  const returnTo = safeMemberReturnTo(request.nextUrl.searchParams.get('returnTo'))
+  if (isCourseReturnTo(returnTo)) {
+    const identity = await getCurrentCourseIdentity()
+    return privateMemberRedirect(identity ? new URL(returnTo, appBaseUrl) : memberSignInErrorUrl(appBaseUrl))
+  }
   const profile = await getCurrentMemberProfile()
 
   if (!profile) {
+    if (returnTo === '/members' && await getCurrentCourseIdentity()) {
+      return privateMemberRedirect(new URL('/members/courses', appBaseUrl))
+    }
     return privateMemberRedirect(memberSignInErrorUrl(appBaseUrl))
   }
 
-  const returnTo = safeMemberReturnTo(
-    request.nextUrl.searchParams.get('returnTo'),
-  )
   return privateMemberRedirect(new URL(returnTo, appBaseUrl))
 }

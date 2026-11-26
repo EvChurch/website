@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
   ...(allowedDevOrigins?.length ? { allowedDevOrigins } : {}),
   async headers() {
     return [
+      { source: '/members/courses/:path*', headers: [{ key: 'Cache-Control', value: 'private, no-store' }, { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }] },
       { source: '/help/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }] },
       { source: '/api/sermon-work-files/file/:path*', headers: [
         { key: 'Cache-Control', value: 'private, no-store' },
@@ -118,6 +119,8 @@ const payloadHeaders = payloadConfig.headers
 
 payloadConfig.headers = async () => {
   const headers = (await payloadHeaders?.()) ?? []
+
+  headers.push({ source: '/members/courses/invitations/:path*', headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }] })
 
   return headers.map((rule) => {
     const requestsColorScheme = rule.headers.some(

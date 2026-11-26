@@ -26,22 +26,29 @@ const migrationIndex = readFileSync(
   'utf8',
 )
 
-const migratedMcpSchema = Object.entries(migrationModules)
+const registeredMigrations = Object.entries(migrationModules)
   .filter(([path]) => {
     const migrationName = path.split('/').at(-1)?.replace(/\.ts$/, '')
     return migrationName && migrationIndex.includes(`name: '${migrationName}'`)
   })
+
+const migratedMcpSchema = [
+  ...registeredMigrations
   .map(([, migration]) => migration)
   .flatMap((migration) => Object.entries(migration))
   .filter(
     (entry): entry is [string, string] =>
       entry[0].endsWith('_UP_SQL') && typeof entry[1] === 'string',
   )
-  .map(([, sql]) => sql)
+  .map(([, sql]) => sql),
+  // Payload-generated migrations keep their SQL inline instead of exporting *_UP_SQL.
+  ...registeredMigrations.map(([path]) => readFileSync(new URL(path, import.meta.url), 'utf8')
+    .match(/export async function up\b[\s\S]*?(?=export async function down\b|$)/u)?.[0] ?? ''),
+]
   .join('\n')
 
 describe('Payload MCP API key access', () => {
-  it('exposes application content but excludes the capability-token store', () => {
+  it('exposes application content but excludes private service stores', () => {
     expect(Object.keys(mcpCollections).sort()).toEqual(
       applicationCollections
         .map(({ slug }) => slug)
@@ -50,7 +57,9 @@ describe('Payload MCP API key access', () => {
     )
     expect(mcpCollections).not.toHaveProperty('leader-resource-shares')
     expect([...mcpExcludedCollectionSlugs].sort()).toEqual([
-      'api-audit-events', 'api-keys', 'blinkpay-webhook-events', 'connect-group-comments', 'giving-cancellation-feedback', 'giving-checkouts', 'giving-consents', 'giving-drafts',
+      'api-audit-events', 'api-keys', 'blinkpay-webhook-events', 'connect-group-comments',
+      'course-answers', 'course-attempts', 'course-editions', 'course-groups', 'course-invitations',
+      'giving-cancellation-feedback', 'giving-checkouts', 'giving-consents', 'giving-drafts',
       'giving-funds', 'giving-gifts', 'giving-givers',
       'giving-provider-operations', 'giving-schedules', 'leader-resource-shares',
       'reimbursement-finance-members', 'responsibility-centres',
