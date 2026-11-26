@@ -22,7 +22,9 @@ export function snapshotCourse(course: Course): CourseSnapshot {
 export function courseStructureKey(snapshot: CourseSnapshot): string {
   const structure = snapshot.lessons.map(lesson => ({
     id: lesson.lessonId, required: lesson.required !== false,
-    blocks: (lesson.blocks ?? []).map(block => ({ id: block.id, type: block.blockType })),
+    blocks: (lesson.blocks ?? []).map(block => ({ id: block.id, type: block.blockType,
+      ...(block.blockType === 'courseQuestion' ? { inputType: block.inputType, visibility: block.visibility, responseMode: block.responseMode, required: !!block.required, choices: block.choices?.map(choice => choice.choiceId) } : {}),
+    })),
   }))
   return createHash('sha256').update(JSON.stringify(structure)).digest('hex')
 }

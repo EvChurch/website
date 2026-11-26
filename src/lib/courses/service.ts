@@ -53,6 +53,8 @@ export async function startSoloCourse(identity: Auth0Identity, slug: string): Pr
 export async function completeCourseLesson(identity: Auth0Identity, attemptId: number, lessonId: string) {
   const owned = await getOwnedCourseAttempt(identity, attemptId)
   if (!owned || !owned.snapshot.lessons.some(lesson => lesson.lessonId === lessonId)) throw new Error('Lesson not found.')
+  const { requiredCourseAnswersComplete } = await import('./answers')
+  if (!await requiredCourseAnswersComplete(identity, attemptId, lessonId)) throw new Error('Complete the required questions first.')
   const payload = await getPayloadClient()
   const required = owned.snapshot.lessons.filter(lesson => lesson.required !== false).map(lesson => lesson.lessonId)
   // Append atomically: two tabs finishing different lessons cannot erase progress.
