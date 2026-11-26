@@ -30,6 +30,8 @@ Enter your weekly take-home pay and planned amounts in NZ dollars. Use up to two
 
 Use **Add a row** for another expense and **×** to remove a row. Your budget uses the same autosave and privacy rules as other answers. **Delete budget** clears the saved figures and restores the starting rows.
 
+Faithful with Money has three lessons. Its money story, giving figures and budget are Personal. Use the separate [giving calculator](/generosity/calculator) to explore an amount; calculator figures do not transfer into your course.
+
 ## Learn with a group
 
 Two people use the same group flow as a larger group. The person who starts it is the facilitator. Open **Your group** to invite someone by email. Invitations expire after seven days and must be accepted using the invited email address.
