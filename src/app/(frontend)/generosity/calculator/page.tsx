@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
-import { Button } from '@/components/ui/Button'
-import { OpenGivingButton } from '@/components/giving/OpenGivingButton'
+import { ManualCardGridBlockComponent } from '@/components/blocks/ManualCardGridBlockComponent'
 import { GivingCalculator } from '@/components/generosity/GivingCalculator'
 import { faithfulWithMoneyLink } from '@/lib/courses/course-links'
 
@@ -36,36 +35,34 @@ export default async function GivingCalculatorPage() {
       <section className="bg-warm-white px-5 py-12 lg:px-8 lg:py-16">
         <div className="mx-auto max-w-7xl">
           <GivingCalculator />
-          <div className={`mt-12 grid gap-5 ${course ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
-            <section className="flex flex-col items-start rounded-xl border border-warm-grey bg-white p-6">
-              <h2 className="text-xl font-bold">Money is tight</h2>
-              <p className="mt-3 mb-6 text-dark-grey">
-                Speak with your Connect Group leader or contact us for support.
-              </p>
-              <div className="mt-auto">
-                <Button href="/contact" variant="secondary">Contact us</Button>
-              </div>
-            </section>
-            {course && (
-              <section className="flex flex-col items-start rounded-xl border border-warm-grey bg-white p-6">
-                <h2 className="text-xl font-bold">{course.title}</h2>
-                <p className="mt-3 mb-6 text-dark-grey">
-                  Three evenings to explore faith and money. Explore at your pace or
-                  learn with a group.
-                </p>
-                <div className="mt-auto">
-                  <Button href={course.href} variant="secondary">Explore the course</Button>
-                </div>
-              </section>
-            )}
-            <section className="flex flex-col items-start rounded-xl border border-warm-grey bg-white p-6">
-              <h2 className="text-xl font-bold">Ready to give?</h2>
-              <p className="mt-3 mb-6 text-dark-grey">Set up your giving to Ev.</p>
-              <div className="mt-auto"><OpenGivingButton variant="secondary" /></div>
-            </section>
-          </div>
+
         </div>
       </section>
+      <ManualCardGridBlockComponent
+        heading="Next steps"
+        cardStyle="info"
+        columns={course ? 3 : 2}
+        cards={[
+          {
+            title: '1. Money is tight',
+            description: 'Speak with your Connect Group leader or contact us for support. We’d love to help you think through your next step.',
+            href: '/contact',
+            linkLabel: 'Contact us',
+          },
+          ...(course ? [{
+            title: `2. ${course.title}`,
+            description: 'Explore what the Bible says about money, giving and contentment, and build a practical budget in this three-lesson course. Sign in or create an account to start.',
+            href: course.href,
+            linkLabel: 'Start Faithful with Money',
+          }] : []),
+          {
+            title: `${course ? 3 : 2}. Ready to give?`,
+            description: 'Put your next step into action. Set up a one-off or regular gift to support the work of Ev Church.',
+            href: '/generosity/calculator?launcher=give',
+            linkLabel: 'Start giving',
+          },
+        ]}
+      />
     </>
   )
 }
