@@ -77,9 +77,9 @@ describe('GivingExperienceProvider', () => {
     expect(container.querySelector('output')?.textContent).toBe('1:')
   })
 
-  it('resumes the campaign payment after a provider return when its local marker is present', async () => {
+  it.each([false,true])('resumes an existing campaign after provider return regardless of button eligibility (%s)', async allowed => {
     sessionStorage.setItem('ev-give-sunday-payment','submitted')
-    await act(async () => root.render(<GivingExperienceProvider serverEligibility={null} resumeRequested campaignGivingAllowed
+    await act(async () => root.render(<GivingExperienceProvider serverEligibility={null} resumeRequested campaignGivingAllowed={allowed}
       givingExperience={<p>Regular giving form</p>} campaignGivingExperience={<p>Campaign opportunities</p>}><CampaignProbe /></GivingExperienceProvider>))
     expect(container.querySelector('[data-renderer]')?.textContent).toBe('Campaign opportunities')
     expect(container.querySelector('output')?.textContent).toBe('1:')

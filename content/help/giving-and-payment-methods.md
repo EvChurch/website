@@ -12,7 +12,7 @@ On the separate **How would you like to pay?** step, choose **Pay by bank** or *
 
 ## Give Sunday one-off gifts
 
-Giving opens to everyone at 12:00 am on Saturday, 5 December 2026 (Auckland time). Before then, access is restricted to authorised staff and Exec accounts. Otherwise **Choose Your Gifts** is disabled with **Return on Give Sunday to Give** underneath.
+**Choose Your Gifts** becomes available to everyone at 12:00 am on Saturday, 5 December 2026 (Auckland time). Before then, this button is available only to authorised staff and Exec accounts; otherwise it is disabled with **Return on Give Sunday to Give** underneath. Once the giving flow is open, checkout uses the normal payment checks without another Staff/Exec check.
 
 On the [one-off giving page](/one-off-giving), choose **Choose Your Gifts** to open the guided opportunities in the launcher. Enter an amount for Plant, Train, Grow and Build, or choose **Skip this opportunity**. Use the launcher’s Back arrow to return to the previous step.
 
