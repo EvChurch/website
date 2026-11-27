@@ -1,8 +1,7 @@
-import Link from 'next/link'
 import type { ReactNode } from 'react'
 
 import { MemberAvatar } from './MemberAvatar'
-import { ReimbursementMenuLink } from './ReimbursementMenuLink'
+import { MemberNavigation } from './MemberNavigation'
 
 export type MemberSection = 'overview' | 'service' | 'groups' | 'reading' | 'resources' | 'giving' | 'reimbursements' | 'help' | 'courses'
 
@@ -26,7 +25,6 @@ export function MemberPortalChrome({
 }) {
   const links = [
     { key: 'overview' as const, label: 'Overview', href: '/members' },
-    { key: 'courses' as const, label: 'Courses', href: '/members/courses' },
     { key: 'reading' as const, label: 'Daily Reading', href: '/members/daily-readings' },
     { key: 'groups' as const, label: 'Connect Group', href: connectGroupHref },
     {
@@ -36,6 +34,7 @@ export function MemberPortalChrome({
     },
     { key: 'service' as const, label: 'My Service', href: '/members/my-service' },
     { key: 'giving' as const, label: 'Giving', href: '/members/giving' },
+    { key: 'courses' as const, label: 'Courses', href: '/members/courses' },
   ]
 
   return (
@@ -61,30 +60,7 @@ export function MemberPortalChrome({
         <div aria-hidden="true" className="h-20 lg:h-[100px]" />
       )}
 
-      <nav aria-label="Members" className="border-b border-warm-grey bg-white">
-        <div className="mx-auto flex max-w-[80rem] gap-7 overflow-x-auto px-5 sm:px-8">
-          {links.map((link) => (
-            <Link
-              key={link.key}
-              href={link.href}
-              rel="nofollow"
-              aria-current={active === link.key ? 'page' : undefined}
-              className={`relative shrink-0 py-5 text-sm font-bold transition-colors ${
-                active === link.key
-                  ? 'text-rich-red'
-                  : 'text-dark-grey hover:text-rich-red'
-              }`}
-            >
-              {link.label}
-              {active === link.key && (
-                <span className="absolute inset-x-0 bottom-0 h-1 bg-rich-red" />
-              )}
-            </Link>
-          ))}
-          <ReimbursementMenuLink active={active === 'reimbursements'} />
-          <Link href="/help" rel="nofollow" className="relative shrink-0 py-5 text-sm font-bold text-dark-grey transition-colors hover:text-rich-red">Help</Link>
-        </div>
-      </nav>
+      <MemberNavigation links={links} active={active} />
 
       <div className={`mx-auto max-w-[80rem] px-5 sm:px-8 ${active === 'overview' ? 'py-12 sm:py-16' : 'py-7 sm:py-9'}`}>
         {children}

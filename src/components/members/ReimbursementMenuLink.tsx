@@ -12,5 +12,5 @@ export function ReimbursementMenuLink({ active }: { active: boolean }) {
     return () => { current = false }
   }, [])
   if (!enabled) return null
-  return <Link href="/members/reimbursements" rel="nofollow" aria-current={active ? 'page' : undefined} className={`relative shrink-0 py-5 text-sm font-bold ${active ? 'text-rich-red' : 'text-dark-grey hover:text-rich-red'}`}>Reimbursements{active && <span className="absolute inset-x-0 bottom-0 h-1 bg-rich-red" />}</Link>
+  return <Link href="/members/reimbursements" rel="nofollow" aria-current={active ? 'page' : undefined} className={`relative min-w-0 py-3 text-sm font-bold lg:shrink-0 lg:py-5 ${active ? 'text-rich-red' : 'text-dark-grey hover:text-rich-red'}`}>Reimbursements{active && <span className="absolute inset-x-0 bottom-0 h-1 bg-rich-red" />}</Link>
 }
