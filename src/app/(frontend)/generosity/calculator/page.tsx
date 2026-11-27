@@ -20,7 +20,7 @@ export default async function GivingCalculatorPage() {
     <>
       <header
         data-header-tone="light"
-        className="bg-[linear-gradient(115deg,#36030B_0%,#21090D_45%,#063B34_100%)] px-5 pt-32 pb-14 text-white lg:px-8 lg:pt-40 lg:pb-20"
+        className="bg-[linear-gradient(115deg,#480610_0%,#29050C_50%,#0F0004_100%)] px-5 pt-32 pb-14 text-white lg:px-8 lg:pt-40 lg:pb-20"
       >
         <div className="mx-auto max-w-7xl">
           <h1 className="max-w-4xl text-h1 leading-heading text-white">
