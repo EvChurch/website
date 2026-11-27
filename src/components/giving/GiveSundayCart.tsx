@@ -48,7 +48,7 @@ export function GiveSundayCart({ children, afterCart, embedded = false, renderPa
   const [ready, setReady] = useState(false)
   const [quantities, setQuantities] = useState<Record<string, number>>({})
   const [amounts, setAmounts] = useState<Record<string, number>>({})
-  const [view, setView] = useState<'overview' | 'review' | 'payment' | 'complete' | GivingOpportunityId>(embedded ? 'plant' : 'overview')
+  const [view, setView] = useState<'overview' | 'intro' | 'review' | 'payment' | 'complete' | GivingOpportunityId>(embedded ? 'intro' : 'overview')
   const [editing, setEditing] = useState(false)
   const [generalBack, setGeneralBack] = useState<GivingOpportunityId | 'review'>('plant')
   const [generalDefaultAmount, setGeneralDefaultAmount] = useState<number | undefined>()
@@ -88,7 +88,8 @@ export function GiveSundayCart({ children, afterCart, embedded = false, renderPa
     return giving.registerGivingBackHandler(() => {
       if (locked) return true
       if (view === 'review') { setEditing(false); setView('build'); return true }
-      if (view === 'complete' || view === 'plant' && !editing) return false
+      if (view === 'complete' || view === 'intro') return false
+      if (view === 'plant' && !editing) { setView('intro'); return true }
       if (editing) { setEditing(false); setView('review'); return true }
       if (view === 'greatest-need') { setView(generalBack); return true }
       if (view === 'train' || view === 'grow' || view === 'build') {
@@ -109,7 +110,7 @@ export function GiveSundayCart({ children, afterCart, embedded = false, renderPa
     setEditing(false)
     setGeneralDefaultAmount(undefined)
     setGeneralBack('plant')
-    setView('plant')
+    setView('intro')
   }
   const catalog = campaignCartCatalog(false).map(item => ({ ...item, fixedAmountMinor: amounts[item.id] ?? item.fixedAmountMinor }))
   const lines = catalog.filter(item => (quantities[item.id] ?? 0) > 0)
@@ -153,12 +154,17 @@ export function GiveSundayCart({ children, afterCart, embedded = false, renderPa
 
   return <CartContext.Provider value={{ catalog, quantities, locked, completed: view === 'complete', startGiving: () => {
     if (view === 'complete') { setAmounts({}); setQuantities({}); editCart() }
-    setEditing(false); setView('plant')
+    setEditing(false); setView('intro')
   } }}>
     {view === 'overview' ? <>{children}{afterCart}</> : view === 'payment' ? renderPayment?.({ gifts: paymentGifts, onBack: () => { editCart(); if (paymentGifts[0]?.opportunityId === 'greatest-need') setGeneralDefaultAmount(paymentGifts[0].amountMinor); setView(paymentGifts[0]?.opportunityId === 'greatest-need' ? 'greatest-need' : 'review') }, onVerified: () => { sessionStorage.removeItem('ev-give-sunday-payment'); const url = new URL(window.location.href); if (url.searchParams.get('giving') === 'return') { url.searchParams.delete('giving'); window.history.replaceState(null,'',url.pathname+url.search+url.hash) }; setView('complete') } }) : <section ref={flowSection} tabIndex={-1} aria-label="Give Sunday giving"
       style={{ opacity: fading ? 0 : 1 }}
-      className={`transition-opacity duration-150 motion-reduce:transition-none ${embedded ? `h-full overflow-y-auto overscroll-contain bg-warm-white text-brand-black outline-none ${view === 'review' || view === 'complete' ? 'px-4 py-4 sm:px-6 sm:py-5' : 'pb-5'}` : 'scroll-mt-24 bg-warm-white px-5 pb-12 pt-32 text-brand-black outline-none lg:px-8 lg:pb-16 lg:pt-36'}`} aria-busy={fading}>
-      {view === 'review' ? <div className="mx-auto max-w-2xl">
+      className={`transition-opacity duration-150 motion-reduce:transition-none ${embedded ? `h-full overflow-y-auto overscroll-contain bg-warm-white text-brand-black outline-none ${view === 'intro' || view === 'review' || view === 'complete' ? 'px-4 py-4 sm:px-6 sm:py-5' : 'pb-5'}` : 'scroll-mt-24 bg-warm-white px-5 pb-12 pt-32 text-brand-black outline-none lg:px-8 lg:pb-16 lg:pt-36'}`} aria-busy={fading}>
+      {view === 'intro' ? <div className="mx-auto max-w-2xl">
+        <h1 className={embedded ? 'text-2xl font-bold' : 'text-h1 leading-display'}>Choose your gifts</h1>
+        <p className="mt-5 leading-relaxed text-dark-grey">Thanks for giving to our one-off giving. We’ll take you through Plant, Train, Grow and Build, one at a time.</p>
+        <p className="mt-4 leading-relaxed text-dark-grey">Choose an amount for each opportunity, or skip any. You’ll make one payment for your selected gifts.</p>
+        <button type="button" disabled={locked} onClick={() => setView('plant')} className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-md bg-rich-red px-6 py-3.5 font-semibold text-white disabled:opacity-40">Okay, let’s go<FiArrowRight aria-hidden="true" /></button>
+      </div> : view === 'review' ? <div className="mx-auto max-w-2xl">
         {!embedded && <button type="button" disabled={locked} onClick={() => { setEditing(false); setView('build') }} className="mb-7 py-2 text-sm font-semibold text-dark-grey disabled:opacity-40">← Back to opportunities</button>}
         <h1 className={embedded ? 'text-2xl font-bold' : 'text-h1 leading-display'}>Review your gifts</h1>
         {lines.length === 0 ? <div className="my-8 rounded-xl border border-warm-grey bg-white p-6">
@@ -216,7 +222,7 @@ export function GiveSundayCart({ children, afterCart, embedded = false, renderPa
           if (editing) { setEditing(false); setView('review'); return }
           if (view === 'greatest-need') { setView(generalBack); return }
           const index = GUIDED_OPPORTUNITIES.indexOf(view)
-          setView(index <= 0 ? 'overview' : GUIDED_OPPORTUNITIES[index - 1])
+          setView(index <= 0 ? 'intro' : GUIDED_OPPORTUNITIES[index - 1])
         }}
         onGreatestNeed={openGreatestNeed} />
         {view === 'greatest-need' && <div className="mx-auto max-w-2xl px-4 sm:px-6">

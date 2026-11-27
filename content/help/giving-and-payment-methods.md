@@ -14,7 +14,7 @@ On the separate **How would you like to pay?** step, choose **Pay by bank** or *
 
 **Choose Your Gifts** becomes available to everyone at 12:00 am on Saturday, 5 December 2026 (Auckland time). Before then, this button is available only to authorised staff and Exec accounts; otherwise it is disabled with **Return on Give Sunday to Give** underneath. Once the giving flow is open, checkout uses the normal payment checks without another Staff/Exec check.
 
-On the [one-off giving page](/one-off-giving), choose **Choose Your Gifts** to open the guided opportunities in the launcher. Enter an amount for Plant, Train, Grow and Build, or choose **Skip this opportunity**. Use the launcher’s Back arrow to return to the previous step.
+On the [one-off giving page](/one-off-giving), choose **Choose Your Gifts** to open the launcher. The first screen explains the four opportunities; choose **Okay, let’s go** to begin. Each opportunity has a numbered title and a progress pill, from **1/4** to **4/4**. Choose **$200**, **$1,000**, **$5,000**, or enter your own whole-dollar amount. Continue through Plant, Train, Grow and Build, or choose **Skip this opportunity**. Use the launcher’s Back arrow to return to the previous step.
 
 You can choose **Give to greatest need** below an opportunity or on the review screen. Its amount starts with the total of your selected gifts. You can change that amount, or use Back to keep your earlier choices. **Continue to payment** replaces those allocations with one Greatest Need gift and proceeds directly to payment. This route has no skip or review step.
 

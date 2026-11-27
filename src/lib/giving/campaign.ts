@@ -13,7 +13,7 @@ export interface CampaignGift {
 }
 
 export const CAMBODIA_SPONSORSHIP_URL = 'https://www.tearfund.org.nz/Child-Consignment/AKL-EV-Sponsorship-page'
-export const GIVE_SUNDAY_SUGGESTED_AMOUNTS_MINOR = [8000, 20000, 50000] as const
+export const GIVE_SUNDAY_SUGGESTED_AMOUNTS_MINOR = [20000, 100000, 500000] as const
 
 export const GIVE_SUNDAY_GIFTS: readonly CampaignGift[] = [
   { id: 'plant', title: 'Plant — the next church beyond Auckland', description: 'Help take the good news of Jesus beyond Auckland by giving towards the next church plant.', reference: 'GIVE26PLANT', glCode: '413', glName: 'Planting for NZ Donations', project: 'T-Give26 Plant', fixedAmountMinor: null },

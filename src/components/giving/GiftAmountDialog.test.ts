@@ -30,9 +30,9 @@ describe('gift amount choices', () => {
     const fixed = campaignCartCatalog(true).map(product => ({ ...product, allowCustomAmount:false }))
     expect(() => snapshotCart(cart,fixed)).toThrow('Custom amounts are not available')
   })
-  it('uses the approved $80, $200 and $500 choices in every gift dialog', () => {
+  it('uses the approved $200, $1,000 and $5,000 choices in every gift dialog', () => {
     for (const sample of [false,true]) for (const product of campaignCartCatalog(sample)) {
-      expect(product.suggestedAmountsMinor).toEqual([8000,20000,50000])
+      expect(product.suggestedAmountsMinor).toEqual([20000,100000,500000])
     }
   })
 })
