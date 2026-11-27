@@ -48,7 +48,7 @@ describe('giving emails',()=>{
     expect(blink.text).toContain('Confirmed gift: $25.00 plus a $0.50 transaction fee to General, just this once')
     expect(blink.text).toContain('Thank you for your partnership in the gospel.')
     expect(blink.text).toContain('We thank God for you and for the generosity you’ve shown.')
-    expect(blink.text).toContain('people across Auckland can hear about Jesus, grow in him, and be equipped to serve')
+    expect(blink.text).toContain('people across Auckland and New Zealand can hear about Jesus, grow in him, and be equipped to serve')
     expect(blink.text).toContain('“I thank my God every time I remember you… because of your partnership in the gospel from the first day until now.” — Philippians 1:3–5')
     expect(blink.html).toContain('<blockquote style="border-left:4px solid #E22A30')
     expect(blink.text).not.toContain('Our system registered')

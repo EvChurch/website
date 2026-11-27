@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react'
 import { FiArrowLeft, FiArrowRight, FiHeart } from 'react-icons/fi'
 import presentation from '@/lib/giving/campaign-presentation.json'
-import { GIVE_SUNDAY_GIFTS, GIVE_SUNDAY_SUGGESTED_AMOUNTS_MINOR } from '@/lib/giving/campaign'
+import { GIVE_SUNDAY_GIFTS, GIVE_SUNDAY_SUGGESTED_AMOUNTS_MINOR, GREATEST_NEED_DESCRIPTION } from '@/lib/giving/campaign'
 import { CAMPAIGN_PROGRESS, formatCampaignProgress } from '@/lib/giving/campaign-progress'
 import { MediaImage } from '@/components/media/MediaImage'
 import { CampaignProgress } from './CampaignProgress'
@@ -90,6 +90,7 @@ export function GivingOpportunityStep({ id, amount, locked, editing, compact = f
     </div>
     {!general && <div className={`mx-auto mt-6 max-w-2xl text-center ${compact ? 'px-4 sm:px-6' : ''}`}>
       <div className="flex items-center gap-3 text-sm text-mid-grey"><span className="h-px flex-1 bg-warm-grey" /><span>or</span><span className="h-px flex-1 bg-warm-grey" /></div>
+      <p className="mt-4 text-sm leading-relaxed text-dark-grey">{GREATEST_NEED_DESCRIPTION}</p>
       <button type="button" disabled={locked} onClick={onGreatestNeed} className="mt-6 font-semibold text-rich-red underline underline-offset-4 disabled:opacity-40">Give to greatest need</button>
     </div>}
   </div>

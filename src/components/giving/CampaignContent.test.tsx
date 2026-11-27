@@ -19,11 +19,12 @@ describe('existing campaign presentation',()=>{
       expect(html).toContain(item.description.replaceAll("'",'&#x27;'))
     }
   })
-  it('puts Cambodia last and offers guided giving beneath the introduction and opportunities',()=>{
+  it('puts Cambodia last and offers guided giving in the header, beneath the introduction and beneath the opportunities',()=>{
     const html=renderToStaticMarkup(<CampaignContent />)
     expect([...html.matchAll(/data-campaign-card="([^"]+)"/g)].map(match=>match[1])).toEqual(['plant','train','grow','build','greatest-need','cambodia'])
-    expect(html.match(/<button/g)).toHaveLength(2)
-    expect(html.indexOf('Choose Your Gifts')).toBeLessThan(html.indexOf('data-campaign-card='))
+    expect(html.match(/<button/g)).toHaveLength(3)
+    expect(html.split('</section>')[0]).toContain('Choose Your Gifts')
+    expect(html.slice(html.indexOf('id="campaign-options"'), html.indexOf('aria-label="Giving opportunities"'))).toContain('Choose Your Gifts')
     expect(html).not.toContain('Add Gift')
     expect(html).not.toContain('Sponsor with Tearfund')
     expect(html).not.toContain('Child-Consignment')

@@ -20,7 +20,9 @@ export function CampaignContent() {
     cambodia,
   ]
   return <>
-    <PageHeaderBlockComponent {...presentation.header} theme="dark" />
+    <PageHeaderBlockComponent {...presentation.header} theme="dark">
+      <CampaignStartButton className="mt-7" />
+    </PageHeaderBlockComponent>
     <BlockquoteBlockComponent {...presentation.quote} style="centered" />
     <div id="campaign-options" className="scroll-mt-24 bg-white px-5 py-16 lg:px-8 lg:py-32">
       <ScrollReveal>

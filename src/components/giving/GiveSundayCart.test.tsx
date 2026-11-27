@@ -47,6 +47,9 @@ it('hands the selected gifts to the shared payment flow and starts fresh after v
     await act(async () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Okay, let’s go')!.click())
     for (let i=0;i<4;i++) await act(async () => container.querySelector<HTMLButtonElement>('[data-select]')!.click())
     expect(container.textContent).toContain('Review your gifts')
+    expect(container.textContent).toContain('Give one general gift and let Ev use it wherever it is needed most.')
+    expect(container.textContent).toContain("Make room for Central's Kids")
+    expect(container.textContent).not.toContain("Central'S")
     await act(async () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Continue to payment')!.click())
     expect(selected.at(-1)).toEqual(['plant','train','grow','build'].map(opportunityId => ({opportunityId,amountMinor:10000})))
     await act(async () => container.querySelector<HTMLButtonElement>('[data-back]')!.click())
@@ -109,6 +112,7 @@ it('opens greatest need directly from the introduction and returns there with Ba
   try {
     await act(async () => root.render(<GiveSundayCart embedded renderPayment={props => { selected = props.gifts; return <div data-payment /> }} />))
     expect(container.textContent).toContain('After completing your gift, you’ll have the opportunity to explore child sponsorship in Cambodia through Tearfund.')
+    expect(container.textContent).toContain('Give one general gift and let Ev use it wherever it is needed most.')
     const openGreatestNeed = () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Give to greatest need')!.click()
     await act(async () => openGreatestNeed())
     expect(container.querySelector('[data-opportunity]')?.getAttribute('data-opportunity')).toBe('greatest-need')
