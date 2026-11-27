@@ -11,17 +11,12 @@ export function memberConnectGroupHref(groups: Array<{ rockGroupId: number }>) {
     : '/members/connect-groups'
 }
 
-export function MemberPortalChrome({
+export function MemberPortalNavigation({
   active,
-  member,
-  connectGroupHref,
-  children,
+  connectGroupHref = '/members/connect-groups',
 }: {
   active?: MemberSection
-  member: { name: string; email: string; avatarUrl: string | null }
-  canAccessLeaderResources: boolean
-  connectGroupHref: string
-  children: ReactNode
+  connectGroupHref?: string
 }) {
   const links = [
     { key: 'overview' as const, label: 'Overview', href: '/members' },
@@ -37,6 +32,21 @@ export function MemberPortalChrome({
     { key: 'courses' as const, label: 'Courses', href: '/members/courses' },
   ]
 
+  return <MemberNavigation links={links} active={active} />
+}
+
+export function MemberPortalChrome({
+  active,
+  member,
+  connectGroupHref,
+  children,
+}: {
+  active?: MemberSection
+  member: { name: string; email: string; avatarUrl: string | null }
+  canAccessLeaderResources: boolean
+  connectGroupHref: string
+  children: ReactNode
+}) {
   return (
     <div className="min-h-screen bg-warm-white pb-20">
       {active === 'overview' ? (
@@ -60,7 +70,7 @@ export function MemberPortalChrome({
         <div aria-hidden="true" className="h-20 lg:h-[100px]" />
       )}
 
-      <MemberNavigation links={links} active={active} />
+      <MemberPortalNavigation active={active} connectGroupHref={connectGroupHref} />
 
       <div className={`mx-auto max-w-[80rem] px-5 sm:px-8 ${active === 'overview' ? 'py-12 sm:py-16' : 'py-7 sm:py-9'}`}>
         {children}
