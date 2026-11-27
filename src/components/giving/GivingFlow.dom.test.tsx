@@ -198,7 +198,7 @@ describe('GivingFlow', () => {
     expect(campaign.onVerified).not.toHaveBeenCalled()
   })
 
-  it('keeps an authorisation failure visible and prevents a repeat submission after the security check refreshes', async () => {
+  it.each([false,true])('keeps an authorisation failure visible after a security refresh (campaign=%s)', async campaign => {
     const submissions: RequestInit[]=[]
     vi.mocked(fetch).mockImplementation(async (input,init) => {
       if(String(input)==='/api/giving/checkouts') {
@@ -207,10 +207,14 @@ describe('GivingFlow', () => {
       }
       return new Response(null,{status:204})
     })
-    await reachSignedInReview(container,root)
+    if(campaign) {
+      await act(async()=>root.render(<GivingFlow funds={[{...funds[0],code:'GIVESUNDAY26'}]} campaign={{gifts:[{opportunityId:'plant',amountMinor:100}],onBack:vi.fn(),onVerified:vi.fn()}} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} />))
+      await act(async()=>button(container,'Pay by bank')!.click())
+    } else await reachSignedInReview(container,root)
     await act(async()=>container.querySelector<HTMLButtonElement>('[data-turnstile]')!.click())
     await act(async()=>button(container,'Continue to BlinkPay')!.click())
     expect(submissions).toHaveLength(1)
+    if(campaign) expect(sessionStorage.getItem('ev-give-sunday-payment')).toBe('pending')
     expect(container.textContent).toContain('This giving session could not be authorised')
     expect(container.textContent).toContain('No payment was started')
     expect(button(container,'Reload giving form')).toBeTruthy()

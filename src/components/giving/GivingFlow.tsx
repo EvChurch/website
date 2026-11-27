@@ -555,6 +555,7 @@ export function GivingFlow({ funds, campaign, identity = { signedIn: false }, re
       if (submitAbort.signal.aborted) throw new DOMException('Checkout timed out', 'TimeoutError')
       if (response.status === 403) {
         leavingFlow.current = false
+        if (campaignActive) sessionStorage.setItem('ev-give-sunday-payment','pending')
         setSubmissionExpired(true)
         setCheckout({ type: 'configuring' })
         setError('This giving session could not be authorised. Reload the page and check that you are signed into your church account. No payment was started.')
