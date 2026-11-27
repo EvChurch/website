@@ -6,7 +6,7 @@ On the separate **How would you like to pay?** step, choose **Pay by bank** or *
 
 **Pay by bank** uses BlinkPay and supports ANZ, ASB, BNZ, Kiwibank and Westpac. Continue to BlinkPay to authorise with your bank.
 
-**Debit or credit card** opens secure card entry within the giving flow. Stripe handles your card details. Apple Pay or Google Pay may also appear on supported devices. Your bank may ask you to authenticate.
+**Debit or credit card** opens secure card entry within the giving flow. Stripe handles your card details. Choose **Cancel** below the payment button to return to your saved gift choices. Cancel is unavailable while payment confirmation is in progress. Apple Pay or Google Pay may also appear on supported devices. Your bank may ask you to authenticate.
 
 **Try manual bank transfer** is a smaller fallback link beneath the main choices in this giving flow, for when the other methods are not working. Follow the account and reference instructions. **I’ve set this up** records your acknowledgement; it does not confirm that Ev has received a payment.
 

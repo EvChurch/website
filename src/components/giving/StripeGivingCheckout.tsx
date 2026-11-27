@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { loadStripe } from '@stripe/stripe-js'
 import { CheckoutElementsProvider, ExpressCheckoutElement, PaymentElement, useCheckoutElements } from '@stripe/react-stripe-js/checkout'
 
-function CardForm({ recurring, onComplete }: { recurring:boolean; onComplete:()=>void }) {
+function CardForm({ recurring, onComplete, onCancel }: { recurring:boolean; onComplete:()=>void; onCancel:()=>void }) {
   const result=useCheckoutElements()
   const [busy,setBusy]=useState(false)
   const [error,setError]=useState<string>()
@@ -17,18 +17,20 @@ function CardForm({ recurring, onComplete }: { recurring:boolean; onComplete:()=
     } catch {setError('We could not confirm the payment outcome. Keep this page open while we check.');onComplete()}
     finally {setBusy(false)}
   }
-  if(result.type==='loading')return <p role="status">Loading secure card details…</p>
-  if(result.type==='error')return <p role="alert">We could not load secure card entry. Reload to check your gift before trying again.</p>
+  const cancelButton=<button type="button" disabled={busy} onClick={onCancel} className="mt-2 w-full py-3 text-sm font-semibold text-dark-grey underline underline-offset-4 disabled:opacity-50">Cancel</button>
+  if(result.type==='loading')return <><p role="status">Loading secure card details…</p>{cancelButton}</>
+  if(result.type==='error')return <><p role="alert">We could not load secure card entry. Reload to check your gift before trying again.</p>{cancelButton}</>
   return <form onSubmit={event=>{event.preventDefault();void pay()}}>
     <ExpressCheckoutElement onConfirm={event=>void pay({expressCheckoutConfirmEvent:event})} />
     <div className="mt-4"><PaymentElement /></div>
     {error && <p role="alert" className="mt-3 text-rich-red">{error}</p>}
     <button type="submit" disabled={busy} className="mt-5 min-h-14 w-full rounded-full bg-rich-red px-5 font-semibold text-white disabled:opacity-50">{busy?'Confirming…':recurring?'Set up recurring gift':'Give now'}</button>
+    {cancelButton}
   </form>
 }
 
-export function StripeGivingCheckout({publishableKey,clientSecret,recurring,onComplete}:{publishableKey:string;clientSecret:string;recurring:boolean;onComplete:()=>void}) {
+export function StripeGivingCheckout({publishableKey,clientSecret,recurring,onComplete,onCancel}:{publishableKey:string;clientSecret:string;recurring:boolean;onComplete:()=>void;onCancel:()=>void}) {
   const stripe=useMemo(()=>loadStripe(publishableKey),[publishableKey])
   const options=useMemo(()=>({clientSecret,elementsOptions:{appearance:{variables:{colorPrimary:'#E22A30',fontFamily:'Albert Sans, sans-serif',borderRadius:'12px'}}}}),[clientSecret])
-  return <CheckoutElementsProvider stripe={stripe} options={options}><CardForm recurring={recurring} onComplete={onComplete} /></CheckoutElementsProvider>
+  return <CheckoutElementsProvider stripe={stripe} options={options}><CardForm recurring={recurring} onComplete={onComplete} onCancel={onCancel} /></CheckoutElementsProvider>
 }

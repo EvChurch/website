@@ -8,7 +8,7 @@ import type { CardFeeSettings } from '@/lib/giving/fees'
 import type { PublicGivingFund } from '@/lib/giving/contracts'
 import { GIVING_SAFE_CLOSE_REASSURANCE_DELAY_MS, GIVING_STATUS_POLL_LIMIT, GivingFlow, givingCheckoutPresentation, givingProgress, givingStatusPollDelay, positionGivingSurface, safeGivingGatewayRedirect } from './GivingFlow'
 
-vi.mock('./StripeGivingCheckout',()=>({StripeGivingCheckout:()=> <div>Secure card component</div>}))
+vi.mock('./StripeGivingCheckout',()=>({StripeGivingCheckout:({onCancel}:{onCancel:()=>void})=> <div>Secure card component<button type="button" onClick={onCancel}>Cancel</button></div>}))
 vi.mock('@/components/forms/TurnstileWidget', () => ({ TurnstileWidget: ({ onToken }: { onToken: (token: string) => void }) => <button type="button" data-turnstile onClick={() => onToken('turnstile-token')}>Pass security check</button> }))
 const loadGivingSubmissionVersion=vi.hoisted(()=>vi.fn(async()=> 'V'.repeat(43)))
 vi.mock('@/lib/giving/submission-session',()=>({loadGivingSubmissionVersion}))
@@ -182,6 +182,21 @@ describe('GivingFlow', () => {
     expect(container.querySelector('#giving-step-heading')?.textContent).toBe('How would you like to pay?')
     expect(button(container,'Pay by bank')).toBeDefined()
     expect(vi.mocked(fetch).mock.calls.map(([url])=>String(url))).toEqual(['/api/giving/identity'])
+  })
+
+  it('returns from secure card entry to the campaign gift choices when Cancel is clicked', async () => {
+    window.history.replaceState(null,'','/one-off-giving?giving=return&keep=1#campaign')
+    sessionStorage.setItem('ev-give-sunday-payment','submitted')
+    sessionStorage.setItem('ev-give-sunday-submission-key','A'.repeat(43))
+    const onBack=vi.fn(),onVerified=vi.fn()
+    vi.mocked(fetch).mockResolvedValue(Response.json({state:'processing',retryAllowed:false,kind:'one-off',cardCheckout:{clientSecret:'cs_test_secret_example',publishableKey:'pk_test_example'}}))
+    await act(async()=>root.render(<GivingFlow funds={[{...funds[0],code:'GIVESUNDAY26'}]} campaign={{gifts:[{opportunityId:'plant',amountMinor:20000}],onBack,onVerified}} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} />))
+    await act(async()=>button(container,'Cancel')!.click())
+    expect(onBack).toHaveBeenCalledExactlyOnceWith()
+    expect(window.location.search).toBe('?keep=1')
+    expect(window.location.hash).toBe('#campaign')
+    expect(onVerified).not.toHaveBeenCalled()
+    expect(vi.mocked(fetch).mock.calls.some(([,init])=>init?.method==='POST')).toBe(false)
   })
 
   it('resumes the same unpaid card checkout after returning without submitting another gift', async () => {
