@@ -47,7 +47,7 @@ export async function listCourseAttempts(identity: Auth0Identity) {
 
 export async function startSoloCourse(identity: Auth0Identity, slug: string): Promise<CourseAttempt> {
   const course = await findPublishedCourse(slug)
-  if (!course || !course.enrolmentOpen || course.allowSolo === false) throw new Error('This course is not open for solo enrolment.')
+  if (!course || !course.enrolmentOpen || course.allowSolo === false) throw new Error('This course is not open for individual enrolment.')
   const edition = await latestCourseEdition(course.id)
   if (!edition) throw new Error('This course is not available yet.')
   const payload = await getPayloadClient()
@@ -91,9 +91,9 @@ export async function saveCourseLessonPosition(identity: Auth0Identity, attemptI
   if (!lessonSteps(lesson).some(step => step.id === stepId)) throw new Error('Step not found.')
   const prerequisites = owned.snapshot.lessons.slice(0, index).map(item => item.lessonId)
   const pool = coursePostgresPool(await getPayloadClient())
+  // Navigation must not move the inactive-membership revocation timestamp.
   const result = await pool.query(`UPDATE course_attempts SET
-    lesson_positions = jsonb_set(CASE WHEN jsonb_typeof(lesson_positions)='object' THEN lesson_positions ELSE '{}'::jsonb END, ARRAY[$3::text], to_jsonb($4::text), true),
-    updated_at = now()
+    lesson_positions = jsonb_set(CASE WHEN jsonb_typeof(lesson_positions)='object' THEN lesson_positions ELSE '{}'::jsonb END, ARRAY[$3::text], to_jsonb($4::text), true)
     WHERE id=$1 AND account_key=$2 AND completed_lesson_ids @> $5::jsonb`,
     [attemptId, identity.identityKey, lessonId, stepId, JSON.stringify(prerequisites)])
   if (!result.rowCount) throw new Error('Finish the earlier lessons first.')

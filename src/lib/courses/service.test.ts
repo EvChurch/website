@@ -80,6 +80,14 @@ describe('saved walkthrough position', () => {
     expect(query).toHaveBeenCalledTimes(1)
     expect(query.mock.calls[0][0]).toContain('UPDATE course_attempts')
   })
+  it('does not move membership revocation timestamps when a former member saves navigation', async () => {
+    progress([], true)
+    await saveCourseLessonPosition(identity, 123, 'one', 'one-reading')
+    const sql = query.mock.calls[0][0]
+    expect(sql).toContain('lesson_positions = jsonb_set')
+    expect(sql).not.toMatch(/\b(?:updated_at|membership_status|completed_at)\s*=/)
+    expect(query).toHaveBeenCalledTimes(1)
+  })
   it('rejects saving position if the database frontier check fails', async () => {
     progress(['one']); query.mockResolvedValue({ rowCount: 0, rows: [] })
     await expect(saveCourseLessonPosition(identity, 123, 'two', 'two-reading')).rejects.toThrow('earlier lessons')
