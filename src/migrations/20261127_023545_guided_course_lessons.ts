@@ -16,7 +16,13 @@ export async function enrichExistingFaithfulCourse({ payload, req }: Pick<Migrat
   if (current) {
     const copy = enrichFaithfulIndividualCopy(current.lessons)
     if (copy.changed) {
-      await payload.update({ collection: 'courses', id: current.id, data: { lessons: copy.lessons, _status: 'published' }, draft: false, context: { skipCourseEditionRefresh: true }, overrideAccess: true, req })
+      // Payload merges partial updates with its latest version, which may be an
+      // editor's draft. Supply the captured published fields to keep it private.
+      await payload.update({ collection: 'courses', id: current.id,
+        data: { title: current.title, slug: current.slug, summary: current.summary,
+          enrolmentOpen: current.enrolmentOpen, allowSolo: current.allowSolo, allowGroup: current.allowGroup,
+          lessons: copy.lessons, _status: 'published' },
+        draft: false, context: { skipCourseEditionRefresh: true }, overrideAccess: true, req })
       publishedChanged = true
     }
   }

@@ -27,7 +27,10 @@ describe('guided course copy migration', () => {
     find.mockResolvedValueOnce({ docs: [draft] }).mockResolvedValueOnce({ docs: [current] }).mockResolvedValueOnce({ docs: [{ id: 88, snapshot, structureKey: 'old-key' }], hasNextPage: false })
     await enrichExistingFaithfulCourse(args)
     expect(update).toHaveBeenCalledTimes(3)
-    expect(update.mock.calls[0][0]).toMatchObject({ collection: 'courses', id: 99, draft: false, data: { _status: 'published' }, context: { skipCourseEditionRefresh: true } })
+    expect(update.mock.calls[0][0]).toMatchObject({ collection: 'courses', id: 99, draft: false, data: {
+      _status: 'published', title: current.title, slug: current.slug, summary: current.summary,
+      enrolmentOpen: current.enrolmentOpen, allowSolo: current.allowSolo, allowGroup: current.allowGroup,
+    }, context: { skipCourseEditionRefresh: true } })
     expect(update.mock.calls[1][0]).toMatchObject({ collection: 'courses', id: 99, draft: true, data: { title: 'Editor draft title', enrolmentOpen: false, _status: 'draft' } })
     const editionUpdate = update.mock.calls[2][0]
     expect(editionUpdate).toMatchObject({ collection: 'course-editions', id: 88 })
