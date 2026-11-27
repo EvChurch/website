@@ -59,14 +59,18 @@ function callbackAlias(url: URL): true | false {
   const cid = url.searchParams.getAll('cid')
   const consentId = url.searchParams.getAll('consent_id')
   const errors = url.searchParams.getAll('error')
+  const statuses = url.searchParams.getAll('status')
   if (cid.length + consentId.length !== 1) return false
-  if (errors.length > 1) return false
+  if (errors.length > 1 || statuses.length > 1) return false
   for (const key of url.searchParams.keys()) {
-    if (!['cid', 'consent_id', 'error'].includes(key)) return false
+    if (!['cid', 'consent_id', 'error', 'status'].includes(key)) return false
   }
   const value = cid[0] ?? consentId[0] ?? ''
   const error = errors[0] ?? null
-  return value.length > 0 && value.length <= 128 && (error === null || error.length <= 512) ? true : false
+  // Provider query fields are hints only; the cookie-bound checkout is verified via the API.
+  const status = statuses[0] ?? null
+  return value.length > 0 && value.length <= 128 && (error === null || error.length <= 512)
+    && (status === null || (status.length > 0 && status.length <= 128)) ? true : false
 }
 
 async function givingService() {
