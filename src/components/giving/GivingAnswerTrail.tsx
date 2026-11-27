@@ -28,9 +28,9 @@ export function GivingStepPreview({ step, label }: { step: GivingStep; label: st
   )
 }
 
-function summary(step: GivingStep, answers: GivingAnswers, transactionFeeMinor: number): { label: string; value: string } | null {
+function summary(step: GivingStep, answers: GivingAnswers, transactionFeeMinor: number, campaign = false): { label: string; value: string } | null {
   switch (step) {
-    case 'amount': return answers.amountMinor === null ? null : { label: 'amount', value: `I’d like to give $${(answers.amountMinor / 100).toFixed(2)}${transactionFeeMinor > 0 ? `+$${(transactionFeeMinor / 100).toFixed(2)}` : ''}` }
+    case 'amount': return answers.amountMinor === null ? null : { label: 'amount', value: campaign ? `I would like to give $${(answers.amountMinor / 100).toLocaleString('en-NZ')}` : `I’d like to give $${(answers.amountMinor / 100).toFixed(2)}${transactionFeeMinor > 0 ? `+$${(transactionFeeMinor / 100).toFixed(2)}` : ''}` }
     case 'fund': return answers.fund ? { label: 'fund', value: `for ${answers.fund.name}` } : null
     case 'frequency': return answers.frequency ? { label: 'frequency', value: frequencyLabels[answers.frequency] } : null
     case 'starting-date': return answers.startDate ? { label: 'starting date', value: `starting ${givingStartDateSummary(answers.startDate)}` } : null
@@ -41,7 +41,7 @@ function summary(step: GivingStep, answers: GivingAnswers, transactionFeeMinor: 
   }
 }
 
-export function GivingAnswerTrail({ answers, transactionFeeMinor, currentStep, visitedSteps, placement, onEdit, directedFundId = null }: { answers: GivingAnswers; transactionFeeMinor: number; currentStep: GivingStep; visitedSteps: readonly GivingStep[]; placement: 'before' | 'after'; directedFundId?: number | null; onEdit: (step: GivingStep) => void }) {
+export function GivingAnswerTrail({ answers, transactionFeeMinor, currentStep, visitedSteps, placement, onEdit, directedFundId = null, campaign = false }: { answers: GivingAnswers; transactionFeeMinor: number; currentStep: GivingStep; visitedSteps: readonly GivingStep[]; placement: 'before' | 'after'; directedFundId?: number | null; campaign?: boolean; onEdit: (step: GivingStep) => void }) {
   if (currentStep === 'review') return null
   const journey = givingStepOrder(answers, directedFundId)
   const currentIndex = journey.indexOf(currentStep)
@@ -50,7 +50,7 @@ export function GivingAnswerTrail({ answers, transactionFeeMinor, currentStep, v
     ? journey.slice(0, currentIndex)
     : journey.slice(currentIndex + 1)
   const rows = candidates.filter((step) => visited.has(step)).flatMap((step) => {
-    const item = summary(step, answers, transactionFeeMinor)
+    const item = summary(step, answers, transactionFeeMinor, campaign)
     return item ? [{ ...item, step }] : []
   })
   if (rows.length === 0) return null

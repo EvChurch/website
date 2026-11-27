@@ -1,6 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import { CAMPAIGN_CHECKOUT_FUND_CODE, campaignGiftTotal, type CampaignCheckoutGift } from '@/lib/giving/campaign-checkout'
 import { nzGivingDate } from '@/lib/giving/stripe/dates'
 import { cardTransactionFeeMinor, type CardFeeSettings } from '@/lib/giving/fees'
 const StripeGivingCheckout = dynamic(() => import('./StripeGivingCheckout').then(module => module.StripeGivingCheckout), { loading: () => <p role="status">Loading secure card entry…</p> })
@@ -150,11 +151,24 @@ function submissionKey() {
   return btoa(binary).replace(/\+/gu, '-').replace(/\//gu, '_').replace(/=+$/gu, '')
 }
 
-export function GivingFlow({ funds, identity = { signedIn: false }, resumeRequested = false, transactionFeeMinor = DEFAULT_GIVING_TRANSACTION_FEE_MINOR, turnstileSiteKey, gatewayOrigins, cardFees }: { funds: PublicGivingFund[]; identity?: GivingFlowIdentity; resumeRequested?: boolean; transactionFeeMinor?: number; turnstileSiteKey: string; gatewayOrigins: readonly string[]; cardFees?: CardFeeSettings }) {
+export interface GivingCampaignPayment { gifts: CampaignCheckoutGift[]; onBack(): void; onVerified(): void }
+
+export function GivingFlow({ funds, campaign, identity = { signedIn: false }, resumeRequested = false, transactionFeeMinor = DEFAULT_GIVING_TRANSACTION_FEE_MINOR, turnstileSiteKey, gatewayOrigins, cardFees }: { funds: PublicGivingFund[]; campaign?: GivingCampaignPayment; identity?: GivingFlowIdentity; resumeRequested?: boolean; transactionFeeMinor?: number; turnstileSiteKey: string; gatewayOrigins: readonly string[]; cardFees?: CardFeeSettings }) {
   const giving = useGivingExperience()
   const directedFundId = giving.directedFundId ?? null
   const known = useMemo(() => ({ firstName: identity.firstName ?? '', lastName: identity.lastName ?? '', email: identity.email ?? '' }), [identity.email, identity.firstName, identity.lastName])
-  const [state, dispatch] = useReducer(givingReducer, undefined, () => createGivingState(funds, known, directedFundId))
+  const [state, dispatch] = useReducer(givingReducer, undefined, () => {
+    if (!campaign) return createGivingState(funds, known, directedFundId)
+    const fund = funds.find(item => item.code === CAMPAIGN_CHECKOUT_FUND_CODE)
+    const initial = createGivingState(funds,known,fund?.id ?? null)
+    initial.answers = { ...initial.answers, amountMinor: campaignGiftTotal(campaign.gifts), frequency: 'one-off', fund: fund ? { ...fund, name: 'Give Sunday' } : null }
+    initial.fundConfirmed = Boolean(fund)
+    initial.step = initial.missingIdentity.length ? `identity-${initial.missingIdentity[0]}` : 'payment-method'
+    return initial
+  })
+  const campaignActive = Boolean(campaign)
+  const answerTrailSteps: GivingStep[] = campaign ? ['amount','frequency','fund',...state.history.filter(step => !identity.signedIn || !step.startsWith('identity-'))] : state.history
+  const campaignConfigured = !campaign || funds.some(fund => fund.code === CAMPAIGN_CHECKOUT_FUND_CODE)
   const [error, setError] = useState<string>()
   const [submissionVersion, setSubmissionVersion] = useState<string | null>(null)
   const [submissionExpired, setSubmissionExpired] = useState(false)
@@ -175,7 +189,6 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   const [checkout, setCheckout] = useState<CheckoutView>({ type: 'configuring' })
   const [turnstileToken, setTurnstileToken] = useState('')
   const [turnstileReset, setTurnstileReset] = useState(0)
-  const [identityLoading, setIdentityLoading] = useState(false)
   const [bankTransfer, setBankTransfer] = useState<GivingBankTransferPreparation | null>(null)
   const [bankPreparationRetryRequired, setBankPreparationRetryRequired] = useState(false)
   const [bankAcknowledging, setBankAcknowledging] = useState(false)
@@ -250,11 +263,12 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     delayedTimer.current = null
   }, [])
   const persistDraft = useCallback(async (answers: GivingAnswers, fundConfirmed: boolean, signal?: AbortSignal) => {
+    if (campaignActive) return
     const saved = draftAnswers(answers, fundConfirmed)
     if (!saved) return
     const response = await fetch('/api/giving/drafts', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(saved), signal, keepalive: true })
     if (!response.ok) throw new Error('draft unavailable')
-  }, [])
+  }, [campaignActive])
   const saveCompletedStep = useCallback((actions: readonly GivingAction[]) => {
     if (discardingDraft.current || savingCompletedStep.current) return
     const nextState = actions.reduce(givingReducer, stateRef.current)
@@ -285,7 +299,10 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     })
   }, [persistDraft])
 
-  if (!flowSubmissionKey.current) flowSubmissionKey.current = submissionKey()
+  if (!flowSubmissionKey.current) {
+    const saved = campaignActive && typeof window !== 'undefined' ? sessionStorage.getItem('ev-give-sunday-submission-key') : null
+    flowSubmissionKey.current = isGivingCapabilityToken(saved) ? saved : submissionKey()
+  }
   useEffect(() => {
     if (checkout.type !== 'configuring' || state.step === 'payment-method' || state.step === 'review') headingRef.current?.focus()
   }, [state.step, checkout.type])
@@ -321,12 +338,15 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   },[checkout,giving.givingViewActive,state.step])
   useEffect(() => giving.registerGivingBackHandler(() => {
     if (checkout.type === 'submitting' || savingCompletedStep.current) return true
-    if (checkout.type !== 'configuring' || previousGivingStep(stateRef.current) === null) return false
+    if (checkout.type !== 'configuring') return false
+    const previous = previousGivingStep(stateRef.current)
+    if (campaign && (previous === null || ['amount','frequency','fund'].includes(previous))) { campaign.onBack(); return true }
+    if (previous === null) return false
     scrollIntent.current = 'edit'
     setError(undefined)
     dispatch({ type: 'back' })
     return true
-  }), [checkout.type, giving.registerGivingBackHandler])
+  }), [campaign, checkout.type, giving.registerGivingBackHandler])
   useEffect(() => {
     if (giving.givingViewActive) {
       givingWasActive.current = true
@@ -345,7 +365,6 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     }
     setIdentityReady(false)
     const operation = currentOperation()
-    setIdentityLoading(true)
     void (async () => {
       try {
         const response = await fetch('/api/giving/identity', { cache:'no-store',signal:operation.signal })
@@ -359,17 +378,17 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
         }
         memberIdentity.current = hydrated
         dispatch({type:'hydrateIdentity',identity:hydrated,unedited:(['firstName','lastName','email'] as const).filter((field)=>!editedIdentity.current.has(field))})
+        if (campaignActive) dispatch({type:'next'})
         signedInIdentityResolved.current = true
       } catch {
         if (operationIsCurrent(operation)) signedInIdentityResolved.current = true
       } finally {
         if (operationIsCurrent(operation)) {
-          setIdentityLoading(false)
           setIdentityReady(true)
         }
       }
     })()
-  }, [currentOperation,giving.givingViewActive,identity.signedIn,known,operationIsCurrent])
+  }, [campaignActive,currentOperation,giving.givingViewActive,identity.signedIn,known,operationIsCurrent])
   useEffect(() => {
     if (!turnstileToken) return
     if (state.step === 'review' && verifiedFingerprint.current === answerFingerprint) return
@@ -383,6 +402,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   }, [answerFingerprint])
 
   const restoreDraft = useCallback(async () => {
+    if (campaignActive) return false
     if (directedFundId !== null) return false
     const operation = currentOperation()
     const response = await fetch('/api/giving/drafts', { cache: 'no-store', signal: operation.signal })
@@ -400,7 +420,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     const requiredIdentity = (['firstName','lastName','email'] as const).filter((field) => !identity.signedIn || !restored[field])
     dispatch({ type: 'restore', answers: restored, fundConfirmed: saved.fundConfirmed && fund !== null, missingIdentity: requiredIdentity })
     return true
-  }, [currentOperation, directedFundId, funds, identity.signedIn, known, operationIsCurrent])
+  }, [campaignActive, currentOperation, directedFundId, funds, identity.signedIn, known, operationIsCurrent])
 
   const pollStatus = useCallback(async function poll(): Promise<void> {
     if(!pollActive.current||pollInFlight.current)return
@@ -408,9 +428,12 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     pollInFlight.current=true
     pollTimer.current=null
     try {
-      const response = await fetch('/api/giving/checkouts/current/status', { cache: 'no-store', signal: operation.signal })
+      const response = await fetch('/api/giving/checkouts/current/status', { cache: 'no-store', ...(campaignActive ? { headers: { 'x-ev-giving-submission-key': flowSubmissionKey.current! } } : {}), signal: operation.signal })
       if(!pollActive.current||!operationIsCurrent(operation))return
-      if (!response.ok) { await restoreDraft(); if (operationIsCurrent(operation)) setCheckout({ type: 'configuring' }); return }
+      if (!response.ok) {
+        if (campaignActive && sessionStorage.getItem('ev-give-sunday-payment') === 'submitted') { setCheckout({type:'status',status:{state:'unknown',retryAllowed:false,kind:'one-off'},delayed:true}); return }
+        await restoreDraft(); if (operationIsCurrent(operation)) setCheckout({ type: 'configuring' }); return
+      }
       const status = parseGivingCheckoutStatus(await response.json())
       if (!operationIsCurrent(operation)) return
       setCheckout((current) => ({ type: 'status', status, delayed: current.type === 'status' && current.delayed }))
@@ -426,10 +449,11 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     } catch {
       if (operationIsCurrent(operation)) setCheckout({ type: 'status', status: { state: 'unknown', retryAllowed: false, kind: 'one-off' }, delayed: true })
     } finally { pollInFlight.current=false }
-  }, [currentOperation, operationIsCurrent, restoreDraft])
+  }, [campaignActive, currentOperation, operationIsCurrent, restoreDraft])
 
   useEffect(() => {
-    if (!resumeRequested) return
+    const campaignSubmitted = campaignActive && sessionStorage.getItem('ev-give-sunday-payment') === 'submitted'
+    if (campaignActive ? !campaignSubmitted : !resumeRequested) return
     if (identity.signedIn && (!identityReady || !signedInIdentityResolved.current)) {
       setRestoring(false)
       return
@@ -440,7 +464,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     setRestoring(returning)
     void (async () => {
       try {
-        await (returning ? pollStatus() : restoreDraft())
+        await (returning || campaignSubmitted ? pollStatus() : restoreDraft())
       } catch {
         if (operationIsCurrent(operation)) setError('We could not restore your saved gift. Please try again.')
       } finally {
@@ -450,9 +474,10 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     if (returning) delayedTimer.current = setTimeout(() => {
       if (operationIsCurrent(operation)) setCheckout((current) => current.type === 'status' ? { ...current, delayed: true } : current)
     }, GIVING_SAFE_CLOSE_REASSURANCE_DELAY_MS)
-  }, [currentOperation, directedFundId, identity.signedIn, identityReady, operationIsCurrent, pollStatus, restoreDraft, resumeRequested])
+  }, [campaignActive, currentOperation, directedFundId, identity.signedIn, identityReady, operationIsCurrent, pollStatus, restoreDraft, resumeRequested])
   useEffect(() => giving.registerGivingCloseHandler(() => {
     if (checkout.type === 'submitting' || discardingDraft.current) return true
+    if (campaignActive) return false
     if (closeAfterDiscard.current) {
       closeAfterDiscard.current = false
       return false
@@ -489,7 +514,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
       giving.dismissGiving()
     })()
     return true
-  }), [checkout.type, funds, giving.dismissGiving, giving.registerGivingCloseHandler, identity.signedIn, known])
+  }), [campaignActive, checkout.type, funds, giving.dismissGiving, giving.registerGivingCloseHandler, identity.signedIn, known])
   useEffect(() => {
     pollActive.current=true
     return () => {
@@ -497,9 +522,9 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
       draftSaveAbort.current.abort()
       savingCompletedStep.current = false
       setSavingProgress(false)
-      if (!leavingFlow.current) void fetch('/api/giving/drafts', { method: 'DELETE', keepalive: true })
+      if (!campaignActive && !leavingFlow.current) void fetch('/api/giving/drafts', { method: 'DELETE', keepalive: true })
     }
-  }, [cancelAsyncWork])
+  }, [campaignActive, cancelAsyncWork])
 
   const next = () => { scrollIntent.current = 'forward'; setError(undefined); saveCompletedStep([{ type: 'next' }]) }
   const submit = async () => {
@@ -518,7 +543,11 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
       await pendingDraftSave.current.catch(() => undefined)
       await persistDraft(state.answers, state.fundConfirmed, submitAbort.signal)
       if (!operationIsCurrent(operation)) return
-      const response = await fetch(paymentMode === 'stripe' ? '/api/giving/card' : '/api/giving/checkouts', { method:'POST',headers:{'content-type':'application/json','x-ev-giving-request':'checkout-v1','x-ev-giving-version':submissionVersion},body:JSON.stringify({submissionKey:flowSubmissionKey.current,amountMinor:state.answers.amountMinor,transactionFeeMinor:applicableTransactionFeeMinor,fundId:state.answers.fund.id,frequency:state.answers.frequency,firstPaymentDate:state.answers.frequency==='one-off'?null:state.answers.startDate,firstName:state.answers.firstName,lastName:state.answers.lastName,email:state.answers.email,turnstileToken}),signal:submitAbort.signal })
+      if (campaignActive) {
+        sessionStorage.setItem('ev-give-sunday-submission-key',flowSubmissionKey.current!)
+        sessionStorage.setItem('ev-give-sunday-payment','submitted')
+      }
+      const response = await fetch(paymentMode === 'stripe' ? '/api/giving/card' : '/api/giving/checkouts', { method:'POST',headers:{'content-type':'application/json','x-ev-giving-request':'checkout-v1','x-ev-giving-version':submissionVersion},body:JSON.stringify({...(campaign ? {campaignGifts:campaign.gifts} : {}),submissionKey:flowSubmissionKey.current,amountMinor:state.answers.amountMinor,transactionFeeMinor:applicableTransactionFeeMinor,fundId:state.answers.fund.id,frequency:state.answers.frequency,firstPaymentDate:state.answers.frequency==='one-off'?null:state.answers.startDate,firstName:state.answers.firstName,lastName:state.answers.lastName,email:state.answers.email,turnstileToken}),signal:submitAbort.signal })
       const value = await response.json() as { outcome?: unknown; retryAllowed?: unknown; gatewayRedirectUri?: unknown; restartRequired?: unknown; clientSecret?: unknown; publishableKey?: unknown }
       rotateSubmissionKey = response.status >= 500 && value.retryAllowed === true
       if (!operationIsCurrent(operation)) return
@@ -646,6 +675,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     }
   }
   const returnToGift = async () => {
+    if (campaign) { campaign.onBack(); return }
     if (directedFundId !== null) {
       dispatch({ type: 'reset', funds, identity: memberIdentity.current })
       flowSubmissionKey.current = submissionKey()
@@ -667,13 +697,19 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     }
   }
   const choosePaymentMethod = (mode: 'blinkpay' | 'stripe' | 'bank-transfer') => {
+    if (campaignActive && mode === 'bank-transfer') return
     setError(undefined)
     setPaymentMode(mode)
     scrollIntent.current = 'forward'
     dispatch({ type: 'choosePaymentMethod' })
   }
 
+  useEffect(() => {
+    if (campaign && checkout.type === 'status' && checkout.status.state === 'verified') campaign.onVerified()
+  }, [campaign, checkout])
+
   const editAnswer = (step: GivingStep) => {
+    if (campaign && ['amount','frequency','fund'].includes(step)) { campaign.onBack(); return }
     editingName.current = step === 'identity-firstName'
     scrollIntent.current = 'edit'
     setError(undefined)
@@ -681,7 +717,8 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   }
 
   let content
-  if (restoring) content = <p role="status">Checking your gift…</p>
+  if (!campaignConfigured) content = <p role="status">Giving for these opportunities is being configured. Your selected gifts have been kept.</p>
+  else if (restoring) content = <p role="status">Checking your gift…</p>
   else if (checkout.type === 'card') content = <div className="rounded-2xl bg-white p-5"><p className="mb-5 font-semibold">{givingHandoffSummary(state.answers, applicableTransactionFeeMinor).replaceAll('BlinkPay', 'Stripe')}</p><StripeGivingCheckout clientSecret={checkout.clientSecret} publishableKey={checkout.publishableKey} recurring={state.answers.frequency!=='one-off'} onComplete={() => {setCheckout({type:'status',status:{state:'processing',retryAllowed:false,kind:state.answers.frequency==='one-off'?'one-off':'recurring'},delayed:false});void pollStatus()}} /></div>
   else if (checkout.type === 'submitting') content = <GivingPreparation mode={paymentMode === 'stripe' ? 'stripe' : paymentMode === 'blinkpay' ? 'blinkpay' : 'bank-transfer'} />
   else if (checkout.type === 'status') {
@@ -701,7 +738,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
     case 'identity-firstName': case 'identity-lastName': case 'identity-email': {
       const field = state.step.replace('identity-', '') as GivingIdentityField
       const continueIdentity = editingName.current && field === 'firstName' ? () => { scrollIntent.current = 'forward';saveCompletedStep([{ type: 'edit', step: 'identity-lastName' }]) } : editingName.current && field === 'lastName' ? () => { editingName.current = false;next() } : next
-      content = identity.signedIn && identityLoading
+      content = identity.signedIn && !identityReady
         ? <p role="status">Loading your saved details…</p>
         : <IdentityStep field={field} value={state.answers[field]} onChange={(value) => {editedIdentity.current.add(field);dispatch({ type: 'setIdentity', field, value })}} onContinue={continueIdentity} />;break
     }
@@ -738,7 +775,7 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
       break
     }
   }
-  const heading = checkout.type === 'card' ? 'Secure card details' : checkout.type === 'status' ? (checkout.status.state === 'verified' ? 'Giving complete' : definitiveFailedGivingStates.includes(checkout.status.state) ? 'Gift not completed' : 'Your giving result') : checkout.type === 'submitting' ? (paymentMode === 'stripe' ? 'Preparing secure card details' : paymentMode === 'blinkpay' ? 'Opening BlinkPay' : 'Preparing your bank details') : customDateOpen && state.step === 'starting-date' ? 'OK, choose a start date' : state.step === 'review' ? (paymentMode === 'blinkpay' ? 'Continue with BlinkPay' : paymentMode === 'bank-transfer' ? (bankAcknowledged ? 'Giving complete' : 'Bank transfer details') : 'Payment details') : titles[state.step]
+  const heading = checkout.type === 'configuring' && state.step.startsWith('identity-') && identity.signedIn && !identityReady ? 'Loading your saved details…' : checkout.type === 'card' ? 'Secure card details' : checkout.type === 'status' ? (checkout.status.state === 'verified' ? 'Giving complete' : definitiveFailedGivingStates.includes(checkout.status.state) ? 'Gift not completed' : 'Your giving result') : checkout.type === 'submitting' ? (paymentMode === 'stripe' ? 'Preparing secure card details' : paymentMode === 'blinkpay' ? 'Opening BlinkPay' : 'Preparing your bank details') : customDateOpen && state.step === 'starting-date' ? 'OK, choose a start date' : state.step === 'review' ? (paymentMode === 'blinkpay' ? 'Continue with BlinkPay' : paymentMode === 'bank-transfer' ? (bankAcknowledged ? 'Giving complete' : 'Bank transfer details') : 'Payment details') : titles[state.step]
   const progress = checkout.type === 'configuring' ? givingProgress(state.step, state.answers.frequency, directedFundId) : 100
   const transitionKey = checkout.type === 'configuring' ? state.step : checkout.type
   const highlightedQuestion = checkout.type === 'configuring' && state.step !== 'amount' && state.step !== 'review'
@@ -752,5 +789,5 @@ export function GivingFlow({ funds, identity = { signedIn: false }, resumeReques
   )
   const showProgress = heading !== 'Giving complete'
   const hideHeading = heading === 'Giving complete'
-  return <section aria-labelledby="giving-step-heading" aria-busy={savingProgress} inert={savingProgress} className="relative mx-auto flex h-full min-h-0 w-full flex-col py-2 [overflow-anchor:none]" data-giving-private ref={flowRef}><div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" data-giving-scroll><div className={`mx-auto flex w-full max-w-lg flex-col px-4 sm:px-6 ${showProgress ? 'pb-24' : 'pb-4'}`}>{checkout.type === 'configuring' && directedFundId !== null && state.answers.fund && <GivingFundBubble name={state.answers.fund.name} />}{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} transactionFeeMinor={state.step==='review'?applicableTransactionFeeMinor:0} currentStep={state.step} visitedSteps={state.history} placement="before" directedFundId={directedFundId} onEdit={editAnswer} />}<div key={transitionKey} data-giving-step data-question-panel={highlightedQuestion ? 'highlighted' : undefined} className={`animate-fade-in-up motion-reduce:animate-none ${highlightedQuestion ? 'rounded-[2rem] bg-warm-grey/35 p-5 shadow-sm ring-1 ring-warm-grey/50' : ''}`}><h3 ref={headingRef} tabIndex={-1} id="giving-step-heading" className={hideHeading ? 'sr-only outline-none' : 'mb-6 text-2xl font-semibold text-brand-black outline-none'}>{heading}</h3><div>{content}{error && (checkout.type !== 'configuring' || state.step !== 'amount') && <p role="alert" className="mt-4 text-sm text-rich-red">{error}</p>}{submissionExpired && <button type="button" onClick={() => window.location.reload()} className="mt-4 min-h-11 rounded-full bg-rich-red px-5 font-semibold text-white">Reload giving form</button>}</div></div>{checkout.type === 'configuring' && state.step === 'payment-method' && <p className="mt-3 text-center text-sm text-mid-grey">Other methods not working? <button type="button" onClick={() => choosePaymentMethod('bank-transfer')} className="min-h-11 underline underline-offset-4">Try manual bank transfer</button></p>}{previewStep && !previewHasEditableAnswer && <GivingStepPreview step={previewStep} label={titles[previewStep]} />}{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} transactionFeeMinor={state.step==='review'?applicableTransactionFeeMinor:0} currentStep={state.step} visitedSteps={state.history} placement="after" directedFundId={directedFundId} onEdit={editAnswer} />}</div></div>{showProgress && <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 w-full bg-gradient-to-b from-warm-white/0 from-0% via-warm-white via-30% to-warm-white to-100% px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-12 sm:px-6 sm:pb-4" data-giving-progress><div className="mx-auto max-w-lg"><div role="progressbar" aria-label="Giving progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} className="h-5 overflow-hidden rounded-full bg-warm-grey/55"><div className="h-full rounded-full bg-rich-red transition-[width] duration-500 ease-out motion-reduce:transition-none" style={{ width: `${progress}%` }} /></div></div></div>}</section>
+  return <section aria-labelledby="giving-step-heading" aria-busy={savingProgress} inert={savingProgress} className="relative mx-auto flex h-full min-h-0 w-full flex-col py-2 [overflow-anchor:none]" data-giving-private ref={flowRef}><div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" data-giving-scroll><div className={`mx-auto flex w-full max-w-lg flex-col px-4 sm:px-6 ${showProgress ? 'pb-24' : 'pb-4'}`}>{checkout.type === 'configuring' && directedFundId !== null && state.answers.fund && <GivingFundBubble name={state.answers.fund.name} />}{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} transactionFeeMinor={state.step==='review'?applicableTransactionFeeMinor:0} currentStep={state.step} visitedSteps={answerTrailSteps} campaign={campaignActive} placement="before" directedFundId={directedFundId} onEdit={editAnswer} />}<div key={transitionKey} data-giving-step data-question-panel={highlightedQuestion ? 'highlighted' : undefined} className={`animate-fade-in-up motion-reduce:animate-none ${highlightedQuestion ? 'rounded-[2rem] bg-warm-grey/35 p-5 shadow-sm ring-1 ring-warm-grey/50' : ''}`}><h3 ref={headingRef} tabIndex={-1} id="giving-step-heading" className={hideHeading ? 'sr-only outline-none' : 'mb-6 text-2xl font-semibold text-brand-black outline-none'}>{heading}</h3><div>{content}{error && (checkout.type !== 'configuring' || state.step !== 'amount') && <p role="alert" className="mt-4 text-sm text-rich-red">{error}</p>}{submissionExpired && <button type="button" onClick={() => window.location.reload()} className="mt-4 min-h-11 rounded-full bg-rich-red px-5 font-semibold text-white">Reload giving form</button>}</div></div>{!campaign && checkout.type === 'configuring' && state.step === 'payment-method' && <p className="mt-3 text-center text-sm text-mid-grey">Other methods not working? <button type="button" onClick={() => choosePaymentMethod('bank-transfer')} className="min-h-11 underline underline-offset-4">Try manual bank transfer</button></p>}{previewStep && !previewHasEditableAnswer && <GivingStepPreview step={previewStep} label={titles[previewStep]} />}{checkout.type === 'configuring' && <GivingAnswerTrail answers={state.answers} transactionFeeMinor={state.step==='review'?applicableTransactionFeeMinor:0} currentStep={state.step} visitedSteps={answerTrailSteps} campaign={campaignActive} placement="after" directedFundId={directedFundId} onEdit={editAnswer} />}</div></div>{showProgress && <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 w-full bg-gradient-to-b from-warm-white/0 from-0% via-warm-white via-30% to-warm-white to-100% px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-12 sm:px-6 sm:pb-4" data-giving-progress><div className="mx-auto max-w-lg"><div role="progressbar" aria-label="Giving progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} className="h-5 overflow-hidden rounded-full bg-warm-grey/55"><div className="h-full rounded-full bg-rich-red transition-[width] duration-500 ease-out motion-reduce:transition-none" style={{ width: `${progress}%` }} /></div></div></div>}</section>
 }

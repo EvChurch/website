@@ -65,7 +65,7 @@ export default async function BlogPostPage({ params }: Props) {
 
   return (
     <>
-      <section className="relative flex min-h-[50vh] items-end overflow-hidden bg-brand-black">
+      <section data-header-tone="light" className="relative flex min-h-[50vh] items-end overflow-hidden bg-brand-black">
         {image?.url && (
           <div className="absolute inset-0">
             <MediaImage

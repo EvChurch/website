@@ -39,6 +39,7 @@ import FrontendLayout from './layout'
 describe('FrontendLayout public rendering boundary', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubEnv('GIVING_CAMPAIGN_ENABLED','false')
     mocks.loadSiteFeedbackSettings.mockResolvedValue(null)
     mocks.getCachedActiveGivingFunds.mockResolvedValue([
       { id: 1, name: 'General', code: 'GENERAL', sortOrder: 0, isDefault: true, apprenticeRelated: false },
@@ -88,6 +89,7 @@ describe('FrontendLayout public rendering boundary', () => {
       givingFunds: [{ id: 1, name: 'General', code: 'GENERAL', sortOrder: 0, isDefault: true, apprenticeRelated: false }],
       givingTransactionFeeMinor: 75,
       givingRuntime,
+      campaignGivingEnabled: false,
       supportProfiles: [],
     }, undefined)
     expect(JSON.stringify(mocks.publicChrome.mock.calls)).not.toContain('memberProfile')

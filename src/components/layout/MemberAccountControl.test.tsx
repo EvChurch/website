@@ -461,8 +461,10 @@ describe('MemberAccountControl', () => {
   })
 
   it('uses dark navigation when a public error page has no background', async () => {
+    navigation.pathname = '/member-sign-in/error'
     await act(async () => root.render(<Header />))
 
+    expect(container.querySelector('header a[href="/events"]')?.className).toContain('text-brand-black/80')
     expect(container.querySelector('header[data-public-site-header]')).not.toBeNull()
     expect(container.querySelector('header a[href="/events"][data-header-nav-item]'))
       .not.toBeNull()
@@ -472,8 +474,11 @@ describe('MemberAccountControl', () => {
       .not.toBeNull()
   })
 
-  it('keeps light navigation over the daily readings archive hero', async () => {
+  it('keeps light navigation over an explicitly dark or image-backed hero', async () => {
     navigation.pathname = '/daily-readings'
+    const main = document.createElement('main')
+    main.innerHTML = '<section data-header-tone="light"><img src="/hero.jpg" /></section>'
+    document.body.append(main)
     await act(async () => root.render(<Header />))
 
     expect(container.querySelector('header a[href="/events"]')?.className)
@@ -482,5 +487,6 @@ describe('MemberAccountControl', () => {
       .toContain('bg-white')
     expect(container.querySelector('header button[aria-label="Open menu"]')?.className)
       .toContain('text-white')
+    main.remove()
   })
 })

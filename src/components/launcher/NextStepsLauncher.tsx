@@ -1384,7 +1384,7 @@ export function NextStepsLauncher({
                   ? "min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pb-6"
                   : state.view.type === "giving"
                     ? `min-h-0 flex-1 overflow-hidden ${
-                        formViewHasBanner ? "pt-0" : "pt-2 sm:pt-3"
+                        formViewHasBanner || giving.campaignGivingActive ? "pt-0" : "pt-2 sm:pt-3"
                       }`
                   : `min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6 ${
                       formViewHasBanner ? "pt-0" : "pt-2 sm:pt-3"
@@ -1395,6 +1395,7 @@ export function NextStepsLauncher({
                 className={
                   (state.view.type === "content" || state.view.type === "supportProfile")
                     ? "w-full"
+                    : state.view.type === "giving" && giving.campaignGivingActive ? "h-full w-full"
                     : `mx-auto w-full ${state.view.type === "registration" || state.view.type === "registrationPage" ? "max-w-4xl" : "max-w-2xl"} ${state.view.type === "giving" ? "h-full" : ""}`
                 }
               >

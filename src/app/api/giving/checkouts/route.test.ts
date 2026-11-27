@@ -1,3 +1,5 @@
+const campaignAccess = vi.hoisted(() => vi.fn(async () => ({allowed:false})))
+vi.mock('@/lib/giving/campaign-access-server', () => ({getCampaignGivingAccess:campaignAccess}))
 import { givingSubmissionVersion } from '@/lib/giving/submission-version'
 import { NextRequest } from 'next/server'
 import { afterEach,beforeEach,describe,expect,it,vi } from 'vitest'
@@ -11,6 +13,33 @@ function request(value:unknown=body,headers:Record<string,string>={}){return new
 function dependencies():GivingCheckoutRouteDependencies{ return {authority:vi.fn(async()=>({contextKey:'production',environment:'production' as const,synthetic:false})),transactionFeeMinor:vi.fn(async()=>50),rateLimitStore:{increment:vi.fn(async()=>1)},verifyTurnstile:vi.fn(async()=>undefined),startCheckout:vi.fn(async()=>({outcome:'redirect' as const,gatewayRedirectUri:'https://secure.blinkpay.co.nz/gateway',statusToken:'S'.repeat(43),returnToken:'R'.repeat(43),correlationKey:'correlation',reused:false}))} }
 
 describe('POST giving checkout',()=>{
+  it.each(['sandbox', 'production'] as const)('admits %s campaign gifts only with the feature and server access gates', async environment => {
+    const value={...body,amountMinor:58000,campaignGifts:[{opportunityId:'plant',amountMinor:8000},{opportunityId:'build',amountMinor:50000}]}
+    const deps=dependencies()
+    vi.mocked(deps.authority).mockResolvedValue({contextKey:environment,environment,synthetic:environment==='sandbox'})
+    campaignAccess.mockResolvedValue({allowed:true})
+    vi.stubEnv('GIVING_CAMPAIGN_ENABLED','false')
+    expect((await handleGivingCheckoutPost(request(value),deps)).status).toBe(403)
+    vi.stubEnv('GIVING_CAMPAIGN_ENABLED','true')
+    campaignAccess.mockResolvedValue({allowed:false})
+    expect((await handleGivingCheckoutPost(request(value),deps)).status).toBe(403)
+    expect(deps.startCheckout).not.toHaveBeenCalled()
+    campaignAccess.mockResolvedValue({allowed:true})
+    expect((await handleGivingCheckoutPost(request(value),deps)).status).toBe(201)
+    expect(deps.startCheckout).toHaveBeenCalledWith(expect.objectContaining({environment}),expect.objectContaining({campaignGifts:value.campaignGifts}),expect.anything())
+  })
+  it.each([
+    [{opportunityId:'plant',amountMinor:2499}],
+    [{opportunityId:'plant',amountMinor:2500},{opportunityId:'plant',amountMinor:2500}],
+    [{opportunityId:'greatest-need',amountMinor:2500},{opportunityId:'plant',amountMinor:2500}],
+    [{opportunityId:'cambodia',amountMinor:2500}],
+    [{opportunityId:'plant',amountMinor:2500,glCode:'fake'}],
+    [{opportunityId:'plant',amountMinor:2400}],
+  ].map(campaignGifts => ({campaignGifts})))('rejects tampered allocations before payment: %j', async ({campaignGifts}) => {
+    const deps=dependencies()
+    expect((await handleGivingCheckoutPost(request({...body,campaignGifts}),deps)).status).toBe(400)
+    expect(deps.startCheckout).not.toHaveBeenCalled()
+  })
   it.each(['', givingSubmissionVersion('o'.repeat(32))!])('rejects missing or retired form versions before any side effects', async (version) => {
     const deps=dependencies()
     const result=await handleGivingCheckoutPost(request(body,{'x-ev-giving-version':version}),deps)

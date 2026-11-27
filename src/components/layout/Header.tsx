@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { GIVING_LAUNCHER_HREF } from '@/lib/launcher/constants'
 import {
   MemberAccountControl,
@@ -86,11 +86,15 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + '/')
 }
 
-function needsDarkHeaderAtTop(pathname: string): boolean {
-  return pathname === '/privacy'
-    || pathname === '/terms'
-    || pathname === '/blog'
-    || pathname.startsWith('/daily-readings/')
+function hasLightHeaderTone(main: Element | null): boolean {
+  let first = main?.firstElementChild ?? null
+  while (first) {
+    const tone = first.getAttribute('data-header-tone')
+    if (tone) return tone === 'light'
+    if (first.matches('section, article, header')) return false
+    first = first.firstElementChild
+  }
+  return false
 }
 
 function isMemberPath(pathname: string) {
@@ -371,8 +375,19 @@ export function Header({
   const [openOverlay, setOpenOverlay] = useState<HeaderOverlay>('none')
   const hasScrolledRef = useRef(false)
   const mobileOpen = openOverlay === 'mobile-menu'
-  const darkTone = scrolled || needsDarkHeaderAtTop(pathname)
   const memberPath = isMemberPath(pathname)
+  const [lightAtTop, setLightAtTop] = useState(false)
+  const darkTone = scrolled || (!memberPath && !lightAtTop)
+
+  useLayoutEffect(() => {
+    const main = document.querySelector('main')
+    const update = () => setLightAtTop(hasLightHeaderTone(main))
+    update()
+    if (!main) return
+    const observer = new MutationObserver(update)
+    observer.observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-header-tone'] })
+    return () => observer.disconnect()
+  }, [pathname])
 
   // Set correct initial state without transition
   useEffect(() => {

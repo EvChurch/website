@@ -13,6 +13,7 @@ import { getCachedGivingTransactionFeeMinor, getCachedGivingCardFees } from '@/l
 import { loadLauncherData } from '@/lib/launcher/service-guide'
 import { loadSiteFeedbackSettings } from '@/lib/site-feedback/settings'
 import { DEFAULT_OPEN_GRAPH_IMAGES } from '@/lib/seo-metadata'
+import { campaignGivingEnabled } from '@/lib/giving/campaign-enabled'
 import '@/styles/globals.css'
 
 const albertSans = Albert_Sans({
@@ -125,6 +126,7 @@ export default async function FrontendLayout({ children }: { children: ReactNode
           givingFunds={givingFunds}
           givingTransactionFeeMinor={givingTransactionFeeMinor}
           givingRuntime={givingRuntime}
+          campaignGivingEnabled={campaignGivingEnabled()}
         >
           {children}
         </PublicChrome>

@@ -29,7 +29,7 @@ describe('help content and access', () => {
     for (const article of articles) {
       expect(article.body).toContain('## ')
       const links = [...article.body.matchAll(/(?<!!)\[[^\]]+\]\(([^)]+)\)/g)].map(match => match[1])
-      for (const link of links) expect(['/contact', '/members/my-service', '/members/courses', '/generosity/calculator', '/give', '/members/giving', '/admin', '/api/admin/giving/export', '/api/v1/docs', '/api/v1/openapi.json', ...Object.values(reimbursementViewPaths), ...helpArticles.map(item => `/help/${item.slug}`)]).toContain(link)
+      for (const link of links) expect(['/contact', '/members/my-service', '/members/courses', '/generosity/calculator', '/give', '/one-off-giving', '/members/giving', '/admin', '/api/admin/giving/export', '/api/v1/docs', '/api/v1/openapi.json', ...Object.values(reimbursementViewPaths), ...helpArticles.map(item => `/help/${item.slug}`)]).toContain(link)
       const images = [...article.body.matchAll(/!\[[^\]]+\]\(([^)]+)\)/g)].map(match => match[1])
       if (article.topic==='Reimbursements') expect(images.length).toBeGreaterThan(0)
       for (const image of images) {

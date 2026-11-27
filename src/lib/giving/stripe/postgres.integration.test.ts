@@ -1,3 +1,11 @@
+import { readGivingCheckoutStatus } from '@/app/api/giving/checkouts/[token]/status/route'
+import { capabilityDigest } from '../service'
+import { handleGivingCheckoutPost } from '@/app/api/giving/checkouts/route'
+import { givingSubmissionVersion } from '../submission-version'
+import { NextRequest } from 'next/server'
+vi.mock('@/lib/giving/campaign-access-server', () => ({getCampaignGivingAccess:async()=>({allowed:true})}))
+import { GIVING_CAMPAIGN_ALLOCATIONS_UP_SQL } from '@/migrations/20261127_010000_giving_campaign_allocations'
+import { givingAllocationFinanceCsv } from '../finance-export'
 import { getMemberGiftHistoryPage } from '@/lib/members/giving'
 import { GIVING_FINANCIAL_CONTROLS_UP_SQL } from '@/migrations/20261102_010000_giving_financial_controls'
 import { applyStripeCardUpdate } from './card-updates'
@@ -17,7 +25,8 @@ import { GIVING_WEBHOOK_JOBS_UP_SQL } from '@/migrations/20260816_000000_giving_
 import { GIVING_ADMINISTRATION_UP_SQL } from '@/migrations/20260816_010000_giving_administration'
 import { MEMBER_GIVING_SELF_SERVICE_UP_SQL } from '@/migrations/20260903_010000_member_giving_self_service'
 import { STRIPE_GIVING_UP_SQL } from '@/migrations/20261031_010000_stripe_giving'
-import { createPostgresGivingCheckoutRepository } from '../service'
+import { createPostgresGivingCheckoutRepository, createGivingCheckoutService, type GivingCheckoutBlinkPayClient } from '../service'
+import { GIVE_SUNDAY_FUND_UP_SQL } from '@/migrations/20261127_060000_give_sunday_fund'
 import { startStripeGiving, reconcileStripeCheckout } from './service'
 import { givingAnchorTimestamp, nextGivingAnchor, nzGivingDate } from './dates'
 import { getGivingCancellationProvider } from './cancellation'
@@ -35,6 +44,9 @@ describe.skipIf(!url)('Stripe giving against disposable PostgreSQL',()=>{
     if(!['','localhost','127.0.0.1'].includes(target.hostname)||target.pathname!=='/giving_stripe_test')throw new Error('Tests require local giving_stripe_test')
     pool=new Pool({connectionString:url,max:8})
     vi.stubEnv('GIVING_CHECKOUT_DIGEST_SECRET','test-secret-'.repeat(4))
+    vi.stubEnv('GIVING_RATE_LIMIT_SECRET','rate-limit-secret-'.repeat(4))
+    vi.stubEnv('GIVING_CAMPAIGN_ENABLED','true')
+    vi.stubEnv('GIVING_ACQUISITION_PAUSED','false')
   })
   afterEach(()=>vi.useRealTimers())
   afterAll(async()=>{await pool?.end();vi.unstubAllEnvs()})
@@ -47,6 +59,7 @@ describe.skipIf(!url)('Stripe giving against disposable PostgreSQL',()=>{
       INSERT INTO users DEFAULT VALUES`)
     await pool.query(STRIPE_GIVING_UP_SQL)
     await pool.query(GIVING_FINANCIAL_CONTROLS_UP_SQL)
+    await pool.query(GIVING_CAMPAIGN_ALLOCATIONS_UP_SQL)
     vi.resetAllMocks()
     api.refunds.list.mockReturnValue([])
   })
@@ -101,6 +114,123 @@ describe.skipIf(!url)('Stripe giving against disposable PostgreSQL',()=>{
     expect((await pool.query('SELECT status FROM giving_checkouts')).rows[0].status).toBe('completed')
     const csv=await givingFinanceCsv(pool,'2026-01-01','2026-12-31')
     expect(csv).not.toContain('Ada') // synthetic data never enters finance totals
+  })
+
+  it('creates the campaign fund idempotently without changing existing funds or default', async () => {
+    const before=(await pool.query('SELECT * FROM giving_funds ORDER BY id')).rows
+    await pool.query(GIVE_SUNDAY_FUND_UP_SQL)
+    await pool.query(GIVE_SUNDAY_FUND_UP_SQL)
+    expect((await pool.query("SELECT * FROM giving_funds WHERE code<>'GIVESUNDAY26' ORDER BY id")).rows).toEqual(before)
+    expect((await pool.query("SELECT name,accounting_key,is_default FROM giving_funds WHERE code='GIVESUNDAY26'")).rows).toEqual([{name:'Give Sunday',accounting_key:'GIVESUNDAY26:ALLOCATIONS',is_default:false}])
+  })
+
+  it('retains allocations through the production bank route, verified completion and replay', async () => {
+    await pool.query(GIVE_SUNDAY_FUND_UP_SQL)
+    const fundId=(await pool.query("SELECT id FROM giving_funds WHERE code='GIVESUNDAY26'")).rows[0].id
+    const value={...submission(),fundId,amountMinor:58000,transactionFeeMinor:50,campaignGifts:[{opportunityId:'plant' as const,amountMinor:8000},{opportunityId:'build' as const,amountMinor:50000}]}
+    const blinkPay: GivingCheckoutBlinkPayClient={
+      createQuickPayment:vi.fn(async (_input,keys)=>({outcome:'succeeded' as const,value:{quick_payment_id:'quick-1',redirect_uri:'https://secure.blinkpay.co.nz/gateway/quick'},metadata:keys})),
+      getQuickPayment:vi.fn(async()=>({quick_payment_id:'quick-1',consent:{consent_id:'consent-1',status:'Authorised',creation_timestamp:'2026-11-27T00:00:00Z',status_updated_timestamp:'2026-11-27T00:00:00Z',detail:{amount:{total:'580.50',currency:'NZD'},pcr:{particulars:'GIVESUNDAY26',code:'ALOVELACE',reference:'EV123'}},payments:[{payment_id:'payment-1',type:'single',status:'AcceptedSettlementCompleted',creation_timestamp:'2026-11-27T00:00:00Z',status_updated_timestamp:'2026-11-27T00:00:01Z',detail:{consent_id:'consent-1'},refunds:[]}]}})),
+      createEnduringConsent:vi.fn(),getEnduringConsent:vi.fn(),createFixedRecurringPayment:vi.fn(),getFixedRecurringPayment:vi.fn(),
+      isPaymentSettled:value=>value.status==='AcceptedSettlementCompleted',isConsentAuthorised:()=>false,isFixedRecurringPaymentActive:()=>false,
+    }
+    const service=createGivingCheckoutService({repository:createPostgresGivingCheckoutRepository(pool),blinkPay,resolveIdentity,digestSecret:'test-secret-'.repeat(4)})
+    const provenance={contextKey:'production',environment:'production' as const,synthetic:false}
+    let returnToken=''
+    for(let i=0;i<2;i++) {
+      const response=await handleGivingCheckoutPost(new NextRequest('https://www.ev.church/api/giving/checkouts',{method:'POST',headers:{origin:'https://www.ev.church','sec-fetch-site':'same-origin','content-type':'application/json','x-ev-giving-request':'checkout-v1','x-ev-giving-version':givingSubmissionVersion('test-secret-'.repeat(4))!},body:JSON.stringify(value)}),{
+        authority:async()=>provenance,transactionFeeMinor:async()=>50,verifyTurnstile:async()=>{},rateLimitStore:{increment:async()=>1},startCheckout:async(authority,submission)=>service.start({...authority,submission}),
+      })
+      expect(response.status).toBe(201)
+      returnToken=response.headers.get('set-cookie')?.match(/__Host-ev_giving_return=([^;]+)/u)?.[1] ?? ''
+    }
+    expect((await givingAllocationFinanceCsv(pool,'2026-01-01','2026-12-31')).trim().split('\r\n')).toHaveLength(1)
+    const returned=await service.consumeReturn(returnToken)
+    expect(await service.status(returned.statusToken)).toMatchObject({state:'verified'})
+    expect(await service.status(returned.statusToken)).toMatchObject({state:'verified'})
+    expect(blinkPay.createQuickPayment).toHaveBeenCalledTimes(1)
+    expect((await pool.query('SELECT amount_minor FROM giving_gifts')).rows).toEqual([{amount_minor:'58000'}])
+    const csv=await givingAllocationFinanceCsv(pool,'2026-01-01','2026-12-31')
+    expect(csv.trim().split('\r\n')).toHaveLength(3)
+    expect(csv).toContain('GIVE26PLANT');expect(csv).toContain('GIVE26BUILD')
+  })
+
+  async function campaignCheckout(environment:'sandbox'|'production'='sandbox') {
+    await pool.query("INSERT INTO giving_funds(name,code,accounting_key) VALUES('Give Sunday gifts','GIVESUNDAY26','give-sunday-2026')")
+    const first=(await pool.query("SELECT id FROM giving_funds WHERE code='GIVESUNDAY26'")).rows[0].id
+    const value={...submission(),fundId:first,amountMinor:58000,campaignGifts:[{opportunityId:'plant' as const,amountMinor:8000},{opportunityId:'build' as const,amountMinor:50000}]}
+    mockCheckout()
+    api.checkout.sessions.create.mockImplementation(async params=>({id:'cs_test',client_secret:'cs_test_secret_example',livemode:environment==='production',currency:'nzd',...params}))
+    const provenance={contextKey:environment,environment,synthetic:environment==='sandbox'}
+    for (let attempt=0;attempt<2;attempt++) {
+      {
+        const response=await handleGivingCheckoutPost(new NextRequest('https://www.ev.church/api/giving/card',{method:'POST',headers:{origin:'https://www.ev.church','sec-fetch-site':'same-origin','content-type':'application/json','x-ev-giving-request':'checkout-v1','x-ev-giving-version':givingSubmissionVersion('test-secret-'.repeat(4))!},body:JSON.stringify(value)}),{
+          authority:async()=>provenance,transactionFeeMinor:async()=>304,verifyTurnstile:async()=>{},rateLimitStore:{increment:async()=>1},
+          startCheckout:async(authority,submission)=>startStripeGiving({...authority,submission},{pool,resolveIdentity}),
+        })
+        expect(response.status).toBe(201)
+      }
+    }
+    const row=(await pool.query('SELECT * FROM giving_checkouts')).rows[0]
+    const params=api.checkout.sessions.create.mock.calls[0][0]
+    api.checkout.sessions.retrieve.mockResolvedValue({...params,id:'cs_test',livemode:environment==='production',currency:'nzd',status:'complete',payment_status:'paid',amount_total:58304,payment_intent:'pi_test'})
+    api.paymentIntents.retrieve.mockResolvedValue({id:'pi_test',status:'succeeded',metadata:params.metadata,latest_charge:'ch_test'})
+    api.charges.retrieve.mockResolvedValue({id:'ch_test',customer:'cus_test',currency:'nzd',amount:58304,amount_refunded:0,livemode:environment==='production',paid:true,status:'succeeded',payment_intent:'pi_test',created:Math.floor(Date.now()/1000),balance_transaction:{currency:'nzd',fee:304,net:58000},disputed:false})
+    return {row,value,provenance}
+  }
+  it('runs a multi-fund gift through the existing HTTP checkout boundary with sandbox provider observations',async()=>{
+    const {row}=await campaignCheckout()
+    await reconcileStripeCheckout(pool,row.id)
+    await reconcileStripeCheckout(pool,row.id)
+    expect(api.checkout.sessions.create).toHaveBeenCalledTimes(1)
+    expect((await pool.query('SELECT amount_minor FROM giving_gifts')).rows).toEqual([{amount_minor:'58000'}])
+    expect((await pool.query('SELECT sum(amount_minor)::text total,count(*)::integer lines FROM giving_checkout_allocations')).rows).toEqual([{total:'58000',lines:2}])
+    expect((await givingAllocationFinanceCsv(pool,'2026-01-01','2026-12-31')).trim().split('\r\n')).toHaveLength(1)
+  })
+  it('requires the dedicated aggregate fund and its allocation reference before any provider creation',async()=>{
+    const {value}=await campaignCheckout()
+    const {campaignGifts,...withoutAllocations}=value
+    await expect(startStripeGiving({...context,submission:{...withoutAllocations,submissionKey:randomBytes(32).toString('base64url')}},{pool,resolveIdentity})).rejects.toThrow()
+    await expect(startStripeGiving({...context,submission:{...value,fundId:1,submissionKey:randomBytes(32).toString('base64url')}},{pool,resolveIdentity})).rejects.toThrow()
+    expect(campaignGifts).toHaveLength(2)
+    expect(api.checkout.sessions.create).toHaveBeenCalledTimes(1)
+    expect((await pool.query('SELECT count(*)::integer count FROM giving_checkouts')).rows).toEqual([{count:1}])
+  })
+  it('cannot mistake a previous verified payment for the current campaign submission',async()=>{
+    const {row,value}=await campaignCheckout()
+    await reconcileStripeCheckout(pool,row.id)
+    const token='C'.repeat(43)
+    const repository=createPostgresGivingCheckoutRepository(pool)
+    await repository.rotateStatusCapability(row.id,capabilityDigest('status',token),capabilityDigest('status',token),new Date(Date.now()+60000))
+    await expect(readGivingCheckoutStatus(pool,token,'D'.repeat(43))).rejects.toThrow('does not match')
+    await expect(readGivingCheckoutStatus(pool,token,value.submissionKey)).resolves.toMatchObject({state:'verified',kind:'one-off'})
+  })
+  it('retains exact allocations across one shared Stripe payment, replay and the existing finance export boundary',async()=>{
+    const {row,value,provenance}=await campaignCheckout('production') // disposable local fixture, all Stripe calls mocked
+    await reconcileStripeCheckout(pool,row.id)
+    await reconcileStripeCheckout(pool,row.id)
+    expect(api.checkout.sessions.create).toHaveBeenCalledTimes(1)
+    expect((await pool.query('SELECT amount_minor,fund_name,giver_id FROM giving_gifts')).rows).toEqual([{amount_minor:'58000',fund_name:'Give Sunday gifts',giver_id:expect.any(Number)}])
+    expect((await pool.query('SELECT reference,gl_code,project,amount_minor FROM giving_checkout_allocations ORDER BY opportunity_id')).rows).toEqual([
+      {reference:'GIVE26BUILD',gl_code:'411',project:'T-Give26 Build',amount_minor:'50000'},
+      {reference:'GIVE26PLANT',gl_code:'413',project:'T-Give26 Plant',amount_minor:'8000'},
+    ])
+    const allocationCsv=await givingAllocationFinanceCsv(pool,'2026-01-01','2026-12-31')
+    expect(allocationCsv.trim().split('\r\n')).toHaveLength(3)
+    expect(allocationCsv).toContain('GIVE26BUILD');expect(allocationCsv).toContain('GIVE26PLANT');expect(allocationCsv).toContain('Ada Lovelace')
+    const paymentCsv=await givingFinanceCsv(pool,'2026-01-01','2026-12-31')
+    expect(paymentCsv.trim().split('\r\n')).toHaveLength(2)
+    expect(paymentCsv).toContain('58000')
+    await expect(startStripeGiving({...provenance,submission:{...value,campaignGifts:[{opportunityId:'plant',amountMinor:10000},{opportunityId:'build',amountMinor:48000}]}},{pool,resolveIdentity})).rejects.toThrow()
+  })
+  it.each(['expired','unpaid','tampered'] as const)('does not recognize campaign allocations as received for a %s payment',async state=>{
+    const {row}=await campaignCheckout('production')
+    const params=api.checkout.sessions.create.mock.calls[0][0]
+    api.checkout.sessions.retrieve.mockResolvedValue({...params,id:'cs_test',livemode:true,currency:'nzd',status:state==='expired'?'expired':'complete',payment_status:'unpaid',amount_total:state==='tampered'?1:58304})
+    if(state==='tampered') await expect(reconcileStripeCheckout(pool,row.id)).rejects.toThrow()
+    else await reconcileStripeCheckout(pool,row.id)
+    expect((await pool.query('SELECT * FROM giving_gifts')).rows).toHaveLength(0)
+    expect((await givingAllocationFinanceCsv(pool,'2026-01-01','2026-12-31')).trim().split('\r\n')).toHaveLength(1)
   })
 
   async function recurringCheckout() {

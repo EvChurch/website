@@ -362,7 +362,7 @@ export default async function CampusPage({
       />
       <BreadcrumbJsonLd items={buildBreadcrumbs(`/campus/${slug}`, `${campus.name} Campus`)} />
 
-      <section className="relative flex min-h-[70vh] items-center overflow-hidden bg-brand-black">
+      <section data-header-tone="light" className="relative flex min-h-[70vh] items-center overflow-hidden bg-brand-black">
         <div className="absolute inset-0">
           {heroImage && (
             <Image

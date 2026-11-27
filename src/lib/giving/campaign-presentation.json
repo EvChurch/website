@@ -1,0 +1,132 @@
+{
+  "source": "https://www.ev.church/one-off-giving",
+  "header": {
+    "eyebrow": "One-off giving · 2026",
+    "heading": "Treasure what lasts forever.",
+    "description": "God has been generous to us in Jesus. Together, we can share that generosity — helping people hear the good news, growing his church, and caring for children in need."
+  },
+  "quote": {
+    "quote": "Where your treasure is, there your heart will be also.",
+    "attribution": "Matthew 6:21"
+  },
+  "intro": {
+    "heading": "Ways you can make a difference",
+    "description": "This Give Sunday, 6 December, let’s give above and beyond to help more people know Jesus and share his love. Prayerfully consider how you could make a lasting difference through these opportunities. One-off gifts to Ev are in addition to your regular giving."
+  },
+  "opportunities": [
+    {
+      "giftId": "cambodia",
+      "heading": "50 children in Cambodia",
+      "description": "Help give 50 children in Cambodia a brighter future through sponsorship with Tearfund. Share God’s love and be part of a child’s story of hope.",
+      "alignment": "left",
+      "image": {
+        "id": "337",
+        "url": "/images/give-sunday-2026/campaign-tearfund-cambodia-1200x1200.jpg",
+        "alt": "Tearfund Cambodia campaign image featuring adults and children",
+        "width": 1280,
+        "height": 1280,
+        "focalX": 50,
+        "focalY": 50,
+        "sizes": {
+          "large": {
+            "url": "/images/give-sunday-2026/campaign-tearfund-cambodia-1200x1200.jpg",
+            "width": 1200,
+            "height": 1200
+          }
+        }
+      }
+    },
+    {
+      "giftId": "plant",
+      "heading": "Plant — the next church beyond Auckland",
+      "description": "Help take the good news of Jesus beyond Auckland by giving towards the next church plant. Partner in seeing more people find a church family where they can hear about Jesus and grow in faith.",
+      "alignment": "right",
+      "image": {
+        "id": "333",
+        "url": "/images/give-sunday-2026/campaign-plant-church-gathering-1200x800.jpg",
+        "alt": "People worshipping together at Ev Church",
+        "width": 7728,
+        "height": 5152,
+        "focalX": 50,
+        "focalY": 50,
+        "sizes": {
+          "large": {
+            "url": "/images/give-sunday-2026/campaign-plant-church-gathering-1200x800.jpg",
+            "width": 1200,
+            "height": 800
+          }
+        }
+      }
+    },
+    {
+      "giftId": "train",
+      "heading": "Train — Two more pastors to grow us",
+      "description": "Help train two more pastors to serve and grow our church family. Invest in gospel workers who can teach God’s word, care for people, and equip others to serve.",
+      "alignment": "left",
+      "image": {
+        "id": "334",
+        "url": "/images/give-sunday-2026/campaign-train-ministry-apprentices-1200x800.jpg",
+        "alt": "Panel discussion at an Ev Church ministry apprenticeship event",
+        "width": 6000,
+        "height": 4000,
+        "focalX": 50,
+        "focalY": 50,
+        "sizes": {
+          "large": {
+            "url": "/images/give-sunday-2026/campaign-train-ministry-apprentices-1200x800.jpg",
+            "width": 1200,
+            "height": 800
+          }
+        }
+      }
+    },
+    {
+      "giftId": "grow",
+      "heading": "Grow — Make room for Central's Kids",
+      "description": "Help make room for the children at Central — space to learn about Jesus, build friendships, and grow in faith. Your one-off gift can help us make room for the next generation.",
+      "alignment": "right",
+      "image": {
+        "id": "335",
+        "url": "/images/give-sunday-2026/campaign-grow-ev-kids-1200x751.jpg",
+        "alt": "Children taking part in an Ev Kids performance",
+        "width": 4408,
+        "height": 2760,
+        "focalX": 50,
+        "focalY": 50,
+        "sizes": {
+          "large": {
+            "url": "/images/give-sunday-2026/campaign-grow-ev-kids-1200x751.jpg",
+            "width": 1200,
+            "height": 751
+          }
+        }
+      }
+    },
+    {
+      "giftId": "build",
+      "heading": "Build — Pay off our North Fit Out",
+      "description": "Help pay off the fit out of our North campus — a place for our church family to gather, welcome others, and hear the good news of Jesus.",
+      "alignment": "left",
+      "image": {
+        "id": "332",
+        "url": "/images/give-sunday-2026/north-campus-exterior-2026-1200x800.jpg",
+        "alt": "Exterior of Ev Church North campus at 9–11 Rothwell Avenue, Rosedale",
+        "width": 6425,
+        "height": 4283,
+        "focalX": 50,
+        "focalY": 50,
+        "sizes": {
+          "large": {
+            "url": "/images/give-sunday-2026/north-campus-exterior-2026-1200x800.jpg",
+            "width": 1200,
+            "height": 800
+          }
+        }
+      }
+    }
+  ],
+  "regularGiving": {
+    "heading": "Looking for regular giving?",
+    "text": "Continue supporting the ongoing life and ministry of Ev through our regular giving page."
+  }
+}

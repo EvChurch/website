@@ -21,6 +21,7 @@ export function PageHeaderBlockComponent({
 
   return (
     <section
+      data-header-tone={isDark ? 'light' : 'dark'}
       className={`px-5 pb-8 pt-32 lg:px-8 lg:pt-40 ${
         isDark ? 'bg-brand-black lg:pb-20' : 'bg-warm-white'
       }`}

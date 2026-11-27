@@ -230,7 +230,7 @@ export default async function SermonPage({
       />
 
       {/* Hero header with background image */}
-      <section className="relative overflow-hidden">
+      <section data-header-tone="light" className="relative overflow-hidden">
         {/* Full-bleed background image */}
         {heroMedia && (
           <>
