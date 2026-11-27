@@ -2,7 +2,7 @@
 
 Open [Courses](/members/courses) and sign in or create an account before browsing. You do not need to be a church member. Choose an available course and select **Start course** or **Start group**. Links from the public giving calculator and email invitations also take you through sign-in first.
 
-In the member portal, **Courses** is beside **Giving**. On smaller screens, open **Member menu** to see the portal links.
+Course pages use the same member navigation as the rest of the portal, with **Courses** beside **Giving**. On smaller screens, open **Member menu** to see the portal links.
 
 ## Continue learning
 
@@ -34,7 +34,7 @@ Enter your weekly take-home pay and planned amounts in NZ dollars. Use up to two
 
 Use **Add a row** for another expense and **×** to remove a row. Your budget uses the same autosave and privacy rules as other answers. **Delete budget** clears the saved figures and restores the starting rows.
 
-Faithful with Money has three lessons. Its money story, giving figures and budget are Personal. Use the separate [giving calculator](/generosity/calculator) to explore an amount; calculator figures do not transfer into your course.
+[Faithful with Money](/members/courses/faithful-with-money) has three lessons covering money, giving and building a budget. Start it from **Grow in generosity** or **Courses**, then sign in or create an account. Its money story, giving figures and budget are Personal. Use the separate [giving calculator](/generosity/calculator) to explore an amount; calculator figures do not transfer into your course.
 
 ## Learn with a group
 
