@@ -119,11 +119,17 @@ export async function handleGivingCheckoutPost(request: NextRequest, dependencie
   try {
     const authority = await dependencies.authority(request)
     if (!authority) return response({ error: 'Giving unavailable' }, 404)
-    if (!trustedGivingMutation(request, GIVING_REQUEST_MARKERS.checkout)) return response({ error: 'Giving unavailable' }, 403)
+    if (!trustedGivingMutation(request, GIVING_REQUEST_MARKERS.checkout)) {
+      console.warn({ event: 'giving_checkout_denied', reason: 'request-boundary' })
+      return response({ error: 'Giving unavailable' }, 403)
+    }
     if (!isGivingJson(request)) return response({ error: 'Giving unavailable' }, 415)
     requireCurrentGivingSubmission(request.headers)
     const submission = validateGivingCheckoutSubmission(await boundedGivingJson(request))
-    if (submission.campaignGifts && (!campaignGivingEnabled() || !(await getCampaignGivingAccess(request)).allowed)) return response({ error: 'Campaign giving unavailable' }, 403)
+    if (submission.campaignGifts && (!campaignGivingEnabled() || !(await getCampaignGivingAccess(request)).allowed)) {
+      console.warn({ event: 'giving_checkout_denied', reason: 'campaign-access' })
+      return response({ error: 'Campaign giving unavailable' }, 403)
+    }
     if (submission.transactionFeeMinor !== await dependencies.transactionFeeMinor(request, submission)) throw new GivingCheckoutError('invalid')
     const address = trustedGivingClientAddress(request.headers)
     await dependencies.verifyTurnstile({ token: submission.turnstileToken, remoteIp: address, expectedHostname: expectedTurnstileHostname(), expectedAction: GIVING_CHECKOUT_TURNSTILE_ACTION })

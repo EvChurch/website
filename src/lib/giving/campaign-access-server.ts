@@ -1,4 +1,4 @@
-import type { NextRequest } from 'next/server'
+import { NextRequest } from 'next/server'
 import { getAuth0Client } from '@/auth/auth0-client'
 import { getMemberImpersonationFromSession } from '@/auth/member-impersonation'
 import { resolveRockMemberProfile } from '@/auth/rock-member-profile'
@@ -18,12 +18,19 @@ interface Membership {
 interface Group { Id: number; IsActive: boolean; IsArchived: boolean }
 export async function getCampaignGivingAccess(request: NextRequest, now = new Date()) {
   if (campaignPublicAccess(now)) return campaignGivingAccess(false, now)
+  let stage = 'session'
   try {
-    const session = await getAuth0Client().getSession(request)
+    // Checkout has already consumed the POST body. Auth0 may normalize the
+    // request with a different NextRequest constructor, which cannot reuse a
+    // consumed stream. Session lookup needs only the original URL and headers.
+    const sessionRequest = new NextRequest(request.url, { headers: request.headers })
+    const session = await getAuth0Client().getSession(sessionRequest)
     if (!session?.user.sub || getMemberImpersonationFromSession(session)) return campaignGivingAccess(false, now)
+    stage = 'profile'
     const resolution = await resolveRockMemberProfile(session.user.sub)
     if (!resolution.ok) return campaignGivingAccess(false, now)
     const personId = resolution.profile.personId
+    stage = 'memberships'
     const groups = [STAFF_GROUP_ID, EXEC_GROUP_ID]
     // Rock does not expose Group as an expandable GroupMember property.
     const [memberships, currentGroups] = await Promise.all([
@@ -40,5 +47,8 @@ export async function getCampaignGivingAccess(request: NextRequest, now = new Da
       member.PersonId === personId && eligibleGroups.includes(member.GroupId)
       && member.GroupMemberStatus === 1 && member.IsArchived === false)
     return campaignGivingAccess(allowed, now)
-  } catch { return campaignGivingAccess(false, now) }
+  } catch {
+    console.warn({ event: 'campaign_giving_access_unavailable', stage })
+    return campaignGivingAccess(false, now)
+  }
 }

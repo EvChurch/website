@@ -18,6 +18,24 @@ beforeEach(() => {
   mocks.groups.mockResolvedValue([{Id:29482,IsActive:true,IsArchived:false},{Id:28344,IsActive:true,IsArchived:false}])
 })
 describe('campaign server authorization', () => {
+  it('keeps session lookup body-free after checkout has consumed a POST', async () => {
+    const post = new NextRequest('https://www.ev.church/api/giving/checkouts', {
+      method: 'POST', headers: { cookie: 'session=test-session', origin: 'https://www.ev.church' }, body: JSON.stringify({ amountMinor: 100 }),
+    })
+    await post.json()
+    expect(post.bodyUsed).toBe(true)
+    mocks.session.mockImplementation(async (input: Request) => {
+      // Auth0 can rebuild NextRequest across its external/bundled boundary.
+      const normalized = new Request(input)
+      expect(normalized.method).toBe('GET')
+      expect(normalized.body).toBeNull()
+      expect(normalized.headers.get('cookie')).toBe('session=test-session')
+      expect(normalized.headers.get('origin')).toBe('https://www.ev.church')
+      return { user: { sub: 'auth0|test' } }
+    })
+    expect((await getCampaignGivingAccess(post, before)).allowed).toBe(true)
+    expect(mocks.session).toHaveBeenCalledOnce()
+  })
   it('allows current staff using a freshly resolved identity', async () => {
     expect((await getCampaignGivingAccess(request, before)).allowed).toBe(true)
     expect(mocks.profile).toHaveBeenCalledWith('auth0|test')
