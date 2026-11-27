@@ -4,6 +4,7 @@ import type { Course, CourseAttempt } from '@/payload-types'
 import { getPayloadClient } from '@/lib/payload'
 import { completedLessonIds, readCourseSnapshot } from './model'
 import { coursePostgresPool } from './postgres'
+import { canAccessCourseLesson, lessonSteps } from './lesson-flow'
 
 export async function listAvailableCourses() {
   const payload = await getPayloadClient()
@@ -57,21 +58,43 @@ export async function startSoloCourse(identity: Auth0Identity, slug: string): Pr
 
 export async function completeCourseLesson(identity: Auth0Identity, attemptId: number, lessonId: string) {
   const owned = await getOwnedCourseAttempt(identity, attemptId)
-  if (!owned || !owned.snapshot.lessons.some(lesson => lesson.lessonId === lessonId)) throw new Error('Lesson not found.')
+  if (!owned || !canAccessCourseLesson(owned.snapshot, owned.completed, lessonId)) throw new Error('Lesson not found.')
   const { requiredCourseAnswersComplete } = await import('./answers')
   if (!await requiredCourseAnswersComplete(identity, attemptId, lessonId)) throw new Error('Complete the required questions first.')
   const payload = await getPayloadClient()
   const required = owned.snapshot.lessons.filter(lesson => lesson.required !== false).map(lesson => lesson.lessonId)
+  const prerequisites = owned.snapshot.lessons.slice(0, owned.snapshot.lessons.findIndex(lesson => lesson.lessonId === lessonId)).map(lesson => lesson.lessonId)
   // Append atomically: two tabs finishing different lessons cannot erase progress.
   const update = (client: Pick<PoolClient, 'query'>) => client.query(`UPDATE course_attempts SET
     completed_lesson_ids = (SELECT jsonb_agg(DISTINCT item) FROM jsonb_array_elements(completed_lesson_ids || $3::jsonb) AS item),
     completed_at = CASE WHEN (completed_lesson_ids || $3::jsonb) @> $4::jsonb THEN COALESCE(completed_at, now()) ELSE completed_at END,
     updated_at = now()
-    WHERE id = $1 AND account_key = $2`, [attemptId, identity.identityKey, JSON.stringify([lessonId]), JSON.stringify(required)])
+    WHERE id = $1 AND account_key = $2 AND completed_lesson_ids @> $5::jsonb`, [attemptId, identity.identityKey, JSON.stringify([lessonId]), JSON.stringify(required), JSON.stringify(prerequisites)])
   if (owned.attempt.mode === 'group') {
     const groupId = typeof owned.attempt.group === 'number' ? owned.attempt.group : owned.attempt.group?.id
     if (!groupId) throw new Error('Group not found.')
     const { withCourseGroupWrite } = await import('./groups')
-    await withCourseGroupWrite(identity, groupId, update)
-  } else await update(coursePostgresPool(payload))
+    const result = await withCourseGroupWrite(identity, groupId, update)
+    if (!result.rowCount) throw new Error('Finish the earlier lessons first.')
+  } else {
+    const result = await update(coursePostgresPool(payload))
+    if (!result.rowCount) throw new Error('Finish the earlier lessons first.')
+  }
+}
+
+/** Navigation belongs to this account, including when its group is closed or left. */
+export async function saveCourseLessonPosition(identity: Auth0Identity, attemptId: number, lessonId: string, stepId: string): Promise<void> {
+  const owned = await getOwnedCourseAttempt(identity, attemptId)
+  if (!owned || !canAccessCourseLesson(owned.snapshot, owned.completed, lessonId)) throw new Error('Lesson not found.')
+  const index = owned.snapshot.lessons.findIndex(lesson => lesson.lessonId === lessonId)
+  const lesson = owned.snapshot.lessons[index]
+  if (!lessonSteps(lesson).some(step => step.id === stepId)) throw new Error('Step not found.')
+  const prerequisites = owned.snapshot.lessons.slice(0, index).map(item => item.lessonId)
+  const pool = coursePostgresPool(await getPayloadClient())
+  const result = await pool.query(`UPDATE course_attempts SET
+    lesson_positions = jsonb_set(CASE WHEN jsonb_typeof(lesson_positions)='object' THEN lesson_positions ELSE '{}'::jsonb END, ARRAY[$3::text], to_jsonb($4::text), true),
+    updated_at = now()
+    WHERE id=$1 AND account_key=$2 AND completed_lesson_ids @> $5::jsonb`,
+    [attemptId, identity.identityKey, lessonId, stepId, JSON.stringify(prerequisites)])
+  if (!result.rowCount) throw new Error('Finish the earlier lessons first.')
 }
