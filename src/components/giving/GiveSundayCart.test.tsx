@@ -96,3 +96,25 @@ it('restores an existing payment without inserting the introduction before its s
     expect(container.textContent).not.toContain('Okay, let’s go')
   } finally { await act(async()=>root.unmount()); container.remove() }
 })
+
+
+it('opens greatest need directly from the introduction and returns there with Back', async () => {
+  vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => {})
+  const container = document.createElement('div'); document.body.append(container)
+  const root = createRoot(container)
+  let selected: unknown
+  try {
+    await act(async () => root.render(<GiveSundayCart embedded renderPayment={props => { selected = props.gifts; return <div data-payment /> }} />))
+    expect(container.textContent).toContain('After completing your gift, you’ll have the opportunity to explore child sponsorship in Cambodia through Tearfund.')
+    const openGreatestNeed = () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Give to greatest need')!.click()
+    await act(async () => openGreatestNeed())
+    expect(container.querySelector('[data-opportunity]')?.getAttribute('data-opportunity')).toBe('greatest-need')
+    await act(async () => { expect(controls.back?.()).toBe(true) })
+    expect(container.textContent).toContain('Okay, let’s go')
+    await act(async () => openGreatestNeed())
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-select]')!.click())
+    expect(selected).toEqual([{opportunityId:'greatest-need',amountMinor:10000}])
+    expect(container.querySelector('[data-payment]')).not.toBeNull()
+    expect(container.textContent).not.toContain('Review your gifts')
+  } finally { await act(async () => root.unmount()); container.remove() }
+})

@@ -50,7 +50,7 @@ export function GiveSundayCart({ children, afterCart, embedded = false, renderPa
   const [amounts, setAmounts] = useState<Record<string, number>>({})
   const [view, setView] = useState<'overview' | 'intro' | 'review' | 'payment' | 'complete' | GivingOpportunityId>(embedded ? 'intro' : 'overview')
   const [editing, setEditing] = useState(false)
-  const [generalBack, setGeneralBack] = useState<GivingOpportunityId | 'review'>('plant')
+  const [generalBack, setGeneralBack] = useState<GivingOpportunityId | 'review' | 'intro'>('plant')
   const [generalDefaultAmount, setGeneralDefaultAmount] = useState<number | undefined>()
   const flowSection = useRef<HTMLElement>(null)
   const [fading, setFading] = useState(false)
@@ -135,7 +135,7 @@ export function GiveSundayCart({ children, afterCart, embedded = false, renderPa
     }, 150)
   }
   function openGreatestNeed() {
-    setGeneralBack(view === 'review' ? 'review' : view as GivingOpportunityId)
+    setGeneralBack(view === 'intro' || view === 'review' ? view : view as GivingOpportunityId)
     setGeneralDefaultAmount(total > 0 ? total : undefined)
     setEditing(false)
     setView('greatest-need')
@@ -163,7 +163,12 @@ export function GiveSundayCart({ children, afterCart, embedded = false, renderPa
         <h1 className={embedded ? 'text-2xl font-bold' : 'text-h1 leading-display'}>Choose your gifts</h1>
         <p className="mt-5 leading-relaxed text-dark-grey">Thanks for giving to our one-off giving. We’ll take you through Plant, Train, Grow and Build, one at a time.</p>
         <p className="mt-4 leading-relaxed text-dark-grey">Choose an amount for each opportunity, or skip any. You’ll make one payment for your selected gifts.</p>
+        <p className="mt-4 leading-relaxed text-dark-grey">After completing your gift, you’ll have the opportunity to explore child sponsorship in Cambodia through Tearfund.</p>
         <button type="button" disabled={locked} onClick={() => setView('plant')} className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-md bg-rich-red px-6 py-3.5 font-semibold text-white disabled:opacity-40">Okay, let’s go<FiArrowRight aria-hidden="true" /></button>
+        <div className="mt-6 text-center">
+          <div className="flex items-center gap-3 text-sm text-mid-grey"><span className="h-px flex-1 bg-warm-grey" /><span>or</span><span className="h-px flex-1 bg-warm-grey" /></div>
+          <button type="button" disabled={locked} onClick={openGreatestNeed} className="mt-6 font-semibold text-rich-red underline underline-offset-4 disabled:opacity-40">Give to greatest need</button>
+        </div>
       </div> : view === 'review' ? <div className="mx-auto max-w-2xl">
         {!embedded && <button type="button" disabled={locked} onClick={() => { setEditing(false); setView('build') }} className="mb-7 py-2 text-sm font-semibold text-dark-grey disabled:opacity-40">← Back to opportunities</button>}
         <h1 className={embedded ? 'text-2xl font-bold' : 'text-h1 leading-display'}>Review your gifts</h1>
