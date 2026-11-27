@@ -4,6 +4,10 @@ import type { Block, Field } from 'payload'
 const responseFields: Field[] = [
   { name: 'prompt', type: 'textarea', required: true },
   { name: 'guidance', type: 'textarea' },
+  { type: 'collapsible', label: 'Individual wording (optional)', admin: { initCollapsed: true }, fields: [
+    { name: 'individualPrompt', type: 'textarea' },
+    { name: 'individualGuidance', type: 'textarea' },
+  ] },
   { name: 'visibility', type: 'select', options: ['personal', 'shared'], required: true, defaultValue: 'personal' },
   { name: 'responseMode', type: 'select', options: [{ label: 'One group answer', value: 'group' }, { label: 'Individual answers', value: 'individual' }], defaultValue: 'group', admin: { condition: (_, sibling) => sibling.visibility === 'shared' } },
   { name: 'required', type: 'checkbox', defaultValue: false },

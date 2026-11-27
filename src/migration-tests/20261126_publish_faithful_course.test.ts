@@ -8,10 +8,18 @@ function fixture(existing: unknown[] = [], editions: unknown[] = [{ id: 9 }]) {
     create: vi.fn().mockResolvedValue({ id: 4 }),
   }
   const req = { transactionID: 'migration-transaction' }
-  return { payload, req, args: { payload, req } as unknown as MigrateUpArgs }
+  const db = { execute: vi.fn().mockResolvedValue({ rows: [{ present: true }] }) }
+  return { payload, req, db, args: { payload, req, db } as unknown as MigrateUpArgs }
 }
 
 describe('initial Faithful with Money publication', () => {
+  it('defers creation on a fresh database until the later copy schema is ready', async () => {
+    const f = fixture()
+    f.db.execute.mockResolvedValue({ rows: [{ present: false }] })
+    await up(f.args)
+    expect(f.payload.find).not.toHaveBeenCalled()
+    expect(f.payload.create).not.toHaveBeenCalled()
+  })
   it('publishes absent reviewed content and verifies its edition in the migration transaction', async () => {
     const f = fixture()
     await up(f.args)

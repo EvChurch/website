@@ -1,0 +1,2937 @@
+[
+  {
+    "lessonId": "s1",
+    "blockId": "s1-block-001",
+    "blockType": "courseTeaching",
+    "field": "body",
+    "expected": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Three evenings to read, talk, make a plan, and pray. Allow about 85–100 minutes each. You can study alone or with a group. Take turns reading aloud when together.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Your answers save to your account. Personal answers stay private; Shared answers are visible to your course group. Sharing money figures is always optional.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    },
+    "individualField": "individualBody",
+    "individualValue": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Three evenings to read, reflect, make a plan, and pray. Allow about 85–100 minutes each. Take your time with the Bible passages and exercises.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Your answers save to your account and stay private. Return whenever you are ready to continue.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    }
+  },
+  {
+    "lessonId": "s1",
+    "blockId": "s1-block-003",
+    "blockType": "courseTeaching",
+    "field": "body",
+    "expected": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Make a drink and settle in. Read aloud together, or quietly on your own. This takes about 85 minutes.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    },
+    "individualField": "individualBody",
+    "individualValue": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Make a drink and settle in. Read at a comfortable pace. This takes about 85 minutes.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    }
+  },
+  {
+    "lessonId": "s1",
+    "blockId": "s1-block-004",
+    "blockType": "courseTeaching",
+    "field": "body",
+    "expected": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "What’s said here stays here.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    },
+    "individualField": "individualBody",
+    "individualValue": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "This is a space to be honest about where you are starting.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    }
+  },
+  {
+    "lessonId": "s1",
+    "blockId": "s1-block-005",
+    "blockType": "courseTeaching",
+    "field": "body",
+    "expected": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Nobody shares a number unless they choose to.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    },
+    "individualField": "individualBody",
+    "individualValue": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Your money figures are private. You decide what you want to share.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    }
+  },
+  {
+    "lessonId": "s1",
+    "blockId": "s1-block-006",
+    "blockType": "courseTeaching",
+    "field": "body",
+    "expected": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Talk about your own steps, not the other person’s faults.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    },
+    "individualField": "individualBody",
+    "individualValue": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Reflect on the steps you can take, with kindness rather than blame.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    }
+  },
+  {
+    "lessonId": "s1",
+    "blockId": "s1-block-010",
+    "blockType": "courseTeaching",
+    "field": "body",
+    "expected": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Pray",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Pray briefly. Ask God to make you honest with him and with each other.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    },
+    "individualField": "individualBody",
+    "individualValue": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Pray",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Pray briefly. Ask God to help you be honest with him.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    }
+  },
+  {
+    "lessonId": "s1",
+    "blockId": "s1-block-022",
+    "blockType": "courseQuestion",
+    "field": "guidance",
+    "expected": "Life is more than food. God feeds the ravens and you’re worth more. Worry adds nothing. He clothes the grass. Your Father knows what you need. And the high point, verse 32: your Father delights to give you the kingdom. Be honest with each other here. Rent and groceries in Auckland are real.",
+    "individualField": "individualGuidance",
+    "individualValue": "Life is more than food. God feeds the ravens and you’re worth more. Worry adds nothing. He clothes the grass. Your Father knows what you need. And the high point, verse 32: your Father delights to give you the kingdom. Be honest about what feels difficult here. Rent and groceries in Auckland are real."
+  },
+  {
+    "lessonId": "s1",
+    "blockId": "s1-block-026",
+    "blockType": "courseQuestion",
+    "field": "prompt",
+    "expected": "Each of you, finish this sentence: “The place money has the most grip on me is …”",
+    "individualField": "individualPrompt",
+    "individualValue": "Finish this sentence: “The place money has the most grip on me is …”"
+  },
+  {
+    "lessonId": "s1",
+    "blockId": "s1-block-026",
+    "blockType": "courseQuestion",
+    "field": "guidance",
+    "expected": "Take two minutes of quiet before you answer. Nobody has to say theirs aloud. If you do, the other person’s only job is to listen.",
+    "individualField": "individualGuidance",
+    "individualValue": "Take two minutes of quiet before you answer. Be honest; there is no need to tidy up your thoughts."
+  },
+  {
+    "lessonId": "s1",
+    "blockId": "s1-block-030",
+    "blockType": "courseTeaching",
+    "field": "body",
+    "expected": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Fifteen minutes each on your own, then ten together. If you are studying with others, share only what you choose to say aloud; your written answers are personal.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    },
+    "individualField": "individualBody",
+    "individualValue": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Take about fifteen minutes to reflect on these questions. Your written answers are personal.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    }
+  },
+  {
+    "lessonId": "s1",
+    "blockId": "s1-block-033",
+    "blockType": "courseQuestion",
+    "field": "prompt",
+    "expected": "What’s my first feeling when I think about our finances: calm, dread, guilt, pride, fog?",
+    "individualField": "individualPrompt",
+    "individualValue": "What’s my first feeling when I think about my finances: calm, dread, guilt, pride, fog?"
+  },
+  {
+    "lessonId": "s1",
+    "blockId": "s1-block-037",
+    "blockType": "courseTeaching",
+    "field": "body",
+    "expected": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Then, together",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Each share one thing you wrote that surprised you, and one thing you’d like to be different in a year. If you tell very different stories, that’s normal. Spenders and savers marry each other. Say what you fear, not what the other person does wrong.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    },
+    "individualField": "individualBody",
+    "individualValue": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Pause and reflect",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Notice one thing you wrote that surprised you, and one thing you would like to be different in a year. Bring those hopes and fears to God.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    },
+    "replacement": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Then, together",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Take turns sharing one thing you wrote that surprised you, and one thing you’d like to be different in a year. Different money stories are normal. Listen with kindness, and share only what you choose.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    }
+  },
+  {
+    "lessonId": "s2",
+    "blockId": "s2-block-002",
+    "blockType": "courseTeaching",
+    "field": "body",
+    "expected": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Have your two weeks of tracking nearby. Nobody will ever ask what you give, tonight or later. This session is between you and God.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    },
+    "replacement": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Have your two weeks of tracking nearby. Your giving figures are personal. Take time to bring your decisions before God.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    }
+  },
+  {
+    "lessonId": "s2",
+    "blockId": "s2-block-007",
+    "blockType": "courseTeaching",
+    "field": "body",
+    "expected": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Here’s the strangest fundraising report in the Bible.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Paul is collecting money for Christians in Jerusalem who are going hungry. He writes to the church in Corinth, a wealthy port city, and tells them what happened up north in Macedonia.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Now, the Macedonian churches were poor. Paul’s phrase is “deep poverty”. They were also being persecuted. If we were drawing up a list of people to ask for money, we’d skip them and feel kind for doing it.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "And Paul says: they begged us. They begged for the privilege of joining in. They gave what they could afford, and then more than they could afford. Out of severe trial and deep poverty came overflowing joy and a wealth of generosity.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Poverty, plus trouble, plus joy, equals generosity. No accountant alive would sign off on that sum. So how did it happen?",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Something happened to them first",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Paul tells us in his opening line. We want you to know about the grace of God given to the Macedonian churches.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "He doesn’t say: let me tell you about some very impressive people. He says: let me tell you about grace. Something went into them before anything came out of them.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "And a few verses later he says what it was. This is the centre of everything the Bible says about giving, so read it slowly.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "You know the grace of our Lord Jesus Christ: though he was rich, for your sake he became poor, so that by his poverty you might become rich.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Slowly, then",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "He was rich. Think what the Son of God had. The love of the Father, from before time. The worship of heaven. Everything that exists was made through him and belonged to him.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "He became poor. Born in a borrowed feeding trough. Nowhere to lay his head. And at the end, stripped. Soldiers rolled dice for the last thing he owned. He died owning nothing, carrying our sin.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "For your sake. So that we, who had nothing to bring, might become rich. Forgiven. Adopted. Heirs of the world to come.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "What Paul doesn’t do next",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "He doesn’t say: therefore, you owe ten percent. In verse 8 he says: I’m not commanding you. He refuses to. Giving that’s been squeezed out of someone isn’t what he’s after.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "A chapter later he says it outright. Each person should give what they’ve decided in their heart, not reluctantly or under compulsion, for God loves a cheerful giver.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "So let’s be as clear as Paul is. Nobody at Ev is going to pressure anyone to give. If giving feels like a bill, or a guilt trip, or the price of belonging, hear this: that isn’t Christianity. The gospel is free. Jesus paid.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "But grace isn’t nothing",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Grace does things to people. The Macedonians weren’t guilted. They were changed. They’d seen what Jesus gave up for them, and their grip came loose.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "That’s why Paul keeps calling giving a grace, all the way through the chapter. And it’s why he says to the Corinthians, who were good at so many things: you excel in faith, in speech, in knowledge. See that you excel in this grace too.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Generosity is something we can get better at. Like prayer. Like knowing our Bibles. Nobody is born good at it.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Two questions to take into the passage",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Do we know this grace? Not, do we know about it. Has the poverty of Jesus for us actually landed? Because when giving feels impossible, the fix is rarely a better budget. It’s a longer look at the cross.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "And where’s the evidence? Paul says their giving would show their love was real. Grace that’s gone in comes out. If someone read our bank statements, would they find any sign that we’ve been loved like this?",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Open 2 Corinthians 8 and read it together.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    },
+    "individualField": "individualBody",
+    "individualValue": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Here’s the strangest fundraising report in the Bible.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Paul is collecting money for Christians in Jerusalem who are going hungry. He writes to the church in Corinth, a wealthy port city, and tells them what happened up north in Macedonia.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Now, the Macedonian churches were poor. Paul’s phrase is “deep poverty”. They were also being persecuted. If we were drawing up a list of people to ask for money, we’d skip them and feel kind for doing it.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "And Paul says: they begged us. They begged for the privilege of joining in. They gave what they could afford, and then more than they could afford. Out of severe trial and deep poverty came overflowing joy and a wealth of generosity.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Poverty, plus trouble, plus joy, equals generosity. No accountant alive would sign off on that sum. So how did it happen?",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Something happened to them first",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Paul tells us in his opening line. We want you to know about the grace of God given to the Macedonian churches.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "He doesn’t say: let me tell you about some very impressive people. He says: let me tell you about grace. Something went into them before anything came out of them.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "And a few verses later he says what it was. This is the centre of everything the Bible says about giving, so read it slowly.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "You know the grace of our Lord Jesus Christ: though he was rich, for your sake he became poor, so that by his poverty you might become rich.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Slowly, then",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "He was rich. Think what the Son of God had. The love of the Father, from before time. The worship of heaven. Everything that exists was made through him and belonged to him.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "He became poor. Born in a borrowed feeding trough. Nowhere to lay his head. And at the end, stripped. Soldiers rolled dice for the last thing he owned. He died owning nothing, carrying our sin.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "For your sake. So that we, who had nothing to bring, might become rich. Forgiven. Adopted. Heirs of the world to come.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "What Paul doesn’t do next",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "He doesn’t say: therefore, you owe ten percent. In verse 8 he says: I’m not commanding you. He refuses to. Giving that’s been squeezed out of someone isn’t what he’s after.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "A chapter later he says it outright. Each person should give what they’ve decided in their heart, not reluctantly or under compulsion, for God loves a cheerful giver.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "So let’s be as clear as Paul is. Nobody at Ev is going to pressure anyone to give. If giving feels like a bill, or a guilt trip, or the price of belonging, hear this: that isn’t Christianity. The gospel is free. Jesus paid.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "But grace isn’t nothing",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Grace does things to people. The Macedonians weren’t guilted. They were changed. They’d seen what Jesus gave up for them, and their grip came loose.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "That’s why Paul keeps calling giving a grace, all the way through the chapter. And it’s why he says to the Corinthians, who were good at so many things: you excel in faith, in speech, in knowledge. See that you excel in this grace too.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Generosity is something we can get better at. Like prayer. Like knowing our Bibles. Nobody is born good at it.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Two questions to take into the passage",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Do we know this grace? Not, do we know about it. Has the poverty of Jesus for us actually landed? Because when giving feels impossible, the fix is rarely a better budget. It’s a longer look at the cross.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "And where’s the evidence? Paul says their giving would show their love was real. Grace that’s gone in comes out. If someone read our bank statements, would they find any sign that we’ve been loved like this?",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Open 2 Corinthians 8 and read it slowly.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    }
+  },
+  {
+    "lessonId": "s2",
+    "blockId": "s2-block-013",
+    "blockType": "courseQuestion",
+    "field": "guidance",
+    "expected": "Don’t rush this one. Each of you answer all three parts. Philippians 2:6–8 helps. Everything else tonight depends on this verse being more than familiar.",
+    "individualField": "individualGuidance",
+    "individualValue": "Don’t rush this one. Answer all three parts. Philippians 2:6–8 helps. Everything else tonight depends on this verse being more than familiar."
+  },
+  {
+    "lessonId": "s2",
+    "blockId": "s2-block-022",
+    "blockType": "courseQuestion",
+    "field": "guidance",
+    "expected": "One word each is enough. If the honest word is “non-existent”, that’s the bravest answer you can give, and tonight is a good night to change it.",
+    "individualField": "individualGuidance",
+    "individualValue": "One word is enough. If the honest word is “non-existent”, that’s a brave answer, and tonight is a good night to begin."
+  },
+  {
+    "lessonId": "s2",
+    "blockId": "s2-block-026",
+    "blockType": "courseTeaching",
+    "field": "body",
+    "expected": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Pray first, on your own, for five minutes. Then work it out together.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    },
+    "individualField": "individualBody",
+    "individualValue": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Take five minutes to pray. Then think through the giving decision you would like to make.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    }
+  },
+  {
+    "lessonId": "s2",
+    "blockId": "s2-block-027",
+    "blockType": "courseTeaching",
+    "field": "body",
+    "expected": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Four questions to pray through first",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Does this cost us anything? (2 Samuel 24:24)",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Is it in proportion to what God has given us? (1 Corinthians 16:2)",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Is the local church first? (Galatians 6:6)",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Can we give this cheerfully? (2 Corinthians 9:7)",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    },
+    "individualField": "individualBody",
+    "individualValue": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Four questions to pray through first",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Does this cost me anything? (2 Samuel 24:24)",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Is it in proportion to what God has given me? (1 Corinthians 16:2)",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Is the local church first? (Galatians 6:6)",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Can I give this cheerfully? (2 Corinthians 9:7)",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    }
+  },
+  {
+    "lessonId": "s2",
+    "blockId": "s2-block-033",
+    "blockType": "courseQuestion",
+    "field": "prompt",
+    "expected": "When we’ll review it",
+    "individualField": "individualPrompt",
+    "individualValue": "When I’ll review it"
+  },
+  {
+    "lessonId": "s2",
+    "blockId": "s2-block-034",
+    "blockType": "courseQuestion",
+    "field": "prompt",
+    "expected": "What we’ll do with the tax credit each April",
+    "individualField": "individualPrompt",
+    "individualValue": "What I’ll do with the tax credit each April"
+  },
+  {
+    "lessonId": "s2",
+    "blockId": "s2-block-040",
+    "blockType": "courseTeaching",
+    "field": "body",
+    "expected": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Pray",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Thank God for his indescribable gift. Then pray one sentence each for the other person.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    },
+    "individualField": "individualBody",
+    "individualValue": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Pray",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Thank God for his indescribable gift. Pray for someone you care about.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    }
+  },
+  {
+    "lessonId": "s3",
+    "blockId": "s3-block-005",
+    "blockType": "courseTeaching",
+    "field": "body",
+    "expected": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Pray",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Pray briefly. Ask God for wisdom, and for kindness toward each other when the numbers are hard.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    },
+    "individualField": "individualBody",
+    "individualValue": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Pray",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Pray briefly. Ask God for wisdom, and for patience when the numbers are hard.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    }
+  },
+  {
+    "lessonId": "s3",
+    "blockId": "s3-block-011",
+    "blockType": "courseQuestion",
+    "field": "prompt",
+    "expected": "Take half the proverbs each. What does each one teach about handling money? Say it the way you’d say it to a twelve-year-old.",
+    "individualField": "individualPrompt",
+    "individualValue": "Read each proverb. What does each one teach about handling money? Say it the way you’d say it to a twelve-year-old.",
+    "replacement": "Read through the proverbs, taking turns. What does each one teach about handling money? Say it the way you’d say it to a twelve-year-old."
+  },
+  {
+    "lessonId": "s3",
+    "blockId": "s3-block-012",
+    "blockType": "courseQuestion",
+    "field": "guidance",
+    "expected": "Start with what you do well. You’re almost certainly doing something right, and it’s worth saying out loud.",
+    "individualField": "individualGuidance",
+    "individualValue": "Start with what you do well. You’re almost certainly doing something right, and it is worth recognising."
+  },
+  {
+    "lessonId": "s3",
+    "blockId": "s3-block-020",
+    "blockType": "courseQuestion",
+    "field": "prompt",
+    "expected": "Each of you, finish the sentence: “The reason I’ve avoided making a plan for my money is …”",
+    "individualField": "individualPrompt",
+    "individualValue": "Finish the sentence: “The reason I’ve avoided making a plan for my money is …”"
+  },
+  {
+    "lessonId": "s3",
+    "blockId": "s3-block-033",
+    "blockType": "courseTeaching",
+    "field": "body",
+    "expected": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "The first budget is always wrong. Its job is to be corrected next month. Pick one step for the next seven days and tell each other which.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    },
+    "individualField": "individualBody",
+    "individualValue": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "The first budget is always wrong. Its job is to be corrected next month. Pick one step for the next seven days and write it down.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    }
+  },
+  {
+    "lessonId": "s3",
+    "blockId": "s3-block-035",
+    "blockType": "courseTeaching",
+    "field": "body",
+    "expected": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Pray",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Pray Proverbs 30:8–9 and Matthew 6:33 together: give us neither poverty nor riches, and help us seek your kingdom first.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    },
+    "individualField": "individualBody",
+    "individualValue": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Pray",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h3"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Pray Proverbs 30:8–9 and Matthew 6:33: ask God for neither poverty nor riches, and for help to seek his kingdom first.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    }
+  },
+  {
+    "lessonId": "s3",
+    "blockId": "s3-block-036",
+    "blockType": "courseTeaching",
+    "field": "body",
+    "expected": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Help",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h2"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "link",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "MoneyTalks",
+                    "format": 0,
+                    "detail": 0,
+                    "mode": "normal",
+                    "style": "",
+                    "version": 1
+                  }
+                ],
+                "direction": "ltr",
+                "format": "",
+                "indent": 0,
+                "version": 3,
+                "fields": {
+                  "linkType": "custom",
+                  "url": "https://www.moneytalks.co.nz",
+                  "newTab": true
+                }
+              },
+              {
+                "type": "text",
+                "text": ": free, confidential financial mentoring. Call 0800 345 123 or text 4029.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "link",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "Christians Against Poverty",
+                    "format": 0,
+                    "detail": 0,
+                    "mode": "normal",
+                    "style": "",
+                    "version": 1
+                  }
+                ],
+                "direction": "ltr",
+                "format": "",
+                "indent": 0,
+                "version": 3,
+                "fields": {
+                  "linkType": "custom",
+                  "url": "https://www.capnz.org/get-help/debt-help/",
+                  "newTab": true
+                }
+              },
+              {
+                "type": "text",
+                "text": ": free, confidential debt help.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "link",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "Sorted",
+                    "format": 0,
+                    "detail": 0,
+                    "mode": "normal",
+                    "style": "",
+                    "version": 1
+                  }
+                ],
+                "direction": "ltr",
+                "format": "",
+                "indent": 0,
+                "version": 3,
+                "fields": {
+                  "linkType": "custom",
+                  "url": "https://sorted.org.nz",
+                  "newTab": true
+                }
+              },
+              {
+                "type": "text",
+                "text": ": budgeting and money guides.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "link",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "Inland Revenue",
+                    "format": 0,
+                    "detail": 0,
+                    "mode": "normal",
+                    "style": "",
+                    "version": 1
+                  }
+                ],
+                "direction": "ltr",
+                "format": "",
+                "indent": 0,
+                "version": 3,
+                "fields": {
+                  "linkType": "custom",
+                  "url": "https://www.ird.govt.nz/income-tax/income-tax-for-individuals/individual-tax-credits/donation-tax-credits/about-donation-tax-credits",
+                  "newTab": true
+                }
+              },
+              {
+                "type": "text",
+                "text": ": donation tax credit eligibility and receipts.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Speak to a pastor or your Connect Group leader if you would like someone to talk and pray with.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "If money is being kept from you, you’re afraid to talk about it at home, or gambling is part of the picture, please speak to a pastor on your own. You don’t have to raise it in front of anyone.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    },
+    "replacement": {
+      "root": {
+        "type": "root",
+        "children": [
+          {
+            "type": "heading",
+            "children": [
+              {
+                "type": "text",
+                "text": "Help",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1,
+            "tag": "h2"
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "link",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "MoneyTalks",
+                    "format": 0,
+                    "detail": 0,
+                    "mode": "normal",
+                    "style": "",
+                    "version": 1
+                  }
+                ],
+                "direction": "ltr",
+                "format": "",
+                "indent": 0,
+                "version": 3,
+                "fields": {
+                  "linkType": "custom",
+                  "url": "https://www.moneytalks.co.nz",
+                  "newTab": true
+                }
+              },
+              {
+                "type": "text",
+                "text": ": free, confidential financial mentoring. Call 0800 345 123 or text 4029.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "link",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "Christians Against Poverty",
+                    "format": 0,
+                    "detail": 0,
+                    "mode": "normal",
+                    "style": "",
+                    "version": 1
+                  }
+                ],
+                "direction": "ltr",
+                "format": "",
+                "indent": 0,
+                "version": 3,
+                "fields": {
+                  "linkType": "custom",
+                  "url": "https://www.capnz.org/get-help/debt-help/",
+                  "newTab": true
+                }
+              },
+              {
+                "type": "text",
+                "text": ": free, confidential debt help.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "link",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "Sorted",
+                    "format": 0,
+                    "detail": 0,
+                    "mode": "normal",
+                    "style": "",
+                    "version": 1
+                  }
+                ],
+                "direction": "ltr",
+                "format": "",
+                "indent": 0,
+                "version": 3,
+                "fields": {
+                  "linkType": "custom",
+                  "url": "https://sorted.org.nz",
+                  "newTab": true
+                }
+              },
+              {
+                "type": "text",
+                "text": ": budgeting and money guides.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "link",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "Inland Revenue",
+                    "format": 0,
+                    "detail": 0,
+                    "mode": "normal",
+                    "style": "",
+                    "version": 1
+                  }
+                ],
+                "direction": "ltr",
+                "format": "",
+                "indent": 0,
+                "version": 3,
+                "fields": {
+                  "linkType": "custom",
+                  "url": "https://www.ird.govt.nz/income-tax/income-tax-for-individuals/individual-tax-credits/donation-tax-credits/about-donation-tax-credits",
+                  "newTab": true
+                }
+              },
+              {
+                "type": "text",
+                "text": ": donation tax credit eligibility and receipts.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "Speak to a pastor or your Connect Group leader if you would like someone to talk and pray with.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "If money is being kept from you, you’re afraid to talk about it at home, or gambling is part of the picture, please speak privately with a pastor. You don’t have to raise it in front of anyone.",
+                "format": 0,
+                "detail": 0,
+                "mode": "normal",
+                "style": "",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "version": 1
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "version": 1
+      }
+    }
+  }
+]
