@@ -60,7 +60,7 @@ export default async function ScripturePage({
   ]
 
   return (
-    <main className="bg-brand-black min-h-screen">
+    <main data-header-tone="light" className="bg-brand-black min-h-screen">
       <BreadcrumbJsonLd items={breadcrumbItems} />
 
       {/* Scripture header */}

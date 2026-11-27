@@ -54,7 +54,7 @@ const photos = [
 export default function ChristmasPage() {
   return (
     <ChristmasCampusProvider>
-      <div className="bg-[#0b203b] pb-20 pt-24 text-warm-white lg:pt-28">
+      <div data-header-tone="light" className="bg-[#0b203b] pb-20 pt-24 text-warm-white lg:pt-28">
         <section aria-label="Christmas at Ev Church" className="mx-auto max-w-[80rem] px-5 lg:px-8">
           <div className="relative overflow-hidden rounded-t-full border border-[#d9b879]/50 bg-[#102943] px-3 pb-14 pt-8 text-center sm:hidden">
             <Image src="/christmas/star.webp" alt="" width={96} height={96} className="mx-auto mb-6 h-24 w-24" />
