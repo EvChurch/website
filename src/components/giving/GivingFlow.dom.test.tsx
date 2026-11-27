@@ -185,6 +185,7 @@ describe('GivingFlow', () => {
   })
 
   it('returns from secure card entry to the campaign gift choices when Cancel is clicked', async () => {
+    window.history.replaceState(null,'','/one-off-giving?giving=return&keep=1#campaign')
     sessionStorage.setItem('ev-give-sunday-payment','submitted')
     sessionStorage.setItem('ev-give-sunday-submission-key','A'.repeat(43))
     const onBack=vi.fn(),onVerified=vi.fn()
@@ -192,6 +193,8 @@ describe('GivingFlow', () => {
     await act(async()=>root.render(<GivingFlow funds={[{...funds[0],code:'GIVESUNDAY26'}]} campaign={{gifts:[{opportunityId:'plant',amountMinor:20000}],onBack,onVerified}} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} />))
     await act(async()=>button(container,'Cancel')!.click())
     expect(onBack).toHaveBeenCalledExactlyOnceWith()
+    expect(window.location.search).toBe('?keep=1')
+    expect(window.location.hash).toBe('#campaign')
     expect(onVerified).not.toHaveBeenCalled()
     expect(vi.mocked(fetch).mock.calls.some(([,init])=>init?.method==='POST')).toBe(false)
   })
