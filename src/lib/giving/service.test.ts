@@ -563,6 +563,34 @@ describe('giving checkout orchestration', () => {
 
 
 describe('BlinkPay settlement provenance', () => {
+  it('confirms a settled single payment when amount is repeated but PCR is inherited from its linked consent', async () => {
+    const {checkout,blinkPay,repo}=service()
+    const result=await checkout.start({...context,submission:baseSubmission})
+    const quick=await blinkPay.getQuickPayment()
+    const payment=quick.consent.payments[0]
+    Object.assign(payment.detail,{amount:{total:'25.50',currency:'NZD'}})
+    blinkPay.getQuickPayment.mockResolvedValue(quick)
+    const returned=await checkout.consumeReturn(returnToken(result))
+    expect(await checkout.status(returned.statusToken)).toMatchObject({state:'verified',retryAllowed:false})
+    expect(await checkout.status(returned.statusToken)).toMatchObject({state:'verified'})
+    expect(repo.checkouts[0].status).toBe('completed')
+  })
+
+  it.each(['amount','currency','reference','missing-consent-reference'] as const)('rejects mismatched supplemental payment details: %s', async field => {
+    const {checkout,blinkPay,repo}=service()
+    await checkout.start({...context,submission:baseSubmission})
+    const quick=await blinkPay.getQuickPayment()
+    const detail: Record<string,unknown>={...quick.consent.payments[0].detail,amount:{total:'25.50',currency:'NZD'}}
+    if(field==='amount')detail.amount={total:'0.01',currency:'NZD'}
+    if(field==='currency')detail.amount={total:'25.50',currency:'USD'}
+    if(field==='reference')detail.pcr={...quick.consent.detail.pcr,reference:'EV999'}
+    if(field==='missing-consent-reference')Object.assign(quick.consent.detail,{pcr:undefined})
+    Object.assign(quick.consent.payments[0],{detail})
+    blinkPay.getQuickPayment.mockResolvedValue(quick)
+    await expect(checkout.verify(repo.checkouts[0].id)).rejects.toThrow()
+    expect(repo.checkouts[0].status).not.toBe('completed')
+  })
+
   it.each(['amount','currency','reference','consent','quick-payment'] as const)('refuses a settled one-off with mismatched %s', async (field) => {
     const {checkout,blinkPay,repo}=service()
     await checkout.start({...context,submission:baseSubmission})

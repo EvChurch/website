@@ -184,6 +184,17 @@ describe('GivingFlow', () => {
     expect(vi.mocked(fetch).mock.calls.map(([url])=>String(url))).toEqual(['/api/giving/identity'])
   })
 
+  it('hands a verified returned campaign payment back to the campaign confirmation', async () => {
+    sessionStorage.setItem('ev-give-sunday-payment','submitted')
+    sessionStorage.setItem('ev-give-sunday-submission-key','A'.repeat(43))
+    const onVerified=vi.fn()
+    vi.mocked(fetch).mockImplementation(async input => String(input)==='/api/giving/checkouts/current/status'
+      ? Response.json({state:'verified',retryAllowed:false,kind:'one-off'}) : new Response(null,{status:204}))
+    await act(async()=>root.render(<GivingFlow funds={[{...funds[0],code:'GIVESUNDAY26'}]} campaign={{gifts:[{opportunityId:'plant',amountMinor:10000}],onBack:vi.fn(),onVerified}} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} />))
+    expect(onVerified).toHaveBeenCalled()
+    expect(vi.mocked(fetch).mock.calls.some(([,init])=>init?.method==='POST')).toBe(false)
+  })
+
   it('keeps an ambiguous campaign payment locked after a remount instead of starting another payment', async () => {
     sessionStorage.setItem('ev-give-sunday-payment','submitted')
     sessionStorage.setItem('ev-give-sunday-submission-key','A'.repeat(43))
