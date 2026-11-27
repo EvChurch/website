@@ -154,3 +154,33 @@ describe('RenderBlocks', () => {
     expect(markup).toContain('data-connect-groups-heading="Choose your group"')
   })
 })
+
+describe('feature grid source notes', () => {
+  const body = {
+    root: {
+      type: 'root',
+      children: [{ type: 'paragraph', children: [{ type: 'text', text: 'Source attribution' }] }],
+    },
+  }
+  const grid = {
+    blockType: 'featureGrid',
+    heading: 'Principles',
+    style: 'iconTop' as const,
+    items: [{ title: 'Principle one', description: 'Description' }],
+  }
+  const note = { blockType: 'content', blockName: 'feature-grid-footer', body }
+
+  it('renders the source once inside the grid after the principles', () => {
+    const html = renderToStaticMarkup(<RenderBlocks blocks={[grid, note]} />)
+    expect(html.match(/<section /g)).toHaveLength(1)
+    expect(html.match(/Source attribution/g)).toHaveLength(1)
+    expect(html.indexOf('Source attribution')).toBeGreaterThan(html.indexOf('Principle one'))
+    expect(html).toContain('mt-8 text-center text-sm leading-relaxed text-mid-grey')
+  })
+
+  it('keeps ordinary content separate and orphan source notes visible', () => {
+    const html = renderToStaticMarkup(<RenderBlocks blocks={[grid, { ...note, blockName: null }]} />)
+    expect(html.match(/<section /g)).toHaveLength(2)
+    expect(renderToStaticMarkup(<RenderBlocks blocks={[note]} />)).toContain('Source attribution')
+  })
+})
