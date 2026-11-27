@@ -7,10 +7,14 @@ export function csvCell(value:unknown):string {
   return `"${text.replaceAll('"','""')}"`
 }
 
-export async function givingFinanceCsv(pool:Pool,from:string,to:string) {
+function validateRange(from: string, to: string) {
   if(!/^\d{4}-\d{2}-\d{2}$/u.test(from)||!/^\d{4}-\d{2}-\d{2}$/u.test(to))throw new Error('Invalid date range')
   const start=Date.parse(`${from}T00:00:00Z`),end=Date.parse(`${to}T00:00:00Z`)
   if(!Number.isFinite(start)||!Number.isFinite(end)||new Date(start).toISOString().slice(0,10)!==from||new Date(end).toISOString().slice(0,10)!==to||end<start||end-start>366*86400_000)throw new Error('Choose a date range of at most one year')
+}
+
+export async function givingFinanceCsv(pool:Pool,from:string,to:string) {
+  validateRange(from,to)
   const result=await pool.query(`SELECT gift.id,checkout.correlation_key checkout_reference,gift.payment_provider,gift.status payment_status,
     gift.provider_observed_at payment_confirmed_at,giver.rock_person_alias_id,giver.name donor_name,giver.email donor_email,
     gift.fund_code,gift.fund_name,gift.fund_accounting_key,gift.amount_minor gift_cents,gift.transaction_fee_minor donor_fee_cents,
@@ -26,5 +30,24 @@ export async function givingFinanceCsv(pool:Pool,from:string,to:string) {
     ORDER BY gift.id LIMIT 25001`,[from,to])
   if(result.rows.length>25000)throw new Error('Choose a shorter date range')
   const columns=['id','checkout_reference','payment_provider','payment_status','payment_confirmed_at','rock_person_alias_id','donor_name','donor_email','fund_code','fund_name','fund_accounting_key','gift_cents','donor_fee_cents','charged_cents','refunded_cents','refund_pending_cents','retained_charge_cents','refunds_verified_at','processor_fee_cents','processor_net_cents','provider_payment_id','provider_charge_id','provider_invoice_id','payout_id','payout_status','dispute_status']
+  return '\uFEFF'+[columns.map(csvCell).join(','),...result.rows.map((row:Record<string,unknown>)=>columns.map(column=>csvCell(row[column])).join(','))].join('\r\n')+'\r\n'
+}
+
+/** Allocation schedule accompanies the payment CSV; it never repeats processor fees or charged totals. */
+export async function givingAllocationFinanceCsv(pool: Pool, from: string, to: string) {
+  validateRange(from,to)
+  const result = await pool.query(`SELECT gift.id gift_id, checkout.correlation_key checkout_reference,
+    gift.provider_payment_id, giver.rock_person_alias_id, giver.name donor_name,
+    allocation.opportunity_id, allocation.reference, allocation.gl_code, allocation.gl_name,
+    allocation.project, allocation.amount_minor allocation_cents
+    FROM giving_gifts gift JOIN giving_checkouts checkout ON checkout.id=gift.checkout_id AND checkout.context_key=gift.context_key
+    JOIN giving_givers giver ON giver.id=gift.giver_id AND giver.context_key=gift.context_key
+    JOIN giving_checkout_allocations allocation ON allocation.checkout_id=checkout.id
+    WHERE gift.environment='production' AND gift.synthetic=false AND gift.context_key='production' AND gift.status='settled'
+      AND COALESCE(gift.provider_observed_at,gift.created_at)>=($1::date::timestamp AT TIME ZONE 'Pacific/Auckland')
+      AND COALESCE(gift.provider_observed_at,gift.created_at)<(($2::date+1)::timestamp AT TIME ZONE 'Pacific/Auckland')
+    ORDER BY gift.id,allocation.opportunity_id LIMIT 25001`,[from,to])
+  if (result.rows.length > 25000) throw new Error('Choose a shorter date range')
+  const columns = ['gift_id','checkout_reference','provider_payment_id','rock_person_alias_id','donor_name','opportunity_id','reference','gl_code','gl_name','project','allocation_cents']
   return '\uFEFF'+[columns.map(csvCell).join(','),...result.rows.map((row:Record<string,unknown>)=>columns.map(column=>csvCell(row[column])).join(','))].join('\r\n')+'\r\n'
 }

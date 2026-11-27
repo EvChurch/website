@@ -31,14 +31,65 @@ function Probe() {
   </>
 }
 
+function CampaignProbe() {
+  const giving = useGivingExperience()
+  return <>
+    <button data-campaign-open onClick={() => giving.openCampaignGiving()}>Campaign</button>
+    <button data-regular-open onClick={() => giving.openGiving()}>Regular</button>
+    <button data-directed-open onClick={() => giving.selectGivingFund(42)}>Directed</button>
+    <div data-renderer>{giving.givingExperience}</div>
+    <output data-payment-enabled={giving.cardEnabled || giving.blinkPayEnabled}>{giving.givingRequestId}:{giving.directedFundId}</output>
+  </>
+}
+
 describe('GivingExperienceProvider', () => {
   let container: HTMLDivElement
   let root: Root
 
   beforeEach(() => {
+    sessionStorage.clear()
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
+  })
+
+  it('opens campaign giving separately and leaves regular giving and payment eligibility intact', async () => {
+    await act(async () => root.render(<GivingExperienceProvider serverEligibility={null}
+      givingExperience={<p>Regular giving form</p>} campaignGivingExperience={<p>Campaign opportunities</p>} campaignGivingAllowed><CampaignProbe /></GivingExperienceProvider>))
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-campaign-open]')!.click())
+    expect(container.querySelector('[data-renderer]')?.textContent).toBe('Campaign opportunities')
+    expect(container.querySelector('output')?.dataset.paymentEnabled).toBe('false')
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-regular-open]')!.click())
+    expect(container.querySelector('[data-renderer]')?.textContent).toBe('Regular giving form')
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-campaign-open]')!.click())
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-directed-open]')!.click())
+    expect(container.querySelector('[data-renderer]')?.textContent).toBe('Regular giving form')
+    expect(container.querySelector('output')?.textContent).toBe('3:42')
+  })
+
+  it('blocks the campaign launcher when the access flag denies access', async () => {
+    await act(async () => root.render(<GivingExperienceProvider serverEligibility={null}
+      givingExperience={<p>Regular giving form</p>} campaignGivingExperience={<p>Campaign opportunities</p>} campaignGivingAllowed={false}><CampaignProbe /></GivingExperienceProvider>))
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-campaign-open]')!.click())
+    expect(container.querySelector('[data-renderer]')?.textContent).toBe('Regular giving form')
+    expect(container.querySelector('output')?.textContent).toBe('0:')
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-regular-open]')!.click())
+    expect(container.querySelector('output')?.textContent).toBe('1:')
+  })
+
+  it('resumes the campaign payment after a provider return when its local marker is present', async () => {
+    sessionStorage.setItem('ev-give-sunday-payment','submitted')
+    await act(async () => root.render(<GivingExperienceProvider serverEligibility={null} resumeRequested campaignGivingAllowed
+      givingExperience={<p>Regular giving form</p>} campaignGivingExperience={<p>Campaign opportunities</p>}><CampaignProbe /></GivingExperienceProvider>))
+    expect(container.querySelector('[data-renderer]')?.textContent).toBe('Campaign opportunities')
+    expect(container.querySelector('output')?.textContent).toBe('1:')
+  })
+
+  it('does not open a campaign when no campaign renderer is configured', async () => {
+    await act(async () => root.render(<GivingExperienceProvider serverEligibility={null} givingExperience={<p>Regular giving form</p>}><CampaignProbe /></GivingExperienceProvider>))
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-campaign-open]')!.click())
+    expect(container.querySelector('[data-renderer]')?.textContent).toBe('Regular giving form')
+    expect(container.querySelector('output')?.textContent).toBe('0:')
   })
 
   afterEach(async () => {

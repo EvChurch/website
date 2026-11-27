@@ -4,7 +4,7 @@ import type { Pool, PoolClient } from 'pg'
 import type Stripe from 'stripe'
 import type { GivingContext, GivingCheckoutStatus } from '../contracts'
 import type { GivingIdentityInput, ResolvedGivingIdentity } from '../rock-identity'
-import { createPostgresGivingCheckoutRepository, submissionKeyDigest, canonicalSubmissionDigest, capabilityDigest, GivingCheckoutError, queueGivingCompletionEmails, type GivingCheckoutSubmission } from '../service'
+import { createPostgresGivingCheckoutRepository, submissionKeyDigest, canonicalSubmissionDigest, capabilityDigest, GivingCheckoutError, queueGivingCompletionEmails, validateGivingCheckoutSubmission, type GivingCheckoutSubmission } from '../service'
 import { getGivingStripe, loadStripeGivingConfig } from './config'
 import { givingAnchorTimestamp, nextGivingAnchor, nzGivingDate } from './dates'
 
@@ -35,6 +35,7 @@ export async function startStripeGiving(input: GivingContext & { submission: Giv
   pool: Pool
   resolveIdentity(input: GivingContext & { checkoutId: number; identity: GivingIdentityInput }): Promise<ResolvedGivingIdentity>
 }) {
+  validateGivingCheckoutSubmission(input.submission)
   const { pool } = dependencies
   const secret = process.env.GIVING_CHECKOUT_DIGEST_SECRET ?? ''
   const repository = createPostgresGivingCheckoutRepository(pool)

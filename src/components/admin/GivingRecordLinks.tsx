@@ -4,6 +4,7 @@ export function GivingRecordLinks() {
       <p><strong>Giving records:</strong> provider and lifecycle values are read-only. Rows marked <strong>TEST DATA</strong> are synthetic and must not be included in real giving totals.</p>
       <nav aria-label="Related giving collections">
         <a href="/api/admin/giving/export">Finance CSV (this month)</a>{' · '}
+        <a href="/api/admin/giving/export?format=allocations">Give Sunday allocations (this month)</a>{' · '}
         <a href="/admin/collections/giving-givers">Givers</a>{' · '}
         <a href="/admin/collections/giving-gifts">Gifts</a>{' · '}
         <a href="/admin/collections/giving-schedules">Schedules</a>{' · '}

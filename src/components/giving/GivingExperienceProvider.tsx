@@ -17,6 +17,8 @@ import type { PublicSupportProfile } from '@/lib/giving/support-profiles'
 export type GivingFlagState = 'unresolved' | 'enabled' | 'disabled' | 'failed'
 
 interface GivingExperienceContextValue {
+  campaignGivingAccessAllowed: boolean
+  campaignGivingActive: boolean
   supportProfiles: PublicSupportProfile[]
   directedFundId: number | null
   selectGivingFund: (fundId: number | null) => void
@@ -32,6 +34,7 @@ interface GivingExperienceContextValue {
   consumeGivingDismissRequest: (requestId: number) => boolean
   dismissGiving: () => boolean
   openGiving: (fundId?: number) => boolean
+  openCampaignGiving: () => boolean
   setFlagState: (state: GivingFlagState) => void
   setGivingViewActive: (active: boolean) => void
   handleGivingBack: () => boolean
@@ -41,6 +44,8 @@ interface GivingExperienceContextValue {
 }
 
 const disabledContext: GivingExperienceContextValue = {
+  campaignGivingAccessAllowed: false,
+  campaignGivingActive: false,
   supportProfiles: [],
   directedFundId: null,
   selectGivingFund: () => undefined,
@@ -56,6 +61,7 @@ const disabledContext: GivingExperienceContextValue = {
   consumeGivingDismissRequest: () => false,
   dismissGiving: () => false,
   openGiving: () => false,
+  openCampaignGiving: () => false,
   setFlagState: () => undefined,
   setGivingViewActive: () => undefined,
   handleGivingBack: () => false,
@@ -69,6 +75,8 @@ const GivingExperienceContext = createContext(disabledContext)
 export function GivingExperienceProvider({
   children,
   givingExperience = null,
+  campaignGivingExperience = null,
+  campaignGivingAllowed = false,
   serverEligibility,
   blinkPayEligibilityResolved = true,
   blinkPayEligible = false,
@@ -79,6 +87,8 @@ export function GivingExperienceProvider({
 }: {
   children: ReactNode
   givingExperience?: ReactNode
+  campaignGivingExperience?: ReactNode
+  campaignGivingAllowed?: boolean
   serverEligibility: GivingServerEligibility
   blinkPayEligibilityResolved?: boolean
   blinkPayEligible?: boolean
@@ -88,6 +98,7 @@ export function GivingExperienceProvider({
   cardAvailable?: boolean
 }) {
   const [directedFundId, setDirectedFundId] = useState<number | null>(null)
+  const [givingMode, setGivingMode] = useState<'regular' | 'campaign'>('regular')
   const [flagOverride, setFlagOverride] = useState<GivingFlagState | null>(null)
   const [givingRequestId, setGivingRequestId] = useState(0)
   const [givingDismissRequestId, setGivingDismissRequestId] = useState(0)
@@ -106,10 +117,22 @@ export function GivingExperienceProvider({
 
   const openGiving = useCallback((fundId?: number) => {
     if (!rendererReady) return false
+    setGivingMode('regular')
     setDirectedFundId(fundId ?? null)
     setGivingRequestId((requestId) => requestId + 1)
     return true
   }, [rendererReady])
+  const openCampaignGiving = useCallback(() => {
+    if (campaignGivingExperience === null || !campaignGivingAllowed) return false
+    setGivingMode('campaign')
+    setDirectedFundId(null)
+    setGivingRequestId(requestId => requestId + 1)
+    return true
+  }, [campaignGivingExperience, campaignGivingAllowed])
+  const selectGivingFund = useCallback((fundId: number | null) => {
+    setGivingMode('regular')
+    setDirectedFundId(fundId)
+  }, [])
   const dismissGiving = useCallback(() => {
     if (!givingViewActive) return false
     setGivingDismissRequestId((requestId) => requestId + 1)
@@ -119,9 +142,12 @@ export function GivingExperienceProvider({
   useEffect(() => {
     if (!rendererReady || resumedFromCleanUrl.current) return
     if (!resumeRequested) return
+    const campaignPending = campaignGivingExperience !== null && ['pending','submitted'].includes(sessionStorage.getItem('ev-give-sunday-payment') ?? '')
+    if (campaignPending && !campaignGivingAllowed) return
+    if (campaignPending) setGivingMode('campaign')
     resumedFromCleanUrl.current = true
     setGivingRequestId((requestId) => requestId + 1)
-  }, [rendererReady, resumeRequested])
+  }, [campaignGivingAllowed, campaignGivingExperience, rendererReady, resumeRequested])
 
   const handleGivingBack = useCallback(() => givingBackHandler.current?.() ?? false, [])
   const registerGivingBackHandler = useCallback((handler: () => boolean) => {
@@ -152,14 +178,18 @@ export function GivingExperienceProvider({
   }, [givingDismissRequestId])
 
   const value = useMemo<GivingExperienceContextValue>(() => ({
+    campaignGivingAccessAllowed: campaignGivingAllowed && campaignGivingExperience !== null,
+    campaignGivingActive: givingMode === 'campaign',
     supportProfiles,
     directedFundId,
-    selectGivingFund: setDirectedFundId,
+    selectGivingFund,
     flagState,
     blinkPayEnabled,
     cardEnabled,
     givingSurfaceAvailable,
-    givingExperience: givingExperience === null ? null : <div key={directedFundId === null ? 'general' : `directed-${directedFundId}-${givingRequestId}`} className="h-full">{givingExperience}</div>,
+    givingExperience: givingMode === 'campaign'
+      ? <div key="campaign" className="h-full">{campaignGivingExperience}</div>
+      : givingExperience === null ? null : <div key={directedFundId === null ? 'general' : `directed-${directedFundId}-${givingRequestId}`} className="h-full">{givingExperience}</div>,
     givingRequestId,
     givingDismissRequestId,
     givingViewActive,
@@ -169,12 +199,17 @@ export function GivingExperienceProvider({
     handleGivingBack,
     handleGivingClose,
     openGiving,
+    openCampaignGiving,
     registerGivingBackHandler,
     registerGivingCloseHandler,
     setFlagState: setFlagOverride,
     setGivingViewActive,
   }), [
     supportProfiles,
+    campaignGivingExperience,
+    campaignGivingAllowed,
+    givingMode,
+    selectGivingFund,
     directedFundId,
     consumeGivingRequest,
     consumeGivingDismissRequest,
@@ -193,6 +228,7 @@ export function GivingExperienceProvider({
     handleGivingBack,
     handleGivingClose,
     openGiving,
+    openCampaignGiving,
     registerGivingBackHandler,
     registerGivingCloseHandler,
   ])

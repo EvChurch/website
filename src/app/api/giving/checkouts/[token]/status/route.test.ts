@@ -16,6 +16,14 @@ describe('giving checkout status', () => {
     expect(response.headers.get('cache-control')).toContain('private')
   })
 
+  it('binds campaign status requests to their submission key and preserves the cookie on a mismatch', async () => {
+    const read=vi.fn(async()=>{throw new Error('Checkout does not match submission')})
+    const response=await handleGivingStatusGet(new NextRequest('https://www.ev.church/api/giving/checkouts/current/status',{headers:{cookie:`__Host-ev_giving_checkout=${'A'.repeat(43)}`,'x-ev-giving-submission-key':'B'.repeat(43)}}),{params:Promise.resolve({token:'current'})},{read})
+    expect(read).toHaveBeenCalledWith('A'.repeat(43),'B'.repeat(43))
+    expect(response.status).toBe(404)
+    expect(response.headers.get('set-cookie')).toBeNull()
+  })
+
   it.each(['verified','cancelled','rejected','expired'] as const)('clears the status cookie after terminal %s', async (state) => {
     const response = await handleGivingStatusGet(
       new NextRequest('https://www.ev.church/api/giving/checkouts/current/status', { headers: { cookie: `__Host-ev_giving_checkout=${'A'.repeat(43)}` } }),

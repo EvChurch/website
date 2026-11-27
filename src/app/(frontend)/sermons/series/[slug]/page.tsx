@@ -84,7 +84,7 @@ export default async function SeriesPage({
       <SermonSeriesJsonLd series={series} sermons={sermonsResult.docs} />
 
       {/* Series header */}
-      <section className="relative overflow-hidden">
+      <section data-header-tone="light" className="relative overflow-hidden">
         {/* Background image -- full bleed */}
         {backgroundMedia && (
           <>

@@ -1,3 +1,4 @@
+import { CAMPAIGN_CHECKOUT_NAME, CAMPAIGN_CHECKOUT_FUND_CODE, campaignGiftsSchema, campaignGiftDefinition, campaignGiftTotal, type CampaignCheckoutGift } from './campaign-checkout'
 import { assertBlinkPayPaymentDetails } from './blinkpay/payment-provenance'
 import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto'
 
@@ -30,6 +31,7 @@ const CONTROL = /[\u0000-\u001f\u007f]/u
 export type CheckoutResultCode = 'processing' | 'cancelled' | 'rejected' | 'expired' | 'unknown' | 'verified'
 
 export interface GivingCheckoutSubmission {
+  campaignGifts?: CampaignCheckoutGift[]
   submissionKey: string
   amountMinor: number
   transactionFeeMinor: number
@@ -165,6 +167,7 @@ function boundedText(value: unknown, maximum: number) {
 
 export function validateGivingCheckoutSubmission(value: unknown): GivingCheckoutSubmission {
   const keys = ['submissionKey','amountMinor','transactionFeeMinor','fundId','frequency','firstPaymentDate','firstName','lastName','email','turnstileToken']
+  if (value && typeof value === 'object' && 'campaignGifts' in value) keys.push('campaignGifts')
   if (!exactObject(value, keys)) throw new GivingCheckoutError('invalid')
   const frequency = String(value.frequency)
   if (!isGivingCapabilityToken(value.submissionKey) || !Number.isSafeInteger(value.amountMinor) || Number(value.amountMinor) <= 0 ||
@@ -174,6 +177,10 @@ export function validateGivingCheckoutSubmission(value: unknown): GivingCheckout
       !GIVING_FREQUENCIES.includes(frequency as GivingFrequency) ||
       !boundedText(value.firstName, 100) || !boundedText(value.lastName, 100) || !boundedText(value.email, 320) || !boundedText(value.turnstileToken, 4096)) {
     throw new GivingCheckoutError('invalid')
+  }
+  if ('campaignGifts' in value) {
+    const gifts = campaignGiftsSchema.safeParse(value.campaignGifts)
+    if (!gifts.success || frequency !== 'one-off' || campaignGiftTotal(gifts.data) !== value.amountMinor) throw new GivingCheckoutError('invalid')
   }
   const firstPaymentDate = value.firstPaymentDate
   if (frequency === 'one-off') {
@@ -197,6 +204,7 @@ export function submissionKeyDigest(secret: string, context: GivingContext, subm
 
 export function canonicalSubmissionDigest(secret: string, submission: GivingCheckoutSubmission) {
   const canonical = JSON.stringify({
+    ...(submission.campaignGifts ? { campaignGifts: [...submission.campaignGifts].sort((a,b) => a.opportunityId.localeCompare(b.opportunityId)) } : {}),
     amountMinor: submission.amountMinor,
     transactionFeeMinor: submission.transactionFeeMinor,
     fundId: submission.fundId,
@@ -222,6 +230,7 @@ export async function prepareGivingBankTransfer(
   dependencies: GivingBankTransferDependencies,
 ): Promise<GivingBankTransferPreparation & { checkoutId: number; emailDeliveryId: number }> {
   const submission = validateGivingCheckoutSubmission(input.submission)
+  if (submission.campaignGifts) throw new GivingCheckoutError('invalid') // Manual transfers need an allocation-aware matching process.
   const now = dependencies.now?.() ?? new Date()
   const random = dependencies.randomBytes ?? randomBytes
   const uuid = dependencies.uuid ?? randomUUID
@@ -649,6 +658,12 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
           [input.submission.fundId],
         )).rows[0]
         if (!fund) throw new GivingCheckoutError('invalid')
+        const campaign = input.submission.campaignGifts
+        if (fund.code === CAMPAIGN_CHECKOUT_FUND_CODE && !campaign) throw new GivingCheckoutError('invalid')
+        if (campaign) {
+          const checked = campaignGiftsSchema.safeParse(campaign)
+          if (!checked.success || input.submission.frequency !== 'one-off' || campaignGiftTotal(checked.data) !== input.submission.amountMinor || fund.code !== CAMPAIGN_CHECKOUT_FUND_CODE) throw new GivingCheckoutError('invalid')
+        }
         const result = await client.query(`
           INSERT INTO giving_checkouts(
             context_key,environment,synthetic,fund_id,fund_name,fund_code,fund_accounting_key,
@@ -658,12 +673,16 @@ export function createPostgresGivingCheckoutRepository(pool: Pool): GivingChecko
           RETURNING ${CHECKOUT_COLUMNS}
         `, [
           input.contextKey, input.environment, input.synthetic,
-          fund.id, fund.name, fund.code, fund.accounting_key,
+          fund.id, campaign ? CAMPAIGN_CHECKOUT_NAME : fund.name, fund.code, fund.accounting_key,
           givingBankCode(input.submission.firstName, input.submission.lastName),
           input.submission.amountMinor, input.submission.transactionFeeMinor, input.submission.frequency, input.submission.firstPaymentDate,
           input.correlationKey, input.submissionKeyDigest, input.submissionDigest,
           input.returnCapabilityDigest, input.returnCapabilityExpiresAt, input.paymentProvider ?? 'blinkpay',
         ])
+        for (const gift of campaign ?? []) {
+          const definition = campaignGiftDefinition(gift.opportunityId)
+          await client.query(`INSERT INTO giving_checkout_allocations(checkout_id,opportunity_id,fund_name,reference,gl_code,gl_name,project,amount_minor) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, [result.rows[0].id,gift.opportunityId,definition.title,definition.reference,definition.glCode,definition.glName,definition.project,gift.amountMinor])
+        }
         return { checkout: { ...checkoutRow(result.rows[0])!, bankReference: null }, reused: false, disposition: 'start' }
       })
     },

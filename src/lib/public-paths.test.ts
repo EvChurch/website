@@ -2,12 +2,17 @@ import { describe, expect, it } from 'vitest'
 
 import {
   isEligiblePublicPath,
+  isEligibleRedirectPath,
   isTrackableMissingPath,
   normalizePublicPath,
   parseInternalRedirectDestination,
 } from './public-paths'
 
 describe('public path policy', () => {
+  it('keeps the local cart preview out of analytics and Payload redirect lookups', () => {
+    expect(isEligiblePublicPath('/one-off-giving')).toBe(false)
+    expect(isEligibleRedirectPath('/one-off-giving')).toBe(false)
+  })
   describe('normalizePublicPath', () => {
     it.each([
       ['/community/kids/club/', '/community/kids/club'],

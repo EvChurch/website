@@ -95,6 +95,7 @@ describe('GivingFlow', () => {
   let container: HTMLDivElement
   let root: Root
   beforeEach(() => {
+    sessionStorage.clear()
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
@@ -111,6 +112,90 @@ describe('GivingFlow', () => {
     trackGivingEvent.mockClear()
     loadGivingSubmissionVersion.mockReset().mockResolvedValue('V'.repeat(43))
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn(async () => undefined) } })
+  })
+
+  it('enters the existing post-fund flow with multiple campaign gifts, retaining fees, security and the submission boundary', async () => {
+    const gifts = [{opportunityId:'plant' as const,amountMinor:8000},{opportunityId:'build' as const,amountMinor:50000}]
+    const campaignFunds = [{...funds[0],id:101,code:'GIVESUNDAY26'}]
+    const onBack = vi.fn(), onVerified = vi.fn()
+    const submissions: unknown[] = []
+    vi.mocked(fetch).mockImplementation(async (url, options) => {
+      if (String(url)==='/api/giving/checkouts') {
+        submissions.push(JSON.parse(String(options?.body)))
+        return Response.json({outcome:'unknown',retryAllowed:false},{status:202})
+      }
+      return new Response(null,{status:204})
+    })
+    await act(async () => root.render(<GivingFlow funds={campaignFunds} campaign={{gifts,onBack,onVerified}} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} transactionFeeMinor={50} />))
+    expect(container.querySelector('#giving-step-heading')?.textContent).toBe('How would you like to pay?')
+    expect(container.querySelector('[aria-label="Previous giving choices"]')?.textContent).toContain('I would like to give $580')
+    expect(container.textContent).toContain('Just this once')
+    expect(container.textContent).toContain('for Give Sunday')
+    expect(container.textContent).not.toContain('Your gifts ·')
+    expect(container.textContent).not.toContain('Plant')
+    expect(container.textContent).not.toContain('Build')
+    expect(container.textContent).not.toContain('Try manual bank transfer')
+    await act(async () => button(container,'Pay by bank')!.click())
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-turnstile]')!.click())
+    await act(async () => button(container,'Continue to BlinkPay')!.click())
+    expect(submissions).toHaveLength(1)
+    expect(submissions[0]).toMatchObject({campaignGifts:gifts,amountMinor:58000,transactionFeeMinor:50,fundId:101,frequency:'one-off',firstPaymentDate:null,firstName:'Ada',turnstileToken:'turnstile-token'})
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/drafts'))).toBe(false)
+    expect(onVerified).not.toHaveBeenCalled()
+  })
+
+  it('keeps the standard name and email questions for a guest Give Sunday gift', async () => {
+    const gifts=[{opportunityId:'plant' as const,amountMinor:8000},{opportunityId:'build' as const,amountMinor:50000}]
+    await act(async()=>root.render(<GivingFlow funds={[{...funds[0],code:'GIVESUNDAY26'}]} campaign={{gifts,onBack:vi.fn(),onVerified:vi.fn()}} identity={{signedIn:false}} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} />))
+    const summary=container.querySelector('[aria-label="Previous giving choices"]')!
+    expect([...summary.querySelectorAll('[data-giving-answer]')].map(row=>row.firstElementChild?.textContent)).toEqual(['I would like to give $580','Just this once','for Give Sunday'])
+    expect(container.querySelector('#giving-step-heading')?.textContent).toBe('What is your first name?')
+    await act(async()=>change(container.querySelector('input')!,'Ada'))
+    await act(async()=>button(container,'Continue')!.click())
+    expect(container.querySelector('#giving-step-heading')?.textContent).toBe('What is your last name?')
+    await act(async()=>change(container.querySelector('input')!,'Lovelace'))
+    await act(async()=>button(container,'Continue')!.click())
+    expect(container.querySelector('#giving-step-heading')?.textContent).toBe('What is your email?')
+    await act(async()=>change(container.querySelector('input')!,'ada@example.com'))
+    await act(async()=>button(container,'Continue')!.click())
+    expect(container.querySelector('#giving-step-heading')?.textContent).toBe('How would you like to pay?')
+    expect(vi.mocked(fetch).mock.calls.some(([url])=>String(url)==='/api/giving/identity')).toBe(false)
+  })
+
+  it('does not flash name questions while a signed-in campaign identity is loading', async () => {
+    let finish: ((response:Response)=>void) | undefined
+    vi.mocked(fetch).mockImplementation(async url=>String(url)==='/api/giving/identity'
+      ? new Promise<Response>(resolve=>{finish=resolve}) : new Response(null,{status:204}))
+    await act(async()=>root.render(<GivingFlow funds={[{...funds[0],code:'GIVESUNDAY26'}]} campaign={{gifts:[{opportunityId:'plant',amountMinor:8000}],onBack:vi.fn(),onVerified:vi.fn()}} identity={{signedIn:true}} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} />))
+    expect(container.querySelector('#giving-step-heading')?.textContent).toBe('Loading your saved details…')
+    expect(container.querySelector('input')).toBeNull()
+    expect(container.textContent).not.toContain('What is your first name?')
+    await act(async()=>finish!(Response.json({signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'})))
+    expect(container.querySelector('#giving-step-heading')?.textContent).toBe('How would you like to pay?')
+    expect(container.querySelector('input')).toBeNull()
+  })
+
+  it('uses saved signed-in details and skips directly to payment when those details are complete', async () => {
+    vi.mocked(fetch).mockImplementation(async url => String(url)==='/api/giving/identity'
+      ? Response.json({signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}) : new Response(null,{status:204}))
+    await act(async () => root.render(<GivingFlow funds={[{...funds[0],code:'GIVESUNDAY26'}]} campaign={{gifts:[{opportunityId:'plant',amountMinor:8000}],onBack:vi.fn(),onVerified:vi.fn()}} identity={{signedIn:true}} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} />))
+    expect(container.querySelector('#giving-step-heading')?.textContent).toBe('How would you like to pay?')
+    expect(button(container,'Pay by bank')).toBeDefined()
+    expect(vi.mocked(fetch).mock.calls.map(([url])=>String(url))).toEqual(['/api/giving/identity'])
+  })
+
+  it('keeps an ambiguous campaign payment locked after a remount instead of starting another payment', async () => {
+    sessionStorage.setItem('ev-give-sunday-payment','submitted')
+    sessionStorage.setItem('ev-give-sunday-submission-key','A'.repeat(43))
+    vi.mocked(fetch).mockResolvedValue(new Response(null,{status:404}))
+    const campaign={gifts:[{opportunityId:'plant' as const,amountMinor:8000}],onBack:vi.fn(),onVerified:vi.fn()}
+    await act(async () => root.render(<GivingFlow funds={[{...funds[0],code:'GIVESUNDAY26'}]} campaign={campaign} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} />))
+    expect(container.textContent).toContain('still checking the outcome')
+    expect(button(container,'Pay by bank')).toBeUndefined()
+    expect(button(container,'Edit gifts')).toBeUndefined()
+    expect(vi.mocked(fetch).mock.calls.map(([url])=>String(url))).toEqual(['/api/giving/checkouts/current/status'])
+    expect(sessionStorage.getItem('ev-give-sunday-submission-key')).toBe('A'.repeat(43))
+    expect(campaign.onVerified).not.toHaveBeenCalled()
   })
 
   it.each(['blinkpay', 'bank-transfer'] as const)('requires an explicit reload after a stale %s submission without retrying', async (mode) => {

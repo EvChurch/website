@@ -1,9 +1,11 @@
+import * as migration_20261127_060000_give_sunday_fund from './20261127_060000_give_sunday_fund';
 import * as migration_20261127_023545_guided_course_lessons from './20261127_023545_guided_course_lessons';
 import * as migration_20261126_180000_publish_faithful_course from './20261126_180000_publish_faithful_course';
 import * as migration_20261126_103725_courses_budget from './20261126_103725_courses_budget';
 import * as migration_20261126_103845_courses_groups from './20261126_103845_courses_groups'
 import * as migration_20261126_102210_courses_answers from './20261126_102210_courses_answers';
 import * as migration_20261126_100822_courses_foundation from './20261126_100822_courses_foundation';
+import * as migration_20261127_010000_giving_campaign_allocations from './20261127_010000_giving_campaign_allocations';
 import * as migration_20261122_020000_scheduled_blocks from './20261122_020000_scheduled_blocks';
 import * as migration_20261122_010000_life_on_purpose_artwork from './20261122_010000_life_on_purpose_artwork';
 import * as migration_20261116_010000_generosity_pages from './20261116_010000_generosity_pages';
@@ -408,4 +410,6 @@ export const migrations = [
   { up: migration_20261126_103845_courses_groups.up, down: migration_20261126_103845_courses_groups.down, name: '20261126_103845_courses_groups' },
   { up: migration_20261126_180000_publish_faithful_course.up, down: migration_20261126_180000_publish_faithful_course.down, name: '20261126_180000_publish_faithful_course' },
   { up: migration_20261127_023545_guided_course_lessons.up, down: migration_20261127_023545_guided_course_lessons.down, name: '20261127_023545_guided_course_lessons' },
+  { up: migration_20261127_010000_giving_campaign_allocations.up, down: migration_20261127_010000_giving_campaign_allocations.down, name: '20261127_010000_giving_campaign_allocations' },
+  { up: migration_20261127_060000_give_sunday_fund.up, down: migration_20261127_060000_give_sunday_fund.down, name: '20261127_060000_give_sunday_fund' },
 ];

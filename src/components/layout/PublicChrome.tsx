@@ -7,6 +7,8 @@ import dynamic from 'next/dynamic'
 import { AudioPlayerBar } from '@/components/audio/AudioPlayerBar'
 import { AudioPlayerSpacer } from '@/components/audio/AudioPlayerSpacer'
 import { GivingExperienceProvider } from '@/components/giving/GivingExperienceProvider'
+import { CAMPAIGN_CHECKOUT_FUND_CODE } from '@/lib/giving/campaign-checkout'
+import { useCampaignGivingAccess } from '@/components/giving/useCampaignGivingAccess'
 import { GivingUnavailable } from '@/components/giving/GivingUnavailable'
 import { NextStepsLauncher } from '@/components/launcher/NextStepsLauncher'
 import { MediaPlayerProvider } from '@/components/media/MediaPlayerProvider'
@@ -34,6 +36,10 @@ const GivingFlow = dynamic(
   () => import('@/components/giving/GivingFlow').then((module) => module.GivingFlow),
   { loading: () => <p role="status" className="p-6 text-dark-grey">Loading giving…</p> },
 )
+const CampaignGivingFlow = dynamic(
+  () => import('@/components/giving/GiveSundayCart').then(module => module.GiveSundayCart),
+  { loading: () => <p role="status" className="p-6 text-dark-grey">Loading opportunities…</p> },
+)
 
 export function PublicChrome({
   children,
@@ -45,6 +51,7 @@ export function PublicChrome({
   givingTransactionFeeMinor = DEFAULT_GIVING_TRANSACTION_FEE_MINOR,
   givingRuntime,
   supportProfiles = [],
+  campaignGivingEnabled = false,
 }: {
   children: ReactNode
   feedback: PublicSiteFeedbackSettings | null
@@ -55,8 +62,10 @@ export function PublicChrome({
   givingTransactionFeeMinor?: number
   givingRuntime: GivingRuntimeConfiguration | null
   supportProfiles?: PublicSupportProfile[]
+  campaignGivingEnabled?: boolean
 }) {
   const pathname = usePathname()
+  const campaignGivingAllowed = useCampaignGivingAccess(campaignGivingEnabled)
   const helpRoute = matchesPathPrefix(pathname, '/help')
   const sharedResource = matchesPathPrefix(pathname, '/shared/leader-resources')
   const initialRoute = useRef(true)
@@ -123,9 +132,10 @@ export function PublicChrome({
     </div>
   }
 
-  const givingExperience = givingFunds.length > 0
+  const regularGivingFunds = givingFunds.filter(fund => fund.code !== CAMPAIGN_CHECKOUT_FUND_CODE)
+  const givingExperience = regularGivingFunds.length > 0
     ? <GivingFlow
-        funds={givingFunds}
+        funds={regularGivingFunds}
         transactionFeeMinor={givingTransactionFeeMinor}
         identity={{ signedIn: memberChrome.memberProfile !== null }}
         resumeRequested={givingResumeRequested}
@@ -145,6 +155,12 @@ export function PublicChrome({
       blinkPayEligible={blinkPayEligible}
       resumeRequested={givingResumeRequested}
       givingExperience={givingExperience}
+      campaignGivingExperience={campaignGivingEnabled ? <CampaignGivingFlow embedded renderPayment={campaign => <GivingFlow
+        funds={givingFunds} campaign={campaign} transactionFeeMinor={givingTransactionFeeMinor}
+        identity={{ signedIn: memberChrome.memberProfile !== null }} resumeRequested={givingResumeRequested}
+        turnstileSiteKey={givingTurnstileSiteKey} gatewayOrigins={givingRuntime?.gatewayOrigins ?? []} cardFees={givingRuntime?.card?.fees}
+      />} /> : null}
+      campaignGivingAllowed={campaignGivingAllowed}
       supportProfiles={supportProfiles}
     >
       <MediaPlayerProvider>

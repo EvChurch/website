@@ -392,7 +392,7 @@ export default async function SermonsPage({
     <main className="min-h-screen bg-brand-black font-sans">
       {/* Hero -- latest sermon with background image */}
       {latestSermon && (
-        <section className="relative overflow-hidden">
+        <section data-header-tone="light" className="relative overflow-hidden">
           {/* Full-bleed background image */}
           {heroBackgroundMedia && (
             <>
