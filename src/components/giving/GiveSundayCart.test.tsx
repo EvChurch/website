@@ -10,10 +10,11 @@ vi.mock('./GivingExperienceProvider', () => ({ useGivingExperience: () => ({
 }) }))
 vi.mock('./GivingOpportunityStep', () => ({
   GUIDED_OPPORTUNITIES: ['plant', 'train', 'grow', 'build'],
-  GivingOpportunityStep: ({ id, amount, onContinue, onGreatestNeed }: {
-    id: string; amount?: number; onContinue(amount: number): void; onGreatestNeed(): void
+  GivingOpportunityStep: ({ id, amount, onContinue, onSkip, onGreatestNeed }: {
+    id: string; amount?: number; onContinue(amount: number): void; onSkip(): void; onGreatestNeed(): void
   }) => <div data-opportunity={id}><output>{amount ?? ''}</output>
     <button data-select onClick={() => onContinue(10_000)}>Continue</button>
+    <button data-skip onClick={onSkip}>Skip this opportunity</button>
     <button data-general onClick={onGreatestNeed}>Greatest Need</button>
   </div>,
 }))
@@ -144,4 +145,31 @@ it('fades from the introduction to Plant and honours reduced motion', async () =
     expect(container.querySelector('section')?.getAttribute('aria-busy')).toBe('false')
     expect(vi.getTimerCount()).toBe(0)
   } finally { await act(async () => root.unmount()); container.remove(); vi.useRealTimers() }
+})
+
+
+it('shows skipped opportunities as zero in review and confirmation, without sending zero allocations to payment', async () => {
+  vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => {})
+  Object.defineProperty(window,'matchMedia',{configurable:true,value:()=>({matches:true})})
+  const container=document.createElement('div');document.body.append(container)
+  const root=createRoot(container)
+  let selected: unknown
+  try {
+    await act(async()=>root.render(<GiveSundayCart embedded renderPayment={props=>{selected=props.gifts;return <button data-verified onClick={props.onVerified}>Verified payment</button>}} />))
+    await act(async()=>[...container.querySelectorAll('button')].find(button=>button.textContent==='Okay, let’s go')!.click())
+    await act(async()=>container.querySelector<HTMLButtonElement>('[data-select]')!.click())
+    for(let i=0;i<3;i++)await act(async()=>container.querySelector<HTMLButtonElement>('[data-skip]')!.click())
+    const rows=[...container.querySelectorAll('li')]
+    expect(rows).toHaveLength(4)
+    expect(rows[0].textContent).toContain('$100')
+    for(const row of rows.slice(1))expect(row.textContent).toContain('$0')
+    await act(async()=>[...container.querySelectorAll('button')].find(button=>button.textContent==='Continue to payment')!.click())
+    expect(selected).toEqual([{opportunityId:'plant',amountMinor:10000}])
+    await act(async()=>container.querySelector<HTMLButtonElement>('[data-verified]')!.click())
+    const allocations=container.querySelector('dl[aria-label="Your gift allocations"]')!
+    expect([...allocations.querySelectorAll('dt')].map(item=>item.textContent)).toEqual(['Plant','Train','Grow','Build'])
+    expect([...allocations.querySelectorAll('dd')].map(item=>item.textContent)).toEqual(['$100','$0','$0','$0'])
+    expect(container.textContent).toContain('Thank you for your generosity.')
+    expect(container.querySelector('a')?.href).toBe('https://www.tearfund.org.nz/Child-Consignment/AKL-EV-Sponsorship-page')
+  } finally {await act(async()=>root.unmount());container.remove()}
 })

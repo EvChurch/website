@@ -114,7 +114,10 @@ export function GiveSundayCart({ children, afterCart, embedded = false, renderPa
   }
   const catalog = campaignCartCatalog(false).map(item => ({ ...item, fixedAmountMinor: amounts[item.id] ?? item.fixedAmountMinor }))
   const lines = catalog.filter(item => (quantities[item.id] ?? 0) > 0)
-  const total = lines.reduce((sum, item) => sum + (item.fixedAmountMinor ?? 0) * quantities[item.id], 0)
+  const summaryLines = quantities['greatest-need'] > 0
+    ? catalog.filter(item => item.id === 'greatest-need')
+    : catalog.filter(item => GUIDED_OPPORTUNITIES.some(id => id === item.id))
+  const total = lines.reduce((sum, item) => sum + (item.fixedAmountMinor ?? 0) * (quantities[item.id] ?? 0), 0)
   function removeGift(id: string) {
     setQuantities(current => ({ ...current, [id]: 0 }))
     setAmounts(current => { const next = { ...current }; delete next[id]; return next })
@@ -178,14 +181,14 @@ export function GiveSundayCart({ children, afterCart, embedded = false, renderPa
         {lines.length === 0 ? <div className="my-8 rounded-xl border border-warm-grey bg-white p-6">
           <p>You haven’t chosen a gift yet. You can go back to the opportunities or give one amount to God’s Money Greatest Need.</p>
         </div> : <ul aria-label="Selected gifts" className="my-3 divide-y divide-black/10">
-          {lines.map(item => {
+          {summaryLines.map(item => {
             const [name, subtitle] = item.title.split(' — ')
             return <li key={item.id} className="flex items-center justify-between gap-3 py-3 first:pt-1 last:pb-1">
             <div className="min-w-0">
               <p className="font-semibold">{name}</p>
               {subtitle && <p className="mt-1 text-sm text-dark-grey">{subtitle.replace(/\b[a-z]/g, letter => letter.toUpperCase())}</p>}
             </div>
-            <span className="ml-auto shrink-0 tabular-nums">{money((item.fixedAmountMinor ?? 0) * quantities[item.id])}</span>
+            <span className="ml-auto shrink-0 tabular-nums">{money((item.fixedAmountMinor ?? 0) * (quantities[item.id] ?? 0))}</span>
             <button type="button" disabled={locked} aria-label={`Edit ${item.title} gift`} title="Edit gift"
               onClick={() => { setEditing(true); setView(item.id as GivingOpportunityId) }}
               className="inline-flex shrink-0 items-center justify-center p-2 text-rich-red focus-visible:outline-2 disabled:opacity-40">
@@ -204,6 +207,12 @@ export function GiveSundayCart({ children, afterCart, embedded = false, renderPa
       </div> : view === 'complete' ? <div className="mx-auto max-w-2xl text-center" role="status">
         <h1 className={embedded ? 'text-2xl font-bold' : 'text-h1 leading-display'}>Thank you for your generosity.</h1>
         <p className="mt-5 text-lg">Your gift total: {money(total)}.</p>
+        <dl aria-label="Your gift allocations" className="mt-5 divide-y divide-black/10 text-left">
+          {summaryLines.map(item => <div key={item.id} className="flex items-center justify-between gap-4 py-3">
+            <dt className="font-semibold">{item.title.split(' — ')[0]}</dt>
+            <dd className="shrink-0 tabular-nums">{money((item.fixedAmountMinor ?? 0) * (quantities[item.id] ?? 0))}</dd>
+          </div>)}
+        </dl>
         <div className="mt-10 rounded-2xl border border-warm-grey bg-white p-7 sm:p-10">
           <h2 className="text-2xl font-bold">Could you also sponsor a child in Cambodia?</h2>
           <p className="mt-4 leading-relaxed text-dark-grey">Help give children a brighter future through sponsorship with Tearfund. Sponsorship is arranged directly with Tearfund.</p>

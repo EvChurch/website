@@ -450,7 +450,7 @@ export function createGivingCheckoutService(dependencies: GivingCheckoutDependen
         const expected = { amountMinor: chargedAmountMinor(checkout), fundCode: checkout.fundCode, bankCode: checkout.bankCode, bankReference: checkout.bankReference }
         // Successful single payments inherit amount/PCR from the single consent.
         assertBlinkPayPaymentDetails(quick.consent.detail, expected)
-        if (settled.detail.amount !== undefined || settled.detail.pcr !== undefined) assertBlinkPayPaymentDetails(settled.detail, expected)
+        if (settled.detail.amount !== undefined || settled.detail.pcr !== undefined) assertBlinkPayPaymentDetails({ ...quick.consent.detail, ...settled.detail }, expected)
         await dependencies.repository.completeOneOff(checkout, settled.payment_id, new Date(settled.status_updated_timestamp), settled.provider_correlation_id)
       }
       else if (rejected) await dependencies.repository.setFailed(checkout.id, 'rejected')
