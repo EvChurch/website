@@ -98,7 +98,7 @@ interface StripeCheckoutRow {
   fund_id: number; fund_name: string; fund_code: string; fund_accounting_key: string;
   amount_minor: string; transaction_fee_minor: string; frequency: string; first_payment_date: Date | string | null;
   correlation_key: string; submission_digest: string; status: string;
-  session_id: string | null; customer_id: string | null; subscription_id: string | null; creation_started_at: Date; first_payment_immediate: boolean; schedule_started_at: Date | null
+  session_id: string | null; client_secret?: string | null; customer_id: string | null; subscription_id: string | null; creation_started_at: Date; first_payment_immediate: boolean; schedule_started_at: Date | null
 }
 
 async function queueNotice(db: PoolClient, checkoutId: number, kind: 'stripe-failed' | 'stripe-action' | 'stripe-stopped', key: string, recoveryUrl?: string | null) {
@@ -161,13 +161,21 @@ export async function reconcileStripeCheckout(pool: Pool, checkoutId: number, se
   const db = await pool.connect()
   try {
     await db.query('BEGIN')
-    const row = (await db.query<StripeCheckoutRow>(`SELECT c.*,c.first_payment_date::text,s.session_id,s.customer_id,s.subscription_id,s.creation_started_at,s.first_payment_immediate,(SELECT started_at FROM giving_stripe_schedule_attempts WHERE checkout_id=c.id) schedule_started_at FROM giving_checkouts c JOIN giving_stripe_sessions s ON s.checkout_id=c.id WHERE c.id=$1 AND c.payment_provider='stripe' FOR UPDATE OF c,s`, [checkoutId])).rows[0]
+    const row = (await db.query<StripeCheckoutRow>(`SELECT c.*,c.first_payment_date::text,s.session_id,s.client_secret,s.customer_id,s.subscription_id,s.creation_started_at,s.first_payment_immediate,(SELECT started_at FROM giving_stripe_schedule_attempts WHERE checkout_id=c.id) schedule_started_at FROM giving_checkouts c JOIN giving_stripe_sessions s ON s.checkout_id=c.id WHERE c.id=$1 AND c.payment_provider='stripe' FOR UPDATE OF c,s`, [checkoutId])).rows[0]
     if (!row || !row.giver_id) throw new Error('Stripe checkout missing')
     const stripe = getGivingStripe(row.environment)
     const id = row.session_id ?? sessionId
     if (!id) { await db.query('COMMIT'); return }
     const session = await stripe.checkout.sessions.retrieve(id)
     if (session.metadata?.ev_checkout_id !== String(row.id) || session.metadata.ev_checkout_version !== row.submission_digest || session.metadata.ev_context !== row.context_key || session.livemode !== (row.environment === 'production') || stripeObjectId(session.customer) !== row.customer_id || session.currency !== 'nzd') throw new Error('Stripe checkout provenance mismatch')
+    // Leaving card entry can keep an unpaid session open. Resume that same session,
+    // only when Stripe confirms that no payment attempt exists.
+    if (row.frequency==='one-off' && !['completed','failed'].includes(row.status) && session.mode==='payment' && session.status==='open' && session.payment_status==='unpaid' && session.payment_intent===null && row.client_secret) {
+      if(session.amount_total!==Number(row.amount_minor)+Number(row.transaction_fee_minor))throw new Error('Stripe total mismatch')
+      const cardCheckout={clientSecret:row.client_secret,publishableKey:loadStripeGivingConfig(row.environment).publishableKey}
+      await db.query('COMMIT')
+      return cardCheckout
+    }
     if (session.status === 'expired' && row.status !== 'completed') {
       await db.query("UPDATE giving_checkouts SET status='failed',result_code='expired',updated_at=now() WHERE id=$1",[row.id])
     } else if (session.status === 'complete') {
@@ -321,10 +329,11 @@ export async function stripeGivingStatus(pool: Pool, token: string): Promise<Giv
   const repository = createPostgresGivingCheckoutRepository(pool)
   let checkout = await repository.findByStatusCapability(capabilityDigest('status',token),new Date())
   if (!checkout || (await pool.query('SELECT 1 FROM giving_stripe_sessions WHERE checkout_id=$1',[checkout.id])).rowCount !== 1) return null
+  let cardCheckout: GivingCheckoutStatus['cardCheckout']
   if (checkout.status !== 'completed' && checkout.status !== 'failed') {
-    try { await reconcileStripeCheckout(pool,checkout.id) } catch { /* leave unresolved rather than infer success */ }
+    try { cardCheckout=await reconcileStripeCheckout(pool,checkout.id) } catch { /* leave unresolved rather than infer success */ }
     checkout = (await repository.get(checkout.id))!
   }
-  return {state:checkout.status==='completed'?'verified':checkout.status==='failed'?'expired':'processing',retryAllowed:checkout.status==='failed',kind:checkout.frequency==='one-off'?'one-off':'recurring',firstName:checkout.giverFirstName,
+  return {state:checkout.status==='completed'?'verified':checkout.status==='failed'?'expired':'processing',retryAllowed:checkout.status==='failed',kind:checkout.frequency==='one-off'?'one-off':'recurring',firstName:checkout.giverFirstName,...(cardCheckout?{cardCheckout}:{}),
     gift:{amountMinor:checkout.amountMinor,transactionFeeMinor:checkout.transactionFeeMinor,fundName:checkout.fundName,frequency:checkout.frequency,firstPaymentDate:checkout.firstPaymentDate}}
 }

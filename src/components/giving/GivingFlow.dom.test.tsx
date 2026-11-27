@@ -184,6 +184,18 @@ describe('GivingFlow', () => {
     expect(vi.mocked(fetch).mock.calls.map(([url])=>String(url))).toEqual(['/api/giving/identity'])
   })
 
+  it('resumes the same unpaid card checkout after returning without submitting another gift', async () => {
+    sessionStorage.setItem('ev-give-sunday-payment','submitted')
+    sessionStorage.setItem('ev-give-sunday-submission-key','A'.repeat(43))
+    vi.mocked(fetch).mockResolvedValue(Response.json({state:'processing',retryAllowed:false,kind:'one-off',gift:{amountMinor:200000,transactionFeeMinor:5159,fundName:'Give Sunday gifts',frequency:'one-off',firstPaymentDate:null},cardCheckout:{clientSecret:'cs_test_secret_example',publishableKey:'pk_test_example'}}))
+    await act(async()=>root.render(<GivingFlow funds={[{...funds[0],code:'GIVESUNDAY26'}]} campaign={{gifts:[{opportunityId:'plant',amountMinor:200000}],onBack:vi.fn(),onVerified:vi.fn()}} identity={{signedIn:true,firstName:'Ada',lastName:'Lovelace',email:'ada@example.com'}} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} />))
+    expect(container.textContent).toContain('Secure card component')
+    expect(container.textContent).toContain('Continue your $2000.00 gift to Give Sunday gifts')
+    expect(container.textContent).toContain('$2051.59')
+    expect(container.textContent).not.toContain('We’re confirming your gift.')
+    expect(vi.mocked(fetch).mock.calls.some(([,init])=>init?.method==='POST')).toBe(false)
+  })
+
   it('hands a verified returned campaign payment back to the campaign confirmation', async () => {
     sessionStorage.setItem('ev-give-sunday-payment','submitted')
     sessionStorage.setItem('ev-give-sunday-submission-key','A'.repeat(43))

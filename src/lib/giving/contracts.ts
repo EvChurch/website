@@ -66,12 +66,18 @@ export interface GivingCheckoutStatusGift {
   frequency: 'one-off' | 'daily' | 'weekly' | 'fortnightly' | 'monthly' | 'annual'
   firstPaymentDate: string | null
 }
-export interface GivingCheckoutStatus { state:GivingCheckoutStatusState;retryAllowed:boolean;kind:'one-off'|'recurring';firstName?:string;gift?:GivingCheckoutStatusGift }
+export interface GivingCheckoutStatus { state:GivingCheckoutStatusState;retryAllowed:boolean;kind:'one-off'|'recurring';firstName?:string;gift?:GivingCheckoutStatusGift;cardCheckout?:{clientSecret:string;publishableKey:string} }
 export function parseGivingCheckoutStatus(value:unknown):GivingCheckoutStatus {
   if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid giving checkout status')
   const item=value as Record<string,unknown>
-  const keys=Object.keys(item).sort().join(',')
+  const keys=Object.keys(item).filter(key=>key!=='cardCheckout').sort().join(',')
   if(!['gift,kind,retryAllowed,state','firstName,gift,kind,retryAllowed,state','firstName,kind,retryAllowed,state','kind,retryAllowed,state'].includes(keys)||!GIVING_CHECKOUT_STATUS_STATES.includes(item.state as GivingCheckoutStatusState)||typeof item.retryAllowed!=='boolean'||!['one-off','recurring'].includes(String(item.kind))||(item.firstName!==undefined&&(typeof item.firstName!=='string'||item.firstName.length<1||item.firstName.length>80)))throw new Error('Invalid giving checkout status')
+  if(item.cardCheckout!==undefined){
+    const card=item.cardCheckout
+    if(item.state!=='processing'||item.retryAllowed!==false||!card||typeof card!=='object'||Array.isArray(card))throw new Error('Invalid giving checkout status')
+    const entry=card as Record<string,unknown>
+    if(Object.keys(entry).sort().join(',')!=='clientSecret,publishableKey'||typeof entry.clientSecret!=='string'||!/^cs_[A-Za-z0-9_]+_secret_[A-Za-z0-9]+$/u.test(entry.clientSecret)||entry.clientSecret.length>512||typeof entry.publishableKey!=='string'||!/^pk_(test|live)_[A-Za-z0-9]+$/u.test(entry.publishableKey))throw new Error('Invalid giving checkout status')
+  }
   if(item.gift!==undefined){
     if(!item.gift||typeof item.gift!=='object'||Array.isArray(item.gift))throw new Error('Invalid giving checkout status')
     const gift=item.gift as Record<string,unknown>
