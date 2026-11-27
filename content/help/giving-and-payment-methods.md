@@ -38,6 +38,8 @@ Before payment, **Checking your browser…** means the security check is still r
 
 If the page says your giving session could not be authorised, choose **Reload giving form** and check that you are signed into your church account. This message means payment was not started; do not keep clicking Continue on the same form.
 
+If you leave card entry before a payment attempt begins, reopening giving restores the same unpaid card checkout. This does not create another gift or charge you.
+
 If you cancel at BlinkPay, you return to the giving flow. Ev checks the saved payment with BlinkPay; once cancellation is confirmed, the flow shows **No gift was made.**
 
 If the flow says it is still checking, do not start another payment or switch methods. Ev verifies the outcome with the provider. A payment confirmation is separate from the provider paying funds into Ev’s bank account, and is not an annual charitable tax receipt.

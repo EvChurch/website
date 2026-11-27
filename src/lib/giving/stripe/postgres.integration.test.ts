@@ -27,7 +27,7 @@ import { MEMBER_GIVING_SELF_SERVICE_UP_SQL } from '@/migrations/20260903_010000_
 import { STRIPE_GIVING_UP_SQL } from '@/migrations/20261031_010000_stripe_giving'
 import { createPostgresGivingCheckoutRepository, createGivingCheckoutService, type GivingCheckoutBlinkPayClient } from '../service'
 import { GIVE_SUNDAY_FUND_UP_SQL } from '@/migrations/20261127_060000_give_sunday_fund'
-import { startStripeGiving, reconcileStripeCheckout } from './service'
+import { startStripeGiving, reconcileStripeCheckout, stripeGivingStatus } from './service'
 import { givingAnchorTimestamp, nextGivingAnchor, nzGivingDate } from './dates'
 import { getGivingCancellationProvider } from './cancellation'
 import { storeStripeEvent, reconcileStripeGiving } from './lifecycle'
@@ -98,6 +98,19 @@ describe.skipIf(!url)('Stripe giving against disposable PostgreSQL',()=>{
     expect(results[0].statusToken).toBe(results[1].statusToken)
     expect((await pool.query('SELECT * FROM giving_checkouts')).rows).toHaveLength(1)
   })
+  it.each(['open','expired','attempted','tampered'] as const)('handles returned unpaid card checkout: %s',async state=>{
+    mockCheckout()
+    const result=await startStripeGiving({...context,submission:submission()},{pool,resolveIdentity})
+    const params=api.checkout.sessions.create.mock.calls[0][0]
+    api.checkout.sessions.retrieve.mockResolvedValue({...params,id:'cs_test',livemode:false,currency:'nzd',status:state==='expired'?'expired':'open',payment_status:'unpaid',payment_intent:state==='attempted'?'pi_pending':null,amount_total:state==='tampered'?1:10304})
+    const status=await stripeGivingStatus(pool,result.statusToken!)
+    if(state==='open')expect(status?.cardCheckout).toEqual({clientSecret:'cs_test_secret_example',publishableKey:'pk_test_example'})
+    else expect(status?.cardCheckout).toBeUndefined()
+    if(state==='expired')expect(status).toMatchObject({state:'expired',retryAllowed:true})
+    expect((await pool.query('SELECT * FROM giving_gifts')).rows).toHaveLength(0)
+    expect(api.checkout.sessions.create).toHaveBeenCalledTimes(1)
+  })
+
   it('records a verified charge and completion once despite duplicate observations',async()=>{
     mockCheckout()
     await startStripeGiving({...context,submission:submission()},{pool,resolveIdentity})

@@ -28,7 +28,7 @@ import { useGivingExperience } from './GivingExperienceProvider'
 import { DEFAULT_GIVING_TRANSACTION_FEE_MINOR } from '@/lib/giving/fees'
 
 export interface GivingFlowIdentity { signedIn: boolean; firstName?: string; lastName?: string; email?: string }
-type CheckoutView = { type: 'configuring' } | { type: 'submitting' } | { type: 'card'; clientSecret: string; publishableKey: string } | { type: 'status'; status: GivingCheckoutStatus; delayed: boolean }
+type CheckoutView = { type: 'configuring' } | { type: 'submitting' } | { type: 'card'; clientSecret: string; publishableKey: string; resumedGift?: GivingCheckoutStatus['gift'] } | { type: 'status'; status: GivingCheckoutStatus; delayed: boolean }
 
 const titles: Record<GivingStep, string> = {
   amount: 'How much would you like to give?', fund: 'What fund should this be for?', frequency: 'How often?', 'starting-date': 'Starting when?', 'identity-firstName': 'What is your first name?', 'identity-lastName': 'What is your last name?', 'identity-email': 'What is your email?', 'payment-method': 'How would you like to pay?', review: 'Continue with BlinkPay',
@@ -437,6 +437,11 @@ export function GivingFlow({ funds, campaign, identity = { signedIn: false }, re
       }
       const status = parseGivingCheckoutStatus(await response.json())
       if (!operationIsCurrent(operation)) return
+      if (status.cardCheckout) {
+        pollAttempt.current=0
+        setCheckout({type:'card',...status.cardCheckout,resumedGift:status.gift})
+        return
+      }
       setCheckout((current) => ({ type: 'status', status, delayed: current.type === 'status' && current.delayed }))
       if (status.state === 'processing') {
         const attempt=pollAttempt.current
@@ -728,7 +733,7 @@ export function GivingFlow({ funds, campaign, identity = { signedIn: false }, re
   let content
   if (!campaignConfigured) content = <p role="status">Giving for these opportunities is being configured. Your selected gifts have been kept.</p>
   else if (restoring) content = <p role="status">Checking your gift…</p>
-  else if (checkout.type === 'card') content = <div className="rounded-2xl bg-white p-5"><p className="mb-5 font-semibold">{givingHandoffSummary(state.answers, applicableTransactionFeeMinor).replaceAll('BlinkPay', 'Stripe')}</p><StripeGivingCheckout clientSecret={checkout.clientSecret} publishableKey={checkout.publishableKey} recurring={state.answers.frequency!=='one-off'} onComplete={() => {setCheckout({type:'status',status:{state:'processing',retryAllowed:false,kind:state.answers.frequency==='one-off'?'one-off':'recurring'},delayed:false});void pollStatus()}} /></div>
+  else if (checkout.type === 'card') content = <div className="rounded-2xl bg-white p-5"><p className="mb-5 font-semibold">{checkout.resumedGift ? `Your card payment hasn’t been completed. Continue your $${(checkout.resumedGift.amountMinor/100).toFixed(2)} gift to ${checkout.resumedGift.fundName} below. The total including fees is $${((checkout.resumedGift.amountMinor+checkout.resumedGift.transactionFeeMinor)/100).toFixed(2)}.` : givingHandoffSummary(state.answers, applicableTransactionFeeMinor).replaceAll('BlinkPay', 'Stripe')}</p><StripeGivingCheckout clientSecret={checkout.clientSecret} publishableKey={checkout.publishableKey} recurring={(checkout.resumedGift?.frequency ?? state.answers.frequency)!=='one-off'} onComplete={() => {setCheckout({type:'status',status:{state:'processing',retryAllowed:false,kind:(checkout.resumedGift?.frequency ?? state.answers.frequency)==='one-off'?'one-off':'recurring'},delayed:false});void pollStatus()}} /></div>
   else if (checkout.type === 'submitting') content = <GivingPreparation mode={paymentMode === 'stripe' ? 'stripe' : paymentMode === 'blinkpay' ? 'blinkpay' : 'bank-transfer'} />
   else if (checkout.type === 'status') {
     const { status, delayed } = checkout
