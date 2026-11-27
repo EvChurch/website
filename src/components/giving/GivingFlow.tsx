@@ -397,7 +397,7 @@ export function GivingFlow({ funds, campaign, identity = { signedIn: false }, re
     setTurnstileReset((value) => value + 1)
   }, [answerFingerprint, state.step, turnstileToken])
   const handleTurnstileToken = useCallback((token: string) => {
-    if (token) setError(undefined)
+    if (token) setError(message => message === 'The security check could not load. Please try again.' ? undefined : message)
     verifiedFingerprint.current = token ? answerFingerprint : null
     setTurnstileToken(token)
   }, [answerFingerprint])
@@ -553,6 +553,14 @@ export function GivingFlow({ funds, campaign, identity = { signedIn: false }, re
       rotateSubmissionKey = response.status >= 500 && value.retryAllowed === true
       if (!operationIsCurrent(operation)) return
       if (submitAbort.signal.aborted) throw new DOMException('Checkout timed out', 'TimeoutError')
+      if (response.status === 403) {
+        leavingFlow.current = false
+        if (campaignActive) sessionStorage.setItem('ev-give-sunday-payment','pending')
+        setSubmissionExpired(true)
+        setCheckout({ type: 'configuring' })
+        setError('This giving session could not be authorised. Reload the page and check that you are signed into your church account. No payment was started.')
+        return
+      }
       if (response.status === 409 && value.restartRequired === true) {
         leavingFlow.current = false
         setSubmissionExpired(true)
