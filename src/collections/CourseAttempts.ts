@@ -15,6 +15,7 @@ export const CourseAttempts: CollectionConfig = {
     { name: 'edition', type: 'relationship', relationTo: 'course-editions', required: true, index: true },
     { name: 'mode', type: 'select', options: ['solo', 'group'], required: true, defaultValue: 'solo' },
     { name: 'completedLessonIds', type: 'json', required: true, defaultValue: [] },
+    { name: 'lessonPositions', type: 'json', defaultValue: {} },
     { name: 'completedAt', type: 'date', index: true },
   ],
 }

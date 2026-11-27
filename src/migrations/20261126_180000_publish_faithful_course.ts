@@ -1,11 +1,19 @@
-import type { MigrateDownArgs, MigrateUpArgs } from '@payloadcms/db-postgres'
+import { sql, type MigrateDownArgs, type MigrateUpArgs } from '@payloadcms/db-postgres'
 import { faithfulWithMoneyCourse } from '../../content/courses/faithful-with-money'
 
 // Reviewed CMS content fallback while production Payload MCP is unavailable.
 // Never overwrite or publish an existing course, including an editor's draft.
-export async function up({ payload, req }: MigrateUpArgs): Promise<void> {
+export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
+  // A fresh database reaches this migration before the optional copy columns.
+  // The later schema migration retries this creation after adding those columns.
+  const columns = await db.execute(sql`SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns WHERE table_schema='public'
+    AND table_name='courses_blocks_course_teaching' AND column_name='individual_body'
+  ) AS present`)
+  if (!columns.rows[0]?.present) return
   const existing = await payload.find({
     collection: 'courses', where: { slug: { equals: faithfulWithMoneyCourse.slug } },
+    select: { slug: true },
     limit: 1, depth: 0, draft: true, overrideAccess: true, req,
   })
   if (existing.docs.length) return

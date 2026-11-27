@@ -26,7 +26,7 @@ export default async function GivingCalculatorPage() {
         <GivingCalculator />
         {course && <aside className="mt-12 rounded-lg border border-warm-grey p-6">
           <h2 className="text-h3 leading-heading">{course.title}</h2>
-          <p className="mt-3 mb-5 text-dark-grey">Three evenings to explore faith and money. Take the course alone or with others.</p>
+          <p className="mt-3 mb-5 text-dark-grey">Three evenings to explore faith and money. Explore at your pace or learn with a group.</p>
           <Button href={course.href} variant="secondary">Explore the course</Button>
         </aside>}
         <p className="mt-12 border-t border-warm-grey pt-8 text-center text-lg font-semibold">Ready to give? <a href="https://give.ev.church" className="text-deep-red underline underline-offset-4">→ give.ev.church</a></p>

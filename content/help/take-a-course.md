@@ -1,18 +1,20 @@
 ## Start a course
 
-Open [Courses](/members/courses) and sign in or create an account before browsing. You do not need to be a church member. Choose an available course and select **Start solo** or **Start group**. Links from the public giving calculator and email invitations also take you through sign-in first.
+Open [Courses](/members/courses) and sign in or create an account before browsing. You do not need to be a church member. Choose an available course and select **Start course** or **Start group**. Links from the public giving calculator and email invitations also take you through sign-in first.
 
 In the member portal, **Courses** is beside **Giving**. On smaller screens, open **Member menu** to see the portal links.
 
 ## Continue learning
 
-Courses you have started appear under **In progress**. Select **Continue** to return to your next lesson. You can open any lesson using the lesson navigation.
+Courses you have started appear under **In progress**. Select **Continue** to return to your next lesson. Lessons unlock in order. You can return to completed lessons; later lessons unlock after you finish the current one.
 
-Choose **Mark lesson complete** when you finish. Completing every required lesson moves the course to **Completed**.
+Each lesson guides you through one reading or activity at a time. Use **Next** and **Back**, and follow **Step x of y** to see your place. Your place saves to your account, so you can continue on another device.
+
+Choose **Finish lesson** on the final step. Completing every required lesson moves the course to **Completed**.
 
 ## Return or start again
 
-Select **View course** under **Completed** to revisit earlier lessons. To start a fresh attempt, open the course under **Available** and select **Start solo** or **Start group**. Your earlier attempt is retained.
+Select **View course** under **Completed** to revisit earlier lessons. To start a fresh attempt, open the course under **Available** and select **Start course** or **Start group**. Your earlier attempt is retained.
 
 If a course closes to new enrolments, you can still continue an existing attempt. Structural course changes apply to new attempts; your existing lessons and progress stay together.
 
@@ -20,7 +22,7 @@ If a course closes to new enrolments, you can still continue an existing attempt
 
 Answers save automatically to your account. Wait for **Saved** before leaving, then sign in on any device to continue. There is no Submit button.
 
-**Personal · Only you** means your answer stays private. All answers are private when taking a course solo. Use **A way in** for optional guidance.
+**Personal · Only you** means your answer stays private. All answers are private in an individual course. Use **A way in** for optional guidance.
 
 If saving fails, your work stays on the screen; choose **Retry**. If another tab saved a newer answer, choose **Use saved answer** or **Save my version**. Your typing is kept until you choose.
 

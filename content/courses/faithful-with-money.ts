@@ -1,7 +1,8 @@
 import type { RequiredDataFromCollectionSlug } from 'payload'
+import { enrichFaithfulIndividualCopy } from './faithful-individual-copy'
 
 // Initial authoring data only. Runtime course pages read Payload.
-export const faithfulWithMoneyCourse = {
+const originalFaithfulWithMoneyCourse = {
   "title": "Faithful with Money",
   "slug": "faithful-with-money",
   "summary": "Three evenings to read the Bible, talk honestly, and make a plan for your money.",
@@ -6373,4 +6374,9 @@ export const faithfulWithMoneyCourse = {
       ]
     }
   ]
+} satisfies RequiredDataFromCollectionSlug<'courses'>
+
+export const faithfulWithMoneyCourse = {
+  ...originalFaithfulWithMoneyCourse,
+  lessons: enrichFaithfulIndividualCopy(originalFaithfulWithMoneyCourse.lessons).lessons,
 } satisfies RequiredDataFromCollectionSlug<'courses'>

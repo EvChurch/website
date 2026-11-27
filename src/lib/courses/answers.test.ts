@@ -3,9 +3,9 @@ import type { Auth0Identity } from '@/auth/auth0-identity'
 const { owned, query } = vi.hoisted(() => ({ owned: vi.fn(), query: vi.fn() }))
 vi.mock('./service', () => ({ getOwnedCourseAttempt: owned }))
 vi.mock('@/lib/payload', () => ({ getPayloadClient: async () => ({ db: { pool: { query } } }) }))
-import { getCourseAnswerContext, readCourseAnswer, saveCourseAnswer } from './answers'
+import { getCourseAnswerContext, getCourseLessonAnswers, readCourseAnswer, readOtherCourseAnswers, requiredCourseAnswersComplete, saveCourseAnswer } from './answers'
 const identity: Auth0Identity = { identityKey: 'alice-key', issuer: 'https://example.test/', subject: 'alice', email: 'alice@example.test', name: 'Alice' }
-const attempt = { attempt: { id: 1, mode: 'solo' }, edition: { id: 2 }, snapshot: { lessons: [{ lessonId: 'l1', blocks: [{ id: 'q1', blockType: 'courseQuestion', inputType: 'text', prompt: 'Reflect', visibility: 'shared', responseMode: 'group' }] }] } }
+const attempt = { completed: [], attempt: { id: 1, mode: 'solo' }, edition: { id: 2 }, snapshot: { lessons: [{ lessonId: 'l1', blocks: [{ id: 'q1', blockType: 'courseQuestion', inputType: 'text', prompt: 'Reflect', visibility: 'shared', responseMode: 'group' }] }] } }
 beforeEach(() => { vi.resetAllMocks(); owned.mockResolvedValue(attempt) })
 describe('course answer ownership and atomic updates', () => {
   it('does not query private answers before attempt ownership succeeds', async () => {
@@ -37,5 +37,30 @@ describe('course answer ownership and atomic updates', () => {
     await expect(saveCourseAnswer(identity, 1, 'l1', 'other', 0, 'x')).rejects.toThrow()
     await expect(saveCourseAnswer(identity, 1, 'l1', 'q1', -1, 'x')).rejects.toThrow()
     expect(query).not.toHaveBeenCalled()
+  })
+})
+
+
+describe('answer lesson frontier', () => {
+  const future = { lessonId: 'l2', blocks: [{ id: 'future', blockType: 'courseQuestion', inputType: 'text', prompt: 'Future', visibility: 'personal' }] }
+  beforeEach(() => owned.mockResolvedValue({ ...attempt, completed: ['l2'], snapshot: { lessons: [...attempt.snapshot.lessons, future] } }))
+  it('rejects a direct future answer read before querying saved answers', async () => {
+    await expect(readCourseAnswer(identity, 1, 'l2', 'future')).rejects.toThrow('Answer not found')
+    expect(query).not.toHaveBeenCalled()
+  })
+  it('rejects writes and other-participant reads across the gap', async () => {
+    await expect(saveCourseAnswer(identity, 1, 'l2', 'future', 0, 'skip')).rejects.toThrow('Answer not found')
+    await expect(readOtherCourseAnswers(identity, 1, 'l2', 'future')).rejects.toThrow('Answer not found')
+    expect(query).not.toHaveBeenCalled()
+  })
+  it('rejects the future lesson answer list and required-completion check', async () => {
+    await expect(getCourseLessonAnswers(identity, 1, 'l2')).rejects.toThrow('Lesson not found')
+    expect(await requiredCourseAnswersComplete(identity, 1, 'l2')).toBe(false)
+    expect(query).not.toHaveBeenCalled()
+  })
+  it('keeps an earlier completed lesson available for answer reads', async () => {
+    owned.mockResolvedValue({ ...attempt, completed: ['l1'] })
+    query.mockResolvedValue({ rows: [] })
+    expect(await readCourseAnswer(identity, 1, 'l1', 'q1')).toMatchObject({ blockId: 'q1', revision: 0 })
   })
 })

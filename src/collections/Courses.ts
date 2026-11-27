@@ -28,7 +28,12 @@ export const Courses: CollectionConfig = {
       { name: 'required', type: 'checkbox', defaultValue: true },
       { name: 'blocks', type: 'blocks', blocks: [
         courseQuestionBlock, coursePromptBlock, courseBudgetBlock,
-        { slug: 'courseTeaching', interfaceName: 'CourseTeachingBlock', fields: [{ name: 'body', type: 'richText', required: true }] },
+        { slug: 'courseTeaching', interfaceName: 'CourseTeachingBlock', fields: [
+          { name: 'body', type: 'richText', required: true },
+          { type: 'collapsible', label: 'Individual wording (optional)', admin: { initCollapsed: true }, fields: [
+            { name: 'individualBody', type: 'richText', admin: { description: 'Use when an individual needs different instructions. Otherwise the main content is used.' } },
+          ] },
+        ] },
         { slug: 'courseImage', interfaceName: 'CourseImageBlock', fields: [{ name: 'image', type: 'upload', relationTo: 'media', required: true }, { name: 'caption', type: 'text' }] },
         { slug: 'courseVideo', interfaceName: 'CourseVideoBlock', fields: [{ name: 'url', type: 'text', required: true, validate: (value: unknown) => { try { return typeof value === 'string' && new URL(value).protocol === 'https:' || 'Use an HTTPS video link.' } catch { return 'Use an HTTPS video link.' } } }, { name: 'title', type: 'text', required: true }] },
       ] },

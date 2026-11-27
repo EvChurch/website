@@ -4,6 +4,8 @@ import { courseStructureKey, snapshotCourse } from './model'
 import { validateCourseRowIds } from './authoring'
 
 export const publishCourseEdition: CollectionAfterChangeHook<Course> = async ({ doc, req }) => {
+  // Trusted Local API content migrations refresh pinned snapshots explicitly.
+  if (req.context?.skipCourseEditionRefresh) return doc
   if (doc._status !== 'published') return doc
   const snapshot = snapshotCourse(doc)
   validateCourseRowIds(snapshot.lessons)

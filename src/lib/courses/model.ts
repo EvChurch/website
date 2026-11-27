@@ -24,7 +24,7 @@ export function courseStructureKey(snapshot: CourseSnapshot): string {
     id: lesson.lessonId, required: lesson.required !== false,
     blocks: (lesson.blocks ?? []).map(block => ({ id: block.id, type: block.blockType,
       ...(block.blockType === 'courseBudget' ? { schema: 1, visibility: block.visibility, responseMode: block.responseMode, required: !!block.required, categories: block.categories.map(category => ({ id: category.categoryId, label: category.label, startingLines: category.startingLines ?? '' })) } : {}),
-      ...(block.blockType === 'courseQuestion' ? { prompt: block.prompt, inputType: block.inputType, visibility: block.visibility, responseMode: block.responseMode, required: !!block.required, choices: block.choices?.map(choice => ({ id: choice.choiceId, label: choice.label })) } : {}),
+      ...(block.blockType === 'courseQuestion' ? { prompt: block.prompt, ...(block.individualPrompt?.trim() ? { individualPrompt: block.individualPrompt.trim() } : {}), inputType: block.inputType, visibility: block.visibility, responseMode: block.responseMode, required: !!block.required, choices: block.choices?.map(choice => ({ id: choice.choiceId, label: choice.label })) } : {}),
     })),
   }))
   return createHash('sha256').update(JSON.stringify(structure)).digest('hex')

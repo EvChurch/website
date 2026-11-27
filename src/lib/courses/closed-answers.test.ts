@@ -8,7 +8,7 @@ import { saveCourseAnswer } from './answers'
 const identity: Auth0Identity = { identityKey: 'alice-key', issuer: 'https://example.test/', subject: 'alice', email: 'alice@example.test', name: 'Alice' }
 const group = { id: 9, edition_id: 2, status: 'closed' }
 function attempt(visibility: 'personal' | 'shared', responseMode: 'individual' | 'group' = 'individual') {
-  return { attempt: { id: 1, mode: 'group', group: 9, membershipStatus: 'active' }, edition: { id: 2 }, snapshot: { lessons: [{ lessonId: 'l1', blocks: [{ id: 'q1', blockType: 'courseQuestion', inputType: 'text', prompt: 'Reflect', visibility, responseMode }] }] } }
+  return { completed: [], attempt: { id: 1, mode: 'group', group: 9, membershipStatus: 'active' }, edition: { id: 2 }, snapshot: { lessons: [{ lessonId: 'l1', blocks: [{ id: 'q1', blockType: 'courseQuestion', inputType: 'text', prompt: 'Reflect', visibility, responseMode }] }] } }
 }
 beforeEach(() => {
   vi.resetAllMocks(); lock.mockResolvedValue(group); member.mockResolvedValue({ membership_status: 'active' })
