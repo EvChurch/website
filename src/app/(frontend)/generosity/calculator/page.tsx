@@ -1,10 +1,7 @@
 import type { Metadata } from 'next'
 import { ManualCardGridBlockComponent } from '@/components/blocks/ManualCardGridBlockComponent'
 import { GivingCalculator } from '@/components/generosity/GivingCalculator'
-import { faithfulWithMoneyLink } from '@/lib/courses/course-links'
-
-// Publishing or closing enrolment must immediately update the invitation.
-export const dynamic = 'force-dynamic'
+import { CTABlockComponent } from '@/components/blocks/CTABlockComponent'
 
 export const metadata: Metadata = {
   title: 'Help me work out my giving',
@@ -13,8 +10,7 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://www.ev.church/generosity/calculator' },
 }
 
-export default async function GivingCalculatorPage() {
-  const course = await faithfulWithMoneyLink()
+export default function GivingCalculatorPage() {
   return (
     <>
       <header
@@ -35,13 +31,12 @@ export default async function GivingCalculatorPage() {
       <section className="bg-warm-white px-5 py-12 lg:px-8 lg:py-16">
         <div className="mx-auto max-w-7xl">
           <GivingCalculator />
-
         </div>
       </section>
       <ManualCardGridBlockComponent
         heading="Next steps"
         cardStyle="info"
-        columns={course ? 3 : 2}
+        columns={3}
         cards={[
           {
             title: '1. Money is tight',
@@ -49,19 +44,29 @@ export default async function GivingCalculatorPage() {
             href: '/contact',
             linkLabel: 'Contact us',
           },
-          ...(course ? [{
-            title: `2. ${course.title}`,
-            description: 'Explore what the Bible says about money, giving and contentment, and build a practical budget in this three-lesson course. Sign in or create an account to start.',
-            href: course.href,
-            linkLabel: 'Start Faithful with Money',
-          }] : []),
           {
-            title: `${course ? 3 : 2}. Ready to give?`,
-            description: 'Put your next step into action. Set up a one-off or regular gift to support the work of Ev Church.',
-            href: '/generosity/calculator?launcher=give',
-            linkLabel: 'Start giving',
+            title: '2. Faithful with Money',
+            description: 'Explore what the Bible says about money, giving and contentment, and build a practical budget in this three-lesson course. Sign in or create an account to start.',
+            href: '/members/courses/faithful-with-money',
+            linkLabel: 'Start Faithful with Money',
+          },
+          {
+            title: '3. Go deeper with budgeting',
+            description: 'Interested in a more thorough 4–8 week budgeting course? Let us know and we’ll be in touch when details are available.',
+            href: '/contact?interest=budgeting-course',
+            linkLabel: 'Express Interest',
           },
         ]}
+      />
+      <CTABlockComponent
+        heading="Giving at Ev"
+        text="We encourage you to give first to your local church, the family where you’re fed and cared for (Gal 6:6), and then beyond it to other gospel work and to the poor. Give regularly, cheerfully and not under pressure: “God loves a cheerful giver” (2 Cor 9:7). You can claim back a third of what you give to registered NZ charities each year through the donation tax credit."
+        colorPreset="primary-red"
+        buttons={[{
+          label: 'Start Giving',
+          href: '/generosity/calculator?launcher=give',
+          variant: 'primary',
+        }]}
       />
     </>
   )
