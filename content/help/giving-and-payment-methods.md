@@ -14,7 +14,7 @@ On the separate **How would you like to pay?** step, choose **Pay by bank** or *
 
 ## Give Sunday one-off gifts
 
-**Choose Your Gifts** becomes available to everyone at 12:00 am on Saturday, 5 December 2026 (Auckland time). Before then, this button is available only to authorised staff and Exec accounts; otherwise it is disabled with **Return on Give Sunday to Give** underneath. Once the giving flow is open, checkout uses the normal payment checks without another Staff/Exec check.
+**Choose Your Gifts** becomes available to everyone at 12:00 am on Saturday, 5 December 2026 (Auckland time). Before then, this button is available only to signed-in members of the Pastoral Team, Staff Team, Ministry Apprentices or Executive Member groups; otherwise it is disabled with **Return on Give Sunday to Give** underneath. Once the giving flow is open, checkout uses the normal payment checks without another Staff/Exec check.
 
 On the [one-off giving page](/one-off-giving), choose **Choose Your Gifts** to open the launcher. The first screen explains the four opportunities and the option to explore child sponsorship through Tearfund after completing your gift. Choose **Okay, let’s go** to begin, or **Give to greatest need** beneath the **or** divider to give one amount instead. Each opportunity has a numbered title and a progress pill, from **1/4** to **4/4**. Choose **$200**, **$1,000**, **$5,000**, or enter your own whole-dollar amount. Continue through Plant, Train, Grow and Build, or choose **Skip this opportunity**. Use the launcher’s Back arrow to return to the previous step.
 
