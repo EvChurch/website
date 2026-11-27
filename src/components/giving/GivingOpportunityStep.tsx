@@ -28,6 +28,9 @@ export function GivingOpportunityStep({ id, amount, locked, editing, compact = f
   const [value, setValue] = useState(amount ? String(amount / 100) : '')
   const [error, setError] = useState('')
   const general = id === 'greatest-need'
+  const stepNumber = GUIDED_OPPORTUNITIES.findIndex(item => item === id) + 1
+  const [name, subtitle] = gift.title.split(' — ')
+  const displaySubtitle = subtitle?.replace(/(^|\s)\S/g, letter => letter.toUpperCase())
   function submit(event: FormEvent) {
     event.preventDefault()
     const chosen = giftAmountMinor(value)
@@ -50,7 +53,12 @@ export function GivingOpportunityStep({ id, amount, locked, editing, compact = f
       </div>
       <div className={compact ? 'mx-auto max-w-2xl px-4 pt-5 sm:px-6' : 'p-6 sm:p-8'}>
         {(general || editing) && <p className="text-sm font-semibold text-rich-red">{general ? 'Give where it is needed most' : 'Edit your gift'}</p>}
-        <h1 className={`${general || editing ? 'mt-3 ' : ''}text-2xl font-bold leading-heading text-brand-black`}>{gift.title}</h1>
+        <div className={`${general || editing ? 'mt-3 ' : ''}flex items-start justify-between gap-3`}>
+          <h1 className="min-w-0 text-2xl font-bold leading-heading text-brand-black">
+            {general ? gift.title : <>{stepNumber}. {name}<span className="mt-1 block text-base font-medium leading-snug text-dark-grey">{displaySubtitle}</span></>}
+          </h1>
+          {!general && <span aria-label={`Opportunity ${stepNumber} of ${GUIDED_OPPORTUNITIES.length}`} className="shrink-0 rounded-full border border-warm-grey bg-white px-3 py-1 text-xs font-semibold tabular-nums text-dark-grey">{stepNumber}/{GUIDED_OPPORTUNITIES.length}</span>}
+        </div>
         <p className="mt-4 leading-relaxed text-dark-grey">{opportunity?.description ?? gift.description}</p>
         <form onSubmit={submit} noValidate className="mt-7">
           <label htmlFor="opportunity-amount" className="block font-semibold">How much would you like to give?</label>
