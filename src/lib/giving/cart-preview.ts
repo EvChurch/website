@@ -11,4 +11,3 @@ export function campaignCartCatalog(sample: boolean): CartProduct[] {
     allocation: { reference: gift.reference, glCode: gift.glCode, glName: gift.glName, project: gift.project },
   }))
 }
-

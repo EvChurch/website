@@ -70,4 +70,3 @@ export interface CartReportRow {
   amountMinor: number
   synthetic: true
 }
-

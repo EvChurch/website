@@ -8,7 +8,6 @@ export const revalidate = 86400
 const campaignParams = () => Promise.resolve({ slug: 'one-off-giving' })
 
 export function generateMetadata(): Promise<Metadata> | Metadata {
-  if (campaignGivingEnabled()) return { title: 'One-off giving', robots: { index: false, follow: false } }
   return generateDynamicMetadata({ params: campaignParams() })
 }
 
