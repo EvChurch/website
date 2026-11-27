@@ -76,7 +76,8 @@ export function parseGivingCheckoutStatus(value:unknown):GivingCheckoutStatus {
     const card=item.cardCheckout
     if(item.state!=='processing'||item.retryAllowed!==false||!card||typeof card!=='object'||Array.isArray(card))throw new Error('Invalid giving checkout status')
     const entry=card as Record<string,unknown>
-    if(Object.keys(entry).sort().join(',')!=='clientSecret,publishableKey'||typeof entry.clientSecret!=='string'||!/^cs_[A-Za-z0-9_]+_secret_[A-Za-z0-9]+$/u.test(entry.clientSecret)||entry.clientSecret.length>512||typeof entry.publishableKey!=='string'||!/^pk_(test|live)_[A-Za-z0-9]+$/u.test(entry.publishableKey))throw new Error('Invalid giving checkout status')
+    // Stripe session secrets are opaque and can contain percent-encoded characters.
+    if(Object.keys(entry).sort().join(',')!=='clientSecret,publishableKey'||typeof entry.clientSecret!=='string'||entry.clientSecret.length<1||entry.clientSecret.length>512||/[\s\u0000-\u001f\u007f]/u.test(entry.clientSecret)||typeof entry.publishableKey!=='string'||!/^pk_(test|live)_[A-Za-z0-9]+$/u.test(entry.publishableKey))throw new Error('Invalid giving checkout status')
   }
   if(item.gift!==undefined){
     if(!item.gift||typeof item.gift!=='object'||Array.isArray(item.gift))throw new Error('Invalid giving checkout status')

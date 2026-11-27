@@ -35,6 +35,28 @@ describe('giving checkout status', () => {
     expect(response.headers.get('set-cookie')?.toLowerCase()).toContain('max-age=0')
   })
 
+  it('returns an opaque Stripe session secret unchanged through the status endpoint', async () => {
+    const clientSecret='cs_live_example_secret_value%2Fencoded%3D'
+    const response=await handleGivingStatusGet(
+      new NextRequest('https://www.ev.church/api/giving/checkouts/current/status',{headers:{cookie:`__Host-ev_giving_checkout=${'A'.repeat(43)}`}}),
+      {params:Promise.resolve({token:'current'})},
+      {read:vi.fn(async()=>({state:'processing',retryAllowed:false,kind:'one-off',cardCheckout:{clientSecret,publishableKey:'pk_live_example'}} as const))},
+    )
+    expect(response.status).toBe(200)
+    expect((await response.json()).cardCheckout.clientSecret).toBe(clientSecret)
+    expect(response.headers.get('cache-control')).toContain('private')
+    expect(response.headers.get('set-cookie')).toBeNull()
+  })
+
+  it.each(['', 'a'.repeat(513), 'secret with spaces', 'secret\nline', 'secret\u0000byte'])('rejects malformed card session secrets', async clientSecret => {
+    const response=await handleGivingStatusGet(
+      new NextRequest('https://www.ev.church/api/giving/checkouts/current/status',{headers:{cookie:`__Host-ev_giving_checkout=${'A'.repeat(43)}`}}),
+      {params:Promise.resolve({token:'current'})},
+      {read:vi.fn(async()=>({state:'processing',retryAllowed:false,kind:'one-off',cardCheckout:{clientSecret,publishableKey:'pk_live_example'}} as const))},
+    )
+    expect(response.status).toBe(404)
+  })
+
   it('fails closed when the service returns a malformed browser contract', async () => {
     const read = vi.fn(async () => ({ state: 'verified', retryAllowed: false, kind: 'one-off', providerId: 'secret' } as never))
     const response = await handleGivingStatusGet(

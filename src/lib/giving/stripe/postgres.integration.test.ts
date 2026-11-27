@@ -1,4 +1,4 @@
-import { readGivingCheckoutStatus } from '@/app/api/giving/checkouts/[token]/status/route'
+import { readGivingCheckoutStatus, handleGivingStatusGet } from '@/app/api/giving/checkouts/[token]/status/route'
 import { capabilityDigest } from '../service'
 import { handleGivingCheckoutPost } from '@/app/api/giving/checkouts/route'
 import { givingSubmissionVersion } from '../submission-version'
@@ -107,6 +107,20 @@ describe.skipIf(!url)('Stripe giving against disposable PostgreSQL',()=>{
     if(state==='open')expect(status?.cardCheckout).toEqual({clientSecret:'cs_test_secret_example',publishableKey:'pk_test_example'})
     else expect(status?.cardCheckout).toBeUndefined()
     if(state==='expired')expect(status).toMatchObject({state:'expired',retryAllowed:true})
+    expect((await pool.query('SELECT * FROM giving_gifts')).rows).toHaveLength(0)
+    expect(api.checkout.sessions.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns the stored opaque Stripe secret through the current status route with a real checkout capability',async()=>{
+    mockCheckout()
+    const result=await startStripeGiving({...context,submission:submission()},{pool,resolveIdentity})
+    const clientSecret='cs_test_example_secret_value%2Fencoded%3D'
+    await pool.query('UPDATE giving_stripe_sessions SET client_secret=$1',[clientSecret])
+    const params=api.checkout.sessions.create.mock.calls[0][0]
+    api.checkout.sessions.retrieve.mockResolvedValue({...params,id:'cs_test',livemode:false,currency:'nzd',status:'open',payment_status:'unpaid',payment_intent:null,amount_total:10304})
+    const response=await handleGivingStatusGet(new NextRequest('https://www.ev.church/api/giving/checkouts/current/status',{headers:{cookie:`__Host-ev_giving_checkout=${result.statusToken}`}}),{params:Promise.resolve({token:'current'})},{read:token=>readGivingCheckoutStatus(pool,token)})
+    expect(response.status).toBe(200)
+    expect((await response.json()).cardCheckout.clientSecret).toBe(clientSecret)
     expect((await pool.query('SELECT * FROM giving_gifts')).rows).toHaveLength(0)
     expect(api.checkout.sessions.create).toHaveBeenCalledTimes(1)
   })
