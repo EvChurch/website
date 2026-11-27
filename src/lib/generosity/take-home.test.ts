@@ -110,6 +110,47 @@ describe('NZ annual take-home estimates', () => {
       ),
     ).toMatchObject({ acc: 1000, studentLoan: 8000 })
   })
+  it('grosses up take-home amounts across tax bands and payroll deductions', () => {
+    for (const gross of [0, 15600, 24000, 50000, 68000, 100000, 200000]) {
+      for (const deductions of [
+        {},
+        { kiwiSaver: true, studentLoan: true },
+        { taxCredit: true },
+        { kiwiSaver: true, salarySacrifice: true },
+      ]) {
+        const before = { ...earner(gross), ...deductions }
+        const original = takeHome(before)
+        const inferred = takeHome({
+          ...before,
+          amount: String(original.net),
+          incomeBasis: 'after-tax',
+        })
+        expect(inferred.gross).toBeCloseTo(original.gross, 0)
+        expect(inferred.net).toBeCloseTo(original.net, 1)
+      }
+    }
+  })
+  it('annualises after-tax pay in every frequency and respects partial tax credits', () => {
+    for (const [frequency, periods] of [
+      ['hourly', 2080], ['weekly', 52], ['fortnightly', 26], ['monthly', 12], ['yearly', 1],
+    ] as const) {
+      const result = takeHome({
+        ...earner(1000), incomeBasis: 'after-tax', frequency,
+      })
+      expect(result.net).toBeCloseTo(1000 * periods, 1)
+      expect(result.gross).toBeGreaterThan(result.net)
+    }
+    const original = takeHome({ ...earner(50000), taxCredit: true }, settings, 6)
+    const inferred = takeHome({
+      ...earner(original.net), incomeBasis: 'after-tax', taxCredit: true,
+    }, settings, 6)
+    expect(inferred.gross).toBeCloseTo(50000, 1)
+  })
+  it('does not invent gross income when custom deductions make take-home pay unreachable', () => {
+    expect(annualSalary({
+      ...earner(1000), incomeBasis: 'after-tax', kiwiSaver: true, kiwiRate: 100,
+    }, settings)).toBeNaN()
+  })
   it('rejects invalid settings', () => {
     expect(validTaxSettings(settings)).toBe(true)
     expect(validTaxSettings({ ...settings, hours: 0 })).toBe(false)

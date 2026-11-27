@@ -18,7 +18,6 @@ import {
 } from '@/lib/generosity/working-for-families'
 import {
   DEFAULT_TAX_SETTINGS,
-  annualSalary,
   newEarner,
   takeHome,
   validTaxSettings,
@@ -231,36 +230,56 @@ export function GivingCalculator() {
   const [church, setChurch] = useState(churchDefaults)
   const [other, setOther] = useState(otherDefaults)
   const [giveTaxRefund, setGiveTaxRefund] = useState(false)
-  const grossSalary = earners.reduce(
-    (total, earner) => total + annualSalary(earner, taxSettings),
-    0,
-  )
-  const familyIncomeContext = {
-    gross: grossSalary + annualTotal(income),
-    salaryGross: grossSalary,
-    couple: earners.length > 1,
-    afterIncomeTax: earners.reduce((total, earner) => {
-      const salary = takeHome({ ...earner, taxCredit: false }, taxSettings)
-      return total + salary.gross - salary.paye
-    }, annualTotal(income)),
-    hours: grossSalary > 0 ? taxSettings.hours : 0,
+  function householdContext(salaries: ReturnType<typeof takeHome>[]) {
+    const gross = salaries.reduce((total, salary) => total + salary.gross, 0)
+    return {
+      gross: gross + annualTotal(income),
+      salaryGross: gross,
+      couple: earners.length > 1,
+      afterIncomeTax: salaries.reduce(
+        (total, salary) => total + salary.gross - salary.paye - salary.credit,
+        annualTotal(income),
+      ),
+      hours: gross > 0 ? taxSettings.hours : 0,
+    }
   }
-  const supportResult = familySupportResult(familySupport, familyIncomeContext)
-  const annualSupport = supportResult?.total ?? 0
-  const creditMonths = supportResult?.creditMonths ?? 0
-  const taxCreditUnavailable = creditMonths === 0 && annualSupport > 0
-  const salaries = earners.map((earner) =>
-    takeHome(
-      { ...earner, taxCredit: earner.taxCredit && !taxCreditUnavailable },
-      taxSettings,
-      creditMonths,
-    ),
+  let creditMonths = 12
+  let salaries = earners.map((earner) =>
+    takeHome(earner, taxSettings, creditMonths),
   )
-  const annualIncome =
+  let familyIncomeContext = householdContext(salaries)
+  let supportResult = familySupportResult(familySupport, familyIncomeContext)
+  // Family support determines IETC eligibility; after-tax entries also use that
+  // eligibility to infer gross wages. Recalculate when eligible months change.
+  for (let i = 0; i < 14; i++) {
+    const eligibleMonths = supportResult?.creditMonths ?? 0
+    if (eligibleMonths === creditMonths) break
+    creditMonths = eligibleMonths
+    salaries = earners.map((earner) =>
+      takeHome(earner, taxSettings, creditMonths),
+    )
+    familyIncomeContext = householdContext(salaries)
+    supportResult = familySupportResult(familySupport, familyIncomeContext)
+  }
+  const annualSupport = supportResult?.total ?? 0
+  const taxCreditUnavailable = creditMonths === 0 && annualSupport > 0
+  const annualTakeHome =
       annualTotal(income) +
       annualSupport +
       salaries.reduce((total, salary) => total + salary.net, 0),
     annualOther = annualTotal(other)
+  const incomeValid =
+    Boolean(supportResult) &&
+    validTaxSettings(taxSettings) &&
+    income.every((row) => isValidCalculatorAmount(row.amount)) &&
+    earners.every((earner, index) =>
+      isValidCalculatorAmount(earner.amount) &&
+      Number.isFinite(salaries[index].gross) &&
+      [earner.kiwiRate, earner.employerRate].every(
+        (rate) => Number.isFinite(rate) && rate >= 0 && rate <= 100,
+      ),
+    )
+  const annualIncome = incomeValid ? annualTakeHome : 0
   const baseChurch = annualTotal(church)
   const taxRefund = giveTaxRefund
     ? Math.round(((baseChurch + annualOther) / 3) * 100) / 100
@@ -310,20 +329,7 @@ export function GivingCalculator() {
                 <dt>Annual household take-home</dt>
                 <dd>
                   <output data-testid="household-take-home">
-                    {supportResult &&
-                    validTaxSettings(taxSettings) &&
-                    income.every((row) =>
-                      isValidCalculatorAmount(row.amount),
-                    ) &&
-                    earners.every(
-                      (e) =>
-                        isValidCalculatorAmount(e.amount) &&
-                        [e.kiwiRate, e.employerRate].every(
-                          (n) => n >= 0 && n <= 100,
-                        ),
-                    )
-                      ? money.format(annualIncome)
-                      : '—'}
+                    {incomeValid ? money.format(annualTakeHome) : '—'}
                   </output>
                 </dd>
               </div>
