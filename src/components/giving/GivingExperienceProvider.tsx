@@ -143,11 +143,10 @@ export function GivingExperienceProvider({
     if (!rendererReady || resumedFromCleanUrl.current) return
     if (!resumeRequested) return
     const campaignPending = campaignGivingExperience !== null && ['pending','submitted'].includes(sessionStorage.getItem('ev-give-sunday-payment') ?? '')
-    if (campaignPending && !campaignGivingAllowed) return
     if (campaignPending) setGivingMode('campaign')
     resumedFromCleanUrl.current = true
     setGivingRequestId((requestId) => requestId + 1)
-  }, [campaignGivingAllowed, campaignGivingExperience, rendererReady, resumeRequested])
+  }, [campaignGivingExperience, rendererReady, resumeRequested])
 
   const handleGivingBack = useCallback(() => givingBackHandler.current?.() ?? false, [])
   const registerGivingBackHandler = useCallback((handler: () => boolean) => {

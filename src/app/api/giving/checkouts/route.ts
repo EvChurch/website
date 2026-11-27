@@ -1,5 +1,4 @@
 import { campaignGivingEnabled } from '@/lib/giving/campaign-enabled'
-import { getCampaignGivingAccess } from '@/lib/giving/campaign-access-server'
 import { NextRequest, NextResponse } from 'next/server'
 
 import { currentGivingMemberSubject, resolveCurrentGivingMemberIdentity, givingIdentityForMemberSubmission } from '@/auth/giving-member-identity'
@@ -126,8 +125,8 @@ export async function handleGivingCheckoutPost(request: NextRequest, dependencie
     if (!isGivingJson(request)) return response({ error: 'Giving unavailable' }, 415)
     requireCurrentGivingSubmission(request.headers)
     const submission = validateGivingCheckoutSubmission(await boundedGivingJson(request))
-    if (submission.campaignGifts && (!campaignGivingEnabled() || !(await getCampaignGivingAccess(request)).allowed)) {
-      console.warn({ event: 'giving_checkout_denied', reason: 'campaign-access' })
+    if (submission.campaignGifts && !campaignGivingEnabled()) {
+      console.warn({ event: 'giving_checkout_denied', reason: 'campaign-disabled' })
       return response({ error: 'Campaign giving unavailable' }, 403)
     }
     if (submission.transactionFeeMinor !== await dependencies.transactionFeeMinor(request, submission)) throw new GivingCheckoutError('invalid')
