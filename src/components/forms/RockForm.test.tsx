@@ -713,3 +713,34 @@ describe('Connect Group Newish pathway', () => {
     }
   })
 })
+
+describe('budgeting course contact link', () => {
+  it.each([
+    ['?interest=budgeting-course', '', "I'm interested in the more thorough 4–8 week budgeting course. Please let me know when details are available."],
+    ['', '', ''],
+    ['?interest=budgeting-course', 'My existing message', 'My existing message'],
+  ])('prefills only an empty contact message for %s', async (search, existing, expected) => {
+    const originalUrl = window.location.href
+    window.history.replaceState(null, '', `/contact${search}`)
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    const contact = schema()
+    contact.workflowTypeGuid = '874418b5-a477-4382-94dc-38060b005bfa'
+    contact.fields[0].attribute.key = 'Message'
+    contact.fields[0].attribute.name = 'Message'
+    contact.fields[0].attribute.fieldTypeGuid = ROCK_FIELD_TYPES.memo
+    contact.initialFieldValues[contact.fields[0].attribute.attributeGuid] = existing
+
+    try {
+      await act(async () => {
+        root.render(<RockForm workflowTypeGuid={contact.workflowTypeGuid} initialSchema={contact} />)
+      })
+      expect(container.querySelector('textarea')?.value).toBe(expected)
+    } finally {
+      await act(async () => root.unmount())
+      container.remove()
+      window.history.replaceState(null, '', originalUrl)
+    }
+  })
+})

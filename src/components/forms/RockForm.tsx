@@ -11,6 +11,7 @@ import {
   useState,
   type RefObject,
 } from 'react'
+import { contactInterestValues } from '@/lib/rock-forms/contact-interest'
 import { CONNECT_GROUP_WORKFLOW_GUID } from '@/lib/connect-groups/constants'
 import { SafeRockHtml } from './SafeRockHtml'
 import { FormSelect } from './FormSelect'
@@ -703,7 +704,7 @@ function WorkflowForm({
       signedByName: nextSchema.signature?.legalName || '',
       signedByEmail: nextSchema.signature?.email || '',
     })
-    setFieldValues(nextSchema.initialFieldValues)
+    setFieldValues(contactInterestValues(nextSchema, window.location.search))
     setPersonEntryValues(initialPersonEntryState(nextSchema, personDefaults))
     setFiles({})
     setTurnstileToken('')
@@ -720,7 +721,7 @@ function WorkflowForm({
         signedByEmail: initialSchema.signature?.email || '',
       })
       setStartupSiteKey(initialSchema.turnstileSiteKey)
-      setFieldValues(initialSchema.initialFieldValues)
+      setFieldValues(contactInterestValues(initialSchema, window.location.search))
       setPersonEntryValues(initialPersonEntryState(initialSchema, personDefaults))
       setFiles({})
       setError('')

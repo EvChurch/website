@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import RichText from './RichTextRenderer'
 import { ChristmasHomeBanner } from '@/components/christmas/ChristmasHomeBanner'
 import { HeroBlockComponent } from './HeroBlockComponent'
 import { ContentBlockComponent } from './ContentBlockComponent'
@@ -35,6 +36,7 @@ import type { PayloadMediaImage } from '@/lib/payload-media'
 interface BaseBlock {
   blockType: string
   id?: string
+  blockName?: string | null
 }
 
 type MediaRef = PayloadMediaImage & { id: string; url: string; alt: string }
@@ -299,6 +301,14 @@ interface RenderBlocksProps {
   excludedEventSlugs?: readonly string[]
 }
 
+// A named content block can provide a feature grid's source note without its own section.
+function isFeatureGridFooter(block: RenderableBlock | undefined): block is ContentBlock {
+  return block?.blockType === 'content'
+    && block.blockName === 'feature-grid-footer'
+    && !(block as ContentBlock).heading
+    && !(block as ContentBlock).image
+}
+
 export function RenderBlocks({ blocks, excludedEventSlugs }: RenderBlocksProps) {
   if (!blocks || blocks.length === 0) return null
 
@@ -363,6 +373,7 @@ export function RenderBlocks({ blocks, excludedEventSlugs }: RenderBlocksProps) 
 
           case 'content': {
             const b = block as ContentBlock
+            if (isFeatureGridFooter(b) && blocks[index - 1]?.blockType === 'featureGrid') return null
             return (
               <ContentBlockComponent
                 key={key}
@@ -425,6 +436,7 @@ export function RenderBlocks({ blocks, excludedEventSlugs }: RenderBlocksProps) 
 
           case 'featureGrid': {
             const b = block as FeatureGridBlock
+            const next = blocks[index + 1]
             return (
               <FeatureGridBlockComponent
                 key={key}
@@ -434,6 +446,7 @@ export function RenderBlocks({ blocks, excludedEventSlugs }: RenderBlocksProps) 
                 layout={b.layout}
                 style={b.style}
                 items={b.items}
+                footer={isFeatureGridFooter(next) ? <RichText data={next.body} /> : undefined}
                 accentColor={b.accentColor}
               />
             )

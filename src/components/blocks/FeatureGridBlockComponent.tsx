@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 
 interface FeatureItem {
@@ -13,6 +14,7 @@ interface FeatureGridBlockProps {
   layout?: 'twoColumn' | 'threeColumn' | 'fourColumn' | null
   style?: 'iconTop' | 'iconLeft' | null
   items: FeatureItem[]
+  footer?: ReactNode
   accentColor?: string | null
 }
 
@@ -75,6 +77,7 @@ export function FeatureGridBlockComponent({
   layout: layoutProp,
   style: styleProp,
   items,
+  footer,
   accentColor,
 }: FeatureGridBlockProps) {
   const layout = layoutProp ?? 'twoColumn'
@@ -142,6 +145,7 @@ export function FeatureGridBlockComponent({
               ))}
             </div>
           </div>
+          {footer && <div className="mt-8 text-center text-sm leading-relaxed text-mid-grey">{footer}</div>}
         </div>
       </section>
     )
@@ -204,6 +208,7 @@ export function FeatureGridBlockComponent({
             </ScrollReveal>
           ))}
         </div>
+        {footer && <div className="mt-8 text-center text-sm leading-relaxed text-mid-grey">{footer}</div>}
       </div>
     </section>
   )
