@@ -5,6 +5,7 @@ import type { Auth0Identity } from '@/auth/auth0-identity'
 const { state } = vi.hoisted(() => ({ state: { pool: undefined as unknown } }))
 vi.mock('@/lib/payload', () => ({ getPayloadClient: vi.fn(async () => ({ db: { pool: state.pool } })) }))
 import { acceptCourseInvitation, getCourseGroup, getCourseInvitation, invitationTokenHash, inviteToCourseGroup, manageCourseGroup } from './groups'
+import { saveCourseLessonPosition } from './service'
 import { getCourseAnswerContext, readCourseAnswer, readOtherCourseAnswers, saveCourseAnswer, requiredCourseAnswersComplete } from './answers'
 const connectionString = process.env.COURSE_GROUP_TEST_DATABASE_URL
 const suite = describe.skipIf(!connectionString)
@@ -22,6 +23,7 @@ suite('course groups against isolated PostgreSQL', () => {
   beforeAll(async () => {
     const url = new URL(connectionString!)
     if (url.pathname !== '/ev_courses_groups' || !['','localhost','127.0.0.1'].includes(url.hostname)) throw new Error('Local test database required')
+    process.env.APP_BASE_URL='http://localhost:3101'
     pool=new Pool({connectionString});state.pool=pool
     const course=(await pool.query<{id:number}>("INSERT INTO courses(title,slug,summary,enrolment_open,allow_solo,allow_group,_status,created_at,updated_at) VALUES('Group test',$1,'Test',true,true,true,'published',now(),now()) RETURNING id",['test-'+prefix])).rows[0]
     courseId=course.id
@@ -36,7 +38,6 @@ suite('course groups against isolated PostgreSQL', () => {
   it('binds invitation acceptance to verified email and pins the group edition',async()=>{
     let link=''
     const transport={send:vi.fn(async(message:{text:string},key:string)=>{link=message.text.match(/http[^\s]+/)![0];expect(key).toMatch(/^course-invitation-/);return {providerId:'fake-local'}})}
-    process.env.APP_BASE_URL='http://localhost:3101'
     await expect(inviteToCourseGroup(a,groupId,b.email,transport)).resolves.toEqual({delivered:true})
     const token=link.split('/').at(-1)!
     expect(await getCourseInvitation(c,token)).toBeNull()
@@ -142,6 +143,34 @@ suite('course groups against isolated PostgreSQL', () => {
     } finally {
       await pool.query('DELETE FROM course_invitations WHERE group_id=$1 AND email=$2',[groupId,person.email])
       await pool.query('DELETE FROM course_attempts WHERE group_id=$1 AND account_key=ANY($2::varchar[])',[groupId,[person.identityKey,alternate.identityKey]])
+    }
+  })
+  it.each(['remove', 'leave'] as const)('keeps a fresh invitation valid when a former participant saves a lesson cursor after %s',async action=>{
+    const person=identity(`Cursor-${action}`)
+    const attempt=(await pool.query<{id:number}>("INSERT INTO course_attempts(account_key,account_email,edition_id,mode,group_id,membership_status,display_name,completed_lesson_ids,created_at,updated_at) VALUES($1,$2,$3,'group',$4,'active','Cursor member','[]',now(),now()) RETURNING id",[person.identityKey,person.email,editionId,groupId])).rows[0].id
+    try {
+      await saveCourseAnswer(person,attempt,'lesson','private',0,'Retained private reflection')
+      if(action==='remove') await manageCourseGroup(a,groupId,'remove',attempt)
+      else await manageCourseGroup(person,groupId,'leave')
+      const cutoff=(await pool.query('SELECT updated_at::text AS cutoff FROM course_attempts WHERE id=$1',[attempt])).rows[0].cutoff
+      let token=''
+      await inviteToCourseGroup(a,groupId,person.email,{send:async message=>{token=message.text.match(/http[^\s]+/)![0].split('/').at(-1)!;return {providerId:'fake-cursor-reinvite'}}})
+      expect(await getCourseInvitation(person,token)).not.toBeNull()
+      // Ensure the cursor write occurs after the invitation, including timestamp(3) precision.
+      await pool.query('SELECT pg_sleep(0.02)')
+      await saveCourseLessonPosition(person,attempt,'lesson','private')
+      const row=(await pool.query('SELECT updated_at::text AS cutoff,lesson_positions,membership_status FROM course_attempts WHERE id=$1',[attempt])).rows[0]
+      expect(row.lesson_positions).toEqual({lesson:'private'})
+      expect(row.cutoff).toBe(cutoff)
+      expect(row.membership_status).toBe(action==='remove'?'removed':'left')
+      expect((await readCourseAnswer(person,attempt,'lesson','private')).value).toBe('Retained private reflection')
+      expect(await getCourseInvitation(person,token)).not.toBeNull()
+      expect(await acceptCourseInvitation(person,token)).toBe(groupId)
+      expect((await readCourseAnswer(person,attempt,'lesson','private')).value).toBe('Retained private reflection')
+    } finally {
+      await pool.query('DELETE FROM course_answers WHERE attempt_id=$1',[attempt])
+      await pool.query('DELETE FROM course_invitations WHERE group_id=$1 AND email=$2',[groupId,person.email])
+      await pool.query('DELETE FROM course_attempts WHERE id=$1',[attempt])
     }
   })
   it('revokes shared access after removal while preserving own personal answers',async()=>{
