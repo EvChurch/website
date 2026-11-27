@@ -34,15 +34,15 @@ export default function GivingCalculatorPage() {
         </div>
       </section>
       <ManualCardGridBlockComponent
-        heading="Next steps"
+        heading="Where to Start"
         cardStyle="info"
         columns={3}
         cards={[
           {
-            title: '1. Money is tight',
-            description: 'Speak with your Connect Group leader or contact us for support. We’d love to help you think through your next step.',
-            href: '/contact',
-            linkLabel: 'Contact us',
+            title: '1. Set up your giving',
+            description: 'Give regularly, cheerfully and not under pressure. Set up a one-off or regular gift to support the work of Ev Church.',
+            href: '/generosity/calculator?launcher=give',
+            linkLabel: 'Start giving',
           },
           {
             title: '2. Faithful with Money',
@@ -59,12 +59,12 @@ export default function GivingCalculatorPage() {
         ]}
       />
       <CTABlockComponent
-        heading="Giving at Ev"
-        text="We encourage you to give first to your local church, the family where you’re fed and cared for (Gal 6:6), and then beyond it to other gospel work and to the poor. Give regularly, cheerfully and not under pressure: “God loves a cheerful giver” (2 Cor 9:7). You can claim back a third of what you give to registered NZ charities each year through the donation tax credit."
+        heading="Money tight?"
+        text="Speak with your Connect Group leader or contact us for support. We’d love to help you think through your next step."
         colorPreset="primary-red"
         buttons={[{
-          label: 'Start Giving',
-          href: '/generosity/calculator?launcher=give',
+          label: 'Contact us',
+          href: '/contact',
           variant: 'primary',
         }]}
       />
