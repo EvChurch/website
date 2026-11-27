@@ -1,19 +1,22 @@
 'use client'
 
-import { campaignProgress, formatCampaignProgress, type CampaignProgressKey, type CampaignProgressValues } from '@/lib/giving/campaign-progress'
+import { campaignProgress, campaignProgressFromReceipts, formatCampaignProgress, type CampaignProgressKey, type CampaignProgressValues } from '@/lib/giving/campaign-progress'
 import { usePendingGiftAmount } from './GiveSundayCart'
+import { useCampaignReceipts } from './useCampaignReceipts'
 
-export function CampaignProgress({ title, values, progressKey }: { title: string; values: CampaignProgressValues; progressKey?: CampaignProgressKey }) {
+export function CampaignProgress({ title, values, progressKey, overImage = false, showPending = true }: { title: string; values: CampaignProgressValues; progressKey?: CampaignProgressKey; overImage?: boolean; showPending?: boolean }) {
   const pending = usePendingGiftAmount(progressKey)
-  return <CampaignProgressDisplay title={title} values={values} pending={pending} />
+  const { receipts, unavailable } = useCampaignReceipts(Boolean(progressKey && progressKey !== 'cambodia'))
+  const current = receipts && progressKey ? campaignProgressFromReceipts(receipts)[progressKey] : values
+  return <CampaignProgressDisplay title={title} values={current} pending={showPending ? pending : 0} overImage={overImage} unavailable={unavailable} />
 }
 
-export function CampaignProgressDisplay({ title, values, pending = 0, overImage = false }: { title: string; values: CampaignProgressValues; pending?: number; overImage?: boolean }) {
+export function CampaignProgressDisplay({ title, values, pending = 0, overImage = false, unavailable = false }: { title: string; values: CampaignProgressValues; pending?: number; overImage?: boolean; unavailable?: boolean }) {
   const hasPending = values.unit === 'money' && Number.isSafeInteger(pending) && pending > 0
   const projected = hasPending ? { ...values, given: (values.given ?? 0) + pending } : values
   const { goal, given } = campaignProgress(values)
   const { percent } = campaignProgress(projected)
-  const givenText = formatCampaignProgress(given, values.unit)
+  const givenText = unavailable ? 'Unavailable' : formatCampaignProgress(given, values.unit)
   const pendingText = formatCampaignProgress(pending, 'money')
   const goalText = formatCampaignProgress(goal, values.unit)
   const description = values.unit === 'children'

@@ -8,7 +8,7 @@ import { CampaignStartButton } from './GiveSundayCart'
 import { MediaImage } from '@/components/media/MediaImage'
 import { FiHeart } from 'react-icons/fi'
 import { CAMPAIGN_PROGRESS, type CampaignProgressKey } from '@/lib/giving/campaign-progress'
-import { CampaignProgressDisplay } from './CampaignProgress'
+import { CampaignProgress } from './CampaignProgress'
 
 // Keep the campaign overview informational; both calls to action open guided giving.
 export function CampaignContent() {
@@ -43,7 +43,7 @@ export function CampaignContent() {
             <h2 className="text-xl font-bold leading-heading text-brand-black">{opportunity.heading}</h2>
             <p className="mt-4 leading-relaxed text-dark-grey">{opportunity.description}</p>
             {!['cambodia', 'greatest-need'].includes(opportunity.giftId) && <div className="mt-auto">
-              <CampaignProgressDisplay title={opportunity.heading} values={CAMPAIGN_PROGRESS[opportunity.giftId as CampaignProgressKey]} />
+              <CampaignProgress showPending={false} progressKey={opportunity.giftId as CampaignProgressKey} title={opportunity.heading} values={CAMPAIGN_PROGRESS[opportunity.giftId as CampaignProgressKey]} />
             </div>}
           </div>
         </article>)}
