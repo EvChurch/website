@@ -120,9 +120,7 @@ export function GiveSundayCart({ children, afterCart, embedded = false, renderPa
     setAmounts(current => { const next = { ...current }; delete next[id]; return next })
     editCart()
   }
-  function advance(id: GivingOpportunityId) {
-    const index = GUIDED_OPPORTUNITIES.indexOf(id as typeof GUIDED_OPPORTUNITIES[number])
-    const next = editing || id === 'greatest-need' || index === GUIDED_OPPORTUNITIES.length - 1 ? 'review' : GUIDED_OPPORTUNITIES[index + 1]
+  function transitionTo(next: GivingOpportunityId | 'review') {
     if (editing || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setView(next); setEditing(false); return
     }
@@ -133,6 +131,11 @@ export function GiveSundayCart({ children, afterCart, embedded = false, renderPa
       setFading(false)
       fadeTimer.current = null
     }, 150)
+  }
+  function advance(id: GivingOpportunityId) {
+    const index = GUIDED_OPPORTUNITIES.indexOf(id as typeof GUIDED_OPPORTUNITIES[number])
+    const next = editing || id === 'greatest-need' || index === GUIDED_OPPORTUNITIES.length - 1 ? 'review' : GUIDED_OPPORTUNITIES[index + 1]
+    transitionTo(next)
   }
   function openGreatestNeed() {
     setGeneralBack(view === 'intro' || view === 'review' ? view : view as GivingOpportunityId)
@@ -161,10 +164,10 @@ export function GiveSundayCart({ children, afterCart, embedded = false, renderPa
       className={`transition-opacity duration-150 motion-reduce:transition-none ${embedded ? `h-full overflow-y-auto overscroll-contain bg-warm-white text-brand-black outline-none ${view === 'intro' || view === 'review' || view === 'complete' ? 'px-4 py-4 sm:px-6 sm:py-5' : 'pb-5'}` : 'scroll-mt-24 bg-warm-white px-5 pb-12 pt-32 text-brand-black outline-none lg:px-8 lg:pb-16 lg:pt-36'}`} aria-busy={fading}>
       {view === 'intro' ? <div className="mx-auto max-w-2xl">
         <h1 className={embedded ? 'text-2xl font-bold' : 'text-h1 leading-display'}>Choose your gifts</h1>
-        <p className="mt-5 leading-relaxed text-dark-grey">Thanks for giving to our one-off giving. We’ll take you through Plant, Train, Grow and Build, one at a time.</p>
+        <p className="mt-5 leading-relaxed text-dark-grey">Thanks for participating in Give Sunday. We’ll take you through Plant, Train, Grow and Build, one at a time.</p>
         <p className="mt-4 leading-relaxed text-dark-grey">Choose an amount for each opportunity, or skip any. You’ll make one payment for your selected gifts.</p>
         <p className="mt-4 leading-relaxed text-dark-grey">After completing your gift, you’ll have the opportunity to explore child sponsorship in Cambodia through Tearfund.</p>
-        <button type="button" disabled={locked} onClick={() => setView('plant')} className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-md bg-rich-red px-6 py-3.5 font-semibold text-white disabled:opacity-40">Okay, let’s go<FiArrowRight aria-hidden="true" /></button>
+        <button type="button" disabled={locked} onClick={() => transitionTo('plant')} className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-md bg-rich-red px-6 py-3.5 font-semibold text-white disabled:opacity-40">Okay, let’s go<FiArrowRight aria-hidden="true" /></button>
         <div className="mt-6 text-center">
           <div className="flex items-center gap-3 text-sm text-mid-grey"><span className="h-px flex-1 bg-warm-grey" /><span>or</span><span className="h-px flex-1 bg-warm-grey" /></div>
           <button type="button" disabled={locked} onClick={openGreatestNeed} className="mt-6 font-semibold text-rich-red underline underline-offset-4 disabled:opacity-40">Give to greatest need</button>

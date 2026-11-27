@@ -118,3 +118,30 @@ it('opens greatest need directly from the introduction and returns there with Ba
     expect(container.textContent).not.toContain('Review your gifts')
   } finally { await act(async () => root.unmount()); container.remove() }
 })
+
+
+it('fades from the introduction to Plant and honours reduced motion', async () => {
+  vi.useFakeTimers()
+  vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => {})
+  let reducedMotion = false
+  Object.defineProperty(window, 'matchMedia', { configurable: true, value: () => ({ matches: reducedMotion }) })
+  const container = document.createElement('div'); document.body.append(container)
+  const root = createRoot(container)
+  try {
+    await act(async () => root.render(<GiveSundayCart embedded />))
+    const start = () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Okay, let’s go')!.click()
+    await act(async () => start())
+    expect(container.querySelector('section')?.style.opacity).toBe('0')
+    expect(container.querySelector('section')?.getAttribute('aria-busy')).toBe('true')
+    expect(container.querySelector('[data-opportunity]')).toBeNull()
+    await act(async () => { vi.advanceTimersByTime(150) })
+    expect(container.querySelector('[data-opportunity]')?.getAttribute('data-opportunity')).toBe('plant')
+    expect(container.querySelector('section')?.style.opacity).toBe('1')
+    await act(async () => { controls.back?.() })
+    reducedMotion = true
+    await act(async () => start())
+    expect(container.querySelector('[data-opportunity]')?.getAttribute('data-opportunity')).toBe('plant')
+    expect(container.querySelector('section')?.getAttribute('aria-busy')).toBe('false')
+    expect(vi.getTimerCount()).toBe(0)
+  } finally { await act(async () => root.unmount()); container.remove(); vi.useRealTimers() }
+})
