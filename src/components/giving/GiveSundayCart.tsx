@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import { campaignCartCatalog } from '@/lib/giving/cart-preview'
 import { campaignGiftsSchema, type CampaignCheckoutGift } from '@/lib/giving/campaign-checkout'
 import { FiArrowRight, FiEdit2, FiGift } from 'react-icons/fi'
-import { CAMBODIA_SPONSORSHIP_URL } from '@/lib/giving/campaign'
+import { CAMBODIA_SPONSORSHIP_URL, GREATEST_NEED_DESCRIPTION } from '@/lib/giving/campaign'
 import { GivingOpportunityStep, GUIDED_OPPORTUNITIES, type GivingOpportunityId } from './GivingOpportunityStep'
 import { useGivingExperience } from './GivingExperienceProvider'
 import { refreshCampaignReceipts } from './useCampaignReceipts'
@@ -33,9 +33,9 @@ export function usePendingGiftAmount(key?: CampaignProgressKey): number {
   return campaignProgressFromReceipts(receipts)[key].given ?? 0
 }
 
-export function CampaignStartButton() {
+export function CampaignStartButton({ className = 'mt-10 text-center' }: { className?: string }) {
   const giving = useGivingExperience()
-  return <div className="mt-10 text-center">
+  return <div className={className}>
     <Button type="button" size="large" disabled={!giving.campaignGivingAccessAllowed} onClick={giving.openCampaignGiving} className="disabled:cursor-not-allowed disabled:opacity-40">
       <FiGift aria-hidden="true" />Choose Your Gifts<FiArrowRight aria-hidden="true" />
     </Button>
@@ -174,6 +174,7 @@ export function GiveSundayCart({ children, afterCart, embedded = false, renderPa
         <button type="button" disabled={locked} onClick={() => transitionTo('plant')} className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-md bg-rich-red px-6 py-3.5 font-semibold text-white disabled:opacity-40">Okay, let’s go<FiArrowRight aria-hidden="true" /></button>
         <div className="mt-6 text-center">
           <div className="flex items-center gap-3 text-sm text-mid-grey"><span className="h-px flex-1 bg-warm-grey" /><span>or</span><span className="h-px flex-1 bg-warm-grey" /></div>
+          <p className="mt-4 text-sm leading-relaxed text-dark-grey">{GREATEST_NEED_DESCRIPTION}</p>
           <button type="button" disabled={locked} onClick={openGreatestNeed} className="mt-6 font-semibold text-rich-red underline underline-offset-4 disabled:opacity-40">Give to greatest need</button>
         </div>
       </div> : view === 'review' ? <div className="mx-auto max-w-2xl">
@@ -187,7 +188,7 @@ export function GiveSundayCart({ children, afterCart, embedded = false, renderPa
             return <li key={item.id} className="flex items-center justify-between gap-3 py-3 first:pt-1 last:pb-1">
             <div className="min-w-0">
               <p className="font-semibold">{name}</p>
-              {subtitle && <p className="mt-1 text-sm text-dark-grey">{subtitle.replace(/\b[a-z]/g, letter => letter.toUpperCase())}</p>}
+              {subtitle && <p className="mt-1 text-sm text-dark-grey">{subtitle}</p>}
             </div>
             <span className="ml-auto shrink-0 tabular-nums">{money((item.fixedAmountMinor ?? 0) * (quantities[item.id] ?? 0))}</span>
             <button type="button" disabled={locked} aria-label={`Edit ${item.title} gift`} title="Edit gift"
@@ -203,6 +204,7 @@ export function GiveSundayCart({ children, afterCart, embedded = false, renderPa
 
         <div className="mt-6 text-center">
           <div className="flex items-center gap-3 text-sm text-mid-grey"><span className="h-px flex-1 bg-warm-grey" /><span>or</span><span className="h-px flex-1 bg-warm-grey" /></div>
+          <p className="mt-4 text-sm leading-relaxed text-dark-grey">{GREATEST_NEED_DESCRIPTION}</p>
           <button type="button" disabled={locked} onClick={openGreatestNeed} className="mt-6 font-semibold text-rich-red underline underline-offset-4 disabled:opacity-40">Give to greatest need</button>
         </div>
       </div> : view === 'complete' ? <div className="mx-auto max-w-2xl text-center" role="status">

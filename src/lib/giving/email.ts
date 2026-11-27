@@ -79,7 +79,7 @@ function partnershipMessage(source: GivingEmailSource) {
   const gratitude = source.frequency === 'one-off'
     ? 'We thank God for you and for the generosity you’ve shown.'
     : 'We thank God for you and for your regular commitment to gospel ministry through Ev.'
-  const impact = 'Together with others across our church family, you’re helping sustain gospel ministry so people across Auckland can hear about Jesus, grow in him, and be equipped to serve.'
+  const impact = 'Together with others across our church family, you’re helping sustain gospel ministry so people across Auckland and New Zealand can hear about Jesus, grow in him, and be equipped to serve.'
   const verse = '“I thank my God every time I remember you… because of your partnership in the gospel from the first day until now.” — Philippians 1:3–5'
   const closing = 'We’re genuinely grateful to be partnering with you in this work.'
 

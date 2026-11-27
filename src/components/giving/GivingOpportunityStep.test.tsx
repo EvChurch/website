@@ -16,6 +16,7 @@ describe('guided giving opportunities', () => {
     expect(html).toContain('How much would you like to give?')
     expect(html).toContain('Skip this opportunity')
     expect(html).toContain('Give to greatest need')
+    expect(html).toContain('Give one general gift and let Ev use it wherever it is needed most.')
     expect(html).not.toContain('Any gifts you’ve already chosen will be kept.')
     expect(html).toContain('role="progressbar"')
     expect(html).not.toContain('Your gift cart')
@@ -23,6 +24,7 @@ describe('guided giving opportunities', () => {
   it('presents Greatest Need as one separate gift with no goal or proportional allocation copy', () => {
     const html = renderToStaticMarkup(<GivingOpportunityStep id="greatest-need" locked={false} editing={false} {...actions} />)
     expect(html).toContain('Continue to payment')
+    expect(html).toContain('Give one general gift and let Ev use it wherever it is needed most.')
     expect(html).not.toContain('Review your gifts')
     expect(html).not.toContain('Skip this opportunity')
     expect(html).not.toContain('>Goal<')

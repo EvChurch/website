@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react'
 import { ScrollReveal } from '@/components/ui/ScrollReveal'
 
 interface PageHeaderBlockProps {
+  children?: ReactNode
   eyebrow?: string | null
   heading: string
   description?: string | null
@@ -9,6 +11,7 @@ interface PageHeaderBlockProps {
 }
 
 export function PageHeaderBlockComponent({
+  children,
   eyebrow,
   heading,
   description,
@@ -54,6 +57,7 @@ export function PageHeaderBlockComponent({
               {description}
             </p>
           )}
+          {children}
         </ScrollReveal>
       </div>
     </section>
