@@ -41,6 +41,7 @@ export interface Earner {
   name: string
   amount: string
   frequency: GivingFrequency | 'hourly'
+  incomeBasis?: 'before-tax' | 'after-tax'
   kiwiSaver: boolean
   kiwiRate: number
   employerRate: number
@@ -54,6 +55,7 @@ export function newEarner(id: string): Earner {
     name: '',
     amount: '',
     frequency: 'yearly',
+    incomeBasis: 'before-tax',
     kiwiSaver: false,
     kiwiRate: 3.5,
     employerRate: 3.5,
@@ -92,12 +94,37 @@ export function validTaxSettings(settings: TaxSettings): boolean {
     settings.creditReduction < settings.creditMax
   )
 }
-export function annualSalary(earner: Earner, settings: TaxSettings): number {
+export function annualSalary(
+  earner: Earner,
+  settings: TaxSettings,
+  creditMonths = 12,
+): number {
   const annual =
     parseCalculatorAmount(earner.amount) *
     (earner.frequency === 'hourly'
       ? settings.hours * 52
       : GIVING_FREQUENCIES[earner.frequency].periods)
+  if (earner.incomeBasis === 'after-tax') {
+    if (annual === 0 || !validTaxSettings(settings)) return 0
+    // Invert the same payroll estimate used for before-tax entries, including
+    // any selected KiwiSaver, student loan and tax credit settings.
+    const netAt = (gross: number) =>
+      payroll(gross, earner, settings, creditMonths, (value) => value).net
+    let low = 0
+    let high = Math.max(annual, 1)
+    for (let i = 0; i < 60; i++) {
+      if (netAt(high) >= annual) break
+      high *= 2
+    }
+    // Custom deduction rates can make a take-home amount unreachable.
+    if (netAt(high) < annual) return Number.NaN
+    for (let i = 0; i < 80; i++) {
+      const mid = (low + high) / 2
+      if (netAt(mid) < annual) low = mid
+      else high = mid
+    }
+    return cents(high)
+  }
   return earner.kiwiSaver && earner.salarySacrifice
     ? annual / (1 + earner.employerRate / 100)
     : annual
@@ -109,7 +136,20 @@ export function takeHome(
   settings: TaxSettings = DEFAULT_TAX_SETTINGS,
   creditMonths = 12,
 ) {
-  const gross = annualSalary(earner, settings)
+  return payroll(
+    annualSalary(earner, settings, creditMonths),
+    earner,
+    settings,
+    creditMonths,
+  )
+}
+function payroll(
+  gross: number,
+  earner: Earner,
+  settings: TaxSettings,
+  creditMonths: number,
+  round: (value: number) => number = cents,
+) {
   let tax = 0,
     previous = 0
   for (const band of settings.bands) {
@@ -134,12 +174,12 @@ export function takeHome(
             ),
         )
       : 0
-  const paye = cents(Math.max(0, tax - credit))
-  const acc = cents((Math.min(gross, settings.accCap) * settings.accRate) / 100)
-  const kiwiSaver = cents(
+  const paye = round(Math.max(0, tax - credit))
+  const acc = round((Math.min(gross, settings.accCap) * settings.accRate) / 100)
+  const kiwiSaver = round(
     earner.kiwiSaver ? (gross * earner.kiwiRate) / 100 : 0,
   )
-  const studentLoan = cents(
+  const studentLoan = round(
     earner.studentLoan
       ? (Math.max(0, gross - settings.studentThreshold) *
           settings.studentRate) /
@@ -147,13 +187,13 @@ export function takeHome(
       : 0,
   )
   return {
-    gross: cents(gross),
+    gross: round(gross),
     paye,
     acc,
     kiwiSaver,
     studentLoan,
-    credit: cents(Math.min(tax, credit)),
-    employer: cents(earner.kiwiSaver ? (gross * earner.employerRate) / 100 : 0),
-    net: cents(gross - paye - acc - kiwiSaver - studentLoan),
+    credit: round(Math.min(tax, credit)),
+    employer: round(earner.kiwiSaver ? (gross * earner.employerRate) / 100 : 0),
+    net: round(gross - paye - acc - kiwiSaver - studentLoan),
   }
 }

@@ -106,17 +106,18 @@ export function IncomeCalculator({
       </div>
       {earners.map((earner, index) => {
         const name = earner.name.trim() || `Earner ${index + 1}`
-        const invalid =
-          !isValidCalculatorAmount(earner.amount) ||
-          !validSettings ||
-          ![earner.kiwiRate, earner.employerRate].every(
-            (rate) => Number.isFinite(rate) && rate >= 0 && rate <= 100,
-          )
         const result = takeHome(
           { ...earner, taxCredit: earner.taxCredit && !taxCreditUnavailable },
           settings,
           creditMonths,
         )
+        const invalid =
+          !isValidCalculatorAmount(earner.amount) ||
+          !validSettings ||
+          !Number.isFinite(result.gross) ||
+          ![earner.kiwiRate, earner.employerRate].every(
+            (rate) => Number.isFinite(rate) && rate >= 0 && rate <= 100,
+          )
         const breakdown = ([
           ['Gross pay', result.gross],
           ['PAYE', result.paye],
@@ -146,9 +147,10 @@ export function IncomeCalculator({
                 className="min-w-0 flex-1 border-b border-transparent bg-transparent text-sm font-semibold hover:border-warm-grey focus:border-rich-red focus:outline-none"
               />
               <CalculatorInfo name={`income for ${name}`}>
-                Enter this person’s combined salary or wages before tax. Combine
-                their jobs so personal tax thresholds apply once. Hourly pay
-                assumes 52 paid weeks.
+                Enter this person’s combined salary or wages. Tick “Amount is
+                after tax” if you are entering take-home pay. Combine their jobs
+                so personal tax thresholds apply once. Hourly pay assumes 52 paid
+                weeks. Giving percentages use take-home income.
               </CalculatorInfo>
               {index > 0 && (
                 <button
@@ -165,7 +167,9 @@ export function IncomeCalculator({
             </div>
             <div className="grid grid-cols-[minmax(0,1fr)_minmax(7rem,0.7fr)] gap-2">
               <label className="relative">
-                <span className="sr-only">Gross pay for {name}</span>
+                <span className="sr-only">
+                  {earner.incomeBasis === 'after-tax' ? 'Take-home pay' : 'Gross pay'} for {name}
+                </span>
                 <span
                   aria-hidden="true"
                   className="absolute top-3 left-3 text-dark-grey"
@@ -174,7 +178,7 @@ export function IncomeCalculator({
                 </span>
                 <input
                   id={`${earner.id}-amount`}
-                  aria-label={`Gross pay for ${name}`}
+                  aria-label={`${earner.incomeBasis === 'after-tax' ? 'Take-home pay' : 'Gross pay'} for ${name}`}
                   aria-invalid={invalid}
                   aria-describedby={invalid ? `${earner.id}-error` : undefined}
                   inputMode="decimal"
@@ -243,6 +247,16 @@ export function IncomeCalculator({
                   )}
                 </CalculatorInfo>
               </div>
+              <Toggle
+                checked={earner.incomeBasis === 'after-tax'}
+                onChange={(afterTax) =>
+                  update(earner.id, {
+                    incomeBasis: afterTax ? 'after-tax' : 'before-tax',
+                  })
+                }
+              >
+                Amount is after tax
+              </Toggle>
             </div>
             {earner.kiwiSaver && (
               <details className="text-sm">

@@ -84,6 +84,57 @@ function recommendations() {
 }
 
 describe('GivingCalculator', () => {
+  it('shows the assessment and next-step recommendations in full', async () => {
+    await act(async () => root.render(<GivingCalculator />))
+    expect(container.querySelector('[data-recommendation] details')).toBeNull()
+    expect(container.textContent).not.toContain('Read more')
+    expect(container.querySelector('[data-recommendation]')?.textContent).toContain(
+      'Look at your budget',
+    )
+    await enter('household-amount', '100000')
+    await enter('general-amount', '100')
+    expect(container.querySelectorAll('[data-recommendation] details')).toHaveLength(0)
+    expect(container.querySelector('[data-recommendation="personal-best"]')?.textContent).toContain(
+      'To raise your percentage',
+    )
+  })
+
+  it('accepts after-tax amounts with a checkbox and bases giving on take-home income', async () => {
+    await act(async () => root.render(<GivingCalculator />))
+    const choice = Array.from(container.querySelectorAll('label')).find(
+      (label) => label.textContent === 'Amount is after tax',
+    )!.querySelector('input')!
+    expect(choice.type).toBe('checkbox')
+    expect(choice.checked).toBe(false)
+    await enter('household-amount', '100000')
+    await select('general-frequency', 'yearly')
+    await enter('general-amount', '7537.25')
+    expect(output('giving-percentage')).toBe('10%')
+    await act(async () => choice.click())
+    await enter('household-amount', '75372.50')
+    expect(output('household-take-home')).toBe('$75,373')
+    expect(output('giving-percentage')).toBe('10%')
+    expect(container.querySelector('[data-testid="household-before-tax"]')).toBeNull()
+    expect(container.textContent).not.toContain('Annual household income before tax')
+    expect(container.textContent).not.toContain('Estimated annual before-tax income')
+    expect(recommendations()).toContain('beyond')
+    await click('15%')
+    expect(output('setup-gift')).toBe('Set up an additional gift of $3,770 a year')
+    const kiwiSaver = container.querySelector<HTMLInputElement>(
+      'section[aria-label="Earner 1"] input[type="checkbox"]',
+    )!
+    await act(async () => kiwiSaver.click())
+    expect(output('household-take-home')).toBe('$75,373')
+    expect(output('giving-percentage')).toBe('10%')
+    await click('+ Add another earner')
+    await enter(container.querySelector<HTMLInputElement>('[aria-label="Gross pay for Earner 2"]')!, '100000')
+    expect(output('household-take-home')).toBe('$150,745')
+    expect(output('giving-percentage')).toBe('5%')
+    await act(async () => choice.click())
+    expect(choice.checked).toBe(false)
+    expect(output('household-take-home')).not.toBe('$150,745')
+  })
+
   it('suggests only an additional gift, carries over the period and has no cancellation note', async () => {
     await act(async () => root.render(<GivingCalculator />))
     await enter('other-income-amount', '100000')
@@ -328,6 +379,14 @@ describe('GivingCalculator', () => {
       ),
     ).toBe(false)
     expect(input('support-amount')).toBeNull()
+    const afterTax = Array.from(container.querySelectorAll('label')).find(
+      (label) => label.textContent === 'Amount is after tax',
+    )!.querySelector('input')!
+    await act(async () => afterTax.click())
+    await enter('household-amount', '41467.50')
+    expect(output('working-for-families-total')).toBe('$20,642.50')
+    expect(output('household-take-home')).toBe('$62,110')
+    await act(async () => afterTax.click())
     await enter('household-amount', '60000')
     expect(output('working-for-families-total')).toBe('$17,892.50')
     await act(async () => toggle.click())

@@ -92,16 +92,11 @@ export function GivingRecommendations({
           >
             <h3 className="text-lg font-bold">{message.title}</h3>
             <p className="mt-2 text-dark-grey">{message.intro}</p>
-            <details className="mt-3 text-dark-grey">
-              <summary className="w-fit cursor-pointer rounded-sm font-semibold text-deep-red focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rich-red">
-                Read more<span className="sr-only">: {message.title}</span>
-              </summary>
-              <div className="mt-3 space-y-3 leading-relaxed">
-                {message.paragraphs.map((paragraph) => (
-                  <p key={paragraph}>{paragraph}</p>
-                ))}
-              </div>
-            </details>
+            <div className="mt-3 space-y-3 leading-relaxed text-dark-grey">
+              {message.paragraphs.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </div>
           </article>
         ))}
       </div>
