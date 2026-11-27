@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { GivingOpportunityStep, GUIDED_OPPORTUNITIES } from './GivingOpportunityStep'
@@ -9,7 +10,7 @@ describe('guided giving opportunities', () => {
     expect(html).not.toContain('Giving steps')
     const index=GUIDED_OPPORTUNITIES.indexOf(id)+1
     expect(html).toContain(`aria-label="Opportunity ${index} of 4"`)
-    expect(html.replace(/<!--.*?-->/g,'')).toContain(`${index}/4`)
+    expect(new DOMParser().parseFromString(html, 'text/html').body.textContent).toContain(`${index}/4`)
     expect(html).toContain('$1,000')
     expect(html).toContain('$5,000')
     expect(html).toContain('How much would you like to give?')
@@ -33,7 +34,7 @@ describe('guided giving opportunities', () => {
   it('restores an amount for review editing and provides save and remove actions', () => {
     const html = renderToStaticMarkup(<GivingOpportunityStep id="plant" amount={20_000} locked={false} editing {...actions} />)
     expect(html).toContain('value="200"')
-    expect(html.replace(/<!--.*?-->/g,'')).toContain('1. Plant')
+    expect(new DOMParser().parseFromString(html, 'text/html').body.textContent).toContain('1. Plant')
     expect(html).toContain('The Next Church Beyond Auckland')
     expect(html).toContain('mt-1 block text-base')
     expect(html).toContain('Save changes')
