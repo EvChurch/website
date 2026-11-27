@@ -24,6 +24,7 @@ describe('TurnstileWidget lifecycle', () => {
     container.remove()
     delete window.turnstile
     document.querySelectorAll('script[data-ev-turnstile]').forEach((script) => script.remove())
+    vi.useRealTimers()
   })
 
   it('renders, forwards callbacks, replaces on reset, and removes on unmount', async () => {
@@ -73,7 +74,7 @@ describe('TurnstileWidget lifecycle', () => {
       'script[data-ev-turnstile]',
     )
     expect(failedScript?.crossOrigin).toBe('anonymous')
-    failedScript?.dispatchEvent(new Event('error'))
+    await act(async () => { failedScript?.dispatchEvent(new Event('error')) })
     expect(onError).toHaveBeenCalledWith(
       'The security check could not load. Please try again.',
     )
@@ -91,5 +92,46 @@ describe('TurnstileWidget lifecycle', () => {
     expect(document.querySelector('script[data-ev-turnstile]')).not.toBe(
       failedScript,
     )
+  })
+
+  it('reports provider errors after rendering and retries without accepting a token', async () => {
+    const onToken = vi.fn()
+    const onError = vi.fn()
+    const render = vi.fn<NonNullable<Window['turnstile']>['render']>().mockReturnValue('widget-1')
+    const remove = vi.fn()
+    window.turnstile = { render, reset: vi.fn(), remove }
+    await act(async () => root.render(<TurnstileWidget siteKey="site-key" action="giving-checkout" resetKey={0} onToken={onToken} onError={onError} />))
+    expect(container.textContent).toContain('Checking your browser')
+    await act(async () => render.mock.calls[0][1]['error-callback']())
+    expect(onError).toHaveBeenCalledOnce()
+    expect(onToken).toHaveBeenLastCalledWith('')
+    expect(container.querySelector('button')?.textContent).toBe('Retry security check')
+    await act(async () => container.querySelector('button')!.click())
+    expect(remove).toHaveBeenCalledWith('widget-1')
+    expect(render).toHaveBeenCalledTimes(2)
+    expect(onToken).not.toHaveBeenCalledWith('verified-token')
+    await act(async () => render.mock.calls[1][1].callback('verified-token'))
+    expect(onToken).toHaveBeenLastCalledWith('verified-token')
+    expect(container.querySelector('button')).toBeNull()
+    expect(container.textContent).not.toContain('Checking your browser')
+  })
+
+  it('offers retry if a rendered challenge never completes, then handles token expiry', async () => {
+    vi.useFakeTimers()
+    const onToken = vi.fn()
+    const onError = vi.fn()
+    const render = vi.fn<NonNullable<Window['turnstile']>['render']>().mockReturnValue('widget-1')
+    window.turnstile = { render, reset: vi.fn(), remove: vi.fn() }
+    await act(async () => root.render(<TurnstileWidget siteKey="site-key" action="giving-checkout" resetKey={0} onToken={onToken} onError={onError} />))
+    await act(async () => vi.advanceTimersByTime(30_000))
+    expect(onError).toHaveBeenCalledOnce()
+    expect(onToken).toHaveBeenLastCalledWith('')
+    await act(async () => container.querySelector('button')!.click())
+    await act(async () => render.mock.calls[1][1].callback('verified-token'))
+    await act(async () => render.mock.calls[1][1]['expired-callback']())
+    expect(onToken).toHaveBeenLastCalledWith('')
+    expect(container.textContent).toContain('Checking your browser')
+    await act(async () => vi.advanceTimersByTime(30_000))
+    expect(container.querySelector('button')?.textContent).toBe('Retry security check')
   })
 })
