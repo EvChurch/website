@@ -3,7 +3,7 @@ import type { MigrateUpArgs } from '@payloadcms/db-postgres'
 import { faithfulWithMoneyCourse } from '../../content/courses/faithful-with-money'
 import { courseStructureKey, snapshotCourse } from '../lib/courses/model'
 import type { Course } from '../payload-types'
-import { enrichExistingFaithfulCourse } from './20261127_023545_guided_course_lessons'
+import { enrichExistingFaithfulCourse } from '../migrations/20261127_023545_guided_course_lessons'
 
 function originalCourse(): Course {
   const course = structuredClone({ ...faithfulWithMoneyCourse, id: 99, createdAt: '', updatedAt: '', _status: 'published' }) as Course

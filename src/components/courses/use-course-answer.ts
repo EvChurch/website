@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
+import { LessonAnswerActivity } from './LessonAnswerActivity'
 import { useRouter } from 'next/navigation'
 import { readCourseAnswerAction, saveCourseAnswerAction } from '@/app/(frontend)/members/courses/answer-actions'
 import type { CourseAnswerState, CourseAnswerValue } from '@/lib/courses/answer-model'
@@ -10,6 +11,7 @@ const checkedNavigationEvents = new WeakSet<Event>()
 /** Shared autosave behaviour for questions and predefined exercise blocks. */
 export function useCourseAnswer({ attemptId, lessonId, blockId, initial }: { attemptId: number; lessonId: string; blockId: string; initial: CourseAnswerState }) {
   const router = useRouter()
+  const activity = useContext(LessonAnswerActivity)
   const [value, setValue] = useState<CourseAnswerValue>(initial.value)
   const [status, setStatus] = useState<'saved' | 'saving' | 'error' | 'conflict'>('saved')
   const [conflict, setConflict] = useState<CourseAnswerState | null>(null)
@@ -20,6 +22,11 @@ export function useCourseAnswer({ attemptId, lessonId, blockId, initial }: { att
   const saving = useRef(false)
   const edits = useRef(0)
   const mounted = useRef(true)
+
+  useEffect(() => {
+    activity?.report(blockId, status)
+    return () => activity?.report(blockId, null)
+  }, [activity, blockId, status])
 
   const change = (next: CourseAnswerValue) => {
     current.current = next; dirty.current = true; edits.current++
@@ -69,11 +76,11 @@ export function useCourseAnswer({ attemptId, lessonId, blockId, initial }: { att
       try {
         const answer = await readCourseAnswerAction(attemptId, lessonId, blockId)
         if (!mounted.current || dirty.current || saving.current || answer.revision === revision.current) return
-        revision.current = answer.revision; current.current = answer.value; setValue(answer.value)
+        revision.current = answer.revision; current.current = answer.value; setValue(answer.value); router.refresh()
       } catch { /* A failed refresh never replaces local work. */ }
     }, 10000)
     return () => clearInterval(timer)
-  }, [attemptId, lessonId, blockId])
+  }, [attemptId, lessonId, blockId, router])
 
   const useSaved = () => {
     if (!conflict) return

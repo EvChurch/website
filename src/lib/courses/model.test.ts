@@ -16,4 +16,12 @@ describe('course edition boundaries', () => {
     expect(isCourseComplete(course, [])).toBe(false)
     expect(isCourseComplete(course, ['one'])).toBe(true)
   })
+  it('versions individual question meaning without changing courses that have no override', () => {
+    const block = { id: 'q', blockType: 'courseQuestion' as const, prompt: 'Reflect', inputType: 'text' as const, visibility: 'personal' as const }
+    const snapshot = { ...course, lessons: [{ ...course.lessons[0], blocks: [block] }] }
+    const key = courseStructureKey(snapshot)
+    expect(courseStructureKey({ ...snapshot, lessons: [{ ...snapshot.lessons[0], blocks: [{ ...block, individualPrompt: '' }] }] })).toBe(key)
+    expect(courseStructureKey({ ...snapshot, lessons: [{ ...snapshot.lessons[0], blocks: [{ ...block, individualPrompt: 'A different question' }] }] })).not.toBe(key)
+    expect(courseStructureKey({ ...snapshot, lessons: [{ ...snapshot.lessons[0], blocks: [{ ...block, individualGuidance: 'A little help' }] }] })).toBe(key)
+  })
 })
