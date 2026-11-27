@@ -118,12 +118,47 @@ describe('BlinkPay hosted return', () => {
     expect(consume).toHaveBeenCalledWith(returnToken, null)
   })
 
-  it('redirects a replayed BlinkPay decline when the checkout status capability remains', async () => {
+  it.each(['cid', 'consent_id'])('accepts a cancellation status with %s and returns to the saved giving page', async alias => {
+    const consume = vi.fn(async () => ({ statusToken: 'S'.repeat(43), checkoutId: 1 }))
+    vi.stubEnv('APP_BASE_URL', 'https://www.ev.church')
+    try {
+      const response = await handleGivingReturnGet(
+        requestWithReturnTo('/one-off-giving?giving=return', `?${alias}=bbb23698-8386-416f-9a2e-760db30b00bd&error=Payment+cancelled&status=cancelled`),
+        { consume, validateStatus: vi.fn() },
+      )
+      expect(response.status).toBe(303)
+      expect(response.headers.get('location')).toBe('https://www.ev.church/one-off-giving?giving=return')
+      expect(response.headers.get('cache-control')).toContain('no-store')
+      expect(consume).toHaveBeenCalledExactlyOnceWith(returnToken, null)
+    } finally { vi.unstubAllEnvs() }
+  })
+
+  it('does not trust a status hint without a valid checkout capability', async () => {
+    const consume = vi.fn(async () => { throw new Error('Unavailable') })
+    const validateStatus = vi.fn(async () => { throw new Error('Unavailable') })
+    for (const status of ['cancelled', 'success']) {
+      const query = `?cid=provider-correlation&status=${status}`
+      expect((await handleGivingReturnGet(request(query, false), dependencies(consume, validateStatus))).status).toBe(404)
+      expect(consume).not.toHaveBeenCalled()
+      expect((await handleGivingReturnGet(request(query), dependencies(consume, validateStatus))).status).toBe(404)
+      consume.mockClear()
+    }
+  })
+
+  it('rejects duplicate, empty, oversized and unexpected callback fields', async () => {
+    const consume = vi.fn(async () => ({ statusToken: 'S'.repeat(43), checkoutId: 1 }))
+    for (const query of ['?cid=abc&status=cancelled&status=success', '?cid=abc&status=', `?cid=abc&status=${'a'.repeat(129)}`, '?cid=abc&status=cancelled&redirect=https://evil.test']) {
+      expect((await handleGivingReturnGet(request(query), dependencies(consume))).status).toBe(404)
+    }
+    expect(consume).not.toHaveBeenCalled()
+  })
+
+  it('redirects a replayed BlinkPay cancellation when the checkout status capability remains', async () => {
     const consume = vi.fn(async () => ({ statusToken: 'S'.repeat(43), checkoutId: 1 }))
     const validateStatus = vi.fn(async () => undefined)
     const response = await handleGivingReturnGet(
       replayRequest(
-        '?cid=7f04b1de-c78c-4422-b92b-84e3f87606b5&error=The+payment+was+declined+and+you+were+not+charged',
+        '?cid=7f04b1de-c78c-4422-b92b-84e3f87606b5&error=Payment+cancelled&status=cancelled',
         true,
       ),
       dependencies(consume, validateStatus),
