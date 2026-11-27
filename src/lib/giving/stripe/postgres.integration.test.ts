@@ -1,4 +1,5 @@
 import { readGivingCheckoutStatus, handleGivingStatusGet } from '@/app/api/giving/checkouts/[token]/status/route'
+import { readCampaignReceipts } from '../campaign-receipts'
 import { capabilityDigest } from '../service'
 import { handleGivingCheckoutPost } from '@/app/api/giving/checkouts/route'
 import { givingSubmissionVersion } from '../submission-version'
@@ -172,14 +173,19 @@ describe.skipIf(!url)('Stripe giving against disposable PostgreSQL',()=>{
       returnToken=response.headers.get('set-cookie')?.match(/__Host-ev_giving_return=([^;]+)/u)?.[1] ?? ''
     }
     expect((await givingAllocationFinanceCsv(pool,'2026-01-01','2026-12-31')).trim().split('\r\n')).toHaveLength(1)
+    expect(await readCampaignReceipts(pool)).toEqual({plant:0,train:0,grow:0,build:0,'greatest-need':0})
     const returned=await service.consumeReturn(returnToken)
     expect(await service.status(returned.statusToken)).toMatchObject({state:'verified'})
+    expect(await readCampaignReceipts(pool)).toEqual({plant:8000,train:0,grow:0,build:50000,'greatest-need':0})
     expect(await service.status(returned.statusToken)).toMatchObject({state:'verified'})
     expect(blinkPay.createQuickPayment).toHaveBeenCalledTimes(1)
     expect((await pool.query('SELECT amount_minor FROM giving_gifts')).rows).toEqual([{amount_minor:'58000'}])
     const csv=await givingAllocationFinanceCsv(pool,'2026-01-01','2026-12-31')
     expect(csv.trim().split('\r\n')).toHaveLength(3)
     expect(csv).toContain('GIVE26PLANT');expect(csv).toContain('GIVE26BUILD')
+    expect(await readCampaignReceipts(pool)).toEqual({plant:8000,train:0,grow:0,build:50000,'greatest-need':0})
+    await pool.query("UPDATE giving_gifts SET status='failed'")
+    expect(await readCampaignReceipts(pool)).toEqual({plant:0,train:0,grow:0,build:0,'greatest-need':0})
   })
 
   async function campaignCheckout(environment:'sandbox'|'production'='sandbox') {
@@ -213,6 +219,7 @@ describe.skipIf(!url)('Stripe giving against disposable PostgreSQL',()=>{
     expect((await pool.query('SELECT amount_minor FROM giving_gifts')).rows).toEqual([{amount_minor:'58000'}])
     expect((await pool.query('SELECT sum(amount_minor)::text total,count(*)::integer lines FROM giving_checkout_allocations')).rows).toEqual([{total:'58000',lines:2}])
     expect((await givingAllocationFinanceCsv(pool,'2026-01-01','2026-12-31')).trim().split('\r\n')).toHaveLength(1)
+    expect(await readCampaignReceipts(pool)).toEqual({plant:0,train:0,grow:0,build:0,'greatest-need':0})
   })
   it('requires the dedicated aggregate fund and its allocation reference before any provider creation',async()=>{
     const {value}=await campaignCheckout()
@@ -237,6 +244,7 @@ describe.skipIf(!url)('Stripe giving against disposable PostgreSQL',()=>{
     await reconcileStripeCheckout(pool,row.id)
     await reconcileStripeCheckout(pool,row.id)
     expect(api.checkout.sessions.create).toHaveBeenCalledTimes(1)
+    expect(await readCampaignReceipts(pool)).toEqual({plant:8000,train:0,grow:0,build:50000,'greatest-need':0})
     expect((await pool.query('SELECT amount_minor,fund_name,giver_id FROM giving_gifts')).rows).toEqual([{amount_minor:'58000',fund_name:'Give Sunday gifts',giver_id:expect.any(Number)}])
     expect((await pool.query('SELECT reference,gl_code,project,amount_minor FROM giving_checkout_allocations ORDER BY opportunity_id')).rows).toEqual([
       {reference:'GIVE26BUILD',gl_code:'411',project:'T-Give26 Build',amount_minor:'50000'},

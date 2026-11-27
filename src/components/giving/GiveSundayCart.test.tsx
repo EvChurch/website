@@ -27,6 +27,7 @@ it('hands the selected gifts to the shared payment flow and starts fresh after v
   vi.stubGlobal('matchMedia', vi.fn(() => ({matches:true})))
   Object.defineProperty(window,'matchMedia',{configurable:true,value:() => ({matches:true})})
   const fetchMock = vi.fn()
+  const refreshEvents = vi.spyOn(window, 'dispatchEvent')
   vi.stubGlobal('fetch',fetchMock)
   const selected: unknown[] = []
   const container = document.createElement('div')
@@ -52,6 +53,7 @@ it('hands the selected gifts to the shared payment flow and starts fresh after v
     expect(container.textContent).toContain('$400')
     await act(async () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Continue to payment')!.click())
     await act(async () => container.querySelector<HTMLButtonElement>('[data-verified]')!.click())
+    expect(refreshEvents).toHaveBeenCalledWith(expect.objectContaining({type:'ev-campaign-progress-refresh'}))
     expect(container.textContent).toContain('Your gift total: $400.')
     expect(container.querySelector('a')?.href).toBe('https://www.tearfund.org.nz/Child-Consignment/AKL-EV-Sponsorship-page')
     await act(async () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Start over')!.click())

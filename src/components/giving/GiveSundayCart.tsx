@@ -7,6 +7,7 @@ import { FiArrowRight, FiEdit2, FiGift } from 'react-icons/fi'
 import { CAMBODIA_SPONSORSHIP_URL } from '@/lib/giving/campaign'
 import { GivingOpportunityStep, GUIDED_OPPORTUNITIES, type GivingOpportunityId } from './GivingOpportunityStep'
 import { useGivingExperience } from './GivingExperienceProvider'
+import { refreshCampaignReceipts } from './useCampaignReceipts'
 import { Button } from '@/components/ui/Button'
 import { GIVE_SUNDAY_RETURN_MESSAGE } from '@/lib/giving/campaign-access'
 import { campaignProgressFromReceipts, type CampaignProgressKey, type CampaignReceipts } from '@/lib/giving/campaign-progress'
@@ -162,7 +163,7 @@ export function GiveSundayCart({ children, afterCart, embedded = false, renderPa
     if (view === 'complete') { setAmounts({}); setQuantities({}); editCart() }
     setEditing(false); setView('intro')
   } }}>
-    {view === 'overview' ? <>{children}{afterCart}</> : view === 'payment' ? renderPayment?.({ gifts: paymentGifts, onBack: () => { editCart(); if (paymentGifts[0]?.opportunityId === 'greatest-need') setGeneralDefaultAmount(paymentGifts[0].amountMinor); setView(paymentGifts[0]?.opportunityId === 'greatest-need' ? 'greatest-need' : 'review') }, onVerified: () => { sessionStorage.removeItem('ev-give-sunday-payment'); const url = new URL(window.location.href); if (url.searchParams.get('giving') === 'return') { url.searchParams.delete('giving'); window.history.replaceState(null,'',url.pathname+url.search+url.hash) }; setView('complete') } }) : <section ref={flowSection} tabIndex={-1} aria-label="Give Sunday giving"
+    {view === 'overview' ? <>{children}{afterCart}</> : view === 'payment' ? renderPayment?.({ gifts: paymentGifts, onBack: () => { editCart(); if (paymentGifts[0]?.opportunityId === 'greatest-need') setGeneralDefaultAmount(paymentGifts[0].amountMinor); setView(paymentGifts[0]?.opportunityId === 'greatest-need' ? 'greatest-need' : 'review') }, onVerified: () => { refreshCampaignReceipts(); sessionStorage.removeItem('ev-give-sunday-payment'); const url = new URL(window.location.href); if (url.searchParams.get('giving') === 'return') { url.searchParams.delete('giving'); window.history.replaceState(null,'',url.pathname+url.search+url.hash) }; setView('complete') } }) : <section ref={flowSection} tabIndex={-1} aria-label="Give Sunday giving"
       style={{ opacity: fading ? 0 : 1 }}
       className={`transition-opacity duration-150 motion-reduce:transition-none ${embedded ? `h-full overflow-y-auto overscroll-contain bg-warm-white text-brand-black outline-none ${view === 'intro' || view === 'review' || view === 'complete' ? 'px-4 py-4 sm:px-6 sm:py-5' : 'pb-5'}` : 'scroll-mt-24 bg-warm-white px-5 pb-12 pt-32 text-brand-black outline-none lg:px-8 lg:pb-16 lg:pt-36'}`} aria-busy={fading}>
       {view === 'intro' ? <div className="mx-auto max-w-2xl">

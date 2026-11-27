@@ -6,7 +6,7 @@ import presentation from '@/lib/giving/campaign-presentation.json'
 import { GIVE_SUNDAY_GIFTS, GIVE_SUNDAY_SUGGESTED_AMOUNTS_MINOR } from '@/lib/giving/campaign'
 import { CAMPAIGN_PROGRESS, formatCampaignProgress } from '@/lib/giving/campaign-progress'
 import { MediaImage } from '@/components/media/MediaImage'
-import { CampaignProgressDisplay } from './CampaignProgress'
+import { CampaignProgress } from './CampaignProgress'
 import { giftAmountMinor } from './GiftAmountDialog'
 
 export const GUIDED_OPPORTUNITIES = ['plant', 'train', 'grow', 'build'] as const
@@ -47,7 +47,7 @@ export function GivingOpportunityStep({ id, amount, locked, editing, compact = f
           <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-28 bg-linear-to-t from-black/85 via-black/35 to-transparent" />
           <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-24 backdrop-blur-[2px] [mask-image:linear-gradient(to_top,black,transparent)]" />
           <div className="absolute inset-x-0 bottom-0 px-4 pb-4 pt-8 sm:px-6">
-            <CampaignProgressDisplay title={gift.title} values={CAMPAIGN_PROGRESS[id]} overImage />
+            <CampaignProgress showPending={false} progressKey={id} title={gift.title} values={CAMPAIGN_PROGRESS[id]} overImage />
           </div>
         </>}
       </div>

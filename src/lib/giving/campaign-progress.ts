@@ -13,7 +13,7 @@ export interface CampaignProgressValues {
 // Build and Grow.probundle (22 November 2026), slides 6, 9 and 10 and their speaker
 // notes confirm this year's Build and Grow goals. The three-year partner pledge
 // is not a current campaign receipt. Tatai confirmed the updated fund goals
-// on 26 November 2026. Amounts given remain unknown.
+// on 26 November 2026. Confirmed receipts are loaded separately from the giving ledger.
 export const CAMPAIGN_FUND_GOALS = {
   plant: 5_000_000,
   train: 10_000_000,
@@ -56,4 +56,13 @@ export function formatCampaignProgress(value: number | null, unit: CampaignProgr
   return unit === 'children'
     ? new Intl.NumberFormat('en-NZ').format(value)
     : new Intl.NumberFormat('en-NZ', { style: 'currency', currency: 'NZD', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value / 100)
+}
+
+
+export function parseCampaignReceipts(value: unknown): CampaignReceipts {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid campaign totals')
+  const record = value as Record<string, unknown>
+  const keys = [...funds, 'greatest-need'] as const
+  if (Object.keys(record).length !== keys.length || keys.some(key => !Number.isSafeInteger(record[key]) || Number(record[key]) < 0)) throw new Error('Invalid campaign totals')
+  return Object.fromEntries(keys.map(key => [key, record[key]])) as CampaignReceipts
 }
