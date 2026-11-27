@@ -20,6 +20,8 @@ function Probe() {
     </output>
     <button type="button" onClick={() => giving.setFlagState('enabled')}>enable</button>
     <button type="button" onClick={() => giving.openGiving()}>open</button>
+    <button type="button" data-preset onClick={() => giving.openGiving(undefined, { amountMinor: 12550, frequency: 'fortnightly' })}>preset</button>
+    <output data-preset-value>{JSON.stringify(giving.initialGift)}</output>
     <button type="button" onClick={() => {
       giving.consumeGivingRequest(giving.givingRequestId)
     }}>consume</button>
@@ -51,6 +53,20 @@ describe('GivingExperienceProvider', () => {
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
+  })
+
+  it('passes a calculator preset with a new open request and clears it on ordinary opening', async () => {
+    await act(async () => root.render(
+      <GivingExperienceProvider serverEligibility={null} givingExperience={<p>Giving</p>}>
+        <Probe />
+      </GivingExperienceProvider>,
+    ))
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-preset]')!.click())
+    expect(JSON.parse(container.querySelector('[data-preset-value]')!.textContent!)).toEqual({ amountMinor: 12550, frequency: 'fortnightly' })
+    expect(container.querySelector('output')!.textContent).toBe('1:0')
+    await act(async () => Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'open')!.click())
+    expect(container.querySelector('[data-preset-value]')!.textContent).toBe('null')
+    expect(container.querySelector('output')!.textContent).toBe('2:0')
   })
 
   it('opens campaign giving separately and leaves regular giving and payment eligibility intact', async () => {

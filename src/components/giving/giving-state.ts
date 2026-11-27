@@ -15,6 +15,11 @@ export type GivingStep =
   | 'payment-method'
   | 'review'
 
+export interface GivingGiftPreset {
+  amountMinor: number
+  frequency: Exclude<GivingFrequency, 'one-off'>
+}
+
 export interface GivingAnswers {
   amountMinor: number | null
   fund: PublicGivingFund | null
@@ -55,22 +60,24 @@ export function createGivingState(
   funds: readonly PublicGivingFund[],
   identity: Partial<Record<GivingIdentityField, string>> = {},
   directedFundId: number | null = null,
+  preset?: GivingGiftPreset | null,
 ): GivingState {
   const fund = directedFundId === null
     ? funds.find((fund) => fund.isDefault) ?? null
     : funds.find((fund) => fund.id === directedFundId) ?? null
+  const prefilled = preset && fund && Number.isSafeInteger(preset.amountMinor) && preset.amountMinor > 0 ? preset : null
   return {
-    step: 'amount',
-    history: [],
+    step: prefilled ? 'starting-date' : 'amount',
+    history: prefilled ? ['amount', 'frequency', 'fund'] : [],
     editReturnStep: null,
     linearNavigation: false,
-    fundConfirmed: directedFundId !== null && fund !== null,
+    fundConfirmed: Boolean(prefilled) || (directedFundId !== null && fund !== null),
     directedFundId,
     missingIdentity: (['firstName', 'lastName', 'email'] as const).filter((field) => !identity[field]),
     answers: {
-      amountMinor: null,
+      amountMinor: prefilled ? prefilled.amountMinor : null,
       fund,
-      frequency: null,
+      frequency: prefilled ? prefilled.frequency : null,
       startDate: null,
       firstName: identity.firstName ?? '',
       lastName: identity.lastName ?? '',

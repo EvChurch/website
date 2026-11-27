@@ -9,6 +9,17 @@ const funds: PublicGivingFund[] = [
 ]
 
 describe('giving state', () => {
+  it.each(['weekly', 'fortnightly', 'monthly', 'annual'] as const)('prefills General Fund and %s giving without submitting or choosing a date', (frequency) => {
+    const state = createGivingState(funds, {}, null, { amountMinor: 12550, frequency })
+    expect(state).toMatchObject({
+      step: 'starting-date',
+      fundConfirmed: true,
+      history: ['amount', 'frequency', 'fund'],
+      answers: { amountMinor: 12550, frequency, fund: funds[1], startDate: null },
+    })
+    expect(givingReducer(state, { type: 'edit', step: 'amount' }).step).toBe('amount')
+  })
+
   it('confirms the directed fund and skips fund selection in both directions', () => {
     let state = createGivingState(funds, {}, 1)
     expect(state).toMatchObject({ step: 'amount', directedFundId: 1, fundConfirmed: true, answers: { fund: funds[0], amountMinor: null } })

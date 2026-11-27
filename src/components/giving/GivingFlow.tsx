@@ -156,9 +156,10 @@ export interface GivingCampaignPayment { gifts: CampaignCheckoutGift[]; onBack()
 export function GivingFlow({ funds, campaign, identity = { signedIn: false }, resumeRequested = false, transactionFeeMinor = DEFAULT_GIVING_TRANSACTION_FEE_MINOR, turnstileSiteKey, gatewayOrigins, cardFees }: { funds: PublicGivingFund[]; campaign?: GivingCampaignPayment; identity?: GivingFlowIdentity; resumeRequested?: boolean; transactionFeeMinor?: number; turnstileSiteKey: string; gatewayOrigins: readonly string[]; cardFees?: CardFeeSettings }) {
   const giving = useGivingExperience()
   const directedFundId = giving.directedFundId ?? null
+  const initialGift = giving.initialGift ?? null
   const known = useMemo(() => ({ firstName: identity.firstName ?? '', lastName: identity.lastName ?? '', email: identity.email ?? '' }), [identity.email, identity.firstName, identity.lastName])
   const [state, dispatch] = useReducer(givingReducer, undefined, () => {
-    if (!campaign) return createGivingState(funds, known, directedFundId)
+    if (!campaign) return createGivingState(funds, known, directedFundId, initialGift)
     const fund = funds.find(item => item.code === CAMPAIGN_CHECKOUT_FUND_CODE)
     const initial = createGivingState(funds,known,fund?.id ?? null)
     initial.answers = { ...initial.answers, amountMinor: campaignGiftTotal(campaign.gifts), frequency: 'one-off', fund: fund ? { ...fund, name: 'Give Sunday' } : null }
@@ -403,7 +404,7 @@ export function GivingFlow({ funds, campaign, identity = { signedIn: false }, re
   }, [answerFingerprint])
 
   const restoreDraft = useCallback(async () => {
-    if (campaignActive) return false
+    if (campaignActive || initialGift) return false
     if (directedFundId !== null) return false
     const operation = currentOperation()
     const response = await fetch('/api/giving/drafts', { cache: 'no-store', signal: operation.signal })
@@ -421,7 +422,7 @@ export function GivingFlow({ funds, campaign, identity = { signedIn: false }, re
     const requiredIdentity = (['firstName','lastName','email'] as const).filter((field) => !identity.signedIn || !restored[field])
     dispatch({ type: 'restore', answers: restored, fundConfirmed: saved.fundConfirmed && fund !== null, missingIdentity: requiredIdentity })
     return true
-  }, [campaignActive, currentOperation, directedFundId, funds, identity.signedIn, known, operationIsCurrent])
+  }, [campaignActive, initialGift, currentOperation, directedFundId, funds, identity.signedIn, known, operationIsCurrent])
 
   const pollStatus = useCallback(async function poll(): Promise<void> {
     if(!pollActive.current||pollInFlight.current)return
@@ -458,6 +459,7 @@ export function GivingFlow({ funds, campaign, identity = { signedIn: false }, re
   }, [campaignActive, currentOperation, operationIsCurrent, restoreDraft])
 
   useEffect(() => {
+    if (initialGift) return
     const campaignSubmitted = campaignActive && sessionStorage.getItem('ev-give-sunday-payment') === 'submitted'
     if (campaignActive ? !campaignSubmitted : !resumeRequested) return
     if (identity.signedIn && (!identityReady || !signedInIdentityResolved.current)) {
@@ -480,7 +482,7 @@ export function GivingFlow({ funds, campaign, identity = { signedIn: false }, re
     if (returning) delayedTimer.current = setTimeout(() => {
       if (operationIsCurrent(operation)) setCheckout((current) => current.type === 'status' ? { ...current, delayed: true } : current)
     }, GIVING_SAFE_CLOSE_REASSURANCE_DELAY_MS)
-  }, [campaignActive, currentOperation, directedFundId, identity.signedIn, identityReady, operationIsCurrent, pollStatus, restoreDraft, resumeRequested])
+  }, [campaignActive, initialGift, currentOperation, directedFundId, identity.signedIn, identityReady, operationIsCurrent, pollStatus, restoreDraft, resumeRequested])
   useEffect(() => giving.registerGivingCloseHandler(() => {
     if (checkout.type === 'submitting' || discardingDraft.current) return true
     if (campaignActive) return false

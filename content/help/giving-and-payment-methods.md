@@ -2,6 +2,8 @@
 
 [Open giving](/give). Choose an amount, frequency and fund, then check your details. Directed giving opens with its fund already selected.
 
+In the [generosity calculator](/generosity/calculator), select a giving level under **Going forward**, then choose **Set up a gift** (or **Set up an additional gift** if you already give to General Fund). The launcher opens with just the extra General Fund amount needed to reach that level and its frequency filled in. It keeps your existing General Fund frequency, or uses monthly if there is no existing gift. Choose a starting date and complete your details before authorising payment. Your existing gifts continue; the additional gift covers only the increase.
+
 On the separate **How would you like to pay?** step, choose **Pay by bank** or **Debit or credit card**. Each option shows its payment fee and total before you open its provider page and authorise it. The gift amount goes to your chosen fund; the fee is shown separately. Unavailable methods are disabled.
 
 **Pay by bank** uses BlinkPay and supports ANZ, ASB, BNZ, Kiwibank and Westpac. Continue to BlinkPay to authorise with your bank.

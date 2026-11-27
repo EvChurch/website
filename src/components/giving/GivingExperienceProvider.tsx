@@ -11,6 +11,8 @@ import {
   useEffect,
 } from 'react'
 
+import type { GivingGiftPreset } from './giving-state'
+
 import type { GivingServerEligibility } from '@/lib/giving/availability'
 import type { PublicSupportProfile } from '@/lib/giving/support-profiles'
 
@@ -21,6 +23,7 @@ interface GivingExperienceContextValue {
   campaignGivingActive: boolean
   supportProfiles: PublicSupportProfile[]
   directedFundId: number | null
+  initialGift: GivingGiftPreset | null
   selectGivingFund: (fundId: number | null) => void
   flagState: GivingFlagState
   blinkPayEnabled: boolean
@@ -33,7 +36,7 @@ interface GivingExperienceContextValue {
   consumeGivingRequest: (requestId: number) => boolean
   consumeGivingDismissRequest: (requestId: number) => boolean
   dismissGiving: () => boolean
-  openGiving: (fundId?: number) => boolean
+  openGiving: (fundId?: number, preset?: GivingGiftPreset) => boolean
   openCampaignGiving: () => boolean
   setFlagState: (state: GivingFlagState) => void
   setGivingViewActive: (active: boolean) => void
@@ -48,6 +51,7 @@ const disabledContext: GivingExperienceContextValue = {
   campaignGivingActive: false,
   supportProfiles: [],
   directedFundId: null,
+  initialGift: null,
   selectGivingFund: () => undefined,
   flagState: 'failed',
   blinkPayEnabled: false,
@@ -97,6 +101,7 @@ export function GivingExperienceProvider({
   bankAvailable?: boolean
   cardAvailable?: boolean
 }) {
+  const [initialGift, setInitialGift] = useState<GivingGiftPreset | null>(null)
   const [directedFundId, setDirectedFundId] = useState<number | null>(null)
   const [givingMode, setGivingMode] = useState<'regular' | 'campaign'>('regular')
   const [flagOverride, setFlagOverride] = useState<GivingFlagState | null>(null)
@@ -115,9 +120,10 @@ export function GivingExperienceProvider({
   const blinkPayEnabled = serverEligibility !== null && blinkPayAllowed && bankAvailable
   const cardEnabled = serverEligibility !== null && blinkPayAllowed && cardAvailable
 
-  const openGiving = useCallback((fundId?: number) => {
+  const openGiving = useCallback((fundId?: number, preset?: GivingGiftPreset) => {
     if (!rendererReady) return false
     setGivingMode('regular')
+    setInitialGift(preset ?? null)
     setDirectedFundId(fundId ?? null)
     setGivingRequestId((requestId) => requestId + 1)
     return true
@@ -125,12 +131,14 @@ export function GivingExperienceProvider({
   const openCampaignGiving = useCallback(() => {
     if (campaignGivingExperience === null || !campaignGivingAllowed) return false
     setGivingMode('campaign')
+    setInitialGift(null)
     setDirectedFundId(null)
     setGivingRequestId(requestId => requestId + 1)
     return true
   }, [campaignGivingExperience, campaignGivingAllowed])
   const selectGivingFund = useCallback((fundId: number | null) => {
     setGivingMode('regular')
+    setInitialGift(null)
     setDirectedFundId(fundId)
   }, [])
   const dismissGiving = useCallback(() => {
@@ -180,6 +188,7 @@ export function GivingExperienceProvider({
     campaignGivingAccessAllowed: campaignGivingAllowed && campaignGivingExperience !== null,
     campaignGivingActive: givingMode === 'campaign',
     supportProfiles,
+    initialGift,
     directedFundId,
     selectGivingFund,
     flagState,
@@ -188,7 +197,7 @@ export function GivingExperienceProvider({
     givingSurfaceAvailable,
     givingExperience: givingMode === 'campaign'
       ? <div key="campaign" className="h-full">{campaignGivingExperience}</div>
-      : givingExperience === null ? null : <div key={directedFundId === null ? 'general' : `directed-${directedFundId}-${givingRequestId}`} className="h-full">{givingExperience}</div>,
+      : givingExperience === null ? null : <div key={initialGift ? `preset-${givingRequestId}` : directedFundId === null ? 'general' : `directed-${directedFundId}-${givingRequestId}`} className="h-full">{givingExperience}</div>,
     givingRequestId,
     givingDismissRequestId,
     givingViewActive,
@@ -204,6 +213,7 @@ export function GivingExperienceProvider({
     setFlagState: setFlagOverride,
     setGivingViewActive,
   }), [
+    initialGift,
     supportProfiles,
     campaignGivingExperience,
     campaignGivingAllowed,

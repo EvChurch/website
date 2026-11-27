@@ -1,11 +1,25 @@
 'use client'
 
 import { HiArrowRight } from 'react-icons/hi2'
+import { Button } from '@/components/ui/Button'
 
 import { useGivingExperience } from './GivingExperienceProvider'
 
-export function OpenGivingButton() {
+export function OpenGivingButton({ variant }: { variant?: 'secondary' } = {}) {
   const { givingSurfaceAvailable, openGiving } = useGivingExperience()
+
+  if (variant === 'secondary') {
+    return (
+      <Button
+        type="button"
+        variant="secondary"
+        disabled={!givingSurfaceAvailable}
+        onClick={() => openGiving()}
+      >
+        Start giving
+      </Button>
+    )
+  }
 
   return (
     <button

@@ -28,10 +28,10 @@ describe('OpenGivingButton', () => {
     container.remove()
   })
 
-  it('opens the launcher giving experience', async () => {
+  it.each([undefined, 'secondary'] as const)('opens the launcher giving experience with variant %s', async (variant) => {
     await act(async () => root.render(
       <GivingExperienceProvider serverEligibility={null} givingExperience={<div>Giving flow</div>}>
-        <OpenGivingButton />
+        <OpenGivingButton variant={variant} />
         <RequestCount />
       </GivingExperienceProvider>,
     ))
