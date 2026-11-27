@@ -474,6 +474,46 @@ describe('MemberAccountControl', () => {
       .not.toBeNull()
   })
 
+  it.each([
+    '<script type="application/ld+json">{}</script><section data-header-tone="light"></section>',
+    '<div><script type="application/ld+json">{}</script><script type="application/ld+json">{}</script><section data-header-tone="light"></section></div>',
+    '<main><script type="application/ld+json">{}</script><section data-header-tone="light"></section></main>',
+    '<div data-header-tone="light"><section>Dark page header</section></div>',
+  ])('reads the banner tone after page metadata: %s', async (markup) => {
+    navigation.pathname = '/visit'
+    const main = document.createElement('main')
+    main.innerHTML = markup
+    document.body.append(main)
+    try {
+      await act(async () => root.render(<Header />))
+      expect(container.querySelector('header a[href="/events"]')?.className)
+        .toContain('text-white/90')
+      expect(container.querySelector('[data-header-give]')?.className).toContain('bg-white')
+      expect(container.querySelector('[data-header-menu]')?.className).toContain('text-white')
+
+      await act(async () => {
+        main.querySelector('[data-header-tone]')!.setAttribute('data-header-tone', 'dark')
+      })
+      expect(container.querySelector('header a[href="/events"]')?.className)
+        .toContain('text-brand-black/80')
+    } finally {
+      main.remove()
+    }
+  })
+
+  it('keeps dark navigation over light content before a later banner', async () => {
+    const main = document.createElement('main')
+    main.innerHTML = '<script type="application/ld+json">{}</script><section>Light content</section><section data-header-tone="light"></section>'
+    document.body.append(main)
+    try {
+      await act(async () => root.render(<Header />))
+      expect(container.querySelector('header a[href="/events"]')?.className)
+        .toContain('text-brand-black/80')
+    } finally {
+      main.remove()
+    }
+  })
+
   it('keeps light navigation over an explicitly dark or image-backed hero', async () => {
     navigation.pathname = '/daily-readings'
     const main = document.createElement('main')

@@ -81,7 +81,7 @@ export default async function EventDetailPage({ params }: Props) {
         ]}
       />
 
-      <section className="overflow-hidden bg-[linear-gradient(90deg,#0b0003,#18070b_50%,#0b0003)] text-white">
+      <section data-header-tone="light" className="overflow-hidden bg-[linear-gradient(90deg,#0b0003,#18070b_50%,#0b0003)] text-white">
         <div className="mx-auto flex max-w-[80rem] flex-col pb-12 pt-20 sm:pb-16 lg:grid lg:min-h-[37.5rem] lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-center lg:gap-14 lg:px-8 lg:py-[4.5rem]">
           <div className="min-w-0 px-5 pt-10 sm:px-8 sm:pt-12 lg:px-0 lg:pt-0">
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-light-red-2">

@@ -89,6 +89,11 @@ function isActive(pathname: string, href: string): boolean {
 function hasLightHeaderTone(main: Element | null): boolean {
   let first = main?.firstElementChild ?? null
   while (first) {
+    // Structured data and resource metadata do not paint the header background.
+    if (first.matches('script, style, link, template')) {
+      first = first.nextElementSibling
+      continue
+    }
     const tone = first.getAttribute('data-header-tone')
     if (tone) return tone === 'light'
     if (first.matches('section, article, header')) return false

@@ -27,7 +27,7 @@ export async function EventsListing({
   const { featured, remaining } = prepareEventsListing(events, campusSlug)
 
   return (
-    <div className={`${EVENTS_BACKGROUND_CLASS} min-h-screen text-white`}>
+    <div data-header-tone="light" className={`${EVENTS_BACKGROUND_CLASS} min-h-screen text-white`}>
       <section className="px-5 pb-5 pt-24 lg:px-8 lg:pb-6 lg:pt-28">
         <div className="mx-auto max-w-[80rem]">
           <h1 className="sr-only">{heading}</h1>
