@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { CardFeeSettings } from '@/lib/giving/fees'
 import type { PublicGivingFund } from '@/lib/giving/contracts'
+import type { GivingGiftPreset } from './giving-state'
 import { GIVING_SAFE_CLOSE_REASSURANCE_DELAY_MS, GIVING_STATUS_POLL_LIMIT, GivingFlow, givingCheckoutPresentation, givingProgress, givingStatusPollDelay, positionGivingSurface, safeGivingGatewayRedirect } from './GivingFlow'
 
 vi.mock('./StripeGivingCheckout',()=>({StripeGivingCheckout:({onCancel}:{onCancel:()=>void})=> <div>Secure card component<button type="button" onClick={onCancel}>Cancel</button></div>}))
@@ -15,6 +16,7 @@ vi.mock('@/lib/giving/submission-session',()=>({loadGivingSubmissionVersion}))
 const trackGivingEvent=vi.hoisted(()=>vi.fn())
 vi.mock('@/lib/giving/analytics',()=>({trackGivingEvent}))
 const givingContext=vi.hoisted(()=>({
+  initialGift: null as GivingGiftPreset | null,
   directedFundId:null as number|null,
   active:true,
   flagState:'enabled' as 'unresolved'|'enabled'|'disabled'|'failed',
@@ -25,6 +27,7 @@ const givingContext=vi.hoisted(()=>({
   dismiss:vi.fn(()=>true),
 }))
 vi.mock('./GivingExperienceProvider',()=>({useGivingExperience:()=>({
+  initialGift:givingContext.initialGift,
   directedFundId:givingContext.directedFundId,
   givingViewActive:givingContext.active,
   flagState:givingContext.flagState,
@@ -101,6 +104,7 @@ describe('GivingFlow', () => {
     root = createRoot(container)
     vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 204 })))
     givingContext.active=true
+    givingContext.initialGift=null
     givingContext.directedFundId=null
     givingContext.flagState='enabled'
     givingContext.cardEnabled=false
@@ -327,6 +331,16 @@ describe('GivingFlow', () => {
     expect(container.textContent).toContain('Continue with BlinkPay')
     const saved=vi.mocked(fetch).mock.calls.filter(([,init])=>init?.method==='PUT').at(-1)?.[1]?.body
     expect(JSON.parse(String(saved))).toMatchObject({fundId:1,fundConfirmed:true})
+  })
+
+  it('opens a calculator gift at the starting date without restoring another draft', async () => {
+    givingContext.initialGift = { amountMinor: 12550, frequency: 'fortnightly' }
+    await act(async () => root.render(<GivingFlow funds={funds} gatewayOrigins={gatewayOrigins} turnstileSiteKey={siteKey} resumeRequested />))
+    expect(container.querySelector('#giving-step-heading')?.textContent).toBe('Starting when?')
+    expect(container.textContent).toContain('$125.50')
+    expect(container.textContent).toContain('General')
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url) === '/api/giving/drafts')).toBe(false)
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url) === '/api/giving/checkouts')).toBe(false)
   })
 
   it('starts fresh without loading an unfinished draft, including after close resets the flow', async () => {

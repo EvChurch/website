@@ -6,11 +6,23 @@ export function CalculatorInfo({
   children,
 }: {
   name: string
-  children: string
+  children: React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
+  const [left, setLeft] = useState(0)
   const ref = useRef<HTMLSpanElement>(null)
   const id = useId()
+  function show() {
+    const rect = ref.current?.getBoundingClientRect()
+    if (rect) {
+      const width = Math.min(256, window.innerWidth - 16)
+      setLeft(
+        Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)) -
+          rect.left,
+      )
+    }
+    setOpen(true)
+  }
   useEffect(() => {
     if (!open) return
     function dismiss(event: PointerEvent) {
@@ -29,9 +41,9 @@ export function CalculatorInfo({
   return (
     <span
       ref={ref}
-      className="inline-flex items-center"
+      className="relative inline-flex shrink-0 items-center"
       onPointerEnter={(event) => {
-        if (event.pointerType === 'mouse') setOpen(true)
+        if (event.pointerType === 'mouse') show()
       }}
       onPointerLeave={(event) => {
         if (event.pointerType === 'mouse') setOpen(false)
@@ -45,16 +57,19 @@ export function CalculatorInfo({
         aria-label={`About ${name}`}
         aria-expanded={open}
         aria-describedby={open ? id : undefined}
-        onClick={() => setOpen(true)}
+        onClick={show}
         onFocus={(event) => {
-          if (event.currentTarget.matches(':focus-visible')) setOpen(true)
+          if (event.currentTarget.matches(':focus-visible')) show()
         }}
         className="inline-flex size-7 items-center justify-center rounded-full text-mid-grey hover:text-rich-red focus-visible:outline-2 focus-visible:outline-rich-red"
       >
         <HiInformationCircle aria-hidden="true" className="size-5" />
       </button>
       {open && (
-        <span className="absolute left-0 top-full z-20 w-64 max-w-full pt-2">
+        <span
+          style={{ left }}
+          className="absolute top-full z-20 w-64 max-w-[calc(100vw-1rem)] pt-2"
+        >
           <span
             id={id}
             role="tooltip"
