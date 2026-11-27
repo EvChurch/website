@@ -5,9 +5,11 @@ import { resolveRockMemberProfile } from '@/auth/rock-member-profile'
 import { memberRockFetch } from '@/auth/member-rock-client'
 import { campaignGivingAccess, campaignPublicAccess } from './campaign-access'
 
-// Staff is the existing synced team group. Executive Member (Governance) was
-// verified in Rock against the seven committee members on /give, 27 Nov 2026.
-const STAFF_GROUP_ID = 29482
+// Current Rock groups verified on 28 Nov 2026. Require active membership
+// in an active, unarchived group; the broader staff security group is excluded.
+const PASTORAL_TEAM_GROUP_ID = 29482
+const STAFF_TEAM_GROUP_ID = 29485
+const MINISTRY_APPRENTICES_GROUP_ID = 29486
 const EXEC_GROUP_ID = 28344
 interface Membership {
   PersonId: number
@@ -31,7 +33,7 @@ export async function getCampaignGivingAccess(request: NextRequest, now = new Da
     if (!resolution.ok) return campaignGivingAccess(false, now)
     const personId = resolution.profile.personId
     stage = 'memberships'
-    const groups = [STAFF_GROUP_ID, EXEC_GROUP_ID]
+    const groups = [PASTORAL_TEAM_GROUP_ID, STAFF_TEAM_GROUP_ID, MINISTRY_APPRENTICES_GROUP_ID, EXEC_GROUP_ID]
     // Rock does not expose Group as an expandable GroupMember property.
     const [memberships, currentGroups] = await Promise.all([
       memberRockFetch<Membership[]>({ endpoint: 'GroupMembers', params: {

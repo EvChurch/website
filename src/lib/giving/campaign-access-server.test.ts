@@ -15,7 +15,7 @@ beforeEach(() => {
   mocks.impersonation.mockReturnValue(null)
   mocks.profile.mockResolvedValue({ ok: true, profile: { personId: 123 } })
   mocks.rock.mockResolvedValue([membership])
-  mocks.groups.mockResolvedValue([{Id:29482,IsActive:true,IsArchived:false},{Id:28344,IsActive:true,IsArchived:false}])
+  mocks.groups.mockResolvedValue([29482, 29485, 29486, 28344].map(Id => ({ Id, IsActive: true, IsArchived: false })))
 })
 describe('campaign server authorization', () => {
   it('keeps session lookup body-free after checkout has consumed a POST', async () => {
@@ -41,15 +41,21 @@ describe('campaign server authorization', () => {
     expect(mocks.profile).toHaveBeenCalledWith('auth0|test')
     expect(mocks.rock.mock.calls[0][0].params.$filter).toContain('PersonId eq 123')
   })
-  it('allows the verified Executive Member group and denies unrelated leadership', async () => {
-    mocks.rock.mockResolvedValue([{ ...membership, GroupId: 29485 }])
-    expect((await getCampaignGivingAccess(request, before)).allowed).toBe(false)
-    mocks.rock.mockResolvedValue([{ ...membership, GroupId: 28344 }])
+  it.each([29482, 29485, 29486, 28344])('allows active membership in approved group %i', async GroupId => {
+    mocks.rock.mockResolvedValue([{ ...membership, GroupId }])
     expect((await getCampaignGivingAccess(request, before)).allowed).toBe(true)
-    expect(mocks.rock.mock.calls.at(-1)?.[0].params.$filter).toContain('GroupId eq 28344')
+    expect(mocks.rock.mock.calls.at(-1)?.[0].params.$filter).toContain(`GroupId eq ${GroupId}`)
+    expect(mocks.groups.mock.calls.at(-1)?.[0].params.$filter).toContain(`Id eq ${GroupId}`)
+  })
+  it.each([29482, 29485, 29486, 28344])('denies inactive or archived approved group %i', async GroupId => {
+    mocks.rock.mockResolvedValue([{ ...membership, GroupId }])
+    mocks.groups.mockResolvedValue([{ Id: GroupId, IsActive: false, IsArchived: false }])
+    expect((await getCampaignGivingAccess(request, before)).allowed).toBe(false)
+    mocks.groups.mockResolvedValue([{ Id: GroupId, IsActive: true, IsArchived: true }])
+    expect((await getCampaignGivingAccess(request, before)).allowed).toBe(false)
   })
   it.each([
-    { ...membership, PersonId: 456 }, { ...membership, GroupId: 29485 },
+    { ...membership, PersonId: 456 }, { ...membership, GroupId: 39111 },
     { ...membership, GroupMemberStatus: 0 }, { ...membership, IsArchived: true },
   ])('denies stale, unrelated or ineligible membership: %j', async member => {
     mocks.rock.mockResolvedValue([member])
