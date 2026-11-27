@@ -397,6 +397,7 @@ export function GivingFlow({ funds, campaign, identity = { signedIn: false }, re
     setTurnstileReset((value) => value + 1)
   }, [answerFingerprint, state.step, turnstileToken])
   const handleTurnstileToken = useCallback((token: string) => {
+    if (token) setError(undefined)
     verifiedFingerprint.current = token ? answerFingerprint : null
     setTurnstileToken(token)
   }, [answerFingerprint])

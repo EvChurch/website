@@ -34,6 +34,8 @@ For failed recurring card payments, recoverable failures are retried on days 1, 
 
 ## Check an uncertain result
 
+Before payment, **Checking your browser…** means the security check is still running. Complete it if prompted. Continue becomes available after it succeeds. If the check cannot complete, choose **Retry security check**. If it keeps failing, allow Cloudflare’s security check in your browser or try another browser; no payment has been submitted at this stage.
+
 If the flow says it is still checking, do not start another payment or switch methods. Ev verifies the outcome with the provider. A payment confirmation is separate from the provider paying funds into Ev’s bank account, and is not an annual charitable tax receipt.
 
 [Manage recurring giving](/help/manage-recurring-giving).
