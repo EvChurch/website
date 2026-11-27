@@ -77,6 +77,65 @@ function recommendations() {
 }
 
 describe('GivingCalculator', () => {
+  it('dismisses info on mouse leave, outside interaction and Escape', async () => {
+    await act(async () => root.render(<GivingCalculator />))
+    const button = container.querySelector<HTMLButtonElement>(
+      '[aria-label="About Household income before tax"]',
+    )!
+    function pointer(
+      type: string,
+      target: HTMLElement,
+      relatedTarget?: HTMLElement,
+    ) {
+      const event = new MouseEvent(type, { bubbles: true, relatedTarget })
+      Object.defineProperty(event, 'pointerType', { value: 'mouse' })
+      target.dispatchEvent(event)
+    }
+    await act(async () => pointer('pointerover', button))
+    expect(container.querySelector('[role="tooltip"]')).not.toBeNull()
+    const tip = container.querySelector<HTMLElement>('[role="tooltip"]')!
+    await act(async () => {
+      pointer('pointerout', button, tip)
+      pointer('pointerover', tip, button)
+    })
+    expect(container.querySelector('[role="tooltip"]')).not.toBeNull()
+    await act(async () => pointer('pointerout', tip, document.body))
+    expect(container.querySelector('[role="tooltip"]')).toBeNull()
+    await act(async () => button.click())
+    await act(async () =>
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })),
+    )
+    expect(container.querySelector('[role="tooltip"]')).toBeNull()
+    await act(async () => button.click())
+    await act(async () =>
+      document.body.dispatchEvent(new Event('pointerdown', { bubbles: true })),
+    )
+    expect(container.querySelector('[role="tooltip"]')).toBeNull()
+  })
+
+  it('uses shared selects, inline income names and trash removal', async () => {
+    await act(async () => root.render(<GivingCalculator />))
+    expect(container.querySelectorAll('[data-form-select]').length).toBe(8)
+    const remove = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove Other income"]',
+    )!
+    expect(remove.querySelector('svg')).not.toBeNull()
+    await act(async () => remove.click())
+    expect(input('other-income-amount')).toBeNull()
+    await click('+ Add another income')
+    const name = container.querySelector<HTMLInputElement>(
+      '[aria-label="Income name"]',
+    )!
+    expect(document.activeElement).toBe(name)
+    await enter(name, 'Side work')
+    await act(async () => name.blur())
+    expect(container.querySelector('[aria-label="Income name"]')).toBe(name)
+    expect(name.className).toContain('bg-transparent')
+    expect(
+      container.querySelector('[aria-label="Edit Side work name"]'),
+    ).toBeNull()
+  })
+
   it('keeps the Auckland median as an uncounted placeholder at every frequency', async () => {
     await act(async () => root.render(<GivingCalculator />))
     expect(input('household-amount').placeholder).toBe(
@@ -191,11 +250,6 @@ describe('GivingCalculator', () => {
     expect(
       container.querySelector('svg [aria-label="Food bank · $600/yr · 100%"]'),
     ).not.toBeNull()
-    await act(async () =>
-      container
-        .querySelector<HTMLButtonElement>('[aria-label="Edit Food bank name"]')!
-        .click(),
-    )
     await enter(
       container.querySelector<HTMLInputElement>(
         '[aria-label="Who is it for?"]',

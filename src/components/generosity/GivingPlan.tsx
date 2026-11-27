@@ -1,3 +1,4 @@
+import { FormSelect } from '@/components/forms/FormSelect'
 import { useEffect, useRef, useState } from 'react'
 import {
   annualTotal,
@@ -59,8 +60,8 @@ function PlanInput({
       </label>
       <label className="block">
         <span className="sr-only">{label} frequency</span>
-        <select
-          className={inputClass}
+        <FormSelect
+          className="text-base"
           value={value.frequency}
           onChange={(e) => {
             const frequency = e.target.value as GivingFrequency
@@ -81,7 +82,7 @@ function PlanInput({
               {item.label}
             </option>
           ))}
-        </select>
+        </FormSelect>
       </label>
       {invalid && (
         <p

@@ -1,6 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { HiTrash } from 'react-icons/hi2'
+import { FormSelect } from '@/components/forms/FormSelect'
+import { CalculatorInfo } from './CalculatorInfo'
 import {
   annualTotal,
   GIVING_FREQUENCIES,
@@ -80,7 +83,6 @@ function AmountGroup({
   onChange: (rows: MoneyRow[]) => void
   kind: 'income' | 'church' | 'outside'
 }) {
-  const [editing, setEditing] = useState<string | null>(null)
   function updateRow(id: string, update: Partial<MoneyRow>) {
     onChange(rows.map((row) => (row.id === id ? { ...row, ...update } : row)))
   }
@@ -109,7 +111,7 @@ function AmountGroup({
               className="grid grid-cols-[minmax(0,1fr)_minmax(7rem,0.7fr)_auto] items-end gap-x-2 gap-y-2"
             >
               <div className="relative col-span-3 flex items-center gap-2 text-sm font-semibold">
-                {row.custom && (editing === row.id || !row.label) ? (
+                {row.custom ? (
                   <input
                     autoFocus
                     aria-label={
@@ -119,42 +121,19 @@ function AmountGroup({
                       kind === 'income' ? 'Income name' : 'Who is it for?'
                     }
                     value={row.label}
-                    onChange={(e) =>
-                      updateRow(row.id, { label: e.target.value })
+                    onChange={(event) =>
+                      updateRow(row.id, { label: event.target.value })
                     }
-                    onBlur={() => setEditing(null)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') e.currentTarget.blur()
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') event.currentTarget.blur()
                     }}
-                    className={inputClass}
+                    className="min-w-0 flex-1 border-0 border-b border-transparent bg-transparent p-0 text-sm font-semibold text-brand-black placeholder:text-mid-grey hover:border-warm-grey focus:border-rich-red focus:outline-none"
                   />
                 ) : (
-                  <>
-                    <label htmlFor={`${row.id}-amount`}>{name}</label>
-                    {row.custom && (
-                      <button
-                        type="button"
-                        aria-label={`Edit ${name} name`}
-                        onClick={() => setEditing(row.id)}
-                        className="px-2 text-deep-red"
-                      >
-                        ✎
-                      </button>
-                    )}
-                  </>
+                  <label htmlFor={`${row.id}-amount`}>{name}</label>
                 )}
                 {tips[row.id] && (
-                  <details>
-                    <summary
-                      aria-label={`About ${name}`}
-                      className="cursor-pointer list-none rounded-full border border-warm-grey px-2 text-dark-grey"
-                    >
-                      i
-                    </summary>
-                    <p className="absolute left-0 z-10 mt-2 w-64 max-w-full rounded-lg border border-warm-grey bg-white p-3 text-sm font-normal shadow-lg">
-                      {tips[row.id]}
-                    </p>
-                  </details>
+                  <CalculatorInfo name={name}>{tips[row.id]}</CalculatorInfo>
                 )}
               </div>
               <div className="relative">
@@ -184,7 +163,7 @@ function AmountGroup({
                   className={`${inputClass} pl-7 placeholder:text-neutral-400`}
                 />
               </div>
-              <select
+              <FormSelect
                 aria-label={`Frequency for ${name}`}
                 id={`${row.id}-frequency`}
                 value={row.frequency}
@@ -195,24 +174,25 @@ function AmountGroup({
                       frequency: frequency as GivingFrequency,
                     })
                 }}
-                className={inputClass}
+                className="text-base"
               >
                 {Object.entries(GIVING_FREQUENCIES).map(([value, item]) => (
                   <option key={value} value={value}>
                     {item.label}
                   </option>
                 ))}
-              </select>
-              {row.custom ? (
+              </FormSelect>
+              {row.custom || row.id === 'other-income' ? (
                 <button
                   type="button"
                   onClick={() =>
                     onChange(rows.filter((item) => item.id !== row.id))
                   }
                   aria-label={`Remove ${name}`}
-                  className="px-2 py-3 text-deep-red"
+                  title={`Remove ${name}`}
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-mid-grey hover:bg-warm-white hover:text-rich-red focus-visible:outline-2 focus-visible:outline-rich-red"
                 >
-                  ×
+                  <HiTrash className="size-5" aria-hidden="true" />
                 </button>
               ) : (
                 <span />
@@ -238,7 +218,6 @@ function AmountGroup({
               ...rows,
               { id, label: '', amount: '', frequency: 'monthly', custom: true },
             ])
-            setEditing(id)
           }}
           className="mt-5 font-semibold text-deep-red underline underline-offset-4"
         >
