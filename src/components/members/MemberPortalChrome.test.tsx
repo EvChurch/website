@@ -62,12 +62,12 @@ describe('MemberPortalChrome', () => {
       .map((match) => match[1]?.replace(/<[^>]+>/gu, ''))
     expect(labels).toEqual([
       'Overview',
-      'Courses',
       'Daily Reading',
       'Connect Group',
       'Study Resources',
       'My Service',
       'Giving',
+      'Courses',
       'Help',
     ])
   })

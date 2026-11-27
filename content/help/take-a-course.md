@@ -2,6 +2,8 @@
 
 Open [Courses](/members/courses) and sign in or create an account before browsing. You do not need to be a church member. Choose an available course and select **Start solo** or **Start group**. Links from the public giving calculator and email invitations also take you through sign-in first.
 
+In the member portal, **Courses** is beside **Giving**. On smaller screens, open **Member menu** to see the portal links.
+
 ## Continue learning
 
 Courses you have started appear under **In progress**. Select **Continue** to return to your next lesson. You can open any lesson using the lesson navigation.
